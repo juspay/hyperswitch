@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "examples/*"]
+
+# note: all profiles should be here, not in crates
+# https://doc.rust-lang.org/cargo/reference/profiles.html
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
+# [workspace.metadata.dylint]
+# libraries = [
+#     { git = "https://github.com/trailofbits/dylint", pattern = "examples/general/*" },
+# ]

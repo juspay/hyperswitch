@@ -1,0 +1,125 @@
+version: "3"
+
+networks:
+  loadtest_net:
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: loadtest_router
+    networks:
+      - loadtest_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  stripe-mock:
+    image: heyrutvik/stripe-mock:latest
+    networks:
+      - loadtest_net
+
+  redis-queue:
+    image: redis:7
+    networks:
+      - loadtest_net
+
+  router-server:
+    build:
+      context: ..
+      dockerfile: ./loadtest/Dockerfile
+    volumes:
+      - ./config:/config
+    command:
+      - /bin/bash
+      - -c
+      - |
+        ./diesel migration run
+        ./router -f /config/Development.toml
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db/loadtest_router
+      RUST_LOG: INFO
+      RUN_ENV: Development
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    networks:
+      - loadtest_net
+    healthcheck:
+      test: curl --fail http://router-server:8080/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      stripe-mock:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+      influxdb:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      tempo:
+        condition: service_started
+      grafana:
+        condition: service_started
+
+  k6:
+    image: loadimpact/k6:latest
+    volumes:
+      - ./k6:/scripts
+    command: run /scripts/${LOADTEST_K6_SCRIPT}
+    networks:
+      - loadtest_net
+    environment:
+      - LOADTEST_RUN_NAME=${LOADTEST_RUN_NAME}
+      - K6_OUT=influxdb=http://influxdb:8086/scripts
+    depends_on:
+      router-server:
+        condition: service_healthy
+
+  influxdb:
+    image: influxdb:1.8
+    networks:
+      - loadtest_net
+    environment:
+      - INFLUXDB_DB=scripts
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: --config=/etc/otel-collector.yaml
+    networks:
+      - loadtest_net
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml
+
+  tempo:
+    image: grafana/tempo:latest
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+      - ./tempo.tmp:/tmp/tempo
+    networks:
+      - loadtest_net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - loadtest_net
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/grafana-dashboard.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+      - ./grafana/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml

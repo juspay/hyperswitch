@@ -1,0 +1,348 @@
+import http from "k6/http";
+import { check } from "k6";
+
+export function setup_merchant_apikey() {
+    let params = {
+        "headers": {
+            "Content-Type": "application/json",
+            "api-key" : "test_admin"
+        }
+    };
+    let merchant_account_payload = {
+        "merchant_id":`merchant_${Date.now()}`,
+        "merchant_name":"NewAge Retailer",
+        "merchant_details":{
+            "primary_contact_person":"John Test",
+            "primary_email":"JohnTest@test.com",
+            "primary_phone":"sunt laborum",
+            "secondary_contact_person":"John Test2",
+            "secondary_email":"JohnTest2@test.com",
+            "secondary_phone":"cillum do dolor id",
+            "website":"www.example.com",
+            "about_business":"Online Retail with a wide selection of organic products for North America",
+            "address":{
+                "line1":"Vivamus vitae",
+                "line2":"Libero eget",
+                "line3":"Cras ultrices",
+                "city":"Nascetur",
+                "state":"Purus",
+                "zip":"010101",
+                "country":"ZX"
+            }
+        },
+        "return_url":"www.example.com/success",
+        "webhook_details":{
+            "webhook_version":"1.0.1",
+            "webhook_username":"wh_store",
+            "webhook_password":"pwd_wh@101",
+            "payment_created_enabled":true,
+            "payment_succeeded_enabled":true,
+            "payment_failed_enabled":true
+        },
+        "routing_algorithm":"custom",
+        "custom_routing_rules":[
+            {
+                "payment_methods_incl":[
+                    "card",
+                    "card"
+                ],
+                "payment_methods_excl":[
+                    "card",
+                    "card"
+                ],
+                "payment_method_types_incl":[
+                    "credit",
+                    "credit"
+                ],
+                "payment_method_types_excl":[
+                    "credit",
+                    "credit"
+                ],
+                "payment_method_issuers_incl":[
+                    "Citibank",
+                    "JPMorgan"
+                ],
+                "payment_method_issuers_excl":[
+                    "Citibank",
+                    "JPMorgan"
+                ],
+                "countries_incl":[
+                    "US",
+                    "UK",
+                    "IN"
+                ],
+                "countries_excl":[
+                    "US",
+                    "UK",
+                    "IN"
+                ],
+                "currencies_incl":[
+                    "USD",
+                    "EUR"
+                ],
+                "currencies_excl":[
+                    "AED",
+                    "SGD"
+                ],
+                "metadata_filters_keys":[
+                    "payments.udf1",
+                    "payments.udf2"
+                ],
+                "metadata_filters_values":[
+                    "android",
+                    "Category_Electronics"
+                ],
+                "connectors_pecking_order":[
+                    "checkout"
+                ],
+                "connectors_traffic_weightage_key":[
+                    "checkout"
+                ],
+                "connectors_traffic_weightage_value":[
+                    50,
+                    30,
+                    20
+                ]
+            },
+            {
+                "payment_methods_incl":[
+                    "card",
+                    "card"
+                ],
+                "payment_methods_excl":[
+                    "card",
+                    "card"
+                ],
+                "payment_method_types_incl":[
+                    "credit",
+                    "credit"
+                ],
+                "payment_method_types_excl":[
+                    "credit",
+                    "credit"
+                ],
+                "payment_method_issuers_incl":[
+                    "Citibank",
+                    "JPMorgan"
+                ],
+                "payment_method_issuers_excl":[
+                    "Citibank",
+                    "JPMorgan"
+                ],
+                "countries_incl":[
+                    "US",
+                    "UK",
+                    "IN"
+                ],
+                "countries_excl":[
+                    "US",
+                    "UK",
+                    "IN"
+                ],
+                "currencies_incl":[
+                    "USD",
+                    "EUR"
+                ],
+                "currencies_excl":[
+                    "AED",
+                    "SGD"
+                ],
+                "metadata_filters_keys":[
+                    "payments.udf1",
+                    "payments.udf2"
+                ],
+                "metadata_filters_values":[
+                    "android",
+                    "Category_Electronics"
+                ],
+                "connectors_pecking_order":[
+                    "checkout"
+                ],
+                "connectors_traffic_weightage_key":[
+                    "checkout"
+                ],
+                "connectors_traffic_weightage_value":[
+                    50,
+                    30,
+                    20
+                ]
+            }
+        ],
+        "sub_merchants_enabled":false,
+        "metadata":{
+            "city":"NY",
+            "unit":"245"
+        }
+    }
+    let ma_res = http.post("http://router-server:8080/accounts", JSON.stringify(merchant_account_payload), params);
+
+    let json = ma_res.json();
+    let merchant_id = json.merchant_id;
+    let api_key = json.api_key;
+
+    let connector_account_payload = {
+        "connector_type":"fiz_operations",
+        "connector_name":"stripe",
+        "connector_account_details":{
+            "auth_type":"HeaderKey",
+            "api_key":"Bearer sk_test_123"
+        },
+        "test_mode":false,
+        "disabled":false,
+        "payment_methods_enabled":[
+            {
+                "payment_method":"wallet",
+                "payment_method_types":[
+                    "upi_collect",
+                    "upi_intent"
+                ],
+                "payment_method_issuers":[
+                    "labore magna ipsum",
+                    "aute"
+                ],
+                "payment_schemes":[
+                    "Discover",
+                    "Discover"
+                ],
+                "accepted_currencies":[
+                    "AED",
+                    "AED"
+                ],
+                "accepted_countries":[
+                    "in",
+                    "us"
+                ],
+                "minimum_amount":1,
+                "maximum_amount":68607706,
+                "recurring_enabled":true,
+                "installment_payment_enabled":true
+            }
+        ],
+        "metadata":{
+            "city":"NY",
+            "unit":"245"
+        }
+    }
+    let ca_res = http.post(`http://router-server:8080/account/${merchant_id}/connectors`, JSON.stringify(connector_account_payload), params);
+
+    let update_merchant_account_payload = {
+        "merchant_id":merchant_id,
+        "merchant_name":"NewAge Retailer",
+        "merchant_details":{
+            "primary_contact_person":"John Test",
+            "primary_email":"JohnTest@test.com",
+            "primary_phone":"veniam aute officia ullamco esse",
+            "secondary_contact_person":"John Test2",
+            "secondary_email":"JohnTest2@test.com",
+            "secondary_phone":"proident adipisicing officia nulla",
+            "website":"www.example.com",
+            "about_business":"Online Retail with a wide selection of organic products for North America",
+            "address":{
+                "line1":"Vivamus vitae",
+                "line2":"Libero eget",
+                "line3":"Cras ultrices",
+                "city":"Nascetur",
+                "state":"Purus",
+                "zip":"010101",
+                "country":"ZX"
+            }
+        },
+        "return_url":"www.example.com/success",
+        "webhook_details":{
+            "webhook_version":"1.0.1",
+            "webhook_username":"wh_store",
+            "webhook_password":"pwd_wh@101",
+            "payment_created_enabled":true,
+            "payment_succeeded_enabled":true,
+            "payment_failed_enabled":true
+        },
+        "routing_algorithm":"custom",
+        "custom_routing_rules":[
+            {
+                "payment_methods_incl":[
+                    "card",
+                    "card"
+                ],
+                "payment_methods_excl":[
+                    "card",
+                    "card"
+                ],
+                "payment_method_types_incl":[
+                    "credit"
+                ],
+                "payment_method_types_excl":[
+                    "credit"
+                ],
+                "payment_method_issuers_incl":[
+                    "Citibank",
+                    "JPMorgan"
+                ],
+                "payment_method_issuers_excl":[
+                    "Citibank",
+                    "JPMorgan"
+                ],
+                "countries_incl":[
+                    "US",
+                    "UK",
+                    "IN"
+                ],
+                "countries_excl":[
+                    "US",
+                    "UK",
+                    "IN"
+                ],
+                "currencies_incl":[
+                    "USD",
+                    "EUR"
+                ],
+                "currencies_excl":[
+                    "AED",
+                    "SGD"
+                ],
+                "metadata_filters_keys":[
+                    "payments.udf1",
+                    "payments.udf2"
+                ],
+                "metadata_filters_values":[
+                    "android",
+                    "Category_Electronics"
+                ],
+                "connectors_pecking_order":[
+                    "stripe"
+                ],
+                "connectors_traffic_weightage_key":[
+                    "stripe",
+                    "adyen",
+                    "brain_tree"
+                ],
+                "connectors_traffic_weightage_value":[
+                    50,
+                    30,
+                    20
+                ]
+            },
+            {
+                "connectors_pecking_order":[
+                    "stripe"
+                ],
+                "connectors_traffic_weightage_key":[
+                    "stripe",
+                    "adyen",
+                    "brain_tree"
+                ],
+                "connectors_traffic_weightage_value":[
+                    50,
+                    30,
+                    20
+                ]
+            }
+        ],
+        "metadata":{
+            "city":"NY",
+            "unit":"245"
+        }
+    }
+    let uma_res = http.post(`http://router-server:8080/accounts/${merchant_id}`, JSON.stringify(update_merchant_account_payload), params);
+
+    return { "api_key": api_key }
+}

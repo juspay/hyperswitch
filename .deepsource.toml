@@ -1,0 +1,16 @@
+version = 1
+
+[[analyzers]]
+name = "docker"
+enabled = true
+
+[[analyzers]]
+name = "test-coverage"
+enabled = false
+
+[[analyzers]]
+name = "rust"
+enabled = true
+
+[analyzers.meta]
+msrv = "1.63.0"

@@ -1,0 +1,48 @@
+# log defaults in /crates/router_env/src/defaults.toml
+
+[server]
+port = 8080
+host = "127.0.0.1"
+request_body_limit = 16_384 # Post request body is limited to 16k.
+
+[proxy]
+# http_url = ""
+# https_url = ""
+
+[database]
+username = "none"
+password = "none"
+host = "localhost"
+port = 5432
+dbname = "none"
+pool_size = 5
+
+[redis]
+host = "127.0.0.1"
+port = 6379
+pool_size = 5
+reconnect_max_attempts = 5
+reconnect_delay = 5
+default_ttl = 300
+stream_read_count = 1
+cluster_enabled = false
+use_legacy_version = false
+cluster_urls = []
+
+[keys]
+temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+
+[locker]
+mock_locker = true
+host = ""
+
+[scheduler]
+stream = "SCHEDULER_STREAM"
+consumer_group = "SCHEDULER_GROUP"
+
+[scheduler.producer]
+upper_fetch_limit = 0
+lower_fetch_limit = 1800
+lock_key = "PRODUCER_LOCKING_KEY"
+lock_ttl = 160
+batch_size = 200

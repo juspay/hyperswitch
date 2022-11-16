@@ -1,0 +1,14 @@
+# Copy this file and rename it as `auth.toml`
+# Each of the connector's section is optional
+
+[aci]
+api_key = "Bearer MyApiKey"
+key1 = "MyEntityId"
+
+[authorizedotnet]
+api_key = "MyMerchantName"
+key1 = "MyTransactionKey"
+
+[checkout]
+api_key = "Bearer MyApiKey"
+key1 = "MyProcessingChannelId"

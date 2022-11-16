@@ -1,0 +1,238 @@
+use syn::{
+    parse::Parse, spanned::Spanned, DeriveInput, Field, Fields, LitStr, Token, TypePath, Variant,
+};
+
+use crate::macros::helpers::{get_metadata_inner, occurrence_error};
+
+mod keyword {
+    use syn::custom_keyword;
+
+    // Enum metadata
+    custom_keyword!(error_type_enum);
+
+    // Variant metadata
+    custom_keyword!(error_type);
+    custom_keyword!(code);
+    custom_keyword!(message);
+}
+
+enum EnumMeta {
+    ErrorTypeEnum {
+        keyword: keyword::error_type_enum,
+        value: TypePath,
+    },
+}
+
+impl Parse for EnumMeta {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(keyword::error_type_enum) {
+            let keyword = input.parse()?;
+            input.parse::<Token![=]>()?;
+            let value = input.parse()?;
+            Ok(EnumMeta::ErrorTypeEnum { keyword, value })
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl Spanned for EnumMeta {
+    fn span(&self) -> proc_macro2::Span {
+        match self {
+            EnumMeta::ErrorTypeEnum { keyword, .. } => keyword.span(),
+        }
+    }
+}
+
+trait DeriveInputExt {
+    /// Get all the error metadata associated with an enum.
+    fn get_metadata(&self) -> syn::Result<Vec<EnumMeta>>;
+}
+
+impl DeriveInputExt for DeriveInput {
+    fn get_metadata(&self) -> syn::Result<Vec<EnumMeta>> {
+        get_metadata_inner("error", &self.attrs)
+    }
+}
+
+pub(super) trait HasErrorTypeProperties {
+    fn get_type_properties(&self) -> syn::Result<ErrorTypeProperties>;
+}
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct ErrorTypeProperties {
+    pub error_type_enum: Option<TypePath>,
+}
+
+impl HasErrorTypeProperties for DeriveInput {
+    fn get_type_properties(&self) -> syn::Result<ErrorTypeProperties> {
+        let mut output = ErrorTypeProperties::default();
+
+        let mut error_type_enum_keyword = None;
+        for meta in self.get_metadata()? {
+            match meta {
+                EnumMeta::ErrorTypeEnum { keyword, value } => {
+                    if let Some(first_keyword) = error_type_enum_keyword {
+                        return Err(occurrence_error(first_keyword, keyword, "error_type_enum"));
+                    }
+
+                    error_type_enum_keyword = Some(keyword);
+                    output.error_type_enum = Some(value);
+                }
+            }
+        }
+
+        Ok(output)
+    }
+}
+
+enum VariantMeta {
+    ErrorType {
+        keyword: keyword::error_type,
+        value: TypePath,
+    },
+    Code {
+        keyword: keyword::code,
+        value: LitStr,
+    },
+    Message {
+        keyword: keyword::message,
+        value: LitStr,
+    },
+}
+
+impl Parse for VariantMeta {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(keyword::error_type) {
+            let keyword = input.parse()?;
+            let _: Token![=] = input.parse()?;
+            let value = input.parse()?;
+            Ok(VariantMeta::ErrorType { keyword, value })
+        } else if lookahead.peek(keyword::code) {
+            let keyword = input.parse()?;
+            let _: Token![=] = input.parse()?;
+            let value = input.parse()?;
+            Ok(VariantMeta::Code { keyword, value })
+        } else if lookahead.peek(keyword::message) {
+            let keyword = input.parse()?;
+            let _: Token![=] = input.parse()?;
+            let value = input.parse()?;
+            Ok(VariantMeta::Message { keyword, value })
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl Spanned for VariantMeta {
+    fn span(&self) -> proc_macro2::Span {
+        match self {
+            VariantMeta::ErrorType { keyword, .. } => keyword.span,
+            VariantMeta::Code { keyword, .. } => keyword.span,
+            VariantMeta::Message { keyword, .. } => keyword.span,
+        }
+    }
+}
+
+trait VariantExt {
+    /// Get all the error metadata associated with an enum variant.
+    fn get_metadata(&self) -> syn::Result<Vec<VariantMeta>>;
+}
+
+impl VariantExt for Variant {
+    fn get_metadata(&self) -> syn::Result<Vec<VariantMeta>> {
+        get_metadata_inner("error", &self.attrs)
+    }
+}
+
+pub(super) trait HasErrorVariantProperties {
+    fn get_variant_properties(&self) -> syn::Result<ErrorVariantProperties>;
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct ErrorVariantProperties {
+    pub error_type: Option<TypePath>,
+    pub code: Option<LitStr>,
+    pub message: Option<LitStr>,
+}
+
+impl HasErrorVariantProperties for Variant {
+    fn get_variant_properties(&self) -> syn::Result<ErrorVariantProperties> {
+        let mut output = ErrorVariantProperties::default();
+
+        let mut error_type_keyword = None;
+        let mut code_keyword = None;
+        let mut message_keyword = None;
+        for meta in self.get_metadata()? {
+            match meta {
+                VariantMeta::ErrorType { keyword, value } => {
+                    if let Some(first_keyword) = error_type_keyword {
+                        return Err(occurrence_error(first_keyword, keyword, "error_type"));
+                    }
+
+                    error_type_keyword = Some(keyword);
+                    output.error_type = Some(value);
+                }
+                VariantMeta::Code { keyword, value } => {
+                    if let Some(first_keyword) = code_keyword {
+                        return Err(occurrence_error(first_keyword, keyword, "code"));
+                    }
+
+                    code_keyword = Some(keyword);
+                    output.code = Some(value);
+                }
+                VariantMeta::Message { keyword, value } => {
+                    if let Some(first_keyword) = message_keyword {
+                        return Err(occurrence_error(first_keyword, keyword, "message"));
+                    }
+
+                    message_keyword = Some(keyword);
+                    output.message = Some(value);
+                }
+            }
+        }
+
+        Ok(output)
+    }
+}
+
+fn missing_attribute_error(variant: &Variant, attr: &str) -> syn::Error {
+    syn::Error::new_spanned(variant, format!("{attr} must be specified"))
+}
+
+pub(super) fn check_missing_attributes(
+    variant: &Variant,
+    variant_properties: &ErrorVariantProperties,
+) -> syn::Result<()> {
+    if variant_properties.error_type.is_none() {
+        return Err(missing_attribute_error(variant, "error_type"));
+    }
+    if variant_properties.code.is_none() {
+        return Err(missing_attribute_error(variant, "code"));
+    }
+    if variant_properties.message.is_none() {
+        return Err(missing_attribute_error(variant, "message"));
+    }
+
+    Ok(())
+}
+
+/// Get all the fields not used in the error message.
+pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> syn::Result<Vec<Field>> {
+    let fields = match fields {
+        syn::Fields::Unit => Vec::new(),
+        syn::Fields::Unnamed(_) => Vec::new(),
+        syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),
+    };
+
+    Ok(fields
+        .iter()
+        .filter(|&field| {
+            let field_name = format!("{}", field.ident.as_ref().unwrap());
+            !message.contains(&field_name)
+        })
+        .cloned()
+        .collect())
+}

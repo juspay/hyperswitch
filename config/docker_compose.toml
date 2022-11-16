@@ -1,0 +1,56 @@
+[server]
+port = 8080
+host = "0.0.0.0"
+request_body_limit = 16_384 # Post request body is limited to 16k.
+
+[log.file]
+enabled = false              # Whether you want to store log in log files.
+path = "logs"               # Where to store log files.
+level = "DEBUG"             # What gets into log files.
+# rotation = "60"             # mins # current framework doesn't support configuring rotation. set to hourly rotation.
+
+[log.console]
+enabled = true              # Whether you want to see log in your terminal.
+level = "DEBUG"             # What you see in your terminal.
+
+[log.telemetry]
+enabled = false             # Whether tracing/telemetry is enabled.
+
+[database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "orca_db"
+pool_size = 5
+
+[proxy]
+# http_url = "http proxy URL"
+# https_url = "https proxy URL"
+
+[keys]
+temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+
+[locker]
+mock_locker = true
+
+[redis]
+host = "redis-queue"
+port = 6379
+cluster_enabled = true
+cluster_urls = ["bach-redis-queue-1:6379", "bach-redis-queue-2:6379", "bach-redis-queue-3:6379"]
+
+[connectors.aci]
+base_url = "https://eu-test.oppwa.com/"
+
+[connectors.adyen]
+base_url = "https://checkout-test.adyen.com/"
+
+[connectors.authorizedotnet]
+base_url = "https://apitest.authorize.net/xml/v1/request.api"
+
+[connectors.checkout]
+base_url = "https://api.sandbox.checkout.com/"
+
+[connectors.stripe]
+base_url = "https://api.stripe.com/"

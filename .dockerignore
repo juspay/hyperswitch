@@ -1,0 +1,17 @@
+target
+openapi
+monitoring
+logs
+docs
+connector-template
+.cargo
+.vscode
+postman
+kubernetes
+*Dockerfile
+.env
+.dockerignore
+.gitignore
+Makefile
+*.sh
+Jenkinsfile

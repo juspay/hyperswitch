@@ -1,0 +1,11 @@
+FROM rust:1.64 AS builder
+
+WORKDIR /app
+COPY . .
+RUN cargo install diesel_cli && cargo build --bin router --release
+
+FROM rust:1.64 AS runtime
+WORKDIR /app
+COPY --from=builder /app/migrations migrations
+COPY --from=builder /app/target/release/router router
+COPY --from=builder /usr/local/cargo/bin/diesel diesel

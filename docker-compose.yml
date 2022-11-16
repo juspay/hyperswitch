@@ -1,0 +1,205 @@
+version: "3.7"
+
+volumes:
+  cargo_cache:
+  pg_data:
+  cargo_build_cache:
+  click_house_data:
+
+networks:
+  router_net:
+
+services:
+
+  # Disable promtail when using kafka-clickhouse otel since we'll be relying on fluentd
+  # Re-enable promtail when otel starts supporting it
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/pull/14632
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./logs:/var/log/router
+      - ./config:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail.yaml
+    networks:
+      - router_net
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki.yaml
+    networks:
+      - router_net
+    volumes:
+      - ./config:/etc/loki
+
+  otel-collector:
+    image: lsampras/otelcontribcol:latest
+    command: --config=/etc/otel-collector.yaml
+    networks:
+      - router_net
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml
+    depends_on:
+      - kafka0
+    ports:
+      - "4317"
+      - "8888"
+      - "8889"
+      - "24224:24224"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - router_net
+    restart: unless-stopped
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+    volumes:
+      - ./config/grafana.ini:/etc/grafana/grafana.ini
+      - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
+
+  pg:
+    image: postgres:14.5
+    ports:
+      - "5432:5432"
+    networks:
+      - router_net
+    volumes:
+      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_pass
+      - POSTGRES_DB=orca_db
+
+  orca-server:
+    image: rust:1.64
+    command: cargo run -- -f ./config/docker_compose.toml
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
+    labels:
+      logs: "promtail"
+    healthcheck:
+      test: curl --fail http://localhost:8080/health || exit 1
+      interval: 60s
+      retries: 3
+      start_period: 20s
+      timeout: 10s
+    # Enable this when pushing logs in clickhouse
+    # logging:
+    #   driver: "fluentd"
+    #   options:
+    #     fluentd-address: localhost:24224
+
+  redis-queue:
+    image: redis:7    
+    deploy:
+      replicas: ${REDIS_CLUSTER_COUNT:-3}
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    labels:
+      - redis
+    networks:
+      - router_net
+    ports:
+      - "6379"
+      - "16379"
+
+  clickhouse-server:
+    image: clickhouse/clickhouse-server:latest
+    networks:
+      - router_net
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    volumes:
+      - click_house_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+
+  redis-init:
+    image: redis:7
+    depends_on:
+      - redis-queue
+    networks:
+      - router_net
+    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}\n
+      if [ $$COUNT -lt 3 ]\n
+      then\n
+      echo \"Minimum 3 nodes are needed for redis cluster\"\n
+      exit 1\n
+      fi\n
+      HOSTS=\"\"\n
+      for ((c=1; c<=$$COUNT;c++))\n
+      do\n
+      NODE=$COMPOSE_PROJECT_NAME-redis-queue-$$c:6379\n
+      echo $$NODE\n
+      HOSTS=\"$$HOSTS $$NODE\"\n
+      done\n
+      echo Creating a cluster with $$HOSTS\n
+      redis-cli --cluster create $$HOSTS --cluster-yes\n
+      '"
+  # Kafka UI for debugging kafka queues
+  # kafka-ui:
+  #   container_name: kafka-ui
+  #   image: provectuslabs/kafka-ui:latest
+  #   ports:
+  #     - 8090:8080
+  #   networks:
+  #     - router_net
+  #   depends_on:
+  #     - kafka0
+  #   environment:
+  #     KAFKA_CLUSTERS_0_NAME: local
+  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
+  #     KAFKA_CLUSTERS_0_JMXPORT: 9997
+
+  kafka0:
+    image: confluentinc/cp-kafka:7.0.5.arm64
+    hostname: kafka0
+    container_name: kafka0
+    networks:
+      - router_net
+    ports:
+      - 9092:9092
+      - 29092:29092
+      - 9093:9093
+      - 9997:9997
+      - "29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka0:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka0:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka0:29092,CONTROLLER://kafka0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      JMX_PORT: 9997
+      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
+    volumes:
+      - ./monitoring/kafka-script.sh:/tmp/update_run.sh
+    command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"

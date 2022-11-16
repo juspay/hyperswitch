@@ -1,0 +1,4030 @@
+{
+    "version": 1.0,
+    "globals": {
+        "stripResponseExamples": true,
+        "securityOverwrites": {
+            "apiKey": {
+                "key": "api-key",
+                "value": "{{apiKey}}"
+            }
+        }
+    },
+    "assignVariables": [
+        {
+            "openApiOperationId": "createPayment",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "payment_id",
+                    "name": "payment_id"
+                }
+            ]
+        },
+        {
+            "openApiOperationId": "createPayment",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "mandate_id",
+                    "name": "mandate_id"
+                }
+            ]
+        },
+        {
+            "openApiOperationId": "createCustomer",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "customer_id",
+                    "name": "customer_id"
+                }
+            ]
+        },
+        {
+            "openApiOperationId": "createRefund",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "refund_id",
+                    "name": "refund_id"
+                }
+            ]
+        },
+        {
+            "openApiOperationId": "createMechantAccount",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "merchant_id",
+                    "name": "merchant_id"
+                }
+            ]
+        },
+        {
+            "openApiOperationId": "createPaymentMethodForCustomer",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "payment_method_id",
+                    "name": "payment_method_id"
+                }
+            ]
+        },
+        {
+            "openApiOperation": "createPaymentConnector",
+            "collectionVariables": [
+                {
+                    "responseBodyProp": "merchant_connector_id",
+                    "name": "merchant_connector_id"
+                }
+            ]
+        }
+     ],
+    "overwrites": [
+        {
+            "openApiOperation": "*::/payments/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{payment_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/payments/{id}/*",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{payment_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperationId": "*::/mandates/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{mandate_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/customers/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{customer_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/refunds/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{refund_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/refunds/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{refund_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/accounts/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{merchant_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/payment_methods/{id}",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{payment_method_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/accounts/*/connectors",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id",
+                    "value": "{{merchant_id}}",
+                    "overwrite": true
+                }
+            ]
+        },
+        {
+            "openApiOperation": "*::/accounts/*/connectors/*",
+            "overwriteRequestPathVariables": [
+                {
+                    "key": "id1",
+                    "value": "{{merchant_id}}",
+                    "overwrite": true
+                },
+                {
+                    "key": "id2",
+                    "value": "{{merchant_connector_id}}",
+                    "overwrite": true
+                }
+            ]
+        }
+    ],
+    "tests": {
+        "contractTests": [
+            {
+                "openApiOperation": "*::/customers",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                },
+                "jsonBody": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/customers/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                },
+                "jsonBody": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/payments",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                },
+                "jsonBody": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/payments/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                },
+                "jsonBody": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/payments/{id}/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                },
+                "jsonBody": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/refunds",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/refunds/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/accounts",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/accounts/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/payment_methods",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/payment_methods/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/accounts/*/connectors",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            },
+            {
+                "openApiOperation": "*::/accounts/*/connectors/*",
+                "statusSuccess": {
+                    "enabled": true
+                },
+                "contentType": {
+                    "enabled": true
+                },
+                "schemaValidation": {
+                    "enabled": true
+                }
+            }
+
+        ],
+        "contentTests": [
+            {
+                "openApiOperationId": "createCustomer",
+                "responseBodyTests": [
+                    {
+                        "key": "customer_id",
+                        "minLength": 1
+                    }
+                ]
+            }
+        ],
+        "variationTests": [
+            {
+                "openApiOperationId": "createCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify customer creation",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "customer_id",
+                                        "value": "CustomerNew1",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "value": "CustomerNew1"
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "John Doe"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "999999999"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "guest@example.com"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "First customer"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "Bangalore"
+                                        },
+                                        {
+                                            "key": "address.country",
+                                            "value": "India"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "Juspay router"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "Koramangala"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "Stallion"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "Karnataka"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "560095"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "John"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "Doe"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "+65"
+                                        }
+
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrieveCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify customer creation",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "value": "CustomerNew1"
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "John Doe"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "999999999"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "guest@example.com"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "First customer"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "Bangalore"
+                                        },
+                                        {
+                                            "key": "address.country",
+                                            "value": "India"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "Juspay router"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "Koramangala"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "Stallion"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "Karnataka"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "560095"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "John"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "Doe"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "+65"
+                                        }
+
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "updateCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "update customer details",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "name",
+                                        "value": "Joseph",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "phone",
+                                        "value": "8888888888",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "email",
+                                        "value": "joseph@example.com",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "description",
+                                        "value": "Test customer",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "address.city",
+                                        "value": "chennai"
+                                    },
+                                    {
+                                        "key": "address.line1",
+                                        "value": "123"
+                                    },
+                                    {
+                                        "key": "address.line2",
+                                        "value": "cg custom street"
+                                    },
+                                    {
+                                        "key": "address.line3",
+                                        "value": "Stallion"
+                                    },
+                                    {
+                                        "key": "address.state",
+                                        "value": "Tamilnadu"
+                                    },
+                                    {
+                                        "key": "address.zip",
+                                        "value": "620021"
+                                    },
+                                    {
+                                        "key": "address.first_name",
+                                        "value": "joseph"
+                                    },
+                                    {
+                                        "key": "address.last_name",
+                                        "value": "Doe"
+                                    },
+                                    {
+                                        "key": "phone_country_code",
+                                        "value": "+91"
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "value": "CustomerNew1"
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "Joseph"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "8888888888"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "joseph@example.com"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "Test customer"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "chennai"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "123"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "cg custom street"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "Stallion"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "Tamilnadu"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "620021"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "joseph"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "Doe"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "+91"
+                                        }
+
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrieveCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "retrieve updated customer",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "value": "CustomerNew1"
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "Joseph"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "8888888888"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "joseph@example.com"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "Test customer"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "chennai"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "123"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "cg custom street"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "Stallion"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "Tamilnadu"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "620021"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "joseph"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "Doe"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "+91"
+                                        }
+
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "deleteCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Delete customer",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "deleted",
+                                            "value": "true"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "deleteCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Delete Customer with invalid Id",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "No such customer exist: CustomerNew1"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Create Customer without CID",
+                        "overwrites": [
+                            {
+                              "overwriteRequestBody": [
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "minLength": 1
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "John Doe"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "999999999"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "guest@example.com"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "First customer"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "Bangalore"
+                                        },
+                                        {
+                                            "key": "address.country",
+                                            "value": "India"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "Juspay router"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "Koramangala"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "Stallion"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "Karnataka"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "560095"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "John"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "Doe"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "+65"
+                                        }
+
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Create Customer without any details",
+                        "overwrites": [
+                            {
+                              "overwriteRequestBody": [
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "name",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "phone",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "email",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "description",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "address",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "phone_country_code",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "minLength": 1
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.country",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "NULL"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrieveCustomer",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "retrieve Customer without any details",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "customer_id",
+                                            "minLength": 1
+                                        },
+                                        {
+                                            "key": "name",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "phone",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.city",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.country",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.line1",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.line2",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.line3",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.state",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.zip",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.first_name",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "address.last_name",
+                                            "value": "NULL"
+                                        },
+                                        {
+                                            "key": "phone_country_code",
+                                            "value": "NULL"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "updateCustomer",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Passing invalid CustomerId",
+                        "overwrites": [
+                            {
+                                "overwriteRequestPathVariables": [
+                                    {
+                                      "key": "id",
+                                      "value": "00customer",
+                                      "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "No such customer exist: '00customer"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrieveCustomer",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Passing invalid CustomerId",
+                        "overwrites": [
+                            {
+                                "overwriteRequestPathVariables": [
+                                    {
+                                      "key": "id",
+                                      "value": "00customer",
+                                      "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "No such customer exist: '00customer"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createCustomer",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Pass Invalid email format",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "email",
+                                        "value": "Test.test.com",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid email address: Test.test.com"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createCustomer",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Pass Invalid parameter",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "customer",
+                                        "value": "name",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Received unknown parameter: customer."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify Succeeded state",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "Succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify succeeded state",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "Succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "confirmPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "confirm payment for succeeded state",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "return_url",
+                                        "remove": true
+
+                                    },
+                                    {
+                                        "key": "setup_future_usage",
+                                        "remove": true
+
+                                    },
+                                    {
+                                        "key": "authentication_type",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "shipping",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "billing",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method_data",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "save_payment_method",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "You cannot confirm this PaymentIntent because it has already succeeded after being previously confirmed."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createRefunds",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Refund excess amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_id",
+                                        "value": "{{payment_id}}",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "amount",
+                                        "value": "70000",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "currency",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "reason",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Refund amount exceeds the payment amount"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createRefunds",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Refund partial amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_id",
+                                        "value": "{{payment_id}}",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "amount",
+                                        "value": "500",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "currency",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "reason",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        },
+                                        {
+                                            "key": "reason",
+                                            "value": "null"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createRefunds",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Refund full amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_id",
+                                        "value": "{{payment_id}}",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "amount",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "currency",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "reason",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        },
+                                        {
+                                            "key": "reason",
+                                            "value": "null"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequireConfirmation state",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "confirm",
+                                        "value": false,
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_confirmation"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequireConfirmation state",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_confirmation"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createRefunds",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Refund pending payment",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_id",
+                                        "value": "{{payment_id}}",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "amount",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "currency",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "reason",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Refund is not allowed for unsuccessfull payment"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "confirmPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "confirm the payment",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "return_url",
+                                        "remove": true
+
+                                    },
+                                    {
+                                        "key": "setup_future_usage",
+                                        "remove": true
+
+                                    },
+                                    {
+                                        "key": "authentication_type",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "shipping",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "billing",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method_data",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "save_payment_method",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify Succeeded after confirm",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequiresPaymentMethod state",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method_data",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_payment_method"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequiresPaymentMethod state",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_payment_method"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "confirmPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "confirm the payment which in requires_payment_method",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "setup_future_usage",
+                                        "remove": true
+
+                                    },
+                                    {
+                                        "key": "authentication_type",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequiresCapture state",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "capture_method",
+                                        "value": "manual",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "amount",
+                                        "value": "100",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "currency",
+                                        "value": "INR",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_capture"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "100"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "INR"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequiresCapture state",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_capture"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Pass Required Param",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "confirm",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "merchant_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "capture_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "capture_on",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "amount_to_capture",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "email",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "name",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "phone",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "phone_country_code",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "description",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "return_url",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "setup_future_usage",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "authentication_type",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "save_payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method_data",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "statement_descriptor_name",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "shipping",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "billing",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "statement_descriptor_suffix",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_payment_method"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequiresPaymentMethod state",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "confirm",
+                                        "value": false,
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_payment_method"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Verify RequiresCapture state",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount_to_capture",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_capture"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Pass Invalid MerchantId",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "merchant_id",
+                                        "value": "123",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid merchant id : 123"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid Currency",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "currency",
+                                        "value": "United",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid currency : united"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Remove card number",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_method_data.card_number",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Missing required param: payment_method_data[card_number]."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid CaptureMethod",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "capture_method",
+                                        "value": "Man",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid capture_method: must be one of automatic or manual or scheduled"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid integer for amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount",
+                                        "value": "abc",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid integer: abc"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass negative integer for amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount",
+                                        "value": "-20",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "This value must be greater than or equal to 1."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid PaymentMethod",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_method",
+                                        "value": "card123",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid capture_method: must be one of `card`, `banktransfer`, `bankdebit`, `netbanking`, `consumer_finance`, `wallet`, `upi`"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "CaptureAmount greater than orderAmount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount_to_capture",
+                                        "value": "6550",
+                                        "overwrite": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Validation error : amount_to_capture is greater than amount"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Not passing required params",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Missing required param: amount."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "retrievePayment",
+                "openApiResponse": "204",
+                "variations": [
+                    {
+                        "name": "Passing invalid paymentId",
+                        "overwrites": [
+                            {
+                                "overwriteRequestPathVariables": [
+                                    {
+                                      "key": "id",
+                                      "value": "123456789",
+                                      "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "No such payment exist: '123456789"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "createPayment to update",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "confirm",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "merchant_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "capture_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "capture_on",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "amount_to_capture",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "email",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "name",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "phone",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "phone_country_code",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "description",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "return_url",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "setup_future_usage",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "authentication_type",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "save_payment_method",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "payment_method_data",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "statement_descriptor_name",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "shipping",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "billing",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "metadata",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "statement_descriptor_suffix",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_payment_method"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+            "openApiOperationId": "updatePayment",
+            "openApiResponse": "200",
+            "variations": [
+                {
+                    "name": "Update the amount",
+                    "overwrites": [
+                        {
+                            "overwriteRequestBody": [
+                                {
+                                    "key": "amount",
+                                    "value": "200",
+                                    "overwrite": true
+                                }
+                            ]
+                        }
+                    ],
+                    "tests": {
+                        "contractTests": [
+                            {
+                                "statusCode": {
+                                    "enabled": true
+                                },
+                                "jsonBody": {
+                                    "enabled": true
+                                },
+                                "schemaValidation": {
+                                    "enabled": true
+                                }
+                            }
+                        ],
+                        "contentTests": [
+                            {
+                                "responseBodyTests": [
+                                    {
+                                        "key": "status",
+                                        "value": "requires_confirmation"
+                                    },
+                                    {
+                                        "key": "amount",
+                                        "value": "200"
+                                    },
+                                    {
+                                        "key": "currency",
+                                        "value": "USD"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+            },
+            {
+                "openApiOperationId": "updatePayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Update the currency",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "currency",
+                                        "value": "SGD",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "requires_confirmation"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "200"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "SGD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "updatePayment",
+                "openApiResponse": "204",
+                "variations": [
+                    {
+                        "name": "Passing invalid paymentId",
+                        "overwrites": [
+                            {
+                                "overwriteRequestPathVariables": [
+                                    {
+                                      "key": "id",
+                                      "value": "123456789",
+                                      "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "No such payment exist: '123456789"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "UpdatePayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Pass Invalid MerchantId",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "merchant_id",
+                                        "value": "123",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid merchant id : 123"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid Currency",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "currency",
+                                        "value": "United",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid currency : united"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Remove card number",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_method_data.card_number",
+                                        "remove": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Missing required param: payment_method_data[card_number]."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid CaptureMethod",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "capture_method",
+                                        "value": "Man",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid capture_method: must be one of automatic or manual or scheduled"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid integer for amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount",
+                                        "value": "abc",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid integer: abc"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass negative integer for amount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount",
+                                        "value": "-20",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "This value must be greater than or equal to 1."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Pass Invalid PaymentMethod",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "payment_method",
+                                        "value": "card123",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Invalid capture_method: must be one of `card`, `banktransfer`, `bankdebit`, `netbanking`, `consumer_finance`, `wallet`, `upi`"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "CaptureAmount greater than orderAmount",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                        "key": "amount_to_capture",
+                                        "value": "6550",
+                                        "overwrite": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "Validation error : amount_to_capture is greater than amount"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Create SucceededPayment to update",
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "status",
+                                            "value": "Succeeded"
+                                        },
+                                        {
+                                            "key": "amount",
+                                            "value": "6540"
+                                        },
+                                        {
+                                            "key": "currency",
+                                            "value": "USD"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "updatePayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Update Succeded payment",
+                        "overwrites": [
+                            {
+                                "overwriteRequestPathVariables": [
+                                    {
+                                      "key": "amount",
+                                      "value": "1000",
+                                      "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "message",
+                                            "value": "This Payment's amount could not be updated because it has a status of succeeded."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Create a mandates with on session",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                      "key": "setup_future_usage",
+                                      "value": "on_session",
+                                      "overwrite": true
+                                    },
+                                    {
+                                        "key": "mandate_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "value": "OnsessionCustomer",
+                                        "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "mandate_id",
+                                            "minLength": 0
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Create a mandates with off session",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                      "key": "setup_future_usage",
+                                      "value": "off_session",
+                                      "overwrite": true
+                                    },
+                                    {
+                                        "key": "mandate_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "value": "OffsessionCustomer",
+                                        "overwrite": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "mandate_id",
+                                            "minLength": 1
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "listMandateDetails",
+                "openApiResponse": "200",
+                "variations": [
+                    {
+                        "name": "Get mandates for Customer",
+                        "overwrites": [
+                            {
+                            "overwriteRequestPathVariables": [
+                                {
+                                  "key": "customer_id",
+                                  "value": "OffsessionCustomer",
+                                  "overwrite": true
+                                }
+                              ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "mandate_id",
+                                            "minLength": 1
+                                        },
+                                        {
+                                            "key": "status",
+                                            "value": "active"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Create a mandates without customer id",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                      "key": "setup_future_usage",
+                                      "value": "off_session",
+                                      "overwrite": true
+                                    },
+                                    {
+                                        "key": "mandate_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "Error_message",
+                                            "value": "Customer Id is mandatory to create a mandates"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Create a mandates without customer id",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                      "key": "setup_future_usage",
+                                      "value": "off_session",
+                                      "overwrite": true
+                                    },
+                                    {
+                                        "key": "mandate_id",
+                                        "remove": true
+                                    },
+                                    {
+                                        "key": "customer_id",
+                                        "remove": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "Error_message",
+                                            "value": "Customer Id is mandatory to create a mandates"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Create a mandates without setupfutureusage",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                      "key": "setup_future_usage",
+                                      "remove": true
+                                    },
+                                    {
+                                        "key": "mandate_id",
+                                        "remove": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "Error_message",
+                                            "value": "Pass setupfuture usage to create a mandates"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "openApiOperationId": "createPayment",
+                "openApiResponse": "400",
+                "variations": [
+                    {
+                        "name": "Create a mandates without confirm as true",
+                        "overwrites": [
+                            {
+                                "overwriteRequestBody": [
+                                    {
+                                      "key": "confirm",
+                                      "remove": true
+                                    },
+                                    {
+                                        "key": "mandate_id",
+                                        "remove": true
+                                    }
+                                  ]
+                            }
+                        ],
+                        "tests": {
+                            "contractTests": [
+                                {
+                                    "statusCode": {
+                                        "enabled": true
+                                    },
+                                    "jsonBody": {
+                                        "enabled": true
+                                    },
+                                    "schemaValidation": {
+                                        "enabled": true
+                                    }
+                                }
+                            ],
+                            "contentTests": [
+                                {
+                                    "responseBodyTests": [
+                                        {
+                                            "key": "Error_message",
+                                            "value": "Cant create a mandates when the confirm is true"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+            
+
+        ]
+    }
+}

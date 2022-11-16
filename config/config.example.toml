@@ -1,0 +1,102 @@
+# This is a sample config file whose sole purpose is to enumerate
+# all the available configuration options, and is intended to be used
+# solely as a reference. Please copy this file to create a config.
+
+# Server configuration
+[server]
+port = 8080
+host = "127.0.0.1"
+# HTTP Request body limit. Defaults to 16kB
+request_body_limit = 16_384
+
+# Proxy server configuration for connecting to payment gateways.
+# Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
+[proxy]
+# http_url = "http proxy url"
+# https_url = "https proxy url"
+
+# Main SQL data store credentials
+[database]
+username = "db_user" # DB Username
+password = "db_pass" # DB Password
+host = "localhost"   # DB Host
+port = 5432          # DB Port
+dbname = "orca_db"   # Name of Database
+pool_size = 5        # Number of connections to keep open
+
+# Redis credentials
+[redis]
+host = "127.0.0.1"
+port = 6379
+pool_size = 5               # Number of connections to keep open
+reconnect_max_attempts = 5  # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
+reconnect_delay = 5         # Delay between reconnection attempts, in milliseconds
+default_ttl = 300           # Default TTL for entries, in seconds
+use_legacy_version = false  # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
+stream_read_count = 1       # Default number of entries to read from stream if not provided in stream read options
+
+# Logging configuration. Logging can be either to file or console or both.
+
+# Logging configuration for file logging
+[log.file]
+enabled = false         # Toggle [true or false]
+path = "logs"           # specify the directory to create log files
+file_name = "debug.log" # base name for log files.
+# levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
+# defaults to "WARN"
+level = "WARN"
+
+# Logging configuration for console logging
+[log.console]
+enabled = true          # boolean [true or false]
+log_format = "default"  # Log format. "default" or "json"
+# levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
+# defaults to "WARN"
+level = "DEBUG"
+
+# This section provides configuration details for using AWS KMS to encrypt
+# data like payment method details being sent over a network.
+[keys]
+aws_key_id = ""  # AWS Account Key ID
+aws_region = ""  # AWS Account region
+temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # AWS KMS Key
+
+# Locker settings contain details for accessing a card locker, a
+# PCI Compliant storage entity which stores payment method information
+# like card details
+[locker]
+host = "" # Locker host
+mock_locker = true # Emulate a locker locally using Postgres
+
+# Connector configuration, provided attributes will be used to fulfill API requests.
+# Examples provided here are sandbox/test base urls, can be replaced by live or mock
+# base urls based on your need.
+# Note: These are not optional attributes. ORCA request can fail due to invalid/empty values.
+[connectors.aci]
+base_url = "https://eu-test.oppwa.com/"
+
+[connectors.adyen]
+base_url = "https://checkout-test.adyen.com/"
+
+[connectors.authorizedotnet]
+base_url = "https://apitest.authorize.net/xml/v1/request.api"
+
+[connectors.checkout]
+base_url = "https://api.sandbox.checkout.com/"
+
+[connectors.stripe]
+base_url = "https://api.stripe.com/"
+
+# Scheduler settings provides a point to modify the behaviour of scheduler flow.
+# It defines the the streams/queues name and configuration as well as event selection variables
+[scheduler]
+stream = "SCHEDULER_STREAM"
+consumer_group = "SCHEDULER_GROUP"
+
+[scheduler.producer]
+upper_fetch_limit = 0 # Upper limit for fetching entries from the redis queue (in seconds)
+lower_fetch_limit = 1800 # Lower limit for fetching entries from redis queue (in seconds)
+lock_key = "PRODUCER_LOCKING_KEY" # The following keys defines the producer lock that is created in redis with
+lock_ttl = 160                    # the ttl being the expiry (in seconds)
+
+batch_size = 200 # Specifies the batch size the producer will push under a single entry in the redis queue

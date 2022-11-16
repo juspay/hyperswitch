@@ -1,0 +1,92 @@
+# To find out does Loki work properly:
+# - http://127.0.0.1:3100/ready
+# - http://127.0.0.1:3100/metrics
+#
+# = Grafana configuration
+# Default grafana user and password are "admin".
+# Need to add data source: http://loki:3100
+#
+
+version: "3"
+
+networks:
+  loki:
+
+services:
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ../logs:/var/log/router
+      - ../config:/etc/promtail
+    command: -config.file=/etc/promtail/promtail.yaml
+    networks:
+      - loki
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki.yaml
+    networks:
+      - loki
+    restart: unless-stopped
+    volumes:
+      - ../config:/etc/loki
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: --config=/etc/otel-collector.yaml
+    networks:
+      - loki
+    volumes:
+      - ../config/otel-collector.yaml:/etc/otel-collector.yaml
+    ports:
+      - "4317:4317"
+      - "8888:8888"
+      - "8889:8889"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    networks:
+      - loki
+    volumes:
+      - ../config/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ../config/tempo.yaml:/etc/tempo.yaml
+      - ./tempo.tmp:/tmp/tempo
+    networks:
+      - loki
+    ports:
+      - "3200" # tempo
+      - "4317" # otlp grpc
+      - "4318" # otlp http
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - loki
+    restart: unless-stopped
+    volumes:
+      - ../config:/etc/grafana
+
+  # router-sc:
+  #   image: rust:latest
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - loki
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ../:/router

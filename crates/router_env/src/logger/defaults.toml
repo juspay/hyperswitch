@@ -1,0 +1,14 @@
+[log.file]
+enabled = true              # Whether you want to store log in log files.
+path = "logs"               # Where to store log files.
+file_name = "debug.log"     # Name of log file without suffix.
+# do_async = true             # is not used
+level = "DEBUG"             # What gets into log files.
+# rotation = "60"             # mins # current framework doesn't support configuring rotation. set to hourly rotation.
+
+[log.console]
+enabled = false             # Whether you want to see log in your terminal.
+level = "INFO"              # What you see in your terminal.
+
+[log.telemetry]
+enabled = false             # Whether tracing/telemetry is enabled.

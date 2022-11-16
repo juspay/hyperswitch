@@ -1,0 +1,29 @@
+use actix_web::{web, HttpRequest, Responder};
+use router_env::{
+    tracing::{self, instrument},
+    Flow,
+};
+
+use super::app::AppState;
+use crate::{core::webhooks, services::api};
+
+#[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+pub async fn receive_incoming_webhook(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Bytes,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let (merchant_id, connector_name) = path.into_inner();
+
+    api::server_wrap(
+        &state,
+        &req,
+        body,
+        |state, merchant_account, body| {
+            webhooks::webhooks_core(state, &req, merchant_account, &connector_name, body)
+        },
+        api::ConnectorAuthentication::MerchantId(&merchant_id),
+    )
+    .await
+}

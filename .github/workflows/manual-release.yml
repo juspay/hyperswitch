@@ -1,0 +1,35 @@
+name: Release branch manually
+
+on:
+  workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build router Docker image
+        run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.sha }} --build-arg APP_MODE=router --build-arg BINARY=bach
+
+      - name: Build consumer Docker image
+        run: docker build . --file Dockerfile --tag juspaydotin/orca-consumer:${{ github.sha }} --build-arg APP_MODE=consumer --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Consumer
+
+      - name: Build producer Docker image
+        run: docker build . --file Dockerfile --tag juspaydotin/orca-producer:${{ github.sha }} --build-arg APP_MODE=producer --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Producer
+
+      - name: Docker Login      
+        env:
+          DOCKER_USER: ${{secrets.DOCKERHUB_USER}}
+          DOCKER_TOKEN: ${{secrets.DOCKERHUB_PASSWD}}
+        run: docker login -u $DOCKER_USER -p $DOCKER_TOKEN
+
+      - name: Push router Docker image
+        run: docker push juspaydotin/orca:${{ github.sha }}
+
+      - name: Push consumer Docker image
+        run: docker push juspaydotin/orca-consumer:${{ github.sha }}
+
+      - name: Push producer Docker image
+        run: docker push juspaydotin/orca-producer:${{ github.sha }}

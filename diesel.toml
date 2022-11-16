@@ -1,0 +1,7 @@
+# For documentation on how to configure this file,
+# see diesel.rs/guides/configuring-diesel-cli
+
+[print_schema]
+file = "crates/router/src/schema.rs"
+import_types = ["diesel::sql_types::*", "crate::types::storage::enums::diesel_exports::*"]
+generate_missing_sql_type_definitions = false

@@ -1,0 +1,47 @@
+[log.file]
+enabled = false
+
+[log.console]
+enabled = true
+level = "DEBUG"
+log_format = "default"
+
+[log.telemetry]
+enabled = false
+
+# TODO: Update database credentials before running application
+[database]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "orca_db"
+pool_size = 5
+
+[proxy]
+
+[keys]
+temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+
+[locker]
+mock_locker = true
+
+[connectors.aci]
+base_url = "https://eu-test.oppwa.com/"
+
+[connectors.adyen]
+base_url = "https://checkout-test.adyen.com/"
+
+[connectors.authorizedotnet]
+base_url = "https://apitest.authorize.net/xml/v1/request.api"
+
+[connectors.checkout]
+base_url = "https://api.sandbox.checkout.com/"
+
+[connectors.stripe]
+base_url = "https://api.stripe.com/"
+
+
+[scheduler]
+stream = "SCHEDULER_STREAM"
+consumer_group = "SCHEDULER_GROUP"
