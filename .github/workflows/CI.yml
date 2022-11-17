@@ -84,6 +84,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
 
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
