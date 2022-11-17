@@ -28,5 +28,6 @@ pub mod logger;
 pub use logger::*;
 pub use opentelemetry;
 pub use tracing;
+#[cfg(feature = "actix_web")]
 pub use tracing_actix_web;
 pub use tracing_appender;

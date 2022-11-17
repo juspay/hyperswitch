@@ -3,8 +3,6 @@
 //!
 //! There is not alias type by design.
 
-use alloc::boxed::Box;
-
 #[cfg(feature = "serde")]
 use super::{SerializableSecret, Serialize};
 
