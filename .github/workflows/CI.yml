@@ -29,6 +29,10 @@ on:
       - "LICENSE"
       - "NOTICE"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   RUSTFLAGS: "-D warnings"
   # Disable incremental compilation.
