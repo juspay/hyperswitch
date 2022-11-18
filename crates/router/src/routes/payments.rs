@@ -93,12 +93,12 @@ pub async fn payments_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Json<PaymentRetrieveBody>,
+    query_payload: web::Query<PaymentRetrieveBody>,
 ) -> HttpResponse {
     let payload = PaymentsRetrieveRequest {
         resource_id: PaymentIdType::PaymentIntentId(path.to_string()),
-        merchant_id: json_payload.merchant_id.clone(),
-        force_sync: json_payload.force_sync.unwrap_or(false),
+        merchant_id: query_payload.merchant_id.clone(),
+        force_sync: query_payload.force_sync.unwrap_or(false),
         param: None,
         connector: None,
     };
