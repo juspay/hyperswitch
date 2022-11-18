@@ -22,7 +22,7 @@ Using Orca, you can:
 _Orca is wire-compatible with top processors like Stripe making it easy to integrate._
 
 <p align="center">
-<img src= "./images/orca-product.png" alt="orca-product" width="40%" />
+<img src= "./docs/imgs/orca-product.png" alt="orca-product" width="40%" />
 </p>
 
 ## Table of Contents
