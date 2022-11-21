@@ -1,17 +1,17 @@
 receivers:
-  fluentforward:
-    endpoint: 0.0.0.0:24224
+  # fluentforward:
+  #   endpoint: 0.0.0.0:24224
 
   otlp:
     protocols:
       grpc:
 
 exporters:
-  kafka:
-    brokers:
-      - kafka0:29092
-    encoding: raw
-    protocol_version: 2.0.0
+  # kafka:
+  #   brokers:
+  #     - kafka0:29092
+  #   encoding: raw
+  #   protocol_version: 2.0.0
 
   otlp:
     endpoint: tempo:4317
@@ -37,18 +37,18 @@ processors:
         action: insert
         value: log_type,source
 
-  filter/kafka_logs:
-    logs:
-      include:
-        match_type: strict
-        record_attributes:
-          - Key: source
-            Value: stdout
+  # filter/kafka_logs:
+  #   logs:
+  #     include:
+  #       match_type: strict
+  #       record_attributes:
+  #         - Key: source
+  #           Value: stdout
 
-  transform:
-    logs:
-      statements:
-        - set(attributes["log_type"], json_body["log_type"])
+  # transform:
+  #   logs:
+  #     statements:
+  #       - set(attributes["log_type"], json_body["log_type"])
 
 service:
   telemetry:
@@ -59,10 +59,10 @@ service:
       address: 0.0.0.0:8888
 
   pipelines:
-    logs:
-      receivers: [fluentforward]
-      processors: [attributes/log_stream, transform, filter/kafka_logs]
-      exporters: [logging, kafka, loki]
+    # logs:
+    #   receivers: [fluentforward]
+    #   processors: [attributes/log_stream, transform, filter/kafka_logs]
+    #   exporters: [logging, kafka, loki]
     metrics:
       receivers: [otlp]
       exporters: [prometheus]
