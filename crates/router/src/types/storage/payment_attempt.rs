@@ -34,6 +34,7 @@ pub struct PaymentAttempt {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
+    pub mandate_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -66,6 +67,7 @@ pub struct PaymentAttemptNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
+    pub mandate_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -94,6 +96,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
         redirect: Option<bool>,
+        mandate_id: Option<String>,
     },
     StatusUpdate {
         status: enums::AttemptStatus,
@@ -118,6 +121,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     redirect: Option<bool>,
+    mandate_id: Option<Option<String>>,
 }
 
 impl PaymentAttemptUpdate {
@@ -192,6 +196,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_type,
                 payment_method_id,
                 redirect,
+                mandate_id,
             } => Self {
                 status: Some(status),
                 connector_transaction_id,
@@ -199,6 +204,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 modified_at: Some(crate::utils::date_time::now()),
                 redirect,
+                mandate_id: Some(mandate_id),
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

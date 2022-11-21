@@ -135,6 +135,7 @@ async fn payment_response_ut<F: Clone, T>(
                 authentication_type: None,
                 payment_method_id: Some(router_data.payment_method_id),
                 redirect: Some(response.redirect),
+                mandate_id: payment_data.mandate_id.clone(),
             }
         }
     };
