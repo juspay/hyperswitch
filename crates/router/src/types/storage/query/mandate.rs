@@ -2,11 +2,12 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
 use router_env::tracing::{self, instrument};
 
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
     schema::mandate::dsl,
-    types::storage::{self, mandate::*, query::generics},
+    types::storage::{self, mandate::*},
 };
 
 impl MandateNew {
@@ -15,7 +16,7 @@ impl MandateNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        generics::generic_insert::<_, _, storage::Mandate>(conn, self).await
+        generics::generic_insert::<_, _, storage::Mandate, _>(conn, self, ExecuteQuery::new()).await
     }
 }
 
@@ -55,12 +56,13 @@ impl Mandate {
         mandate_id: &str,
         mandate: MandateUpdate,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::mandate_id.eq(mandate_id.to_owned())),
             MandateUpdateInternal::from(mandate),
+            ExecuteQuery::new(),
         )
         .await?
         .first()

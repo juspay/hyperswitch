@@ -74,7 +74,7 @@ where
             redirect: false,
         });
 
-    let return_url = Some(helpers::create_redirect_url(
+    let orca_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
     ));
@@ -90,7 +90,8 @@ where
         payment_method,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
-        return_url,
+        return_url: payment_data.payment_intent.return_url.clone(),
+        orca_return_url,
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data.address.clone(),
         auth_type: payment_data
@@ -251,15 +252,23 @@ where
 }
 
 impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: payment_data.payment_method_data.ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_data".to_owned(),
-                },
-            )?,
+            payment_method_data: {
+                let payment_method_type = payment_data
+                    .payment_attempt
+                    .payment_method
+                    .get_required_value("payment_method_type")?;
+
+                match payment_method_type {
+                    enums::PaymentMethodType::Wallet => api::PaymentMethod::Wallet,
+                    _ => payment_data
+                        .payment_method_data
+                        .get_required_value("payment_method_data")?,
+                }
+            },
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),

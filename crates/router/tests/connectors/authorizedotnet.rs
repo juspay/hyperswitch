@@ -1,12 +1,10 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use masking::Secret;
 use router::{
     configs::settings::Settings,
-    connection,
     connector::Authorizedotnet,
     core::payments,
-    db::SqlDb,
     routes::AppState,
     services,
     types::{self, storage::enums, PaymentAddress},
@@ -26,6 +24,7 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         amount: 100,
+        orca_return_url: None,
         currency: enums::Currency::USD,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
@@ -67,6 +66,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         amount: 100,
+        orca_return_url: None,
         currency: enums::Currency::USD,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
@@ -98,10 +98,7 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     static CV: Authorizedotnet = Authorizedotnet;
@@ -144,10 +141,7 @@ async fn payments_create_failure() {
         };
         let state = AppState {
             flow_name: String::from("default"),
-            store: services::Store {
-                pg_pool: SqlDb::new(&conf.database).await,
-                redis_conn: Arc::new(connection::redis_connection(&conf).await),
-            },
+            store: services::Store::new(&conf).await,
             conf,
         };
         let connector_integration: services::BoxedConnectorIntegration<
@@ -194,10 +188,7 @@ async fn refunds_create_success() {
     };
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     let connector_integration: services::BoxedConnectorIntegration<
@@ -236,10 +227,7 @@ async fn refunds_create_failure() {
     };
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     let connector_integration: services::BoxedConnectorIntegration<

@@ -2,6 +2,8 @@ pub(crate) mod crypto;
 pub(crate) mod custom_serde;
 mod ext_traits;
 mod fp_utils;
+#[cfg(feature = "kv_store")]
+pub(crate) mod storage_partitioning;
 
 use nanoid::nanoid;
 

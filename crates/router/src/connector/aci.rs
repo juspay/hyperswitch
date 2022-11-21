@@ -64,6 +64,12 @@ impl
     // Not Implemented (R)
 }
 
+type PSync = dyn services::ConnectorIntegration<
+    api::PSync,
+    types::PaymentsRequestSyncData,
+    types::PaymentsResponseData,
+>;
+
 impl
     services::ConnectorIntegration<
         api::PSync,
@@ -71,7 +77,114 @@ impl
         types::PaymentsResponseData,
     > for Aci
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                PSync::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+        connectors: Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
+        Ok(format!(
+            "{}{}{}{}{}",
+            self.base_url(connectors),
+            "v1/payments/",
+            req.request.connector_transaction_id,
+            "?entityId=",
+            auth.entity_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+        connectors: Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&PSync::get_url(self, req, connectors)?)
+                .headers(PSync::get_headers(self, req)?)
+                .body(PSync::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+        res: Response,
+    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError>
+    where
+        types::PaymentsRequestData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
+        let response: aci::AciPaymentsResponse =
+            res.response
+                .parse_struct("AciPaymentsResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: aci::AciPaymentsResponse = res
+            .parse_struct("AciPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response.result.code,
+            message: response.result.description,
+            reason: response.result.parameter_errors.and_then(|errors| {
+                errors.first().map(|error_description| {
+                    format!(
+                        "Field is {} and the message is {}",
+                        error_description.name, error_description.message
+                    )
+                })
+            }),
+        })
+    }
 }
 
 type Authorize = dyn services::ConnectorIntegration<
@@ -168,8 +281,8 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsFailureResponse = res
-            .parse_struct("AciPaymentsFailureResponse")
+        let response: aci::AciPaymentsResponse = res
+            .parse_struct("AciPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             code: response.result.code,
@@ -201,50 +314,93 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        req: &types::PaymentRouterCancelData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("aci".to_string()).into())
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                Authorize::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
-        ""
+        self.common_get_content_type()
     }
 
     fn get_url(
         &self,
-        _req: &types::PaymentRouterCancelData,
-        _connectors: Connectors,
+        req: &types::PaymentRouterCancelData,
+        connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("aci".to_string()).into())
+        let id = &req.request.connector_transaction_id;
+        Ok(format!("{}v1/payments/{}", self.base_url(connectors), id))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        req: &types::PaymentRouterCancelData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("aci".to_string()).into())
+        let aci_req = utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(aci_req))
     }
     fn build_request(
         &self,
-        _req: &types::PaymentRouterCancelData,
-        _connectors: Connectors,
+        req: &types::PaymentRouterCancelData,
+        connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("aci".to_string()).into())
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
+                .url(&Void::get_url(self, req, connectors)?)
+                .headers(Void::get_headers(self, req)?)
+                .body(Void::get_request_body(self, req)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentRouterCancelData,
-        _res: Response,
+        data: &types::PaymentRouterCancelData,
+        res: Response,
     ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("aci".to_string()).into())
+        let response: aci::AciPaymentsResponse =
+            res.response
+                .parse_struct("AciPaymentsResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("aci".to_string()).into())
+        let response: aci::AciPaymentsResponse = res
+            .parse_struct("AciPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response.result.code,
+            message: response.result.description,
+            reason: response.result.parameter_errors.and_then(|errors| {
+                errors.first().map(|error_description| {
+                    format!(
+                        "Field is {} and the message is {}",
+                        error_description.name, error_description.message
+                    )
+                })
+            }),
+        })
     }
 }
 
@@ -343,8 +499,8 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciErrorRefundResponse = res
-            .parse_struct("AciErrorRefundResponse")
+        let response: aci::AciRefundResponse = res
+            .parse_struct("AciRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             code: response.result.code,
@@ -379,7 +535,10 @@ impl api::IncomingWebhook for Aci {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
-    fn get_webhook_event_type(&self, _body: &[u8]) -> CustomResult<String, errors::ConnectorError> {
+    fn get_webhook_event_type(
+        &self,
+        _body: &[u8],
+    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

@@ -3,9 +3,7 @@ use std::sync::Arc;
 
 use router::{
     configs::settings::{CmdLineConf, Settings},
-    connection,
     core::errors::{self, CustomResult},
-    db::SqlDb,
     logger, routes, scheduler,
     services::Store,
 };
@@ -21,10 +19,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path).unwrap();
     let mut state = routes::AppState {
         flow_name: String::from("default"),
-        store: Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: Store::new(&conf).await,
         conf,
     };
     let _guard =
@@ -49,18 +44,24 @@ async fn start_scheduler(
     use std::str::FromStr;
 
     let options = scheduler::SchedulerOptions {
-        looper_interval: scheduler::Milliseconds(5_000),
+        looper_interval: scheduler::Milliseconds {
+            milliseconds: 5_000,
+        },
         db_name: "".to_string(),
         cache_name: "".to_string(),
         schema_name: "".to_string(),
-        cache_expiry: scheduler::Milliseconds(30_000_000),
+        cache_expiry: scheduler::Milliseconds {
+            milliseconds: 30_000_000,
+        },
         runners: vec![],
         fetch_limit: 30,
         fetch_limit_product_factor: 1,
         query_order: "".to_string(),
         readiness: scheduler::options::ReadinessOptions {
             is_ready: true,
-            graceful_termination_duration: scheduler::Milliseconds(60_000),
+            graceful_termination_duration: scheduler::Milliseconds {
+                milliseconds: 60_000,
+            },
         },
     };
 
@@ -71,5 +72,6 @@ async fn start_scheduler(
         .scheduler
         .clone()
         .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
-    scheduler::start_process_tracker(state, Arc::new(options), flow, scheduler_settings).await
+    scheduler::start_process_tracker(state, Arc::new(options), flow, Arc::new(scheduler_settings))
+        .await
 }

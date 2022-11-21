@@ -8,7 +8,7 @@ mod payment_status;
 mod payment_update;
 
 use async_trait::async_trait;
-use error_stack::{report, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 pub use payment_cancel::PaymentCancel;
 pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
@@ -25,6 +25,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::Db,
     routes::AppState,
+    scheduler::{metrics, workflows::payment_sync},
     types::{
         self, api,
         storage::{self, enums},
@@ -113,6 +114,14 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         request: &Option<api::PaymentMethod>,
         token: Option<i32>,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
+
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        _db: &'a AppState,
+        _payment_attempt: &storage::PaymentAttempt,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -145,7 +154,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
 impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRequest>>
     Domain<F, api::PaymentsRequest> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsRequest> + std::fmt::Debug,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -194,6 +203,37 @@ where
             token,
         )
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a AppState,
+        payment_attempt: &storage::PaymentAttempt,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        if helpers::check_if_operation_confirm(self) {
+            metrics::JOB_COUNT.add(1, &[]); // Metrics
+
+            let schedule_time = payment_sync::get_sync_process_schedule_time(
+                &payment_attempt.connector,
+                &payment_attempt.merchant_id,
+                state.store.redis_conn.clone(),
+                0,
+            )
+            .await
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            match schedule_time {
+                Some(stime) => super::add_process_sync_task(&state.store, payment_attempt, stime)
+                    .await
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError),
+                None => Ok(()),
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 

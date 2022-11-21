@@ -1,6 +1,6 @@
 use std::sync;
 
-use router::{configs::settings, connection, core::webhooks};
+use router::{configs::settings, connection, core::webhooks, types::api};
 mod utils;
 
 fn get_config() -> settings::Settings {
@@ -29,9 +29,17 @@ async fn test_webhook_config_lookup() {
 
     let merchant_id = format!("merchant_{timestamp}");
     let connector_id = "stripe";
-    let config = serde_json::json!({
-        "payment_intent.success": "payment"
-    });
+    let config = serde_json::json!(["payment_intent_success"]);
+
+    let lookup_res = webhooks::utils::lookup_webhook_event(
+        connector_id,
+        &merchant_id,
+        &api::IncomingWebhookEvent::PaymentIntentSuccess,
+        sync::Arc::clone(&app.redis_conn),
+    )
+    .await;
+
+    assert!(lookup_res);
 
     app.redis_conn
         .serialize_and_set_key(&format!("whconf_{merchant_id}_{connector_id}"), &config)
@@ -41,22 +49,10 @@ async fn test_webhook_config_lookup() {
     let lookup_res = webhooks::utils::lookup_webhook_event(
         connector_id,
         &merchant_id,
-        "payment_intent.success",
+        &api::IncomingWebhookEvent::PaymentIntentSuccess,
         sync::Arc::clone(&app.redis_conn),
     )
-    .await
-    .expect("Webhook event lookup");
+    .await;
 
-    assert!(lookup_res.is_some());
-
-    let lookup_res = webhooks::utils::lookup_webhook_event(
-        connector_id,
-        &merchant_id,
-        "payment_intent.failure",
-        sync::Arc::clone(&app.redis_conn),
-    )
-    .await
-    .expect("Webhook event lookup");
-
-    assert!(lookup_res.is_none());
+    assert!(lookup_res);
 }

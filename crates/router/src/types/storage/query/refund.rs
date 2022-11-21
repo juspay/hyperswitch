@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -14,7 +14,7 @@ use crate::{
 impl RefundNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Refund, errors::StorageError> {
-        generics::generic_insert::<<Refund as HasTable>::Table, _, _>(conn, self).await
+        generics::generic_insert::<_, _, Refund, _>(conn, self, ExecuteQuery::new()).await
     }
 }
 
@@ -25,12 +25,22 @@ impl Refund {
         conn: &PgPooledConn,
         refund: RefundUpdate,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
             RefundUpdateInternal::from(refund),
+            ExecuteQuery::new(),
         )
         .await
+        {
+            Err(error) => match error.current_context() {
+                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                    Ok(self)
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 
     // This is required to be changed for KV.

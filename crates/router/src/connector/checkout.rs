@@ -11,7 +11,10 @@ use self::transformers as checkout;
 use crate::{
     configs::settings::Connectors,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     headers, logger, services,
     types::{
         self,
@@ -245,6 +248,7 @@ impl
         data: &types::PaymentsRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
+        //TODO: [ORCA-618] If 3ds fails, the response should be a redirect response, to redirect client to success/failed page
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -577,7 +581,10 @@ impl api::IncomingWebhook for Checkout {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
-    fn get_webhook_event_type(&self, _body: &[u8]) -> CustomResult<String, errors::ConnectorError> {
+    fn get_webhook_event_type(
+        &self,
+        _body: &[u8],
+    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -589,4 +596,20 @@ impl api::IncomingWebhook for Checkout {
     }
 }
 
-impl services::ConnectorRedirectResponse for Checkout {}
+impl services::ConnectorRedirectResponse for Checkout {
+    fn get_flow_type(
+        &self,
+        query_params: &str,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        let query =
+            serde_urlencoded::from_str::<transformers::CheckoutRedirectResponse>(query_params)
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(query
+            .status
+            .map(|checkout_status| {
+                payments::CallConnectorAction::StatusUpdate(checkout_status.into())
+            })
+            .unwrap_or(payments::CallConnectorAction::Trigger))
+    }
+}

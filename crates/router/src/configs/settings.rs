@@ -30,6 +30,8 @@ pub struct Settings {
     pub locker: Locker,
     pub connectors: Connectors,
     pub scheduler: Option<SchedulerSettings>,
+    #[cfg(feature = "kv_store")]
+    pub drainer: DrainerSettings,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -115,6 +117,13 @@ pub struct ProducerSettings {
     pub lock_key: String,
     pub lock_ttl: i64,
     pub batch_size: usize,
+}
+
+#[cfg(feature = "kv_store")]
+#[derive(Debug, Clone, Deserialize)]
+pub struct DrainerSettings {
+    pub stream_name: String,
+    pub num_partitions: u8,
 }
 
 impl Settings {

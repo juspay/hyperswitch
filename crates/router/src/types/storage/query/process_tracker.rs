@@ -6,7 +6,7 @@ use error_stack::{IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
 use time::PrimitiveDateTime;
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::{PgPool, PgPooledConn},
     core::errors::{self, CustomResult},
@@ -24,7 +24,7 @@ impl ProcessTrackerNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        generics::generic_insert::<<ProcessTracker as HasTable>::Table, _, _>(conn, self).await
+        generics::generic_insert::<_, _, ProcessTracker, _>(conn, self, ExecuteQuery::new()).await
     }
 }
 
@@ -35,12 +35,22 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         process: ProcessTrackerUpdate,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
-            self.id,
+            self.id.clone(),
             ProcessTrackerUpdateInternal::from(process),
+            ExecuteQuery::new(),
         )
         .await
+        {
+            Err(error) => match error.current_context() {
+                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                    Ok(self)
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 
     #[instrument(skip(conn))]
@@ -51,10 +61,11 @@ impl ProcessTracker {
     ) -> CustomResult<Vec<Self>, errors::StorageError> {
         // TODO: Possible optimization: Instead of returning updated values from database, update
         // the values in code and return them, if database query executed successfully.
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             dsl::id.eq_any(task_ids),
             ProcessTrackerUpdateInternal::from(task_update),
+            ExecuteQuery::new(),
         )
         .await
     }
@@ -122,7 +133,7 @@ impl ProcessTracker {
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::StorageError> {
-        generics::generic_update::<<Self as HasTable>::Table, _, _>(
+        generics::generic_update::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::status
                 .eq(enums::ProcessTrackerStatus::ProcessStarted)
@@ -131,6 +142,7 @@ impl ProcessTracker {
                 dsl::status.eq(enums::ProcessTrackerStatus::Processing),
                 dsl::schedule_time.eq(schedule_time),
             ),
+            ExecuteQuery::<Self>::new(),
         )
         .await
     }

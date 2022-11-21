@@ -113,6 +113,11 @@ where
         .update_trackers(&state.store, &payment_id, payment_data, customer.clone())
         .await?;
 
+    operation
+        .to_domain()?
+        .add_task_to_process_tracker(state, &payment_data.payment_attempt)
+        .await?;
+
     if should_call_connector(&operation, &payment_data) {
         payment_data = call_connector_service(
             state,
@@ -470,18 +475,16 @@ pub async fn list_payments(
     }))
 }
 
-pub async fn add_process_sync_task<F: Clone>(
+pub async fn add_process_sync_task(
     db: &dyn Db,
-    payment_data: &PaymentData<F>,
+    payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
-        merchant_id: Some(payment_data.payment_attempt.merchant_id.clone()),
-        // TODO: Implement A new enum variation for txn_id
-        resource_id: api::PaymentIdType::PaymentIntentId(
-            payment_data.payment_attempt.payment_id.clone(),
-        ),
+        merchant_id: Some(payment_attempt.merchant_id.clone()),
+
+        resource_id: api::PaymentIdType::PaymentTxnId(payment_attempt.txn_id.clone()),
         param: None,
         connector: None,
     };
@@ -490,8 +493,8 @@ pub async fn add_process_sync_task<F: Clone>(
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
-        &payment_data.payment_attempt.txn_id,
-        &payment_data.payment_attempt.merchant_id,
+        &payment_attempt.txn_id,
+        &payment_attempt.merchant_id,
     );
     let process_tracker_entry = storage::ProcessTracker::make_process_tracker_new(
         process_tracker_id,

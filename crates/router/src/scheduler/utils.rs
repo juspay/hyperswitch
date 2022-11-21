@@ -1,8 +1,13 @@
+use std::{
+    sync::{self, atomic},
+    time as std_time,
+};
+
 use error_stack::{report, ResultExt};
-use time::PrimitiveDateTime;
+use router_env::opentelemetry;
 use uuid::Uuid;
 
-use super::workflows;
+use super::{consumer, metrics, workflows};
 use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
@@ -64,7 +69,7 @@ pub async fn divide_and_append_tasks(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let batches = divide(tasks, settings);
-
+    metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;
         match result {
@@ -157,7 +162,7 @@ pub fn divide(
 pub fn divide_into_batches(
     batch_size: usize,
     tasks: Vec<storage::ProcessTracker>,
-    batch_creation_time: PrimitiveDateTime,
+    batch_creation_time: time::PrimitiveDateTime,
     conf: &SchedulerSettings,
 ) -> Vec<ProcessTrackerBatch> {
     let batch_id = Uuid::new_v4().to_string();
@@ -197,9 +202,11 @@ pub async fn get_batches(
         )
         .await
         .map_err(|error| {
+            // FIXME: Not a failure when the PT is not overloaded this will throw an error
             logger::error!(%error, "Error finding batch in stream");
             error.change_context(errors::ProcessTrackerError::BatchNotFound)
         })?;
+    metrics::BATCHES_CONSUMED.add(1, &[]);
 
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_iter().map(|(_key, entries)| {
         entries.into_iter().try_fold(
@@ -250,10 +257,54 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
     delta.map(|t| date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
+pub async fn consumer_operation_handler<E>(
+    state: AppState,
+    options: sync::Arc<super::SchedulerOptions>,
+    settings: sync::Arc<SchedulerSettings>,
+    error_handler_fun: E,
+    consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
+) where
+    // Error handler function
+    E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
+{
+    consumer_operation_counter.fetch_add(1, atomic::Ordering::Relaxed);
+    let start_time = std_time::Instant::now();
+
+    match consumer::consumer_operations(&state, &options, &settings).await {
+        Ok(_) => (),
+        Err(err) => error_handler_fun(err),
+    }
+    let end_time = std_time::Instant::now();
+    let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
+    logger::debug!("Time taken to execute consumer_operation: {}s", duration);
+
+    consumer_operation_counter.fetch_sub(1, atomic::Ordering::Relaxed);
+}
+
 pub fn runner_from_task(
     task: &storage::ProcessTracker,
 ) -> Result<workflows::PTRunner, errors::ProcessTrackerError> {
     let runner = task.runner.clone().get_required_value("runner")?;
 
     Ok(runner.parse_enum("PTRunner")?)
+}
+
+pub fn add_histogram_metrics(
+    pickup_time: &time::PrimitiveDateTime,
+    task: &mut storage::ProcessTracker,
+    stream_name: &str,
+) {
+    #[warn(clippy::option_map_unit_fn)]
+    if let Some((schedule_time, runner)) = task.schedule_time.as_ref().zip(task.runner.as_ref()) {
+        let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
+        logger::error!(%pickup_schedule_delta, "<- Time delta for scheduled tasks");
+        let runner_name = runner.clone();
+        metrics::CONSUMER_STATS.record(
+            pickup_schedule_delta,
+            &[opentelemetry::KeyValue::new(
+                stream_name.to_owned(),
+                runner_name,
+            )],
+        );
+    };
 }

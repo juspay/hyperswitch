@@ -1,22 +1,21 @@
-use error_stack::ResultExt;
+use crate::{connection::RedisPool, types::api};
 
-use crate::{
-    connection::RedisPool,
-    core::errors::{self, CustomResult},
-    types::api,
-};
+fn default_webhook_config() -> api::MerchantWebhookConfig {
+    std::collections::HashSet::from([api::IncomingWebhookEvent::PaymentIntentSuccess])
+}
 
 pub async fn lookup_webhook_event(
     connector_id: &str,
     merchant_id: &str,
-    event: &str,
+    event: &api::IncomingWebhookEvent,
     conn: RedisPool,
-) -> CustomResult<Option<api::WebhookFlow>, errors::WebhooksFlowError> {
+) -> bool {
     let redis_key = format!("whconf_{}_{}", merchant_id, connector_id);
-    let mut webhook_config: api::MerchantWebhookConfig = conn
+    let webhook_config: api::MerchantWebhookConfig = conn
         .get_and_deserialize_key(&redis_key, "MerchantWebhookConfig")
         .await
-        .change_context(errors::WebhooksFlowError::MerchantConfigNotFound)?;
+        .map(|h| &h | &default_webhook_config())
+        .unwrap_or_else(|_| default_webhook_config());
 
-    Ok(webhook_config.remove(event))
+    webhook_config.contains(event)
 }

@@ -12,6 +12,8 @@ pub enum TransactionType {
     Payment,
     #[serde(rename = "refundTransaction")]
     Refund,
+    #[serde(rename = "voidTransaction")]
+    Void,
 }
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +57,7 @@ enum PaymentDetails {
     CreditCard(CreditCardDetails),
     #[serde(rename = "bankAccount")]
     BankAccount(BankAccountDetails),
+    Wallet,
     Klarna,
 }
 
@@ -65,6 +68,20 @@ struct TransactionRequest {
     amount: i32,
     currency_code: String,
     payment: PaymentDetails,
+    authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct AuthorizationIndicator {
+    authorization_indicator: AuthorizationType,
+}
+
+#[derive(Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct TransactionVoidRequest {
+    transaction_type: TransactionType,
+    ref_trans_id: String,
 }
 
 #[derive(Serialize, PartialEq)]
@@ -76,9 +93,38 @@ pub struct AuthorizedotnetPaymentsRequest {
 
 #[derive(Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetPaymentCancelRequest {
+    merchant_authentication: MerchantAuthentication,
+    transaction_request: TransactionVoidRequest,
+}
+
+#[derive(Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 // The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
 pub struct CreateTransactionRequest {
     create_transaction_request: AuthorizedotnetPaymentsRequest,
+}
+
+#[derive(Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CancelTransactionRequest {
+    create_transaction_request: AuthorizedotnetPaymentCancelRequest,
+}
+
+#[derive(Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthorizationType {
+    Final,
+    Pre,
+}
+
+impl From<enums::CaptureMethod> for AuthorizationType {
+    fn from(item: enums::CaptureMethod) -> Self {
+        match item {
+            enums::CaptureMethod::Manual => Self::Pre,
+            _ => Self::Final,
+        }
+    }
 }
 
 impl TryFrom<&types::PaymentsRouterData> for CreateTransactionRequest {
@@ -99,19 +145,43 @@ impl TryFrom<&types::PaymentsRouterData> for CreateTransactionRequest {
                 account_number: "XXXXX".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
+            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
         };
-
+        let authorization_indicator_type =
+            item.request.capture_method.map(|c| AuthorizationIndicator {
+                authorization_indicator: c.into(),
+            });
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::Payment,
             amount: item.amount,
             payment: payment_details,
             currency_code: item.currency.to_string(),
+            authorization_indicator_type,
         };
 
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         Ok(CreateTransactionRequest {
             create_transaction_request: AuthorizedotnetPaymentsRequest {
+                merchant_authentication,
+                transaction_request,
+            },
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentRouterCancelData> for CancelTransactionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+        let transaction_request = TransactionVoidRequest {
+            transaction_type: TransactionType::Void,
+            ref_trans_id: item.request.connector_transaction_id.to_string(),
+        };
+
+        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            create_transaction_request: AuthorizedotnetPaymentCancelRequest {
                 merchant_authentication,
                 transaction_request,
             },
@@ -189,12 +259,24 @@ pub struct AuthorizedotnetPaymentsResponse {
     pub messages: ResponseMessages,
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<AuthorizedotnetPaymentsResponse>>
-    for types::PaymentsRouterData
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            AuthorizedotnetPaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsResponseRouterData<AuthorizedotnetPaymentsResponse>,
+        item: types::ResponseRouterData<
+            F,
+            AuthorizedotnetPaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.transaction_response.response_code);
         let error = item
@@ -267,6 +349,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
                 account_number: "XXXXX".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
+            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
         };
 
         merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;

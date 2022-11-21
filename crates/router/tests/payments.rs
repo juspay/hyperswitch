@@ -2,12 +2,9 @@
 
 mod utils;
 
-use std::sync::Arc;
-
 use router::{
-    configs, connection,
+    configs,
     core::payments,
-    db::SqlDb,
     routes, services,
     types::{self, api, storage::enums},
 };
@@ -274,10 +271,7 @@ async fn payments_create_core() {
 
     let state = routes::AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
 
@@ -433,10 +427,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let state = routes::AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
 

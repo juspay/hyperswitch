@@ -1,7 +1,6 @@
-use diesel::associations::HasTable;
 use router_env::tracing::{self, instrument};
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -11,6 +10,6 @@ use crate::{
 impl EventNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Event, errors::StorageError> {
-        generics::generic_insert::<<Event as HasTable>::Table, _, _>(conn, self).await
+        generics::generic_insert::<_, _, Event, _>(conn, self, ExecuteQuery::new()).await
     }
 }

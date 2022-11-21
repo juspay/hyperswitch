@@ -1,10 +1,6 @@
-use std::sync::Arc;
-
 use http::StatusCode;
 use reqwest::Client;
-use router::{
-    configs::settings::Settings, connection, db::SqlDb, services::Store, types::storage::AddressNew,
-};
+use router::{configs::settings::Settings, services::Store, types::storage::AddressNew};
 use serde_json::Value;
 
 mod utils;
@@ -18,10 +14,7 @@ impl TestApp {
 
         let client = Client::new();
         let conf = Settings::new().unwrap();
-        let store = Store {
-            pg_pool: SqlDb::test(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        };
+        let store = Store::new(&conf).await;
         let app = TestApp { store };
 
         (client, app)

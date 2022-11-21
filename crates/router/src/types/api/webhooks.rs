@@ -11,19 +11,30 @@ use crate::{
     utils::{crypto, custom_serde},
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum IncomingWebhookEvent {
+    PaymentIntentSuccess,
+}
+
 pub enum WebhookFlow {
     Payment,
     Refund,
     Subscription,
 }
 
-pub type MerchantWebhookConfig = std::collections::HashMap<String, WebhookFlow>;
+impl From<IncomingWebhookEvent> for WebhookFlow {
+    fn from(evt: IncomingWebhookEvent) -> Self {
+        match evt {
+            IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
+        }
+    }
+}
+
+pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
 pub struct IncomingWebhookDetails {
     pub object_reference_id: String,
-    pub connector_event_type: String,
     pub resource_object: Vec<u8>,
 }
 
@@ -155,7 +166,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _body: &[u8],
     ) -> CustomResult<String, errors::ConnectorError>;
 
-    fn get_webhook_event_type(&self, _body: &[u8]) -> CustomResult<String, errors::ConnectorError>;
+    fn get_webhook_event_type(
+        &self,
+        _body: &[u8],
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError>;
 
     fn get_webhook_resource_object(
         &self,

@@ -5,7 +5,10 @@ use diesel::{
 use error_stack::{IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
 
-use super::generics;
+#[cfg(not(feature = "kv_store"))]
+use super::generics::{self, ExecuteQuery};
+#[cfg(feature = "kv_store")]
+use super::generics::{self, RawQuery, RawSqlQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -18,26 +21,63 @@ use crate::{
 };
 
 impl PaymentAttemptNew {
+    #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
     pub async fn insert(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        generics::generic_insert(conn, self).await
+        generics::generic_insert::<_, _, PaymentAttempt, _>(conn, self, ExecuteQuery::new()).await
+    }
+
+    #[cfg(feature = "kv_store")]
+    #[instrument(skip(conn))]
+    pub async fn insert(
+        self,
+        conn: &PgPooledConn,
+    ) -> CustomResult<RawSqlQuery, errors::StorageError> {
+        generics::generic_insert::<_, _, PaymentAttempt, _>(conn, self, RawQuery).await
     }
 }
 
 impl PaymentAttempt {
+    #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
             PaymentAttemptUpdateInternal::from(payment_attempt),
+            ExecuteQuery::new(),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                    Ok(self)
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[cfg(feature = "kv_store")]
+    #[instrument(skip(conn))]
+    pub async fn update(
+        self,
+        conn: &PgPooledConn,
+        payment_attempt: PaymentAttemptUpdate,
+    ) -> CustomResult<RawSqlQuery, errors::StorageError> {
+        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+            conn,
+            self.id,
+            PaymentAttemptUpdateInternal::from(payment_attempt),
+            RawQuery,
         )
         .await
     }
@@ -130,4 +170,22 @@ impl PaymentAttempt {
         )
         .await
     }
+
+    #[instrument(skip(conn))]
+    pub async fn find_by_merchant_id_transaction_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        txn_id: &str,
+    ) -> CustomResult<Self, errors::StorageError> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::txn_id.eq(txn_id.to_owned())),
+        )
+        .await
+    }
 }
+
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}

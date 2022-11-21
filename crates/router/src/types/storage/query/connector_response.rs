@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -18,7 +18,8 @@ impl ConnectorResponseNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        generics::generic_insert::<<ConnectorResponse as HasTable>::Table, _, _>(conn, self).await
+        generics::generic_insert::<_, _, ConnectorResponse, _>(conn, self, ExecuteQuery::new())
+            .await
     }
 }
 
@@ -29,12 +30,22 @@ impl ConnectorResponse {
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
             ConnectorResponseUpdateInternal::from(connector_response),
+            ExecuteQuery::new(),
         )
         .await
+        {
+            Err(error) => match error.current_context() {
+                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                    Ok(self)
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 
     #[instrument(skip(conn))]

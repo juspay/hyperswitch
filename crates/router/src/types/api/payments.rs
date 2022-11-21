@@ -150,6 +150,7 @@ pub enum PaymentMethod {
     Card(CCard),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
+    Wallet,
     #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
 }
@@ -167,6 +168,7 @@ pub enum PaymentMethodDataResponse {
     Card(CCardResponse),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
+    Wallet,
     PayLater(PayLaterData),
 }
 
@@ -181,13 +183,14 @@ impl Default for PaymentMethod {
 pub enum PaymentIdType {
     PaymentIntentId(String),
     ConnectorTransactionId(String),
+    PaymentTxnId(String),
 }
 
 impl PaymentIdType {
     pub fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_) => {
+            Self::ConnectorTransactionId(_) | Self::PaymentTxnId(_) => {
                 Err(errors::ValidationError::IncorrectValueProvided {
                     field_name: "payment_id",
                 })
@@ -538,6 +541,7 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
             PaymentMethod::PayLater(pay_later_data) => {
                 PaymentMethodDataResponse::PayLater(pay_later_data)
             }
+            PaymentMethod::Wallet => PaymentMethodDataResponse::Wallet,
         }
     }
 }

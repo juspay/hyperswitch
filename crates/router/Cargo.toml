@@ -22,7 +22,7 @@ actix = "0.13.0"
 actix-cors = "0.6.3"
 actix-rt = "2.7.0"
 actix-web = "4.2.1"
-async-bb8-diesel = { git = "https://bitbucket.org/juspay/async-bb8-diesel", rev = "ca9a9bd3dbe9b9d9f34b30414382e0ad0d87c409" }
+async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "412663e16802dbc58a1b98bfcbe78fa0090311eb" }
 async-trait = { version = "0.1.57" }
 aws-config = { version = "0.49.0", optional = true }
 aws-sdk-kms = { version = "0.19.0", optional = true }
@@ -30,7 +30,8 @@ base64 = "0.13.0"
 bb8 = "0.8"
 bytes = "1.2.1"
 config = { version = "0.13.2", features = ["toml"] }
-diesel = { version = "2.0.1", features = ["postgres", "serde_json", "time"] }
+crc32fast = "1.3.2"
+diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "serde_json", "time"], rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
 dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.1"

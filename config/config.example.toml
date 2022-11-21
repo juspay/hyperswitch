@@ -100,3 +100,8 @@ lock_key = "PRODUCER_LOCKING_KEY" # The following keys defines the producer lock
 lock_ttl = 160                    # the ttl being the expiry (in seconds)
 
 batch_size = 200 # Specifies the batch size the producer will push under a single entry in the redis queue
+
+# Drainer configuration, which handles draining raw SQL queries from Redis streams to the SQL database
+[drainer]
+stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
+num_partitions = 64            # Specifies the number of partitions the stream will be divided into

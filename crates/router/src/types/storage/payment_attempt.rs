@@ -68,7 +68,7 @@ pub struct PaymentAttemptNew {
     pub amount_to_capture: Option<i32>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PaymentAttemptUpdate {
     Update {
         amount: i32,
@@ -221,16 +221,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
-
-    use std::sync::Arc;
-
     use super::*;
     use crate::{
-        configs::settings::Settings,
-        connection,
-        db::{payment_attempt::IPaymentAttempt, SqlDb},
-        routes,
-        services::Store,
+        configs::settings::Settings, db::payment_attempt::IPaymentAttempt, routes, services::Store,
         types,
     };
 
@@ -240,10 +233,7 @@ mod tests {
 
         let state = routes::AppState {
             flow_name: String::from("default"),
-            store: Store {
-                pg_pool: SqlDb::test(&conf.database).await,
-                redis_conn: Arc::new(connection::redis_connection(&conf).await),
-            },
+            store: Store::new(&conf).await,
             conf,
         };
 
@@ -275,10 +265,7 @@ mod tests {
 
         let state = routes::AppState {
             flow_name: String::from("default"),
-            store: Store {
-                pg_pool: SqlDb::test(&conf.database).await,
-                redis_conn: Arc::new(connection::redis_connection(&conf).await),
-            },
+            store: Store::new(&conf).await,
             conf,
         };
         let current_time = crate::utils::date_time::now();

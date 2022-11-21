@@ -40,6 +40,13 @@ pub struct AciPaymentsRequest {
     pub payment_method: PaymentDetails,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCancelRequest {
+    pub entity_id: String,
+    pub payment_type: AciPaymentType,
+}
+
 #[derive(Clone, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum PaymentDetails {
@@ -47,6 +54,7 @@ pub enum PaymentDetails {
     Card(CardDetails),
     #[serde(rename = "bank")]
     BankAccount(BankDetails),
+    Wallet,
     Klarna,
 }
 
@@ -103,6 +111,7 @@ impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
                 account_holder: "xyz".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
+            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
@@ -112,6 +121,18 @@ impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
             amount: item.amount,
             currency: item.currency.to_string(),
             payment_type: AciPaymentType::Debit,
+        };
+        Ok(aci_payment_request)
+    }
+}
+
+impl TryFrom<&types::PaymentRouterCancelData> for AciCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let aci_payment_request = AciCancelRequest {
+            entity_id: auth.entity_id,
+            payment_type: AciPaymentType::Reversal,
         };
         Ok(aci_payment_request)
     }
@@ -163,16 +184,6 @@ pub struct AciPaymentsResponse {
     pub(super) result: ResultCode,
 }
 
-#[derive(Default, Clone, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AciPaymentsFailureResponse {
-    // ndc is an internal unique identifier for the request.
-    ndc: String,
-    timestamp: String,
-    build_number: String,
-    pub(super) result: ResultCode,
-}
-
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultCode {
@@ -188,10 +199,13 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<AciPaymentsResponse>> for types::PaymentsRouterData {
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsResponseRouterData<AciPaymentsResponse>,
+        item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
@@ -275,17 +289,6 @@ impl From<self::AciRefundStatus> for enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundResponse {
     id: String,
-    //ndc is an internal unique identifier for the request.
-    ndc: String,
-    timestamp: String,
-    build_number: String,
-    pub(super) result: ResultCode,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AciErrorRefundResponse {
     //ndc is an internal unique identifier for the request.
     ndc: String,
     timestamp: String,

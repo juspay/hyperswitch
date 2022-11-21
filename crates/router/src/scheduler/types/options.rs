@@ -1,4 +1,6 @@
-pub struct Milliseconds(pub u64);
+pub struct Milliseconds {
+    pub milliseconds: u64,
+}
 
 pub struct SchedulerOptions {
     pub looper_interval: Milliseconds,
