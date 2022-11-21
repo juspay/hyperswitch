@@ -93,9 +93,14 @@ pub async fn get_sync_process_schedule_time(
     redis: sync::Arc<redis::RedisConnectionPool>,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mapping: process_data::ConnectorPTMapping = redis
-        .get_and_deserialize_key(connector, "ConnectorPTMapping")
-        .await?;
+    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
+        redis
+            .get_and_deserialize_key(&format!("pt_mapping_{}", connector), "ConnectorPTMapping")
+            .await;
+    let mapping = match redis_mapping {
+        Ok(x) => x,
+        Err(_) => process_data::ConnectorPTMapping::default(),
+    };
     let time_delta = get_sync_schedule_time(mapping, merchant_id, retry_count + 1);
 
     Ok(pt_utils::get_time_from_delta(time_delta))

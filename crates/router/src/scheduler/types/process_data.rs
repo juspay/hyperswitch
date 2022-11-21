@@ -25,3 +25,17 @@ pub struct ConnectorPTMapping {
     pub custom_merchant_mapping: HashMap<String, RetryMapping>,
     pub max_retries_count: i32,
 }
+
+impl ConnectorPTMapping {
+    pub fn default() -> Self {
+        Self {
+            custom_merchant_mapping: HashMap::new(),
+            default_mapping: RetryMapping {
+                start_after: 60,
+                frequency: vec![300],
+                count: vec![5],
+            },
+            max_retries_count: 5,
+        }
+    }
+}
