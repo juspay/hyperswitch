@@ -23,7 +23,7 @@ services:
     image: grafana/promtail:latest
     volumes:
       - ../logs:/var/log/router
-      - ../config:/etc/promtail
+      - ./config:/etc/promtail
       - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/promtail.yaml
     networks:
