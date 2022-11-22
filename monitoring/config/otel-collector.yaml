@@ -1,0 +1,79 @@
+receivers:
+  promtail:
+    config:
+      scrape_configs:
+        - job_name: loki_push
+          loki_push_api:
+            server:
+              http_listen_port: 3101
+              grpc_listen_port: 3600
+            use_incoming_timestamp: true
+      target_config:
+        sync_period: 10s
+
+  otlp:
+    protocols:
+      grpc:
+
+exporters:
+  kafka:
+    brokers:
+      - kafka0:29092
+    encoding: raw
+    protocol_version: 2.0.0
+
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  logging:
+    loglevel: debug
+
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: router
+    const_labels:
+      app_name: router-api
+
+processors:
+  attributes/log_stream:
+    actions:
+      - key: loki.attribute.labels
+        action: insert
+        value: service,scrape_source,log_stream,container
+
+  filter/kafka_logs:
+    logs:
+      include:
+        match_type: strict
+        record_attributes:
+          - Key: source
+            Value: stdout
+
+service:
+  telemetry:
+    logs:
+      level: debug
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    logs/ckh:
+      receivers: [promtail]
+      processors: [filter/kafka_logs]
+      exporters: [logging, loki, kafka]
+    logs/loki:
+      receivers: [promtail]
+      processors: [attributes/log_stream]
+      exporters: [logging, loki, kafka]
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp]

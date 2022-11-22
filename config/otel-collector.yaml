@@ -1,18 +1,9 @@
 receivers:
-  fluentforward:
-    endpoint: 0.0.0.0:24224
-
   otlp:
     protocols:
       grpc:
 
 exporters:
-  kafka:
-    brokers:
-      - kafka0:29092
-    encoding: raw
-    protocol_version: 2.0.0
-
   otlp:
     endpoint: tempo:4317
     tls:
@@ -21,34 +12,11 @@ exporters:
   logging:
     loglevel: debug
 
-  loki:
-    endpoint: http://loki:3100/loki/api/v1/push
-
   prometheus:
     endpoint: 0.0.0.0:8889
     namespace: router
     const_labels:
       app_name: router-api
-
-processors:
-  attributes/log_stream:
-    actions:
-      - key: loki.attribute.labels
-        action: insert
-        value: log_type,source
-
-  filter/kafka_logs:
-    logs:
-      include:
-        match_type: strict
-        record_attributes:
-          - Key: source
-            Value: stdout
-
-  transform:
-    logs:
-      statements:
-        - set(attributes["log_type"], json_body["log_type"])
 
 service:
   telemetry:
@@ -59,10 +27,6 @@ service:
       address: 0.0.0.0:8888
 
   pipelines:
-    logs:
-      receivers: [fluentforward]
-      processors: [attributes/log_stream, transform, filter/kafka_logs]
-      exporters: [logging, kafka, loki]
     metrics:
       receivers: [otlp]
       exporters: [prometheus]
