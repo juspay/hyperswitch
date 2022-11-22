@@ -60,7 +60,6 @@ impl
     // Not Implemented (R)
 }
 
-#[allow(dead_code)]
 type PSync = dyn services::ConnectorIntegration<
     api::PSync,
     types::PaymentsRequestSyncData,
@@ -73,7 +72,127 @@ impl
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        _req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        // This connector does not require an auth header, the authentication details are sent in the request body
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                PSync::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+        connectors: Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let sync_request =
+            utils::Encode::<authorizedotnet::CreateSyncRequest>::convert_and_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(sync_request))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+        connectors: Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&PSync::get_url(self, req, connectors)?)
+            .headers(PSync::get_headers(self, req)?)
+            .body(PSync::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+        res: Response,
+    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError> {
+        use bytes::Buf;
+
+        // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
+        let encoding = encoding_rs::UTF_8;
+        let intermediate_response = encoding.decode_with_bom_removal(res.response.chunk());
+        let intermediate_response =
+            bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
+
+        let response: authorizedotnet::SyncResponse = intermediate_response
+            .parse_struct("SyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
+            .parse_struct("AuthorizedotnetPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let error = response
+            .transaction_response
+            .errors
+            .and_then(|errors| {
+                errors.first().map(|error| types::ErrorResponse {
+                    code: error.error_code.clone(),
+                    message: error.error_text.clone(),
+                    reason: None,
+                })
+            })
+            .unwrap_or_else(|| types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+            });
+
+        Ok(error)
+    }
 }
 
 type Authorize = dyn services::ConnectorIntegration<

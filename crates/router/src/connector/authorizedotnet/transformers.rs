@@ -451,11 +451,48 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateSyncRequest {
     }
 }
 
+impl
+    TryFrom<
+        &types::RouterData<api::PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>,
+    > for CreateSyncRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &types::RouterData<
+            api::PSync,
+            types::PaymentsRequestSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .as_ref()
+            .map(|payment_response_data| payment_response_data.connector_transaction_id.clone());
+        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+
+        let payload = CreateSyncRequest {
+            get_transaction_details_request: TransactionDetails {
+                merchant_authentication,
+                transaction_id,
+            },
+        };
+        Ok(payload)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SyncStatus {
     RefundSettledSuccessfully,
     RefundPendingSettlement,
+    AuthorizedPendingCapture,
+    CapturedPendingSettlement,
+    SettledSuccessfully,
+    Declined,
+    Voided,
+    CouldNotVoid,
+    GeneralError,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -475,6 +512,20 @@ impl From<SyncStatus> for enums::RefundStatus {
         match transaction_status {
             SyncStatus::RefundSettledSuccessfully => enums::RefundStatus::Success,
             SyncStatus::RefundPendingSettlement => enums::RefundStatus::Pending,
+            _ => enums::RefundStatus::Failure,
+        }
+    }
+}
+
+impl From<SyncStatus> for enums::AttemptStatus {
+    fn from(transaction_status: SyncStatus) -> Self {
+        match transaction_status {
+            SyncStatus::SettledSuccessfully => enums::AttemptStatus::Charged,
+            SyncStatus::Declined => enums::AttemptStatus::AuthenticationFailed,
+            SyncStatus::Voided => enums::AttemptStatus::Voided,
+            SyncStatus::CouldNotVoid => enums::AttemptStatus::VoidFailed,
+            SyncStatus::GeneralError => enums::AttemptStatus::Failure,
+            _ => enums::AttemptStatus::Pending,
         }
     }
 }
@@ -493,6 +544,28 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, SyncResponse>>
                 connector_refund_id: item.response.transaction.transaction_id.clone(),
                 refund_status,
             }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, Req> TryFrom<types::ResponseRouterData<F, SyncResponse, Req, types::PaymentsResponseData>>
+    for types::RouterData<F, Req, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: types::ResponseRouterData<F, SyncResponse, Req, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let payment_status =
+            enums::AttemptStatus::from(item.response.transaction.transaction_status);
+        Ok(types::RouterData {
+            response: Some(types::PaymentsResponseData {
+                connector_transaction_id: item.response.transaction.transaction_id,
+                redirection_data: None,
+                redirect: false,
+            }),
+            status: payment_status,
             ..item.data
         })
     }
