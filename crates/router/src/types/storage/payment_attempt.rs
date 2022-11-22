@@ -121,7 +121,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     redirect: Option<bool>,
-    mandate_id: Option<Option<String>>,
+    mandate_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -204,7 +204,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 modified_at: Some(crate::utils::date_time::now()),
                 redirect,
-                mandate_id: Some(mandate_id),
+                mandate_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
