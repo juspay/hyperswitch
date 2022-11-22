@@ -9,51 +9,61 @@
 
 version: "3"
 
+volumes:
+  cargo_cache:
+  pg_data:
+  cargo_build_cache:
+  ckh_data:
+
 networks:
-  loki:
+  ckh_net:
 
 services:
-  # Disable promtail when using kafka-clickhouse otel since we'll be relying on fluentd
-  # Re-enable promtail when otel starts supporting it
-  # https://github.com/open-telemetry/opentelemetry-collector-contrib/pull/14632
   promtail:
     image: grafana/promtail:latest
     volumes:
       - ../logs:/var/log/router
       - ../config:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/promtail.yaml
     networks:
-      - loki
+      - ckh_net
     restart: unless-stopped
 
   loki:
     image: grafana/loki:latest
     ports:
-      - "3100:3100"
+      - "3100"
     command: -config.file=/etc/loki/loki.yaml
     networks:
-      - loki
+      - ckh_net
     restart: unless-stopped
     volumes:
       - ../config:/etc/loki
 
   otel-collector:
-    image: lsampras/otelcontribcol:latest
+    image: lsampras/otelcontribcol:promtail-receiver
     command: --config=/etc/otel-collector.yaml
     networks:
-      - loki
+      - ckh_net
+    depends_on:
+      - kafka0
     volumes:
-      - ../config/otel-collector.yaml:/etc/otel-collector.yaml
+      - ./config:/etc
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./otel.tmp:/tmp
     ports:
-      - "4317:4317"
-      - "8888:8888"
-      - "8889:8889"
+      - "4317"
+      - "8888"
+      - "3101"
+      - "8889"
+      - "24224"
     restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:latest
     networks:
-      - loki
+      - ckh_net
     volumes:
       - ../config/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
@@ -67,7 +77,7 @@ services:
       - ../config/tempo.yaml:/etc/tempo.yaml
       - ./tempo.tmp:/tmp/tempo
     networks:
-      - loki
+      - ckh_net
     ports:
       - "3200" # tempo
       - "4317" # otlp grpc
@@ -79,7 +89,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - loki
+      - ckh_net
     restart: unless-stopped
     volumes:
       - ../config:/etc/grafana
@@ -89,12 +99,11 @@ services:
     hostname: kafka0
     container_name: kafka0
     networks:
-      - router_net
+      - ckh_net
     ports:
-      - 9092:9092
-      - 29092:29092
-      - 9093:9093
-      - 9997:9997
+      - 9092
+      - 9093
+      - 9997
       - "29092"
     environment:
       KAFKA_BROKER_ID: 1
@@ -114,33 +123,33 @@ services:
       JMX_PORT: 9997
       KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
     volumes:
-      - ./monitoring/kafka-script.sh:/tmp/update_run.sh
+      - ./kafka-script.sh:/tmp/update_run.sh
     command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
 
   # Kafka UI for debugging kafka queues
-  # kafka-ui:
-  #   container_name: kafka-ui
-  #   image: provectuslabs/kafka-ui:latest
-  #   ports:
-  #     - 8090:8080
-  #   networks:
-  #     - router_net
-  #   depends_on:
-  #     - kafka0
-  #   environment:
-  #     KAFKA_CLUSTERS_0_NAME: local
-  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
-  #     KAFKA_CLUSTERS_0_JMXPORT: 9997
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8090:8080
+    networks:
+      - ckh_net
+    depends_on:
+      - kafka0
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
+      KAFKA_CLUSTERS_0_JMXPORT: 9997
   
   clickhouse-server:
     image: clickhouse/clickhouse-server:latest
     networks:
-      - router_net
+      - ckh_net
     ports:
-      - "9000:9000"
+      - "9000"
       - "8123:8123"
     volumes:
-      - click_house_data:/var/lib/clickhouse
+      - ckh_data:/var/lib/clickhouse
     ulimits:
       nofile:
         soft: 262144
@@ -153,9 +162,9 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - router_net
+      - ckh_net
     volumes:
-      - ./:/app
+      - ../:/app
       - cargo_cache:/cargo_cache
       - cargo_build_cache:/cargo_build_cache
     environment:
@@ -163,14 +172,36 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
     labels:
       logs: "promtail"
+    depends_on:
+      - otel-collector
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
       interval: 60s
       retries: 3
       start_period: 20s
       timeout: 10s
-    # Enable this when pushing logs in clickhouse
-    # logging:
-    #   driver: "fluentd"
-    #   options:
-    #     fluentd-address: localhost:24224
+
+  pg:
+    image: postgres:14.5
+    ports:
+      - "5432"
+    networks:
+      - ckh_net
+    volumes:
+      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_pass
+      - POSTGRES_DB=orca_db
+  
+  redis-queue:
+    image: redis:7    
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ../config/redis.conf:/usr/local/etc/redis/redis.conf
+    labels:
+      - redis
+    networks:
+      - ckh_net
+    ports:
+      - "6379"

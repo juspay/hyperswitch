@@ -4,7 +4,6 @@ volumes:
   cargo_cache:
   pg_data:
   cargo_build_cache:
-  click_house_data:
 
 networks:
   router_net:
@@ -42,7 +41,6 @@ services:
       - "4317"
       - "8888"
       - "8889"
-      - "24224:24224"
 
   grafana:
     image: grafana/grafana:latest
