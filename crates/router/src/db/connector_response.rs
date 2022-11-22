@@ -30,7 +30,7 @@ impl IConnectorResponse for Store {
         &self,
         connector_response: ConnectorResponseNew,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         connector_response.insert(&conn).await
     }
 
@@ -40,7 +40,7 @@ impl IConnectorResponse for Store {
         merchant_id: &str,
         txn_id: &str,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         ConnectorResponse::find_by_payment_id_and_merchant_id_transaction_id(
             &conn,
             payment_id,
@@ -55,7 +55,7 @@ impl IConnectorResponse for Store {
         this: ConnectorResponse,
         connector_response_update: ConnectorResponseUpdate,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         this.update(&conn, connector_response_update).await
     }
 }

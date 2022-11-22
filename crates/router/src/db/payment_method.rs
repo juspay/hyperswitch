@@ -36,7 +36,7 @@ impl IPaymentMethod for Store {
         &self,
         payment_method_id: &str,
     ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         PaymentMethod::find_by_payment_method_id(&conn, payment_method_id).await
     }
 
@@ -44,7 +44,7 @@ impl IPaymentMethod for Store {
         &self,
         m: PaymentMethodNew,
     ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         m.insert(&conn).await
     }
 
@@ -53,7 +53,7 @@ impl IPaymentMethod for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         PaymentMethod::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 
@@ -62,7 +62,7 @@ impl IPaymentMethod for Store {
         merchant_id: &str,
         payment_method_id: &str,
     ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         PaymentMethod::delete_by_merchant_id_payment_method_id(
             &conn,
             merchant_id,

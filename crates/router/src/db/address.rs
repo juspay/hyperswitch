@@ -22,7 +22,7 @@ pub trait IAddress {
 #[async_trait::async_trait]
 impl IAddress for Store {
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Address::find_by_address_id(&conn, address_id).await
     }
 
@@ -31,7 +31,7 @@ impl IAddress for Store {
         address_id: String,
         address: AddressUpdate,
     ) -> CustomResult<Address, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Address::update_by_address_id(&conn, address_id, address).await
     }
 
@@ -39,7 +39,7 @@ impl IAddress for Store {
         &self,
         address: AddressNew,
     ) -> CustomResult<Address, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         address.insert(&conn).await
     }
 }

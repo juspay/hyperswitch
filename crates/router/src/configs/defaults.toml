@@ -9,7 +9,7 @@ request_body_limit = 16_384 # Post request body is limited to 16k.
 # http_url = ""
 # https_url = ""
 
-[database]
+[master_database]
 username = "none"
 password = "none"
 host = "localhost"

@@ -13,7 +13,7 @@ pub trait IEvent {
 #[async_trait::async_trait]
 impl IEvent for Store {
     async fn insert_event(&self, event: EventNew) -> CustomResult<Event, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         event.insert(&conn).await
     }
 }

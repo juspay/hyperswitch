@@ -39,7 +39,7 @@ impl IMandate for Store {
         merchant_id: &str,
         mandate_id: &str,
     ) -> CustomResult<Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id).await
     }
 
@@ -48,7 +48,7 @@ impl IMandate for Store {
         merchant_id: &str,
         customer_id: &str,
     ) -> CustomResult<Vec<Mandate>, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id).await
     }
 
@@ -58,7 +58,7 @@ impl IMandate for Store {
         mandate_id: &str,
         mandate: MandateUpdate,
     ) -> CustomResult<Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate).await
     }
 
@@ -66,7 +66,7 @@ impl IMandate for Store {
         &self,
         mandate: MandateNew,
     ) -> CustomResult<Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         mandate.insert(&conn).await
     }
 }

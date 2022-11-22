@@ -13,6 +13,7 @@ default = []
 kms = ["aws-config", "aws-sdk-kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe"]
+olap = []
 production = []
 kv_store = []
 
