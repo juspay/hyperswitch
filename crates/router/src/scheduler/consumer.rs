@@ -1,6 +1,9 @@
 // TODO: Figure out what to log
 
-use std::{fmt, sync};
+use std::{
+    fmt,
+    sync::{self, atomic},
+};
 
 use error_stack::ResultExt;
 use futures::future;
@@ -8,7 +11,10 @@ use router_env::{tracing, tracing::instrument};
 use time::PrimitiveDateTime;
 use uuid::Uuid;
 
-use super::workflows::{self, ProcessTrackerWorkflow};
+use super::{
+    metrics,
+    workflows::{self, ProcessTrackerWorkflow},
+};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -18,7 +24,7 @@ use crate::{
     scheduler::utils as pt_utils,
     services::redis::*,
     types::storage::{self, enums},
-    utils,
+    utils::date_time,
 };
 
 // Valid consumer business statuses
@@ -30,32 +36,40 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 pub async fn start_consumer(
     state: &AppState,
     options: sync::Arc<super::SchedulerOptions>,
-    settings: settings::SchedulerSettings,
+    settings: sync::Arc<settings::SchedulerSettings>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
 
     use rand::Rng;
 
-    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.0);
+    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.milliseconds);
     tokio::time::sleep(Duration::from_millis(timeout)).await;
 
-    let mut interval = tokio::time::interval(Duration::from_millis(options.looper_interval.0));
+    let mut interval =
+        tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
 
+    let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     loop {
         interval.tick().await;
 
         let is_ready = options.readiness.is_ready;
         if is_ready {
-            match consumer_operations(state, &options, &settings).await {
-                Ok(_) => (),
-                Err(error) => {
-                    // Intentionally not propagating error to caller.
-                    // Any errors that occur in the consumer flow must be handled here only, as
-                    // this is the topmost level function which is concerned with the consumer flow.
-                    error!(%error);
-                }
-            };
+            tokio::task::spawn(pt_utils::consumer_operation_handler(
+                state.clone(),
+                options.clone(),
+                settings.clone(),
+                |err| {
+                    error!(%err);
+                },
+                sync::Arc::clone(&consumer_operation_counter),
+            ));
         } else {
+            tokio::time::interval(Duration::from_millis(
+                options.readiness.graceful_termination_duration.milliseconds,
+            ))
+            .tick()
+            .await;
+            let _active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
             // TODO: Handle termination?
             info!("Terminating consumer");
             break;
@@ -94,11 +108,15 @@ pub async fn consumer_operations(
     )
     .await?;
 
-    let pickup_time = utils::date_time::now();
     let mut handler = vec![];
-    for task in tasks.iter_mut() {
-        let runner = pt_utils::runner_from_task(task)?;
 
+    for task in tasks.iter_mut() {
+        let pickup_time = date_time::now();
+
+        pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
+
+        metrics::TASK_CONSUMED.add(1, &[]);
+        let runner = pt_utils::runner_from_task(task)?;
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
             task.clone(),

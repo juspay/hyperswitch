@@ -35,8 +35,6 @@ pub mod services;
 pub mod types;
 pub mod utils;
 
-use std::sync::Arc;
-
 use actix_web::{dev::Server, middleware::ErrorHandlers};
 use http::StatusCode;
 use routes::AppState;
@@ -45,7 +43,6 @@ pub use self::env::logger;
 use crate::{
     configs::settings::Settings,
     core::errors::{self, BachResult},
-    db::SqlDb,
     services::Store,
 };
 
@@ -66,13 +63,7 @@ pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
     let server = conf.server.clone();
     let state = routes::AppState {
         flow_name: String::from("default"),
-        store: Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            // FIXME: from my understanding, this creates a single connection
-            // for the entire lifetime of the server. This doesn't survive disconnects
-            // from redis. Consider using connection pool.
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: Store::new(&conf).await,
         conf,
     };
     // Cloning to close connections before shutdown

@@ -217,6 +217,10 @@ where
     where
         Self: Serialize;
 
+    fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
+    where
+        Self: Serialize;
+
     fn encode_to_value(&'e self) -> CustomResult<serde_json::Value, errors::ParsingError>
     where
         Self: Serialize;
@@ -260,6 +264,16 @@ where
         Self: Serialize,
     {
         serde_urlencoded::to_string(self)
+            .into_report()
+            .change_context(errors::ParsingError)
+            .attach_printable_lazy(|| format!("Unable to convert {:?} to a request", self))
+    }
+
+    fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
+    where
+        Self: Serialize,
+    {
+        serde_json::to_string(self)
             .into_report()
             .change_context(errors::ParsingError)
             .attach_printable_lazy(|| format!("Unable to convert {:?} to a request", self))

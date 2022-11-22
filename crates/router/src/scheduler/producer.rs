@@ -38,15 +38,16 @@ pub fn producer_lock_ttl() -> i64 {
 pub async fn start_producer(
     state: &AppState,
     options: Arc<SchedulerOptions>,
-    scheduler_settings: SchedulerSettings,
+    scheduler_settings: Arc<SchedulerSettings>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use rand::Rng;
 
-    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.0);
+    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.milliseconds);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
 
-    let mut interval =
-        tokio::time::interval(std::time::Duration::from_millis(options.looper_interval.0));
+    let mut interval = tokio::time::interval(std::time::Duration::from_millis(
+        options.looper_interval.milliseconds,
+    ));
 
     loop {
         interval.tick().await;

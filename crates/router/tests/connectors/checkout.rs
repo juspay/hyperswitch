@@ -1,9 +1,7 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use router::{
-    connection,
     core::payments,
-    db::SqlDb,
     routes::AppState,
     types::{self, api, storage::enums, PaymentAddress},
 };
@@ -22,6 +20,7 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         amount: 100,
+        orca_return_url: None,
         currency: enums::Currency::USD,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
@@ -64,6 +63,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         status: enums::AttemptStatus::default(),
         amount: 100,
         currency: enums::Currency::USD,
+        orca_return_url: None,
         payment_method: enums::PaymentMethodType::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),
@@ -100,10 +100,7 @@ async fn test_checkout_payment_success() {
     };
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     let connector_integration: services::BoxedConnectorIntegration<
@@ -138,10 +135,7 @@ async fn test_checkout_refund_success() {
     let conf = Settings::new().expect("invalid settings");
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     static CV: Checkout = Checkout;
@@ -205,10 +199,7 @@ async fn test_checkout_payment_failure() {
     let conf = Settings::new().expect("invalid settings");
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     static CV: Checkout = Checkout;
@@ -242,10 +233,7 @@ async fn test_checkout_refund_failure() {
     let conf = Settings::new().expect("invalid settings");
     let state = AppState {
         flow_name: String::from("default"),
-        store: services::Store {
-            pg_pool: SqlDb::new(&conf.database).await,
-            redis_conn: Arc::new(connection::redis_connection(&conf).await),
-        },
+        store: services::Store::new(&conf).await,
         conf,
     };
     static CV: Checkout = Checkout;

@@ -917,3 +917,7 @@ pub fn hmac_sha256_sorted_query_params<'a>(
 
     Ok(hex::encode(signature))
 }
+
+pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
+    format!("{:?}", operations) == "PaymentConfirm"
+}

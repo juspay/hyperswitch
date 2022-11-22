@@ -218,48 +218,104 @@ impl
         &self,
         _req: &types::PaymentRouterCancelData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("authorizedotnet".to_string()).into())
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                Authorize::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ])
     }
 
     fn get_content_type(&self) -> &'static str {
-        ""
+        self.common_get_content_type()
     }
 
     fn get_url(
         &self,
         _req: &types::PaymentRouterCancelData,
-        _connectors: Connectors,
+        connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("authorizedotnet".to_string()).into())
+        Ok(self.base_url(connectors))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        req: &types::PaymentRouterCancelData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("authorizedotnet".to_string()).into())
+        let authorizedotnet_req =
+            utils::Encode::<authorizedotnet::CancelTransactionRequest>::convert_and_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(authorizedotnet_req))
     }
     fn build_request(
         &self,
-        _req: &types::PaymentRouterCancelData,
-        _connectors: Connectors,
+        req: &types::PaymentRouterCancelData,
+        connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("authorizedotnet".to_string()).into())
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
+                .url(&Void::get_url(self, req, connectors)?)
+                .headers(Void::get_headers(self, req)?)
+                .header(headers::X_ROUTER, "test")
+                .body(Void::get_request_body(self, req)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentRouterCancelData,
-        _res: Response,
+        data: &types::PaymentRouterCancelData,
+        res: Response,
     ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("authorizedotnet".to_string()).into())
+        use bytes::Buf;
+
+        // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
+        let encoding = encoding_rs::UTF_8;
+        let intermediate_response = encoding.decode_with_bom_removal(res.response.chunk());
+        let intermediate_response =
+            bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
+
+        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = intermediate_response
+            .parse_struct("AuthorizedotnetPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(authorizedotnetpayments_create_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("authorizedotnet".to_string()).into())
+        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
+            .parse_struct("AuthorizedotnetPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let error = response
+            .transaction_response
+            .errors
+            .and_then(|errors| {
+                errors.first().map(|error| types::ErrorResponse {
+                    code: error.error_code.clone(),
+                    message: error.error_text.clone(),
+                    reason: None,
+                })
+            })
+            .unwrap_or_else(|| types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+            });
+
+        Ok(error)
     }
 }
 
@@ -512,7 +568,10 @@ impl api::IncomingWebhook for Authorizedotnet {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
-    fn get_webhook_event_type(&self, _body: &[u8]) -> CustomResult<String, errors::ConnectorError> {
+    fn get_webhook_event_type(
+        &self,
+        _body: &[u8],
+    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

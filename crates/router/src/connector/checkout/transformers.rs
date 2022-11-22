@@ -1,8 +1,11 @@
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     core::errors,
     pii::{self, Secret},
+    services,
     types::{self, api, storage::enums},
 };
 
@@ -26,12 +29,29 @@ pub struct CheckoutAuthType {
     pub(super) api_key: String,
     pub(super) processing_channel_id: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct ReturnUrl {
+    pub success_url: Option<String>,
+    pub failure_url: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: Source,
     pub amount: i32,
     pub currency: String,
     pub processing_channel_id: String,
+    #[serde(rename = "3ds")]
+    pub three_ds: CheckoutThreeDS,
+    #[serde(flatten)]
+    pub return_url: ReturnUrl,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CheckoutThreeDS {
+    enabled: bool,
+    force_3ds: bool,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
@@ -53,7 +73,30 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
             api::PaymentMethod::BankTransfer => None,
+            api::PaymentMethod::Wallet => None,
             api::PaymentMethod::PayLater(_) => None,
+        };
+
+        let three_ds = match item.auth_type {
+            enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
+                enabled: true,
+                force_3ds: true,
+            },
+            enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
+                enabled: false,
+                force_3ds: false,
+            },
+        };
+
+        let return_url = ReturnUrl {
+            success_url: item
+                .orca_return_url
+                .as_ref()
+                .map(|return_url| format!("{return_url}?status=success")),
+            failure_url: item
+                .orca_return_url
+                .as_ref()
+                .map(|return_url| format!("{return_url}?status=failure")),
         };
 
         let source_var = Source::Card(CardSource {
@@ -70,6 +113,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
             amount: item.amount,
             currency: item.currency.to_string(),
             processing_channel_id,
+            three_ds,
+            return_url,
         })
     }
 }
@@ -99,10 +144,21 @@ impl From<CheckoutPaymentStatus> for enums::AttemptStatus {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct Href {
+    href: String,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct Links {
+    redirect: Option<Href>,
+}
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct PaymentsResponse {
     id: String,
-    amount: i32,
+    amount: Option<i32>,
     status: CheckoutPaymentStatus,
+    #[serde(rename = "_links")]
+    links: Links,
 }
 impl<F, Req>
     TryFrom<types::ResponseRouterData<F, PaymentsResponse, Req, types::PaymentsResponseData>>
@@ -112,13 +168,30 @@ impl<F, Req>
     fn try_from(
         item: types::ResponseRouterData<F, PaymentsResponse, Req, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_url = item
+            .response
+            .links
+            .redirect
+            .map(|data| Url::parse(&data.href))
+            .transpose()
+            .into_report()
+            .change_context(errors::ParsingError)
+            .attach_printable("Could not parse the redirection data")?;
+
+        let redirection_data = redirection_url.map(|url| services::RedirectForm {
+            url: url.to_string(),
+            method: services::Method::Get,
+            form_fields: std::collections::HashMap::from_iter(
+                url.query_pairs()
+                    .map(|(k, v)| (k.to_string(), v.to_string())),
+            ),
+        });
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
             response: Some(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
-                //TODO: Add redirection details here
-                redirection_data: None,
-                redirect: false,
+                redirect: redirection_data.is_some(),
+                redirection_data,
             }),
             error_response: None,
             ..item.data
@@ -245,6 +318,20 @@ impl From<&ActionResponse> for enums::RefundStatus {
     }
 }
 
+#[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckoutRedirectResponseStatus {
+    Success,
+    Failure,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
+pub struct CheckoutRedirectResponse {
+    pub status: Option<CheckoutRedirectResponseStatus>,
+    #[serde(rename = "cko-session-id")]
+    pub cko_session_id: Option<String>,
+}
+
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
     for types::RefundsRouterData<api::Execute>
 {
@@ -280,5 +367,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
             error_response: None,
             ..item.data
         })
+    }
+}
+
+impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
+    fn from(item: CheckoutRedirectResponseStatus) -> Self {
+        match item {
+            CheckoutRedirectResponseStatus::Success => {
+                types::storage::enums::AttemptStatus::VbvSuccessful
+            }
+
+            CheckoutRedirectResponseStatus::Failure => {
+                types::storage::enums::AttemptStatus::Failure
+            }
+        }
     }
 }

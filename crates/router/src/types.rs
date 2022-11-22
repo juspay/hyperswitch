@@ -46,6 +46,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
+    pub orca_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: enums::AuthenticationType,
 

@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -12,7 +12,7 @@ use crate::{
 impl TempCardNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<TempCard, errors::StorageError> {
-        generics::generic_insert::<<TempCard as HasTable>::Table, _, _>(conn, self).await
+        generics::generic_insert::<_, _, TempCard, _>(conn, self, ExecuteQuery::new()).await
     }
 }
 
@@ -22,7 +22,7 @@ impl TempCard {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_insert::<<Self as HasTable>::Table, _, _>(conn, self).await
+        generics::generic_insert::<_, _, TempCard, _>(conn, self, ExecuteQuery::new()).await
     }
 
     #[instrument(skip(conn))]

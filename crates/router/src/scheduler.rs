@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub mod consumer;
+pub mod metrics;
 pub mod producer;
 pub mod types;
 pub mod utils;
@@ -20,7 +21,7 @@ pub async fn start_process_tracker(
     state: &AppState,
     options: Arc<SchedulerOptions>,
     scheduler_flow: SchedulerFlow,
-    scheduler_settings: SchedulerSettings,
+    scheduler_settings: Arc<SchedulerSettings>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
         SchedulerFlow::Producer => {

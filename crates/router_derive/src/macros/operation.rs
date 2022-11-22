@@ -40,69 +40,10 @@ impl Derives {
         fns: impl Iterator<Item = TokenStream> + Clone,
         struct_name: &syn::Ident,
     ) -> TokenStream {
-        match self {
-            Self::Authorize => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequest> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Sync => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRetrieveRequest> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Cancel => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsCancelRequest> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Syncdata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequestSyncData> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Authorizedata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequestData> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Canceldata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentRequestCancelData> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Capture => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsCaptureRequest> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Capturedata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequestCaptureData> for #struct_name {
-                        #(#fns)*
-                    }
-                }
-            }
-            Self::Start => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsStartRequest> for #struct_name {
-                        #(#fns)*
-                    }
-                }
+        let req_type = Conversion::get_req_type(self);
+        quote! {
+            impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
+                #(#fns)*
             }
         }
     }
@@ -112,69 +53,10 @@ impl Derives {
         ref_fns: impl Iterator<Item = TokenStream> + Clone,
         struct_name: &syn::Ident,
     ) -> TokenStream {
-        match self {
-            Self::Authorize => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequest> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Sync => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRetrieveRequest> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Cancel => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsCancelRequest> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Syncdata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequestSyncData> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Authorizedata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequestData> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Canceldata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentRequestCancelData> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Capture => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsCaptureRequest> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Capturedata => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsRequestCaptureData> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
-            }
-            Self::Start => {
-                quote! {
-                    impl<F:Send+Clone> Operation<F,PaymentsStartRequest> for &#struct_name {
-                        #(#ref_fns)*
-                    }
-                }
+        let req_type = Conversion::get_req_type(self);
+        quote! {
+            impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
+                #(#ref_fns)*
             }
         }
     }
@@ -205,7 +87,7 @@ impl From<String> for Conversion {
 }
 
 impl Conversion {
-    fn get_req_type(&self, ident: Derives) -> syn::Ident {
+    fn get_req_type(ident: Derives) -> syn::Ident {
         match ident {
             Derives::Authorize => syn::Ident::new("PaymentsRequest", Span::call_site()),
             Derives::Authorizedata => syn::Ident::new("PaymentsRequestData", Span::call_site()),
@@ -222,7 +104,7 @@ impl Conversion {
     }
 
     fn to_function(&self, ident: Derives) -> TokenStream {
-        let req_type = self.get_req_type(ident);
+        let req_type = Self::get_req_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
                 fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
@@ -266,7 +148,7 @@ impl Conversion {
     }
 
     fn to_ref_function(&self, ident: Derives) -> TokenStream {
-        let req_type = self.get_req_type(ident);
+        let req_type = Self::get_req_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
                 fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {

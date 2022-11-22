@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -18,8 +18,12 @@ impl MerchantConnectorAccountNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        generics::generic_insert::<<MerchantConnectorAccount as HasTable>::Table, _, _>(conn, self)
-            .await
+        generics::generic_insert::<_, _, MerchantConnectorAccount, _>(
+            conn,
+            self,
+            ExecuteQuery::new(),
+        )
+        .await
     }
 }
 
@@ -30,12 +34,22 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_connector_account: MerchantConnectorAccountUpdate,
     ) -> CustomResult<Self, errors::StorageError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
             MerchantConnectorAccountUpdateInternal::from(merchant_connector_account),
+            ExecuteQuery::new(),
         )
         .await
+        {
+            Err(error) => match error.current_context() {
+                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                    Ok(self)
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 
     pub async fn delete_by_merchant_id_merchant_connector_id(
@@ -43,11 +57,12 @@ impl MerchantConnectorAccount {
         merchant_id: &str,
         merchant_connector_id: &i32,
     ) -> CustomResult<bool, errors::StorageError> {
-        generics::generic_delete::<<Self as HasTable>::Table, _>(
+        generics::generic_delete::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::merchant_connector_id.eq(merchant_connector_id.to_owned())),
+            ExecuteQuery::<Self>::new(),
         )
         .await
     }

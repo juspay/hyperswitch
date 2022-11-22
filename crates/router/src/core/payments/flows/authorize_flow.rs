@@ -11,6 +11,7 @@ use crate::{
     },
     db::mandate::IMandate,
     routes::AppState,
+    scheduler::metrics,
     services,
     types::{
         self, api,
@@ -73,6 +74,8 @@ impl Feature<api::Authorize, types::PaymentsRequestData>
                 call_connector_action,
             )
             .await;
+
+        metrics::PAYMENT_COUNT.add(1, &[]); // Metrics
 
         (resp, payment_data)
     }

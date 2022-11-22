@@ -124,6 +124,9 @@ async fn get_tracker_for_sync<
         api::PaymentIdType::ConnectorTransactionId(ref id) => {
             db.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, id)
         }
+        api::PaymentIdType::PaymentTxnId(ref id) => {
+            db.find_payment_attempt_by_merchant_id_txn_id(merchant_id, id)
+        }
     }
     .await
     .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;

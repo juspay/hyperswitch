@@ -839,12 +839,18 @@ impl api::IncomingWebhook for Stripe {
         Ok(details.data.object.id)
     }
 
-    fn get_webhook_event_type(&self, body: &[u8]) -> CustomResult<String, errors::ConnectorError> {
+    fn get_webhook_event_type(
+        &self,
+        body: &[u8],
+    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let details: stripe::StripeWebhookObjectEventType = body
             .parse_struct("StripeWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(details.event_type)
+        Ok(match details.event_type.as_str() {
+            "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        })
     }
 
     fn get_webhook_resource_object(

@@ -16,8 +16,6 @@ use crate::{
     utils::{ByteSliceExt, Encode},
 };
 
-// TODO: Raise our error type which maps to `fred::error::RedisError` instead of directly raising `fred::error::RedisError`.
-
 impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &str, value: V) -> CustomResult<(), errors::RedisError>

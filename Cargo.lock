@@ -322,7 +322,7 @@ checksum = "8d5ebd6061b8b70d59b36bc58d2337540bd7cc1f23ab2bea356f452bc7fe3505"
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
-source = "git+https://bitbucket.org/juspay/async-bb8-diesel?rev=ca9a9bd3dbe9b9d9f34b30414382e0ad0d87c409#ca9a9bd3dbe9b9d9f34b30414382e0ad0d87c409"
+source = "git+https://github.com/juspay/async-bb8-diesel?rev=412663e16802dbc58a1b98bfcbe78fa0090311eb#412663e16802dbc58a1b98bfcbe78fa0090311eb"
 dependencies = [
  "async-trait",
  "bb8",
@@ -354,9 +354,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.57"
+version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76464446b8bc32758d7e88ee1a804d9914cd9b1cb264c029899680b0be29826f"
+checksum = "1e805d94e6b5001b651426cf4cd446b1ab5f319d27bab5c644f61de0a804360c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -408,7 +408,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "rand",
- "rustls 0.20.6",
+ "rustls 0.20.7",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -975,9 +975,8 @@ dependencies = [
 
 [[package]]
 name = "diesel"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36da89704300f3b791425e68b628c852912fb81b3bf0841bfde2c315cb7a7887"
+version = "2.0.2"
+source = "git+https://github.com/juspay/diesel?rev=22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02#22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -991,9 +990,8 @@ dependencies = [
 
 [[package]]
 name = "diesel_derives"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22a7ab9d7967e6a1a247ea38aedf88ab808b4ac0c159576bc71866ab8f9f9250"
+version = "2.0.1"
+source = "git+https://github.com/juspay/diesel?rev=22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02#22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -2434,6 +2432,7 @@ dependencies = [
  "bb8",
  "bytes",
  "config",
+ "crc32fast",
  "diesel",
  "dyn-clone",
  "encoding_rs",
@@ -2547,9 +2546,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.20.6"
+version = "0.20.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aab8ee6c7097ed6057f43c187a62418d0c05a4bd5f18b3571db50ee0f9ce033"
+checksum = "539a2bfe908f471bfa933876bd1eb6a19cf2176d375f82ef7f99530a40e48c2c"
 dependencies = [
  "log",
  "ring",
@@ -3043,7 +3042,7 @@ version = "0.23.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c43ee83903113e03984cb9e5cebe6c04a5116269e900e3ddba8f068a62adda59"
 dependencies = [
- "rustls 0.20.6",
+ "rustls 0.20.7",
  "tokio",
  "webpki 0.22.0",
 ]

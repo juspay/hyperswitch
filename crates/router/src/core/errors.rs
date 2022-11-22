@@ -66,7 +66,7 @@ macro_rules! router_error_error_stack_specific {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("DataBaseError: {0}")]
+    #[error("DatabaseError: {0}")]
     DatabaseError(#[from] DatabaseError),
 
     #[error("ValueNotFound: {0}")]
@@ -85,6 +85,10 @@ pub enum DatabaseError {
     NotFound,
     #[error("A unique constraint violation occurred")]
     UniqueViolation,
+    #[error("No fields were provided to be updated")]
+    NoFieldsToUpdate,
+    #[error("An error occurred when generating raw SQL query")]
+    QueryGenerationFailed,
     // InsertFailed,
     #[error("An unknown error occurred")]
     Others,

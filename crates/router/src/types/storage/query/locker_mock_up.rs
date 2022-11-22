@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics;
+use super::generics::{self, ExecuteQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -15,7 +15,7 @@ impl LockerMockUpNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
-        generics::generic_insert(conn, self).await
+        generics::generic_insert::<_, _, LockerMockUp, _>(conn, self, ExecuteQuery::new()).await
     }
 }
 

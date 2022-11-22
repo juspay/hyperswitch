@@ -122,6 +122,7 @@ pub enum StripePaymentMethodData {
     Card(StripeCardData),
     Klarna(StripeKlarnaData),
     Bank,
+    Wallet,
 }
 
 impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
@@ -158,6 +159,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
                     billing_country: klarna_data.country.clone(),
                 })
             }
+            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
         };
         let shipping_address = match item.address.shipping.clone() {
             Some(mut shipping) => Address {
@@ -195,7 +197,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             return_url: item
-                .return_url
+                .orca_return_url
                 .clone()
                 .unwrap_or_else(|| "https://juspay.in/".to_string()),
             confirm: true, // Stripe requires confirm to be true if return URL is present
@@ -497,7 +499,7 @@ pub struct Address {
 pub struct StripeRedirectResponse {
     pub payment_intent: String,
     pub payment_intent_client_secret: String,
-    pub source_redirect_slug: String,
+    pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<String>,
     pub source_type: Option<String>,
 }

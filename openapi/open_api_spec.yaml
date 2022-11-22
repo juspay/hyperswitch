@@ -2646,7 +2646,7 @@ components:
                     type: string
                     description: The URL to redirect after the completion of the operation
                     maxLength: 255
-                    example: "www.example.com/success"
+                    example: "https://juspay.io/"
                 setup_future_usage:
                     type: string
                     description: "Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete."

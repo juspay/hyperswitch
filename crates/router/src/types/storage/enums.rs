@@ -498,10 +498,6 @@ pub enum ProcessTrackerStatus {
     ProcessStarted,
     // Finished by consumer
     Finish,
-    // Error while execution
-    GlobalError,
-    // Error after global error
-    GlobalFailure,
 }
 
 #[derive(

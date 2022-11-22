@@ -225,24 +225,20 @@ pub async fn webhooks_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("There was an error in incoming webhook body decoding")?;
 
-    let connector_event_type = connector
+    let event_type = connector
         .get_webhook_event_type(&decoded_body)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not find event type in incoming webhook body")?;
 
-    let flow_type_optional = utils::lookup_webhook_event(
+    let process_webhook_further = utils::lookup_webhook_event(
         connector_name,
         &merchant_account.merchant_id,
-        &connector_event_type,
+        &event_type,
         state.store.redis_conn.clone(),
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable(
-        "There was an issue when looking up the merchant webhook configuration in DB",
-    )?;
+    .await;
 
-    if let Some(flow_type) = flow_type_optional {
+    if process_webhook_further {
         let object_ref_id = connector
             .get_webhook_object_reference_id(&decoded_body)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -255,7 +251,6 @@ pub async fn webhooks_core(
 
         let webhook_details = api::IncomingWebhookDetails {
             object_reference_id: object_ref_id,
-            connector_event_type,
             resource_object: Encode::<serde_json::Value>::encode_to_vec(&event_object)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
@@ -263,6 +258,7 @@ pub async fn webhooks_core(
                 )?,
         };
 
+        let flow_type: api::WebhookFlow = event_type.into();
         match flow_type {
             api::WebhookFlow::Payment => payments_incoming_webhook_flow(
                 state.clone(),
