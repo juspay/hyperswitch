@@ -34,6 +34,7 @@ pub struct PaymentAttempt {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
+    pub mandate_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -66,6 +67,7 @@ pub struct PaymentAttemptNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
+    pub mandate_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -94,6 +96,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
         redirect: Option<bool>,
+        mandate_id: Option<String>,
     },
     StatusUpdate {
         status: enums::AttemptStatus,
@@ -118,6 +121,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     redirect: Option<bool>,
+    mandate_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -192,6 +196,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_type,
                 payment_method_id,
                 redirect,
+                mandate_id,
             } => Self {
                 status: Some(status),
                 connector_transaction_id,
@@ -199,6 +204,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 modified_at: Some(crate::utils::date_time::now()),
                 redirect,
+                mandate_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -293,5 +299,42 @@ mod tests {
         eprintln!("{:?}", response);
 
         assert_eq!(response.payment_id, "1");
+    }
+
+    #[actix_rt::test]
+    async fn test_payment_attempt_mandate_field() {
+        use crate::configs::settings::Settings;
+        let conf = Settings::new().expect("invalid settings");
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let state = routes::AppState {
+            flow_name: String::from("default"),
+            store: Store::new(&conf).await,
+            conf,
+        };
+        let current_time = crate::utils::date_time::now();
+
+        let payment_attempt = PaymentAttemptNew {
+            payment_id: uuid.clone(),
+            merchant_id: "1".to_string(),
+            connector: types::Connector::Dummy.to_string(),
+            created_at: current_time.into(),
+            modified_at: current_time.into(),
+            // Adding a mandate_id
+            mandate_id: Some("man_121212".to_string()),
+            ..PaymentAttemptNew::default()
+        };
+        state
+            .store
+            .insert_payment_attempt(payment_attempt)
+            .await
+            .unwrap();
+
+        let response = state
+            .store
+            .find_payment_attempt_by_payment_id_merchant_id(&uuid, "1")
+            .await
+            .unwrap();
+        // checking it after fetch
+        assert_eq!(response.mandate_id, Some("man_121212".to_string()));
     }
 }
