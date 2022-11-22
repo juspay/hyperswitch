@@ -48,7 +48,7 @@ impl ICustomer for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Option<Customer>, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 
@@ -58,7 +58,7 @@ impl ICustomer for Store {
         merchant_id: String,
         customer: CustomerUpdate,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Customer::update_by_customer_id_merchant_id(&conn, customer_id, merchant_id, customer).await
     }
 
@@ -67,7 +67,7 @@ impl ICustomer for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 
@@ -75,7 +75,7 @@ impl ICustomer for Store {
         &self,
         customer_data: CustomerNew,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         customer_data.insert(&conn).await
     }
 
@@ -84,7 +84,7 @@ impl ICustomer for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 }
