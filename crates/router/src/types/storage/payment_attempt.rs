@@ -300,4 +300,41 @@ mod tests {
 
         assert_eq!(response.payment_id, "1");
     }
+
+    #[actix_rt::test]
+    async fn test_payment_attempt_mandate_field() {
+        use crate::configs::settings::Settings;
+        let conf = Settings::new().expect("invalid settings");
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let state = routes::AppState {
+            flow_name: String::from("default"),
+            store: Store::new(&conf).await,
+            conf,
+        };
+        let current_time = crate::utils::date_time::now();
+
+        let payment_attempt = PaymentAttemptNew {
+            payment_id: uuid.clone(),
+            merchant_id: "1".to_string(),
+            connector: types::Connector::Dummy.to_string(),
+            created_at: current_time.into(),
+            modified_at: current_time.into(),
+            // Adding a mandate_id
+            mandate_id: Some("man_121212".to_string()),
+            ..PaymentAttemptNew::default()
+        };
+        state
+            .store
+            .insert_payment_attempt(payment_attempt)
+            .await
+            .unwrap();
+
+        let response = state
+            .store
+            .find_payment_attempt_by_payment_id_merchant_id(&uuid, "1")
+            .await
+            .unwrap();
+        // checking it after fetch
+        assert_eq!(response.mandate_id, Some("man_121212".to_string()));
+    }
 }
