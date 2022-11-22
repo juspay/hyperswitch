@@ -40,11 +40,5 @@ scrape_configs:
         log_type:
   - labels:
       log_type:
-  #       host: hostname
-  # - timestamp:
-  #     source: timestamp
-  #     format: RFC339Nano
-  # - labels:
-  #     host:
   - static_labels:
       scrape_source: console
