@@ -4,6 +4,7 @@
 port = 8080
 host = "127.0.0.1"
 request_body_limit = 16_384 # Post request body is limited to 16k.
+base_url = "http://localhost:8080"
 
 [proxy]
 # http_url = ""

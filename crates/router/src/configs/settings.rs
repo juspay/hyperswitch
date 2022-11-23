@@ -62,6 +62,7 @@ pub struct Server {
     pub port: u16,
     pub host: String,
     pub request_body_limit: usize,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

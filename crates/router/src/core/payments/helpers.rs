@@ -291,32 +291,24 @@ fn validate_new_mandate_request(req: &api::PaymentsRequest) -> RouterResult<()> 
     Ok(())
 }
 
-pub fn create_server_url(server: &Server) -> String {
-    if server.host.eq("127.0.0.1") || server.host.eq("localhost") {
-        format!("http://{}:{}", server.host, server.port)
-    } else {
-        format!("https://{}", server.host)
-    }
-}
 pub fn create_startpay_url(
     server: &Server,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
 ) -> String {
-    let server_url = create_server_url(server);
-
     format!(
         "{}/payments/start/{}/{}/{}",
-        server_url, payment_intent.payment_id, payment_intent.merchant_id, payment_attempt.txn_id
+        server.base_url,
+        payment_intent.payment_id,
+        payment_intent.merchant_id,
+        payment_attempt.txn_id
     )
 }
 
 pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAttempt) -> String {
-    let server_url = create_server_url(server);
-
     format!(
         "{}/payments/{}/{}/response/{}",
-        server_url,
+        server.base_url,
         payment_attempt.payment_id,
         payment_attempt.merchant_id,
         payment_attempt.connector
