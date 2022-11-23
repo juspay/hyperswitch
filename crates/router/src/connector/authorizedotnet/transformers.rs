@@ -293,13 +293,17 @@ impl<F, T>
 
         Ok(types::RouterData {
             status,
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.transaction_response.transaction_id,
-                //TODO: Add redirection details here
-                redirection_data: None,
-                redirect: false,
-            }),
-            error_response: error,
+            response: match error {
+                Some(err) => Some(Err(err)),
+                None => {
+                    Some(Ok(types::PaymentsResponseData {
+                        connector_transaction_id: item.response.transaction_response.transaction_id,
+                        //TODO: Add redirection details here
+                        redirection_data: None,
+                        redirect: false,
+                    }))
+                }
+            },
             ..item.data
         })
     }
@@ -408,11 +412,13 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
         });
 
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
-                connector_refund_id: transaction_response.transaction_id.clone(),
-                refund_status,
-            }),
-            error_response: error,
+            response: match error {
+                Some(err) => Some(Err(err)),
+                None => Some(Ok(types::RefundsResponseData {
+                    connector_refund_id: transaction_response.transaction_id.clone(),
+                    refund_status,
+                })),
+            },
             ..item.data
         })
     }
@@ -437,8 +443,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateSyncRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let transaction_id = item
             .response
-            .as_ref()
-            .map(|refund_response_data| refund_response_data.connector_refund_id.clone());
+            .clone()
+            .transpose()
+            .ok()
+            .flatten()
+            .map(|refund_response_data| refund_response_data.connector_refund_id);
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = CreateSyncRequest {
@@ -489,10 +498,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, SyncResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Some(Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction.transaction_id.clone(),
                 refund_status,
-            }),
+            })),
             ..item.data
         })
     }

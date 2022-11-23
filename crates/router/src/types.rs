@@ -54,11 +54,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub request: Request,
 
     /// Contains flow-specific data that the connector responds with.
-    pub response: Option<Response>,
+    pub response: Option<Result<Response, ErrorResponse>>,
 
     /// Contains any error response that the connector returns.
-    pub error_response: Option<ErrorResponse>,
-
     pub payment_method_id: Option<String>,
 }
 

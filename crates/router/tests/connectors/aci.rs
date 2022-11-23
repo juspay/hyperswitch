@@ -49,7 +49,6 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         },
         response: None,
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -87,7 +86,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         },
         payment_method_id: None,
         response: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -208,7 +206,7 @@ async fn refund_for_successful_payments() {
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
     refund_request.request.connector_transaction_id =
-        response.response.unwrap().connector_transaction_id;
+        response.response.unwrap().unwrap().connector_transaction_id;
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
@@ -219,7 +217,7 @@ async fn refund_for_successful_payments() {
     .unwrap();
     println!("{response:?}");
     assert!(
-        response.response.unwrap().refund_status == enums::RefundStatus::Success,
+        response.response.unwrap().unwrap().refund_status == enums::RefundStatus::Success,
         "The refund transaction failed"
     );
 }

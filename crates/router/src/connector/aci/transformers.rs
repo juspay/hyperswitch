@@ -211,13 +211,12 @@ impl<F, T>
             status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
                 &item.response.result.code,
             )?),
-            response: Some(types::PaymentsResponseData {
+            response: Some(Ok(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
                 //TODO: Add redirection details here
                 redirection_data: None,
                 redirect: false,
-            }),
-            error_response: None,
+            })),
             ..item.data
         })
     }
@@ -304,13 +303,12 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
         item: types::RefundsResponseRouterData<F, AciRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Some(Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(AciRefundStatus::from_str(
                     &item.response.result.code,
                 )?),
-            }),
-            error_response: None,
+            })),
             ..item.data
         })
     }

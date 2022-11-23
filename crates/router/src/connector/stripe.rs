@@ -668,11 +668,13 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
             .response
-            .as_ref()
+            .clone()
+            .transpose()
+            .ok()
+            .flatten()
             .get_required_value("response")
             .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-            .connector_refund_id
-            .clone();
+            .connector_refund_id;
         Ok(format!("{}v1/refunds/{}", self.base_url(connectors), id))
     }
 

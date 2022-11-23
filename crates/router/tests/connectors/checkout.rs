@@ -45,7 +45,6 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         },
         response: None,
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -83,7 +82,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         },
         response: None,
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -173,7 +171,7 @@ async fn test_checkout_refund_success() {
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
     refund_request.request.connector_transaction_id =
-        response.response.unwrap().connector_transaction_id;
+        response.response.unwrap().unwrap().connector_transaction_id;
 
     let response = services::api::execute_connector_processing_step(
         &state,
@@ -187,7 +185,7 @@ async fn test_checkout_refund_success() {
     println!("{response:?}");
 
     assert!(
-        response.response.unwrap().refund_status == enums::RefundStatus::Success,
+        response.response.unwrap().unwrap().refund_status == enums::RefundStatus::Success,
         "The refund failed"
     );
 }
@@ -269,7 +267,7 @@ async fn test_checkout_refund_failure() {
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
     refund_request.request.connector_transaction_id =
-        response.response.unwrap().connector_transaction_id;
+        response.response.unwrap().unwrap().connector_transaction_id;
 
     // Higher amout than that of payment
     refund_request.request.refund_amount = 696969;
@@ -283,8 +281,8 @@ async fn test_checkout_refund_failure() {
 
     println!("{response:?}");
     let response = response.unwrap();
-    assert!(response.error_response.is_some());
+    assert!(response.response.clone().transpose().is_err());
 
-    let code = response.error_response.unwrap().code;
+    let code = response.response.unwrap().unwrap_err().code;
     assert_eq!(code, "refund_amount_exceeds_balance");
 }

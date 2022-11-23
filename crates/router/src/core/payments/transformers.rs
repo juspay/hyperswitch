@@ -101,9 +101,7 @@ where
 
         request: T::try_from(payment_data.clone())?,
 
-        response,
-
-        error_response: None,
+        response: Ok(response).transpose(),
     };
 
     Ok((payment_data, router_data))

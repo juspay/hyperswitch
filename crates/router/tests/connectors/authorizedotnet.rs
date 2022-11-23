@@ -49,7 +49,6 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         },
         payment_method_id: None,
         response: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -87,7 +86,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         },
         response: None,
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -212,7 +210,7 @@ async fn refunds_create_success() {
     println!("{response:?}");
 
     assert!(
-        response.response.unwrap().refund_status == enums::RefundStatus::Success,
+        response.response.unwrap().unwrap().refund_status == enums::RefundStatus::Success,
         "The refund transaction failed"
     );
 }
@@ -251,7 +249,7 @@ async fn refunds_create_failure() {
     println!("{response:?}");
 
     assert!(
-        response.response.unwrap().refund_status == enums::RefundStatus::Failure,
+        response.response.unwrap().unwrap().refund_status == enums::RefundStatus::Failure,
         "The test was intended to fail but it passed"
     );
 }
