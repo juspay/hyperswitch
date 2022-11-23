@@ -520,7 +520,9 @@ impl From<SyncStatus> for enums::RefundStatus {
 impl From<SyncStatus> for enums::AttemptStatus {
     fn from(transaction_status: SyncStatus) -> Self {
         match transaction_status {
-            SyncStatus::SettledSuccessfully => enums::AttemptStatus::Charged,
+            SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
+                enums::AttemptStatus::Charged
+            }
             SyncStatus::Declined => enums::AttemptStatus::AuthenticationFailed,
             SyncStatus::Voided => enums::AttemptStatus::Voided,
             SyncStatus::CouldNotVoid => enums::AttemptStatus::VoidFailed,
