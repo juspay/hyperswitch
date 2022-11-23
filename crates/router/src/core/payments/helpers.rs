@@ -295,7 +295,7 @@ pub fn create_server_url(server: &Server) -> String {
     if server.host.eq("127.0.0.1") || server.host.eq("localhost") {
         format!("http://{}:{}", server.host, server.port)
     } else {
-        server.endpoint.to_owned()
+        server.domain.to_owned()
     }
 }
 pub fn create_startpay_url(

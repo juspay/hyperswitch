@@ -4,7 +4,7 @@
 port = 8080
 host = "127.0.0.1"
 request_body_limit = 16_384 # Post request body is limited to 16k.
-endpoint = "https://sandbox-router.juspay.io"
+domain = "https://sandbox-router.juspay.io"
 
 [proxy]
 # http_url = ""
