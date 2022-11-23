@@ -179,7 +179,6 @@ impl Default for PaymentMethod {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
 pub enum PaymentIdType {
     PaymentIntentId(String),
     ConnectorTransactionId(String),
@@ -668,5 +667,14 @@ mod payments_test {
         let _deserialized_pay_req: PaymentsRequest =
             serde_json::from_str(&serialized).expect("error de-serializing payments response");
         //assert_eq!(pay_req, deserialized_pay_req)
+    }
+
+    // Intended to test the serialization and deserialization of the enum PaymentIdType
+    #[test]
+    fn test_connector_id_type() {
+        let sample_1 = PaymentIdType::PaymentIntentId("test_234565430uolsjdnf48i0".to_string());
+        let s_sample_1 = serde_json::to_string(&sample_1).unwrap();
+        let ds_sample_1 = serde_json::from_str::<PaymentIdType>(&s_sample_1).unwrap();
+        assert_eq!(ds_sample_1, sample_1)
     }
 }

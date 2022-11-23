@@ -101,7 +101,7 @@ pub async fn get_sync_process_schedule_time(
         Ok(x) => x,
         Err(_) => process_data::ConnectorPTMapping::default(),
     };
-    let time_delta = get_sync_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = get_sync_schedule_time(mapping, merchant_id, retry_count);
 
     Ok(pt_utils::get_time_from_delta(time_delta))
 }
@@ -151,7 +151,7 @@ pub async fn retry_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(&connector, &merchant_id, redis_conn, pt.retry_count)
+        get_sync_process_schedule_time(&connector, &merchant_id, redis_conn, pt.retry_count + 1)
             .await?;
 
     match schedule_time {
@@ -160,5 +160,24 @@ pub async fn retry_sync_task(
             pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
                 .await
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
+    use super::*;
+
+    #[test]
+    fn test_get_default_schedule_time() {
+        let schedule_time_delta =
+            get_sync_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0).unwrap();
+        let first_retry_time_delta =
+            get_sync_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1).unwrap();
+        let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
+        assert_eq!(
+            vec![schedule_time_delta, first_retry_time_delta],
+            vec![cpt_default.start_after, cpt_default.frequency[0]]
+        );
     }
 }
