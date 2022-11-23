@@ -451,20 +451,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateSyncRequest {
     }
 }
 
-impl
-    TryFrom<
-        &types::RouterData<api::PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>,
-    > for CreateSyncRequest
-{
+impl TryFrom<&types::PaymentsRouterSyncData> for CreateSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsRouterSyncData) -> Result<Self, Self::Error> {
         let transaction_id = item
             .response
             .as_ref()

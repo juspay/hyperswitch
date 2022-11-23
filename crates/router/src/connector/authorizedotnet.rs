@@ -74,11 +74,7 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::PaymentsRouterSyncData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
@@ -96,11 +92,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::PaymentsRouterSyncData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -108,11 +100,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterSyncData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let sync_request =
             utils::Encode::<authorizedotnet::CreateSyncRequest>::convert_and_encode(req)
@@ -122,11 +110,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterSyncData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -140,11 +124,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsRouterSyncData,
         res: Response,
     ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError> {
         use bytes::Buf;
