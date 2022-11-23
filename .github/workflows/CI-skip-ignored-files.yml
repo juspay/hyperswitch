@@ -1,0 +1,53 @@
+# Skip CI checks on ignored files in CI workflow
+# Reference: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/troubleshooting-required-status-checks#handling-skipped-but-required-checks
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - "config/**"
+      - "contrib/**"
+      - "docs/**"
+      - "monitoring/**"
+      - "openapi/**"
+      - "postman/**"
+      - "*.md"
+      - "LICENSE"
+      - "NOTICE"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formatting:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip formatting
+        shell: bash
+        run: 'echo "Skipping formatting check"'
+
+  check-msrv:
+    name: Check compilation on MSRV toolchain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip compilation checks
+        shell: bash
+        run: 'echo "Skipping MSRV compilation checks"'
+
+  # cargo-deny:
+  #   name: Run cargo-deny
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Skip cargo-deny
+  #       shell: bash
+  #       run: 'echo "Skipping cargo-deny checks"'
+
+  test:
+    name: Run tests on stable toolchain
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Skip compilation checks
+        shell: bash
+        run: 'echo "Skipping stable toolchain compilation checks"'
