@@ -30,7 +30,11 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
     steps:
       - name: Skip compilation checks
         shell: bash
@@ -47,6 +51,10 @@ jobs:
   test:
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
     steps:
       - name: Skip compilation checks
         shell: bash
