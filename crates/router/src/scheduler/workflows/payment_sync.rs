@@ -7,13 +7,14 @@ use crate::{
     errors,
     routes::AppState,
     scheduler::{consumer, process_data, utils as pt_utils},
-    services::redis,
     types::{
         api,
         storage::{self, enums},
     },
     utils::{OptionExt, ValueExt},
 };
+use redis_interface as redis;
+use redis_interface::errors as r_errors;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
@@ -93,7 +94,7 @@ pub async fn get_sync_process_schedule_time(
     redis: sync::Arc<redis::RedisConnectionPool>,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
+    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, r_errors::RedisError> =
         redis
             .get_and_deserialize_key(&format!("pt_mapping_{}", connector), "ConnectorPTMapping")
             .await;

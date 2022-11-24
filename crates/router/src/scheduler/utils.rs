@@ -15,10 +15,10 @@ use crate::{
     logger,
     routes::AppState,
     scheduler::{ProcessTrackerBatch, SchedulerFlow},
-    services::redis::*,
     types::storage::{self, enums::ProcessTrackerStatus},
     utils::{self, date_time, OptionExt, StringExt},
 };
+use redis_interface::*;
 
 pub async fn acquire_pt_lock(
     state: &AppState,

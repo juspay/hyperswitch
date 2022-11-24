@@ -22,10 +22,10 @@ use crate::{
     logger::{error, info},
     routes::AppState,
     scheduler::utils as pt_utils,
-    services::redis::*,
     types::storage::{self, enums},
     utils::date_time,
 };
+use redis_interface::*;
 
 // Valid consumer business statuses
 pub fn valid_business_statuses() -> Vec<&'static str> {

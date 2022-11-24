@@ -1,4 +1,8 @@
 use std::fmt::Debug;
+use crate::errors::{self, CustomResult};
+
+use crate::ext_traits::{Encode, ByteSliceExt};
+use crate::types::{RedisEntryId, SetNXReply};
 
 use error_stack::{IntoReport, ResultExt};
 use fred::{
@@ -10,11 +14,6 @@ use fred::{
 };
 use router_env::{tracing, tracing::instrument};
 
-use crate::{
-    core::errors::{self, CustomResult},
-    services::redis::types::{RedisEntryId, SetNXReply},
-    utils::{ByteSliceExt, Encode},
-};
 
 impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
