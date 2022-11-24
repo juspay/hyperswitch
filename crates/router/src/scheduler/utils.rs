@@ -4,6 +4,7 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
+use redis_interface::*;
 use router_env::opentelemetry;
 use uuid::Uuid;
 
@@ -18,7 +19,6 @@ use crate::{
     types::storage::{self, enums::ProcessTrackerStatus},
     utils::{self, date_time, OptionExt, StringExt},
 };
-use redis_interface::*;
 
 pub async fn acquire_pt_lock(
     state: &AppState,

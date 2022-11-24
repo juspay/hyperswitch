@@ -1,4 +1,3 @@
-
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct Redis {
     pub host: String,

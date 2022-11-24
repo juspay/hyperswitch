@@ -1,8 +1,7 @@
-use error_stack::{ResultExt, IntoReport};
-use serde::{Serialize, Deserialize};
+use error_stack::{IntoReport, ResultExt};
+use serde::{Deserialize, Serialize};
 
-use crate::errors::{CustomResult, self};
-
+use crate::errors::{self, CustomResult};
 
 pub trait Encode<'e, P>
 where
@@ -108,8 +107,7 @@ where
     }
 }
 
-
-pub(crate) trait BytesExt<T> {
+pub trait BytesExt<T> {
     fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>;
@@ -129,7 +127,7 @@ impl<T> BytesExt<T> for bytes::Bytes {
     }
 }
 
-pub(crate) trait ByteSliceExt<T> {
+pub trait ByteSliceExt<T> {
     fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>;

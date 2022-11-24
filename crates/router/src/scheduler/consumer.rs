@@ -7,6 +7,7 @@ use std::{
 
 use error_stack::ResultExt;
 use futures::future;
+use redis_interface::*;
 use router_env::{tracing, tracing::instrument};
 use time::PrimitiveDateTime;
 use uuid::Uuid;
@@ -25,7 +26,6 @@ use crate::{
     types::storage::{self, enums},
     utils::date_time,
 };
-use redis_interface::*;
 
 // Valid consumer business statuses
 pub fn valid_business_statuses() -> Vec<&'static str> {

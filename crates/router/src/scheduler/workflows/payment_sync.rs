@@ -1,5 +1,8 @@
 use std::sync;
 
+use redis_interface as redis;
+use redis_interface::errors as r_errors;
+
 use super::{PaymentsSyncWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::payments::{self as payment_flows, operations},
@@ -13,8 +16,6 @@ use crate::{
     },
     utils::{OptionExt, ValueExt},
 };
-use redis_interface as redis;
-use redis_interface::errors as r_errors;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
@@ -94,10 +95,12 @@ pub async fn get_sync_process_schedule_time(
     redis: sync::Arc<redis::RedisConnectionPool>,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, r_errors::RedisError> =
-        redis
-            .get_and_deserialize_key(&format!("pt_mapping_{}", connector), "ConnectorPTMapping")
-            .await;
+    let redis_mapping: errors::CustomResult<
+        process_data::ConnectorPTMapping,
+        r_errors::RedisError,
+    > = redis
+        .get_and_deserialize_key(&format!("pt_mapping_{}", connector), "ConnectorPTMapping")
+        .await;
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(_) => process_data::ConnectorPTMapping::default(),

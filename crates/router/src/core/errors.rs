@@ -7,14 +7,13 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
 use config::ConfigError;
 use error_stack;
+pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
-pub use redis_interface::errors::{RedisError, ParsingError};
+pub use ufo::errors::{CustomResult, ParsingError};
 
 pub use self::api_error_response::ApiErrorResponse;
 pub(crate) use self::utils::{ApiClientErrorExt, ConnectorErrorExt, StorageErrorExt};
 use crate::services;
-
-pub type CustomResult<T, E> = error_stack::Result<T, E>;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::BachResponse<T>, ApiErrorResponse>;
 

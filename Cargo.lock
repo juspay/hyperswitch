@@ -2320,6 +2320,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "thiserror",
+ "ufo",
 ]
 
 [[package]]
@@ -2479,6 +2480,7 @@ dependencies = [
  "time",
  "tokio",
  "toml",
+ "ufo",
  "url",
  "uuid",
 ]
@@ -3327,6 +3329,17 @@ name = "ucd-trie"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e79c4d996edb816c91e4308506774452e55e95c3c9de07b6729e17e15a5ef81"
+
+[[package]]
+name = "ufo"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "error-stack",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+]
 
 [[package]]
 name = "unicode-bidi"

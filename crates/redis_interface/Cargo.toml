@@ -15,3 +15,4 @@ serde_urlencoded = "0.7.1"
 bytes = "1.2.1"
 
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+ufo = { version = "0.1.0", path = "../ufo" }

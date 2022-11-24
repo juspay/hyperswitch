@@ -1,11 +1,10 @@
+pub mod commands;
 pub mod errors;
 pub mod types;
-pub mod commands;
-pub mod ext_traits;
 
+use router_env::logger;
 
 pub use self::{commands::*, types::*};
-use router_env::logger;
 pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
