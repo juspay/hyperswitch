@@ -75,6 +75,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
             api::PaymentMethod::BankTransfer => None,
             api::PaymentMethod::Wallet => None,
             api::PaymentMethod::PayLater(_) => None,
+            api::PaymentMethod::Paypal => None,
         };
 
         let three_ds = match item.auth_type {
