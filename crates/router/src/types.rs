@@ -111,6 +111,20 @@ pub struct RefundsRequestData {
     pub refund_amount: i32,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeviceInformation {
+    pub color_depth: u8,
+    pub java_enabled: bool,
+    pub java_script_enabled: bool,
+    pub language: String,
+    pub screen_height: u32,
+    pub screen_width: u32,
+    pub time_zone: i32,
+    pub ip_address: Option<std::net::IpAddr>,
+    pub accept_header: Option<String>,
+    pub user_agent: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
