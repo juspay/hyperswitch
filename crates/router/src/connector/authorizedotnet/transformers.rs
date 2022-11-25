@@ -427,11 +427,11 @@ pub struct TransactionDetails {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSyncRequest {
+pub struct AuthorizedotnetCreateSyncRequest {
     get_transaction_details_request: TransactionDetails,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateSyncRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
@@ -441,7 +441,27 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateSyncRequest {
             .map(|refund_response_data| refund_response_data.connector_refund_id.clone());
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        let payload = CreateSyncRequest {
+        let payload = AuthorizedotnetCreateSyncRequest {
+            get_transaction_details_request: TransactionDetails {
+                merchant_authentication,
+                transaction_id,
+            },
+        };
+        Ok(payload)
+    }
+}
+
+impl TryFrom<&types::PaymentsRouterSyncData> for AuthorizedotnetCreateSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &types::PaymentsRouterSyncData) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .as_ref()
+            .map(|payment_response_data| payment_response_data.connector_transaction_id.clone());
+        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+
+        let payload = AuthorizedotnetCreateSyncRequest {
             get_transaction_details_request: TransactionDetails {
                 merchant_authentication,
                 transaction_id,
@@ -456,6 +476,13 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateSyncRequest {
 pub enum SyncStatus {
     RefundSettledSuccessfully,
     RefundPendingSettlement,
+    AuthorizedPendingCapture,
+    CapturedPendingSettlement,
+    SettledSuccessfully,
+    Declined,
+    Voided,
+    CouldNotVoid,
+    GeneralError,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -466,7 +493,7 @@ pub struct SyncTransactionResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SyncResponse {
+pub struct AuthorizedotnetSyncResponse {
     transaction: SyncTransactionResponse,
 }
 
@@ -475,17 +502,33 @@ impl From<SyncStatus> for enums::RefundStatus {
         match transaction_status {
             SyncStatus::RefundSettledSuccessfully => enums::RefundStatus::Success,
             SyncStatus::RefundPendingSettlement => enums::RefundStatus::Pending,
+            _ => enums::RefundStatus::Failure,
         }
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, SyncResponse>>
+impl From<SyncStatus> for enums::AttemptStatus {
+    fn from(transaction_status: SyncStatus) -> Self {
+        match transaction_status {
+            SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
+                enums::AttemptStatus::Charged
+            }
+            SyncStatus::Declined => enums::AttemptStatus::AuthenticationFailed,
+            SyncStatus::Voided => enums::AttemptStatus::Voided,
+            SyncStatus::CouldNotVoid => enums::AttemptStatus::VoidFailed,
+            SyncStatus::GeneralError => enums::AttemptStatus::Failure,
+            _ => enums::AttemptStatus::Pending,
+        }
+    }
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, SyncResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
@@ -493,6 +536,35 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, SyncResponse>>
                 connector_refund_id: item.response.transaction.transaction_id.clone(),
                 refund_status,
             }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, Req>
+    TryFrom<
+        types::ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, types::PaymentsResponseData>,
+    > for types::RouterData<F, Req, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            AuthorizedotnetSyncResponse,
+            Req,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_status =
+            enums::AttemptStatus::from(item.response.transaction.transaction_status);
+        Ok(types::RouterData {
+            response: Some(types::PaymentsResponseData {
+                connector_transaction_id: item.response.transaction.transaction_id,
+                redirection_data: None,
+                redirect: false,
+            }),
+            status: payment_status,
             ..item.data
         })
     }
