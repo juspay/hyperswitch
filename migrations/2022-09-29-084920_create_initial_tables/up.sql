@@ -211,8 +211,7 @@ CREATE TYPE "PaymentMethodType" AS ENUM (
     'wallet',
     'payment_container',
     'bank_debit',
-    'pay_later',
-    'paypal'
+    'pay_later'
 );
 
 CREATE TYPE "ProcessTrackerStatus" AS ENUM (
