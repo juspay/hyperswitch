@@ -19,10 +19,8 @@
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
 pub mod env;
-#[doc(inline)]
-pub use env::*;
-
 pub mod logger;
+
 // pub use literally;
 #[doc(inline)]
 pub use logger::*;
@@ -31,3 +29,6 @@ pub use tracing;
 #[cfg(feature = "actix_web")]
 pub use tracing_actix_web;
 pub use tracing_appender;
+
+#[doc(inline)]
+pub use self::env::*;
