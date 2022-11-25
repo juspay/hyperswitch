@@ -198,6 +198,7 @@ mod storage {
                 last_synced: payment_attempt.last_synced,
                 amount_to_capture: payment_attempt.amount_to_capture,
                 cancellation_reason: payment_attempt.cancellation_reason.clone(),
+                browser_info: payment_attempt.browser_info.clone(),
             };
             // TODO: Add a proper error for serialization failure
             let redis_value = serde_json::to_string(&created_attempt)
