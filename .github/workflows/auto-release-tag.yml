@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build router Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.ref_name }} --build-arg APP_MODE=router --build-arg BINARY=bach
+        run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.ref_name }} --build-arg APP_MODE=router
 
       - name: Build consumer Docker image
         run: docker build . --file Dockerfile --tag juspaydotin/orca-consumer:${{ github.ref_name }} --build-arg APP_MODE=consumer --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Consumer
