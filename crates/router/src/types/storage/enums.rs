@@ -470,6 +470,7 @@ pub enum PaymentMethodType {
     ConsumerFinance,
     Wallet,
     Klarna,
+    Paypal,
 }
 
 #[derive(

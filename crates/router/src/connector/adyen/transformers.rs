@@ -209,6 +209,7 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
             api::PaymentMethod::BankTransfer => None,
             api::PaymentMethod::Wallet => None,
             api::PaymentMethod::PayLater(_) => None,
+            api::PaymentMethod::Paypal => None,
         };
 
         let shopper_interaction = match item.request.off_session {
