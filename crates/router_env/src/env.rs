@@ -73,16 +73,19 @@ pub fn workspace_path() -> PathBuf {
     }
 }
 
-/// Version defined in the crate file.
+/// Version of the crate containing the following information:
 ///
-/// Example: `0.1.0`.
+/// - Semantic Version from the latest git tag. If tags are not present in the repository, crate
+///   version from the crate manifest is used instead.
+/// - Short hash of the latest git commit.
+/// - Timestamp of the latest git commit.
 ///
-
+/// Example: `0.1.0-abcd012-2038-01-19T03:14:08Z`.
 #[macro_export]
 macro_rules! version {
     () => {
         concat!(
-            env!("CARGO_PKG_VERSION"),
+            env!("VERGEN_GIT_SEMVER"),
             "-",
             env!("VERGEN_GIT_SHA_SHORT"),
             "-",

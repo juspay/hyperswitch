@@ -28,7 +28,8 @@ pub fn generate_cargo_instructions() {
     *git.commit_count_mut() = false;
     *git.commit_message_mut() = false;
     *git.commit_timestamp_mut() = true;
-    *git.semver_mut() = false;
+    *git.semver_mut() = true;
+    *git.semver_dirty_mut() = Some("-dirty");
     *git.skip_if_error_mut() = true;
     *git.sha_kind_mut() = ShaKind::Both;
     *git.skip_if_error_mut() = true;
