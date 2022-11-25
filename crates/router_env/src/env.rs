@@ -80,8 +80,7 @@ pub fn workspace_path() -> PathBuf {
 
 #[macro_export]
 macro_rules! version {
-    (
-    ) => {{
+    () => {
         concat!(
             env!("CARGO_PKG_VERSION"),
             "-",
@@ -89,7 +88,7 @@ macro_rules! version {
             "-",
             env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
         )
-    }};
+    };
 }
 
 ///
@@ -107,8 +106,7 @@ macro_rules! version {
 
 #[macro_export]
 macro_rules! build {
-    (
-    ) => {{
+    () => {
         concat!(
             env!("CARGO_PKG_VERSION"),
             "-",
@@ -122,7 +120,7 @@ macro_rules! build {
             "-",
             env!("VERGEN_CARGO_TARGET_TRIPLE"),
         )
-    }};
+    };
 }
 
 ///
@@ -133,10 +131,9 @@ macro_rules! build {
 
 #[macro_export]
 macro_rules! commit {
-    (
-    ) => {{
+    () => {
         env!("VERGEN_GIT_SHA")
-    }};
+    };
 }
 
 // ///
@@ -166,10 +163,9 @@ macro_rules! commit {
 
 #[macro_export]
 macro_rules! service_name {
-    (
-    ) => {{
+    () => {
         env!("CARGO_CRATE_NAME")
-    }};
+    };
 }
 
 ///
@@ -180,8 +176,7 @@ macro_rules! service_name {
 
 #[macro_export]
 macro_rules! profile {
-    (
-    ) => {
+    () => {
         env!("VERGEN_CARGO_PROFILE")
     };
 }
