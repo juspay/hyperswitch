@@ -10,6 +10,26 @@ use crate::{
     utils::when,
 };
 
+pub(crate) trait OptionExt<T> {
+    fn check_value_present(&self, field_name: &str) -> RouterResult<()>;
+
+    fn get_required_value(self, field_name: &str) -> RouterResult<T>;
+
+    fn parse_enum<E>(self, enum_name: &str) -> CustomResult<E, errors::ParsingError>
+    where
+        T: AsRef<str>,
+        E: std::str::FromStr,
+        // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
+        <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
+
+    fn parse_value<U>(self, type_name: &str) -> CustomResult<U, errors::ParsingError>
+    where
+        T: ValueExt<U>,
+        U: serde::de::DeserializeOwned;
+
+    fn update_value(&mut self, value: Option<T>);
+}
+
 impl<T> OptionExt<T> for Option<T>
 where
     T: std::fmt::Debug,
@@ -66,26 +86,6 @@ where
             *self = Some(a)
         }
     }
-}
-
-pub(crate) trait OptionExt<T> {
-    fn check_value_present(&self, field_name: &str) -> RouterResult<()>;
-
-    fn get_required_value(self, field_name: &str) -> RouterResult<T>;
-
-    fn parse_enum<E>(self, enum_name: &str) -> CustomResult<E, errors::ParsingError>
-    where
-        T: AsRef<str>,
-        E: std::str::FromStr,
-        // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
-        <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
-
-    fn parse_value<U>(self, type_name: &str) -> CustomResult<U, errors::ParsingError>
-    where
-        T: ValueExt<U>,
-        U: serde::de::DeserializeOwned;
-
-    fn update_value(&mut self, value: Option<T>);
 }
 
 #[allow(dead_code)]

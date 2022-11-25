@@ -2,7 +2,7 @@
 //! errors and error specific types for universal use
 
 /// Custom Result
-/// A custom datatype that wraps the error varient <E> into a report, allowing
+/// A custom datatype that wraps the error variant <E> into a report, allowing
 /// error_stack::Report<E> specific extendability  
 ///
 /// Effectively, equivalent to `Result<T, error_stack::Report<E>>`
@@ -24,8 +24,10 @@ macro_rules! impl_error_display {
 
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
-        /// Error variant $name
-        /// Custom error variant for performing $arg specific
+        #[doc = ""]
+        #[doc = stringify!(Error variant $name)]
+        #[doc = stringify!(Custom error variant for $arg)]
+        #[doc = ""]
         #[derive(Debug)]
         pub struct $name;
 
