@@ -1,0 +1,102 @@
+name: Bug report
+description: Submit a bug report to help us improve
+title: "[BUG] "
+labels: ["C-bug", "S-awaiting-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We value your time and effort to submit this bug report. Here are a few things to check before clicking the submit button :)
+        1. Make sure you're on the latest version of the app. The current release can be found here: https://github.com/juspay/orca/releases/latest.
+        2. Search through **both** open and closed issues for your bug: https://github.com/juspay/orca/issues?q=is%3Aissue+sort%3Aupdated-desc+.
+        3. Please try to fill this template completely to the best of your abilities. A bug report that is clear and has a reproducible example lets us get to work faster.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: It bugs out when ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you think should happen? Add request-response bodies, if applicable.
+      placeholder: It should ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What did actually happen? Add request-response bodies or screenshots, if applicable.
+      placeholder: It actually ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps To Reproduce
+      description: How do you trigger this bug? Please walk us through it step by step.
+      value: |
+        Provide an unambiguous set of steps to reproduce this bug. Include code or configuration to reproduce, if relevant.
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context For The Bug
+      description: How has this issue affected you? What are you trying to accomplish?
+      placeholder: Providing context (e.g. request-response bodies, stack trace or log data) helps us come up with a solution that is most useful in the real world.
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide information about the environment where you are running or trying to build the app.
+      value: |
+        Are you using Orca hosted version? Yes/No
+
+        If not (or if building/running locally), please provide the following details:
+        1. Operating System or Linux distribution: 
+        2. Rust version (output of `rustc --version`): ``
+        3. App version (output of `cargo r -- --version`): ``
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: no-duplicate-issues
+    attributes:
+      label: Have you spent some time to check if this bug has been raised before?
+      options:
+        - label: I checked and didn't find similar issue
+          required: true
+
+  - type: checkboxes
+    id: read-contributing-guidelines
+    attributes:
+      label: Have you read the Contributing Guidelines?
+      options:
+        - label: I have read the [Contributing Guidelines](https://github.com/juspay/orca/blob/main/contrib/CONTRIBUTING.md)
+          required: true
+
+  - type: dropdown
+    id: willing-to-submit-pr
+    attributes:
+      label: Are you willing to submit a PR?
+      description: This is absolutely not required, but we are happy to guide you in the contribution process.
+      options:
+        - Yes I am willing to submit a PR!
+        - No, but I'm happy to collaborate on a PR with someone else
+        - No, I don't have time to work on this right now
