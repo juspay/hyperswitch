@@ -1,5 +1,9 @@
+//!
+//! Data types and type conversions
+//! from `fred`'s internal data-types to custom data-types
+//!
 #[derive(Debug, serde::Deserialize, Clone)]
-pub struct Redis {
+pub struct RedisSettings {
     pub host: String,
     pub port: u16,
     pub cluster_urls: Vec<String>,

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use config::{Environment, File, FileFormat};
-use redis_interface::Redis;
+use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::Deserialize;
 use structopt::StructOpt;
@@ -27,7 +27,7 @@ pub struct Settings {
     pub master_database: Database,
     #[cfg(feature = "olap")]
     pub replica_database: Database,
-    pub redis: Redis,
+    pub redis: RedisSettings,
     pub log: Log,
     pub keys: Keys,
     pub locker: Locker,

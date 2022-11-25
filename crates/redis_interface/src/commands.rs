@@ -1,3 +1,7 @@
+//!
+//! An interface to abstract the `fred` commands
+//!
+
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};

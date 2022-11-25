@@ -1,3 +1,7 @@
+//!
+//! Errors specific to this custom redis interface
+//!
+
 #[derive(Debug, thiserror::Error)]
 pub enum RedisError {
     #[error("Failed to set key value in Redis")]
@@ -10,26 +14,26 @@ pub enum RedisError {
     GetFailed,
     #[error("Failed to delete key value in Redis")]
     DeleteFailed,
-    #[error("Failed to append entry to redis stream")]
+    #[error("Failed to append entry to Redis stream")]
     StreamAppendFailed,
-    #[error("Failed to read entries from redis stream")]
+    #[error("Failed to read entries from Redis stream")]
     StreamReadFailed,
-    #[error("Failed to delete entries from redis stream")]
+    #[error("Failed to delete entries from Redis stream")]
     StreamDeleteFailed,
-    #[error("Failed to acknowledge redis stream entry")]
+    #[error("Failed to acknowledge Redis stream entry")]
     StreamAcknowledgeFailed,
-    #[error("Failed to create redis consumer group")]
+    #[error("Failed to create Redis consumer group")]
     ConsumerGroupCreateFailed,
-    #[error("Failed to destroy redis consumer group")]
+    #[error("Failed to destroy Redis consumer group")]
     ConsumerGroupDestroyFailed,
     #[error("Failed to delete consumer from consumer group")]
     ConsumerGroupRemoveConsumerFailed,
     #[error("Failed to set last ID on consumer group")]
     ConsumerGroupSetIdFailed,
-    #[error("Failed to set redis stream message owner")]
+    #[error("Failed to set Redis stream message owner")]
     ConsumerGroupClaimFailed,
-    #[error("Failed to serialize application type to json")]
+    #[error("Failed to serialize application type to JSON")]
     JsonSerializationFailed,
-    #[error("Failed to deserialize application type from json")]
+    #[error("Failed to deserialize application type from JSON")]
     JsonDeserializationFailed,
 }

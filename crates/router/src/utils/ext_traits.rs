@@ -1,36 +1,14 @@
 use error_stack::{report, IntoReport, Report, ResultExt};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::Deserialize;
-pub use ufo::ext_traits::{ByteSliceExt, BytesExt, Encode};
+pub use ufo::ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt};
 
 use crate::{
     core::errors::{self, ApiErrorResponse, CustomResult, RouterResult, ValidateError},
     logger,
-    pii::{ExposeInterface, Secret, Strategy},
     types::api::AddressDetails,
     utils::when,
 };
-
-pub(crate) trait OptionExt<T> {
-    fn check_value_present(&self, field_name: &str) -> RouterResult<()>;
-
-    fn get_required_value(self, field_name: &str) -> RouterResult<T>;
-
-    fn parse_enum<E>(self, enum_name: &str) -> CustomResult<E, errors::ParsingError>
-    where
-        T: AsRef<str>,
-        E: std::str::FromStr,
-        // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
-        <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
-
-    fn parse_value<U>(self, type_name: &str) -> CustomResult<U, errors::ParsingError>
-    where
-        T: ValueExt<U>,
-        U: serde::de::DeserializeOwned;
-
-    fn update_value(&mut self, value: Option<T>);
-}
 
 impl<T> OptionExt<T> for Option<T>
 where
@@ -90,73 +68,24 @@ where
     }
 }
 
-pub(crate) trait StringExt<T> {
-    fn parse_enum(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
+pub(crate) trait OptionExt<T> {
+    fn check_value_present(&self, field_name: &str) -> RouterResult<()>;
+
+    fn get_required_value(self, field_name: &str) -> RouterResult<T>;
+
+    fn parse_enum<E>(self, enum_name: &str) -> CustomResult<E, errors::ParsingError>
     where
-        T: std::str::FromStr,
+        T: AsRef<str>,
+        E: std::str::FromStr,
         // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
-        <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
+        <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
 
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_value<U>(self, type_name: &str) -> CustomResult<U, errors::ParsingError>
     where
-        T: Deserialize<'de>;
-}
+        T: ValueExt<U>,
+        U: serde::de::DeserializeOwned;
 
-impl<T> StringExt<T> for String {
-    fn parse_enum(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
-    where
-        T: std::str::FromStr,
-        <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
-    {
-        T::from_str(&self)
-            .into_report()
-            .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Invalid enum variant {self:?} for enum {enum_name}"))
-    }
-
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
-    where
-        T: Deserialize<'de>,
-    {
-        serde_json::from_str::<T>(self)
-            .into_report()
-            .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from string"))
-    }
-}
-
-pub(crate) trait ValueExt<T> {
-    fn parse_value(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
-    where
-        T: serde::de::DeserializeOwned;
-}
-
-impl<T> ValueExt<T> for serde_json::Value {
-    fn parse_value(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let debug = format!(
-            "Unable to parse {type_name} from serde_json::Value: {:?}",
-            &self
-        );
-        serde_json::from_value::<T>(self)
-            .into_report()
-            .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| debug)
-    }
-}
-
-impl<T, MaskingStrategy> ValueExt<T> for Secret<serde_json::Value, MaskingStrategy>
-where
-    MaskingStrategy: Strategy<serde_json::Value>,
-{
-    fn parse_value(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        self.expose().parse_value(type_name)
-    }
+    fn update_value(&mut self, value: Option<T>);
 }
 
 #[allow(dead_code)]
