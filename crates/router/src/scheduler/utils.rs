@@ -4,7 +4,7 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
-use redis_interface::*;
+use redis_interface::{RedisConnectionPool, RedisEntryId, SetNXReply};
 use router_env::opentelemetry;
 use uuid::Uuid;
 

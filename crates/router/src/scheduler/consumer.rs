@@ -7,7 +7,7 @@ use std::{
 
 use error_stack::ResultExt;
 use futures::future;
-use redis_interface::*;
+use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{tracing, tracing::instrument};
 use time::PrimitiveDateTime;
 use uuid::Uuid;

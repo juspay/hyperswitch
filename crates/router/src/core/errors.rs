@@ -5,11 +5,11 @@ pub(crate) mod utils;
 use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
+pub use common_utils::errors::{CustomResult, ParsingError};
 use config::ConfigError;
 use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
-pub use ufo::errors::{CustomResult, ParsingError};
 
 pub use self::api_error_response::ApiErrorResponse;
 pub(crate) use self::utils::{ApiClientErrorExt, ConnectorErrorExt, StorageErrorExt};
