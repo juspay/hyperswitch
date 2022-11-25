@@ -304,24 +304,10 @@ impl
         data: &types::PaymentsRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
-        let response = match data.payment_method {
-            types::storage::enums::PaymentMethodType::Wallet => {
-                let response: adyen::AdyenWalletResponse = res
-                    .response
-                    .parse_struct("AdyenWalletResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                adyen::AdyenPaymentResponse::AdyenWalletResponse(response)
-            }
-            _ => {
-                let response: adyen::AdyenResponse = res
-                    .response
-                    .parse_struct("AdyenResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                adyen::AdyenPaymentResponse::AdyenResponse(response)
-            }
-        };
+        let response: adyen::AdyenPaymentResponse = res
+            .response
+            .parse_struct("AdyenPaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

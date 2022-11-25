@@ -78,7 +78,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     AdyenResponse(AdyenResponse),
-    AdyenWalletResponse(AdyenWalletResponse),
+    AdyenRedirectResponse(AdyenRedirectionResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,16 +94,16 @@ pub struct AdyenResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenWalletResponse {
+pub struct AdyenRedirectionResponse {
     result_code: String,
-    action: AdyenWalletAction,
+    action: AdyenRedirectionAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenWalletAction {
+pub struct AdyenRedirectionAction {
     payment_method_type: String,
     url: String,
     method: String,
@@ -121,7 +121,7 @@ pub struct Amount {
 #[serde(untagged)]
 pub enum AdyenPaymentMethod {
     AdyenCard(AdyenCard),
-    AdyenWallet(AdyenWallet),
+    AdyenPaypal(AdyenPaypal),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,7 +153,7 @@ pub struct AdyenCancelResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenWallet {
+pub struct AdyenPaypal {
     #[serde(rename = "type")]
     payment_type: String,
 }
@@ -226,7 +226,7 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
 
         let payment_type = match item.payment_method {
             types::storage::enums::PaymentMethodType::Card => "scheme".to_string(),
-            types::storage::enums::PaymentMethodType::Wallet => "paypal".to_string(),
+            types::storage::enums::PaymentMethodType::Paypal => "paypal".to_string(),
             _ => "None".to_string(),
         };
 
@@ -244,9 +244,9 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
 
                 Ok(AdyenPaymentMethod::AdyenCard(card))
             }
-            enums::PaymentMethodType::Wallet => {
-                let wallet = AdyenWallet { payment_type };
-                Ok(AdyenPaymentMethod::AdyenWallet(wallet))
+            enums::PaymentMethodType::Paypal => {
+                let wallet = AdyenPaypal { payment_type };
+                Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
             }
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method".to_string(),
@@ -339,8 +339,8 @@ pub fn get_adyen_response(
     Ok((status, error, payments_response_data))
 }
 
-pub fn get_wallet_response(
-    response: AdyenWalletResponse,
+pub fn get_redirection_response(
+    response: AdyenRedirectionResponse,
 ) -> errors::CustomResult<
     (
         enums::AttemptStatus,
@@ -405,7 +405,9 @@ impl<F, Req>
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data) = match item.response {
             AdyenPaymentResponse::AdyenResponse(response) => get_adyen_response(response)?,
-            AdyenPaymentResponse::AdyenWalletResponse(response) => get_wallet_response(response)?,
+            AdyenPaymentResponse::AdyenRedirectResponse(response) => {
+                get_redirection_response(response)?
+            }
         };
 
         Ok(types::RouterData {
