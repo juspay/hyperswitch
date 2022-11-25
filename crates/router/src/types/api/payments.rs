@@ -50,6 +50,7 @@ pub struct PaymentsRequest {
     pub payment_token: Option<i32>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
+    pub device_info: Option<types::DeviceInformation>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -443,16 +444,6 @@ impl From<types::storage::PaymentIntent> for PaymentsResponse {
             metadata: item.metadata,
             customer_id: item.customer_id,
             ..Self::default()
-        }
-    }
-}
-
-impl From<PaymentsStartRequest> for PaymentsRequest {
-    fn from(item: PaymentsStartRequest) -> Self {
-        Self {
-            payment_id: Some(PaymentIdType::PaymentIntentId(item.payment_id)),
-            merchant_id: Some(item.merchant_id),
-            ..Default::default()
         }
     }
 }

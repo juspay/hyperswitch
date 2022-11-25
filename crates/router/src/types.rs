@@ -75,6 +75,7 @@ pub struct PaymentsRequestData {
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub device_info: Option<DeviceInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +102,20 @@ pub struct PaymentsResponseData {
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeviceInformation {
+    pub color_depth: u8,
+    pub java_enabled: bool,
+    pub java_script_enabled: bool,
+    pub language: String,
+    pub screen_height: u32,
+    pub screen_width: u32,
+    pub time_zone: i32,
+    pub ip_address: Option<std::net::IpAddr>,
+    pub accept_header: Option<String>,
+    pub user_agent: String,
 }
 
 #[derive(Debug, Clone)]
