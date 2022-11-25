@@ -6,7 +6,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://loki:3100/loki/api/v1/push
+  - url: http://otel-collector:3101/loki/api/v1/push
 
 scrape_configs:
 - job_name: router_file_logs

@@ -9,7 +9,9 @@ pub use self::{api::*, encryption::*};
 
 #[derive(Clone)]
 pub struct Store {
-    pub pg_pool: crate::db::SqlDb,
+    pub master_pool: crate::db::SqlDb,
+    #[cfg(feature = "olap")]
+    pub replica_pool: crate::db::SqlDb,
     pub redis_conn: Arc<crate::services::redis::RedisConnectionPool>,
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
@@ -25,7 +27,9 @@ pub(crate) struct StoreConfig {
 impl Store {
     pub async fn new(config: &crate::configs::settings::Settings) -> Self {
         Self {
-            pg_pool: crate::db::SqlDb::new(&config.database).await,
+            master_pool: crate::db::SqlDb::new(&config.master_database).await,
+            #[cfg(feature = "olap")]
+            replica_pool: crate::db::SqlDb::new(&config.replica_database).await,
             redis_conn: Arc::new(crate::connection::redis_connection(config).await),
             #[cfg(feature = "kv_store")]
             config: StoreConfig {

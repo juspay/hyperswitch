@@ -4,16 +4,12 @@ volumes:
   cargo_cache:
   pg_data:
   cargo_build_cache:
-  click_house_data:
 
 networks:
   router_net:
 
 services:
 
-  # Disable promtail when using kafka-clickhouse otel since we'll be relying on fluentd
-  # Re-enable promtail when otel starts supporting it
-  # https://github.com/open-telemetry/opentelemetry-collector-contrib/pull/14632
   promtail:
     image: grafana/promtail:latest
     volumes:
@@ -21,6 +17,8 @@ services:
       - ./config:/etc/promtail
       - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/promtail.yaml
+    profiles:
+      - monitoring
     networks:
       - router_net
 
@@ -31,6 +29,8 @@ services:
     command: -config.file=/etc/loki/loki.yaml
     networks:
       - router_net
+    profiles:
+      - monitoring
     volumes:
       - ./config:/etc/loki
 
@@ -39,15 +39,14 @@ services:
     command: --config=/etc/otel-collector.yaml
     networks:
       - router_net
+    profiles:
+      - monitoring
     volumes:
       - ./config/otel-collector.yaml:/etc/otel-collector.yaml
-    depends_on:
-      - kafka0
     ports:
       - "4317"
       - "8888"
       - "8889"
-      - "24224:24224"
 
   grafana:
     image: grafana/grafana:latest
@@ -55,6 +54,8 @@ services:
       - "3000:3000"
     networks:
       - router_net
+    profiles:
+      - monitoring
     restart: unless-stopped
     environment:
       - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
@@ -98,11 +99,6 @@ services:
       retries: 3
       start_period: 20s
       timeout: 10s
-    # Enable this when pushing logs in clickhouse
-    # logging:
-    #   driver: "fluentd"
-    #   options:
-    #     fluentd-address: localhost:24224
 
   redis-queue:
     image: redis:7    
@@ -118,21 +114,6 @@ services:
     ports:
       - "6379"
       - "16379"
-
-  clickhouse-server:
-    image: clickhouse/clickhouse-server:latest
-    networks:
-      - router_net
-    ports:
-      - "9000:9000"
-      - "8123:8123"
-    volumes:
-      - click_house_data:/var/lib/clickhouse
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-
 
   redis-init:
     image: redis:7
@@ -156,50 +137,15 @@ services:
       echo Creating a cluster with $$HOSTS\n
       redis-cli --cluster create $$HOSTS --cluster-yes\n
       '"
-  # Kafka UI for debugging kafka queues
-  # kafka-ui:
-  #   container_name: kafka-ui
-  #   image: provectuslabs/kafka-ui:latest
-  #   ports:
-  #     - 8090:8080
-  #   networks:
-  #     - router_net
-  #   depends_on:
-  #     - kafka0
-  #   environment:
-  #     KAFKA_CLUSTERS_0_NAME: local
-  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
-  #     KAFKA_CLUSTERS_0_JMXPORT: 9997
-
-  kafka0:
-    image: confluentinc/cp-kafka:7.0.5.arm64
-    hostname: kafka0
-    container_name: kafka0
+  
+  prometheus:
+    image: prom/prometheus:latest
     networks:
       - router_net
-    ports:
-      - 9092:9092
-      - 29092:29092
-      - 9093:9093
-      - 9997:9997
-      - "29092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka0:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_NODE_ID: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka0:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://kafka0:29092,CONTROLLER://kafka0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-      JMX_PORT: 9997
-      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
+    profiles:
+      - monitoring
     volumes:
-      - ./monitoring/kafka-script.sh:/tmp/update_run.sh
-    command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090"
+    restart: unless-stopped

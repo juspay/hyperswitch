@@ -34,7 +34,7 @@ impl ITempCard for Store {
         &self,
         address: TempCardNew,
     ) -> CustomResult<TempCard, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         address.insert(&conn).await
     }
 
@@ -42,7 +42,7 @@ impl ITempCard for Store {
         &self,
         transaction_id: &str,
     ) -> CustomResult<Option<TempCard>, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         TempCard::find_by_transaction_id(&conn, transaction_id).await
     }
 
@@ -50,7 +50,7 @@ impl ITempCard for Store {
         &self,
         card: TempCard,
     ) -> CustomResult<TempCard, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         TempCard::insert_with_token(card, &conn).await
     }
 
@@ -58,7 +58,7 @@ impl ITempCard for Store {
         &self,
         token: &i32,
     ) -> CustomResult<TempCard, errors::StorageError> {
-        let conn = pg_connection(&self.pg_pool.conn).await;
+        let conn = pg_connection(&self.master_pool.conn).await;
         TempCard::find_by_token(&conn, token).await
     }
 }

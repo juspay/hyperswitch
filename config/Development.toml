@@ -10,7 +10,7 @@ log_format = "default"
 enabled = false
 
 # TODO: Update database credentials before running application
-[database]
+[master_database]
 username = "db_user"
 password = "db_pass"
 host = "localhost"
