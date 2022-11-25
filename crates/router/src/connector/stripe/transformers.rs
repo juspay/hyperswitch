@@ -123,6 +123,7 @@ pub enum StripePaymentMethodData {
     Klarna(StripeKlarnaData),
     Bank,
     Wallet,
+    Paypal,
 }
 
 impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
@@ -159,7 +160,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
                     billing_country: klarna_data.country.clone(),
                 })
             }
-            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
         };
         let shipping_address = match item.address.shipping.clone() {
             Some(mut shipping) => Address {

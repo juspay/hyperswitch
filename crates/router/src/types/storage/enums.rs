@@ -470,6 +470,28 @@ pub enum PaymentMethodType {
     ConsumerFinance,
     Wallet,
     Klarna,
+    Paypal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    router_derive::DieselEnum,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum WalletIssuer {
+    GooglePay,
+    ApplePay,
 }
 
 #[derive(

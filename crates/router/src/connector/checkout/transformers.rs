@@ -73,8 +73,9 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
             api::PaymentMethod::BankTransfer => None,
-            api::PaymentMethod::Wallet => None,
+            api::PaymentMethod::Wallet(_) => None,
             api::PaymentMethod::PayLater(_) => None,
+            api::PaymentMethod::Paypal => None,
         };
 
         let three_ds = match item.auth_type {

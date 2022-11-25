@@ -59,6 +59,7 @@ enum PaymentDetails {
     BankAccount(BankAccountDetails),
     Wallet,
     Klarna,
+    Paypal,
 }
 
 #[derive(Serialize, PartialEq)]
@@ -145,7 +146,8 @@ impl TryFrom<&types::PaymentsRouterData> for CreateTransactionRequest {
                 account_number: "XXXXX".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
+            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
+            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
         };
         let authorization_indicator_type =
             item.request.capture_method.map(|c| AuthorizationIndicator {
@@ -349,7 +351,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
                 account_number: "XXXXX".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
+            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
+            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
         };
 
         merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
