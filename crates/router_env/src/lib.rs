@@ -20,6 +20,10 @@
 
 pub mod env;
 pub mod logger;
+/// `cargo` build instructions generation for obtaining information about the application
+/// environment.
+#[cfg(feature = "vergen")]
+pub mod vergen;
 
 // pub use literally;
 #[doc(inline)]
