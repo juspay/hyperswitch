@@ -103,8 +103,10 @@ impl
         req: &types::PaymentsRouterSyncData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let sync_request =
-            utils::Encode::<authorizedotnet::CreateSyncRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::convert_and_encode(
+                req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(sync_request))
     }
 
@@ -135,8 +137,8 @@ impl
         let intermediate_response =
             bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
 
-        let response: authorizedotnet::SyncResponse = intermediate_response
-            .parse_struct("SyncResponse")
+        let response: authorizedotnet::AuthorizedotnetSyncResponse = intermediate_response
+            .parse_struct("AuthorizedotnetSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -586,8 +588,10 @@ impl
         req: &types::RefundsRouterData<api::RSync>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let sync_request =
-            utils::Encode::<authorizedotnet::CreateSyncRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::convert_and_encode(
+                req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(sync_request))
     }
 
@@ -618,8 +622,8 @@ impl
         let intermediate_response =
             bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
 
-        let response: authorizedotnet::SyncResponse = intermediate_response
-            .parse_struct("SyncResponse")
+        let response: authorizedotnet::AuthorizedotnetSyncResponse = intermediate_response
+            .parse_struct("AuthorizedotnetSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         types::RouterData::try_from(types::ResponseRouterData {
