@@ -305,10 +305,11 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
             merchant_account: auth_type.merchant_account,
             payment_method,
             reference,
-            return_url: item
-                .orca_return_url
-                .clone()
-                .unwrap_or_else(|| "https://juspay.in/".to_string()),
+            return_url: item.orca_return_url.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "orca_return_url".into(),
+                },
+            )?,
             shopper_interaction,
             recurring_processing_model,
             browser_info,
