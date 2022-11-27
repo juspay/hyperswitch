@@ -46,6 +46,7 @@ impl TryFrom<&types::PaymentsRouterData> for BraintreePaymentsRequest  {
             api::PaymentMethod::BankTransfer => None,
             api::PaymentMethod::PayLater(_) => None,
             api::PaymentMethod::Wallet => None,
+            api::PaymentMethod::Paypal => None,
         };
 
         let braintree_payment_request = TransactionBody{
