@@ -4,6 +4,7 @@ use error_stack::{report, ResultExt};
 use router_env::{tracing, tracing::instrument};
 use time::Duration;
 
+use super::metrics;
 use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
@@ -143,5 +144,6 @@ pub async fn fetch_producer_tasks(
     }
 
     new_tasks.append(&mut pending_tasks);
+    metrics::TASKS_PICKED_COUNT.add(new_tasks.len() as u64, &[]);
     Ok(new_tasks)
 }

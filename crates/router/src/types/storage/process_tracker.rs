@@ -5,7 +5,9 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{core::errors, db::Db, schema::process_tracker, types::storage::enums, utils};
+use crate::{
+    core::errors, db::Db, scheduler::metrics, schema::process_tracker, types::storage::enums, utils,
+};
 
 #[derive(
     Clone,
@@ -75,6 +77,7 @@ impl ProcessTracker {
         db: &dyn Db,
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), errors::ProcessTrackerError> {
+        metrics::TASK_RETRIED.add(1, &[]);
         db.update_process_tracker(
             self.clone(),
             ProcessTrackerUpdate::StatusRetryUpdate {
@@ -101,6 +104,7 @@ impl ProcessTracker {
         )
         .await
         .attach_printable("Failed while updating status of the process")?;
+        metrics::TASK_FINISHED.add(1, &[]);
         Ok(())
     }
 }
