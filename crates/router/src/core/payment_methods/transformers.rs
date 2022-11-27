@@ -182,3 +182,56 @@ pub fn get_card_detail(
     };
     Ok(card_detail)
 }
+
+//------------------------------------------------TokenizeService------------------------------------------------
+pub fn mk_crud_locker_request(
+    locker: &Locker,
+    path: &str,
+    req: api::TokenizeRequestResponse,
+) -> CustomResult<services::Request, errors::CardVaultError> {
+    let body = utils::Encode::<api::TokenizeRequestResponse>::encode_to_value(&req)
+        .change_context(errors::CardVaultError::RequestEncodingFailed)?;
+    let mut url = locker.basilisk_host.to_owned();
+    url.push_str(path);
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::X_ROUTER, "test");
+    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.set_body(body.to_string());
+    Ok(request)
+}
+
+pub fn mk_card_value1(
+    card_number: String,
+    exp_year: String,
+    exp_month: String,
+    name_on_card: Option<String>,
+    nickname: Option<String>,
+    card_last_four: Option<String>,
+    card_token: Option<String>,
+) -> CustomResult<String, errors::CardVaultError> {
+    let value1 = api::TokenizedCardValue1 {
+        card_number,
+        exp_year,
+        exp_month,
+        name_on_card,
+        nickname,
+        card_last_four,
+        card_token,
+    };
+    Ok(serde_json::to_string(&value1).map_err(|_x| errors::CardVaultError::FetchCardFailed)?)
+}
+
+pub fn mk_card_value2(
+    card_security_code: Option<String>,
+    card_fingerprint: Option<String>,
+    external_id: Option<String>,
+    customer_id: Option<String>,
+) -> CustomResult<String, errors::CardVaultError> {
+    let value2 = api::TokenizedCardValue2 {
+        card_security_code,
+        card_fingerprint,
+        external_id,
+        customer_id,
+    };
+    Ok(serde_json::to_string(&value2).map_err(|_x| errors::CardVaultError::FetchCardFailed)?)
+}

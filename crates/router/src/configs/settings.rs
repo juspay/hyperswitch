@@ -34,6 +34,7 @@ pub struct Settings {
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
+    pub jwekey: Jwekey,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -49,6 +50,21 @@ pub struct Keys {
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
+    pub basilisk_host: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Jwekey {
+    #[cfg(feature = "kms")]
+    pub aws_key_id: String,
+    #[cfg(feature = "kms")]
+    pub aws_region: String,
+    pub locker_key_identifier1: String,
+    pub locker_key_identifier2: String,
+    pub locker_encryption_key1: String,
+    pub locker_encryption_key2: String,
+    pub locker_decryption_key1: String,
+    pub locker_decryption_key2: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
