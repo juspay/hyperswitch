@@ -77,7 +77,7 @@ impl ProcessTracker {
         db: &dyn Db,
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), errors::ProcessTrackerError> {
-        metrics::TASK_RETRIED.add(1, &[]);
+        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
         db.update_process_tracker(
             self.clone(),
             ProcessTrackerUpdate::StatusRetryUpdate {
@@ -104,7 +104,7 @@ impl ProcessTracker {
         )
         .await
         .attach_printable("Failed while updating status of the process")?;
-        metrics::TASK_FINISHED.add(1, &[]);
+        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
         Ok(())
     }
 }
