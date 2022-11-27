@@ -170,9 +170,10 @@ pub fn setup<Str: AsRef<str>>(
 static HISTOGRAM_BUCKETS: Lazy<[f64; 15]> = Lazy::new(|| {
     let mut init = 0.01;
     let mut buckets: [f64; 15] = [0.0; 15];
-    for i in 0..15 {
+
+    for bucket in &mut buckets {
         init *= 2.0;
-        buckets[i] = init;
+        *bucket = init;
     }
     buckets
 });

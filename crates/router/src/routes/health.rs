@@ -3,7 +3,7 @@ use router_env::{
     tracing::{self, instrument},
 };
 
-use crate::routes::metrics::{HEALTH_METRIC, CONTEXT};
+use crate::routes::metrics::{CONTEXT, HEALTH_METRIC};
 
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
