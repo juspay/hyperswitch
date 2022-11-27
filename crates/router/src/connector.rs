@@ -1,10 +1,11 @@
 pub mod aci;
 pub mod adyen;
 pub mod authorizedotnet;
+pub mod braintree;
 pub mod checkout;
 pub mod stripe;
-pub mod braintree;
 
 pub use self::{
-    aci::Aci, adyen::Adyen, authorizedotnet::Authorizedotnet, checkout::Checkout, stripe::Stripe, braintree::Braintree
+    aci::Aci, adyen::Adyen, authorizedotnet::Authorizedotnet, braintree::Braintree,
+    checkout::Checkout, stripe::Stripe,
 };

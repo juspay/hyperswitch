@@ -1,25 +1,25 @@
 use serde::{Deserialize, Serialize};
+
 use crate::{
-    core::{errors},
-    types::{self, api, storage::enums},
+    core::errors,
     pii::{PeekInterface, Secret},
+    types::{self, api, storage::enums},
 };
 
-
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DeviceData {}
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PaymentOptions {
-    submit_for_settlement: bool
+    submit_for_settlement: bool,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BraintreePaymentsRequest {
-    transaction: TransactionBody
+    transaction: TransactionBody,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionBody {
     amount: String,
@@ -29,18 +29,18 @@ pub struct TransactionBody {
     #[serde(rename = "type")]
     kind: String,
 }
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     number: Option<Secret<String>>,
     expiration_month: Option<Secret<String>>,
     expiration_year: Option<Secret<String>>,
-    cvv: Option<String>
+    cvv: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsRouterData> for BraintreePaymentsRequest  {
+impl TryFrom<&types::PaymentsRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ValidateError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
             api::PaymentMethod::BankTransfer => None,
@@ -49,10 +49,10 @@ impl TryFrom<&types::PaymentsRouterData> for BraintreePaymentsRequest  {
             api::PaymentMethod::Paypal => None,
         };
 
-        let braintree_payment_request = TransactionBody{
+        let braintree_payment_request = TransactionBody {
             amount: item.amount.to_string(),
-            device_data: DeviceData{},
-            options: PaymentOptions{
+            device_data: DeviceData {},
+            options: PaymentOptions {
                 submit_for_settlement: true,
             },
             credit_card: Card {
@@ -63,7 +63,9 @@ impl TryFrom<&types::PaymentsRouterData> for BraintreePaymentsRequest  {
             },
             kind: "sale".to_string(),
         };
-        Ok(BraintreePaymentsRequest{transaction: braintree_payment_request})
+        Ok(BraintreePaymentsRequest {
+            transaction: braintree_payment_request,
+        })
     }
 }
 
@@ -73,7 +75,7 @@ pub struct BraintreeAuthType {
     pub(super) merchant_account: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType  {
+impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
@@ -87,7 +89,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType  {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BraintreePaymentStatus {
     Succeeded,
@@ -128,16 +130,19 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, BraintreePaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            BraintreePaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-
         Ok(types::RouterData {
             response: Some(types::PaymentsResponseData {
                 connector_transaction_id: item.response.transaction.id,
@@ -151,21 +156,20 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     transaction: TransactionResponse,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionResponse {
     id: String,
     currency_iso_code: String,
     amount: String,
-    status: BraintreePaymentStatus
+    status: BraintreePaymentStatus,
 }
-
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -173,9 +177,7 @@ pub struct ErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
 
-
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct ApiErrorResponse {
     pub message: String,
 }
@@ -184,14 +186,12 @@ pub struct ApiErrorResponse {
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundRequest {
+pub struct RefundRequest {}
 
-}
-
-impl <F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(RefundRequest {})
     }
 }
 
@@ -231,9 +231,12 @@ pub struct RefundResponse {
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-for types::RefundsRouterData<api::Execute> {
+    for types::RefundsRouterData<api::Execute>
+{
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: types::RefundsResponseRouterData<api::Execute, RefundResponse>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
             response: Some(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
