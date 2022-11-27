@@ -56,6 +56,7 @@ pub enum PaymentDetails {
     BankAccount(BankDetails),
     Wallet,
     Klarna,
+    Paypal,
 }
 
 #[derive(Clone, Eq, PartialEq, Serialize)]
@@ -112,6 +113,7 @@ impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethod::Wallet => PaymentDetails::Wallet,
+            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;

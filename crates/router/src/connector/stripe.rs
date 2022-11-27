@@ -17,7 +17,7 @@ use crate::{
         api::{self, ConnectorCommon},
         ErrorResponse, Response,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
+    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt, OptionResultExt},
 };
 
 #[derive(Debug, Clone)]
@@ -666,9 +666,9 @@ impl
         req: &types::RouterData<api::RSync, types::RefundsRequestData, types::RefundsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req
+        let id = &req
             .response
-            .clone()
+            .as_ref_inner()
             .transpose()
             .ok()
             .flatten()
