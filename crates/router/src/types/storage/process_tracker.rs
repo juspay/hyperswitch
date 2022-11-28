@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    core::errors, db::Db, scheduler::metrics, schema::process_tracker, types::storage::enums, utils,
+    core::errors, db, scheduler::metrics, schema::process_tracker, types::storage::enums, utils,
 };
 
 #[derive(
@@ -74,7 +74,7 @@ impl ProcessTracker {
 
     pub async fn retry(
         self,
-        db: &dyn Db,
+        db: &dyn db::Db,
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), errors::ProcessTrackerError> {
         metrics::TASK_RETRIED.add(1, &[]);
@@ -92,7 +92,7 @@ impl ProcessTracker {
 
     pub async fn finish_with_status(
         self,
-        db: &dyn Db,
+        db: &dyn db::Db,
         status: String,
     ) -> Result<(), errors::ProcessTrackerError> {
         db.update_process(
