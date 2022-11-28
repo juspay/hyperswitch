@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[derive(StructOpt, Default)]
+#[structopt(version = router_env::version!())]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
