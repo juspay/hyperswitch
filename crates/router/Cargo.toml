@@ -7,6 +7,7 @@ default-run = "router"
 rust-version = "1.63"
 readme = "README.md"
 license = "Apache-2.0"
+build = "src/build.rs"
 
 [features]
 default = []
@@ -15,7 +16,7 @@ stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe"]
 olap = []
 production = []
-kv_store = []
+kv_store = ["dep:fred"]
 
 
 [dependencies]
@@ -36,7 +37,7 @@ diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "se
 dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.1"
-fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
+fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] , optional = true }
 hex = "0.4.3"
 http = "0.2.8"
 literally = "0.1.3"
@@ -63,7 +64,9 @@ uuid = { version = "1.1.2", features = ["serde", "v4"] }
 futures = "0.3"
 
 # First party crates
+common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
+redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
@@ -72,6 +75,9 @@ awc = { version = "3.0.1", features = ["rustls"] }
 time = { version = "0.3.14", features = ["macros"] }
 tokio = "1.21.2"
 toml = "0.5.9"
+
+[build-dependencies]
+router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
 
 [[bin]]
 name = "router"

@@ -148,12 +148,13 @@ mod storage {
 mod storage {
     use error_stack::{IntoReport, ResultExt};
     use fred::prelude::*;
+    use redis_interface::RedisEntryId;
 
     use super::IPaymentAttempt;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        services::{redis::RedisEntryId, Store},
+        services::Store,
         types::storage::{enums, payment_attempt::*},
         utils::{date_time, storage_partitioning::KvStorePartition},
     };
