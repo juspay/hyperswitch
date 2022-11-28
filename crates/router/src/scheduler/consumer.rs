@@ -206,6 +206,7 @@ pub async fn run_executor<'a>(
             }
         },
     };
+    metrics::TASK_PROCESSED.add(1, &[]);
 }
 
 #[instrument(skip_all)]
