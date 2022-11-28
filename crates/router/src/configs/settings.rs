@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[derive(StructOpt, Default)]
+#[structopt(version = router_env::version!())]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
@@ -62,6 +63,7 @@ pub struct Server {
     pub port: u16,
     pub host: String,
     pub request_body_limit: usize,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

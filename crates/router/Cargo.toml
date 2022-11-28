@@ -7,6 +7,7 @@ default-run = "router"
 rust-version = "1.63"
 readme = "README.md"
 license = "Apache-2.0"
+build = "src/build.rs"
 
 [features]
 default = []
@@ -72,6 +73,9 @@ awc = { version = "3.0.1", features = ["rustls"] }
 time = { version = "0.3.14", features = ["macros"] }
 tokio = "1.21.2"
 toml = "0.5.9"
+
+[build-dependencies]
+router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
 
 [[bin]]
 name = "router"
