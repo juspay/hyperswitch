@@ -614,6 +614,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             Ok(pm.to_owned())
         }
         (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethod::Wallet(_)), _) => Ok(pm.to_owned()),
         _ => Ok(None),
     }?;
 
