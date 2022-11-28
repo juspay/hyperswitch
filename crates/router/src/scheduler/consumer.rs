@@ -7,7 +7,6 @@ use std::{
 
 use error_stack::ResultExt;
 use futures::future;
-use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{tracing, tracing::instrument};
 use time::PrimitiveDateTime;
 use uuid::Uuid;
@@ -93,7 +92,11 @@ pub async fn consumer_operations(
         .store
         .redis_conn
         .clone()
-        .consumer_group_create(&stream_name, &group_name, &RedisEntryId::AfterLastID)
+        .consumer_group_create(
+            &stream_name,
+            &group_name,
+            &redis_interface::RedisEntryId::AfterLastID,
+        )
         .await;
     if group_created.is_err() {
         info!("Consumer group already exists");
@@ -132,7 +135,7 @@ pub async fn consumer_operations(
 #[instrument(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
     db: &dyn Db,
-    redis_conn: &RedisConnectionPool,
+    redis_conn: &redis_interface::RedisConnectionPool,
     stream_name: &str,
     group_name: &str,
     consumer_name: &str,
