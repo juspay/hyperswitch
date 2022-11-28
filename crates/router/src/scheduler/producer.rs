@@ -4,6 +4,7 @@ use error_stack::{report, ResultExt};
 use router_env::{tracing, tracing::instrument};
 use time::Duration;
 
+use super::metrics;
 use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
@@ -14,25 +15,6 @@ use crate::{
     types::storage::{self, enums::ProcessTrackerStatus},
     utils,
 };
-
-//TODO: move to env
-pub fn fetch_upper_limit() -> i64 {
-    0
-}
-
-pub fn fetch_lower_limit() -> i64 {
-    1800
-}
-
-pub fn producer_lock_key() -> &'static str {
-    "PRODUCER_LOCKING_KEY"
-}
-
-pub fn producer_lock_ttl() -> i64 {
-    // ttl_offset = config.scheduler_lock_offset.or_else(60);
-    // (scheduler_looper_interval / 100) + (ttl_offset)
-    160 //seconds
-}
 
 #[instrument(skip_all)]
 pub async fn start_producer(
@@ -80,7 +62,7 @@ pub async fn run_producer_flow(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let tag = "PRODUCER_LOCK";
-    let lock_key = producer_lock_key();
+    let lock_key = &settings.producer.lock_key;
     let lock_val = "LOCKED";
     let ttl = settings.producer.lock_ttl;
 
@@ -143,5 +125,6 @@ pub async fn fetch_producer_tasks(
     }
 
     new_tasks.append(&mut pending_tasks);
+    metrics::TASKS_PICKED_COUNT.add(new_tasks.len() as u64, &[]);
     Ok(new_tasks)
 }

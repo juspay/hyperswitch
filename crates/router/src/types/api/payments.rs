@@ -154,6 +154,8 @@ pub enum PaymentMethod {
     Wallet,
     #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
+    #[serde(rename(deserialize = "paypal"))]
+    Paypal,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
@@ -171,6 +173,7 @@ pub enum PaymentMethodDataResponse {
     BankTransfer,
     Wallet,
     PayLater(PayLaterData),
+    Paypal,
 }
 
 impl Default for PaymentMethod {
@@ -542,6 +545,7 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
                 PaymentMethodDataResponse::PayLater(pay_later_data)
             }
             PaymentMethod::Wallet => PaymentMethodDataResponse::Wallet,
+            PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
         }
     }
 }
