@@ -689,15 +689,13 @@ impl BasiliskSupport {
                 .parse_struct("TokenizedCardValue2")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error parsing TokenizedCardValue2")?;
-            tk_value2
-                .card_security_code
-                .unwrap_or_else(|| "".to_string())
+            tk_value2.card_security_code.unwrap_or_default()
         };
         let card = api::PaymentMethod::Card(api::CCard {
             card_number: value1.card_number.into(),
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.unwrap_or_else(|| "".to_string()).into(),
+            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
             card_cvc: card_cvc.into(),
         });
         Ok(Some(card))

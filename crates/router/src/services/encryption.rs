@@ -310,8 +310,6 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
-    #[cfg(feature = "kms")]
-    use crate::Settings;
     use crate::{
         configs::settings,
         utils::{self, ValueExt},
