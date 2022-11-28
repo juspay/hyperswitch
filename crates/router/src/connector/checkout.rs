@@ -527,9 +527,7 @@ impl
         let refund_action_id = data
             .response
             .clone()
-            .transpose()
             .ok()
-            .flatten()
             .get_required_value("response")
             .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
             .connector_refund_id;

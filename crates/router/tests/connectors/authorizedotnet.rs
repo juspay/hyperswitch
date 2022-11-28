@@ -4,7 +4,7 @@ use masking::Secret;
 use router::{
     configs::settings::Settings,
     connector::Authorizedotnet,
-    core::payments,
+    core::{errors, payments},
     routes::AppState,
     services,
     types::{self, storage::enums, PaymentAddress},
@@ -48,7 +48,9 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             capture_method: None,
         },
         payment_method_id: None,
-        response: None,
+        response: Err(types::ErrorResponse::from(
+            errors::ApiErrorResponse::InternalServerError,
+        )),
         address: PaymentAddress::default(),
     }
 }
@@ -84,7 +86,9 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 1,
         },
-        response: None,
+        response: Err(types::ErrorResponse::from(
+            errors::ApiErrorResponse::InternalServerError,
+        )),
         payment_method_id: None,
         address: PaymentAddress::default(),
     }
@@ -210,7 +214,7 @@ async fn refunds_create_success() {
     println!("{response:?}");
 
     assert!(
-        response.response.unwrap().unwrap().refund_status == enums::RefundStatus::Success,
+        response.response.unwrap().refund_status == enums::RefundStatus::Success,
         "The refund transaction failed"
     );
 }
@@ -249,7 +253,7 @@ async fn refunds_create_failure() {
     println!("{response:?}");
 
     assert!(
-        response.response.unwrap().unwrap().refund_status == enums::RefundStatus::Failure,
+        response.response.unwrap().refund_status == enums::RefundStatus::Failure,
         "The test was intended to fail but it passed"
     );
 }

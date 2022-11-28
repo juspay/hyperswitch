@@ -117,11 +117,7 @@ async fn payment_response_ut<F: Clone, T>(
     let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
     let mut connector_response_data = None;
 
-    let payment_attempt_update = match router_data
-        .response
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?
-    {
+    let payment_attempt_update = match router_data.response.clone() {
         Err(err) => storage::PaymentAttemptUpdate::ErrorUpdate {
             status: storage::enums::AttemptStatus::Failure,
             error_message: Some(err.message),
@@ -169,10 +165,7 @@ async fn payment_response_ut<F: Clone, T>(
         None => payment_data.connector_response,
     };
 
-    let payment_intent_update = match router_data
-        .response
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?
-    {
+    let payment_intent_update = match router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::Failed,
         },

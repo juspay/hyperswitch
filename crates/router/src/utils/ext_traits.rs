@@ -383,23 +383,6 @@ pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), Validat
     Ok(())
 }
 
-/// To be implemented for Option<Result<T, E>>
-pub trait OptionResultExt<T, E> {
-    fn as_ref_inner(&self) -> Option<Result<&T, &E>>;
-}
-
-impl<T, E> OptionResultExt<T, E> for Option<Result<T, E>> {
-    fn as_ref_inner(&self) -> Option<Result<&T, &E>> {
-        match self {
-            Some(result) => match result {
-                Ok(t_as_ref) => Some(Ok(t_as_ref)),
-                Err(e_as_ref) => Some(Err(e_as_ref)),
-            },
-            None => None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

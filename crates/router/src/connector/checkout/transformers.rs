@@ -189,11 +189,11 @@ impl<F, Req>
         });
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Some(Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
                 redirect: redirection_data.is_some(),
                 redirection_data,
-            })),
+            }),
             ..item.data
         })
     }
@@ -248,10 +248,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CheckoutRefundRespon
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(&item.response);
         Ok(types::RouterData {
-            response: Some(Ok(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.response.action_id.clone(),
                 refund_status,
-            })),
+            }),
             ..item.data
         })
     }
@@ -266,10 +266,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(&item.response);
         Ok(types::RouterData {
-            response: Some(Ok(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.response.action_id.clone(),
                 refund_status,
-            })),
+            }),
             ..item.data
         })
     }
@@ -339,10 +339,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response);
         Ok(types::RouterData {
-            response: Some(Ok(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
-            })),
+            }),
             ..item.data
         })
     }
@@ -357,10 +357,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response);
         Ok(types::RouterData {
-            response: Some(Ok(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
-            })),
+            }),
             ..item.data
         })
     }

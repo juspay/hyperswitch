@@ -17,7 +17,7 @@ use crate::{
         api::{self, ConnectorCommon},
         ErrorResponse, Response,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt, OptionResultExt},
+    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -666,15 +666,14 @@ impl
         req: &types::RouterData<api::RSync, types::RefundsRequestData, types::RefundsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = &req
+        let id = req
             .response
-            .as_ref_inner()
-            .transpose()
+            .as_ref()
             .ok()
-            .flatten()
             .get_required_value("response")
             .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-            .connector_refund_id;
+            .connector_refund_id
+            .clone();
         Ok(format!("{}v1/refunds/{}", self.base_url(connectors), id))
     }
 

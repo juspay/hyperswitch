@@ -129,10 +129,7 @@ pub async fn trigger_refund_to_gateway(
     .await
     .map_err(|error| error.to_refund_failed_response())?;
 
-    let refund_update = match router_data
-        .response
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?
-    {
+    let refund_update = match router_data.response {
         Err(err) => storage::RefundUpdate::ErrorUpdate {
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: Some(err.message),
@@ -241,10 +238,7 @@ pub async fn sync_refund_with_gateway(
     .await
     .map_err(|error| error.to_refund_failed_response())?;
 
-    let refund_update = match router_data
-        .response
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?
-    {
+    let refund_update = match router_data.response {
         Err(error_message) => storage::RefundUpdate::ErrorUpdate {
             refund_status: None,
             refund_error_message: Some(error_message.message),
@@ -442,7 +436,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
         let refund_id = data.request.refund_id.to_string();
-        let response = data.response.get_required_value("response")?;
+        let response = data.response;
 
         let (status, error_message) = match response {
             Ok(response) => (response.refund_status.into(), None),

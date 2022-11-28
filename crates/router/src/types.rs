@@ -54,7 +54,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub request: Request,
 
     /// Contains flow-specific data that the connector responds with.
-    pub response: Option<Result<Response, ErrorResponse>>,
+    pub response: Result<Response, ErrorResponse>,
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
@@ -190,6 +190,16 @@ impl ErrorResponse {
         Self {
             code: ApiErrorResponse::NotImplemented.error_code(),
             message: ApiErrorResponse::NotImplemented.error_message(),
+            reason: None,
+        }
+    }
+}
+
+impl From<ApiErrorResponse> for ErrorResponse {
+    fn from(error: ApiErrorResponse) -> Self {
+        Self {
+            code: error.error_code(),
+            message: error.error_message(),
             reason: None,
         }
     }

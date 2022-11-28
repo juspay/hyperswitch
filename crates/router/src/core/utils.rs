@@ -89,10 +89,10 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_amount: refund.refund_amount,
         },
 
-        response: Some(Ok(types::RefundsResponseData {
+        response: Ok(types::RefundsResponseData {
             connector_refund_id: refund.pg_refund_id.clone().unwrap_or_default(),
             refund_status: refund.refund_status,
-        })),
+        }),
     };
 
     Ok(router_data)

@@ -4,7 +4,6 @@ use crate::{
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
-    utils::OptionResultExt,
 };
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -297,14 +296,14 @@ impl<F, T>
         Ok(types::RouterData {
             status,
             response: match error {
-                Some(err) => Some(Err(err)),
+                Some(err) => Err(err),
                 None => {
-                    Some(Ok(types::PaymentsResponseData {
+                    Ok(types::PaymentsResponseData {
                         connector_transaction_id: item.response.transaction_response.transaction_id,
                         //TODO: Add redirection details here
                         redirection_data: None,
                         redirect: false,
-                    }))
+                    })
                 }
             },
             ..item.data
@@ -417,11 +416,11 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
 
         Ok(types::RouterData {
             response: match error {
-                Some(err) => Some(Err(err)),
-                None => Some(Ok(types::RefundsResponseData {
+                Some(err) => Err(err),
+                None => Ok(types::RefundsResponseData {
                     connector_refund_id: transaction_response.transaction_id.clone(),
                     refund_status,
-                })),
+                }),
             },
             ..item.data
         })
@@ -447,11 +446,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncReque
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let transaction_id = item
             .response
-            .as_ref_inner()
-            .transpose()
-            .ok()
-            .flatten()
-            .map(|refund_response_data| refund_response_data.connector_refund_id.clone());
+            .as_ref()
+            .map(|refund_response_data| refund_response_data.connector_refund_id.clone())
+            .ok();
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = AuthorizedotnetCreateSyncRequest {
@@ -470,11 +467,9 @@ impl TryFrom<&types::PaymentsRouterSyncData> for AuthorizedotnetCreateSyncReques
     fn try_from(item: &types::PaymentsRouterSyncData) -> Result<Self, Self::Error> {
         let transaction_id = item
             .response
-            .as_ref_inner()
-            .transpose()
-            .ok()
-            .flatten()
-            .map(|payment_response_data| payment_response_data.connector_transaction_id.clone());
+            .as_ref()
+            .map(|payment_response_data| payment_response_data.connector_transaction_id.clone())
+            .ok();
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = AuthorizedotnetCreateSyncRequest {
@@ -548,10 +543,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
-            response: Some(Ok(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction.transaction_id.clone(),
                 refund_status,
-            })),
+            }),
             ..item.data
         })
     }
@@ -575,11 +570,11 @@ impl<F, Req>
         let payment_status =
             enums::AttemptStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
-            response: Some(Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData {
                 connector_transaction_id: item.response.transaction.transaction_id,
                 redirection_data: None,
                 redirect: false,
-            })),
+            }),
             status: payment_status,
             ..item.data
         })
