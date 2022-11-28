@@ -36,12 +36,13 @@ pub trait IPaymentIntent {
 mod storage {
     use error_stack::{IntoReport, ResultExt};
     use fred::prelude::{RedisErrorKind, *};
+    use redis_interface::RedisEntryId;
 
     use super::IPaymentIntent;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        services::{redis::RedisEntryId, Store},
+        services::Store,
         types::{api, storage::payment_intent::*},
         utils::{date_time, storage_partitioning::KvStorePartition},
     };

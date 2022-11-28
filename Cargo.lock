@@ -831,6 +831,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_utils"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "error-stack",
+ "masking",
+ "router_env",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+]
+
+[[package]]
 name = "config"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1080,9 +1093,9 @@ dependencies = [
 
 [[package]]
 name = "error-stack"
-version = "0.2.1"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c04879c877b85178ad32202703102bcdc1e7c4cb0065b270e55a2c1baff65f2"
+checksum = "859d224e04b2d93d974c08e375dac9b8d1a513846e44c6666450a57b1ed963f9"
 dependencies = [
  "anyhow",
  "owo-colors",
@@ -2309,6 +2322,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis_interface"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "common_utils",
+ "error-stack",
+ "fred",
+ "router_env",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "thiserror",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2431,6 +2459,7 @@ dependencies = [
  "base64",
  "bb8",
  "bytes",
+ "common_utils",
  "config",
  "crc32fast",
  "diesel",
@@ -2448,6 +2477,7 @@ dependencies = [
  "nanoid",
  "once_cell",
  "rand",
+ "redis_interface",
  "regex",
  "reqwest",
  "ring",
