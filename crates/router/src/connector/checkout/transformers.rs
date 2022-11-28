@@ -111,8 +111,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(PaymentsRequest {
             source: source_var,
-            amount: item.amount,
-            currency: item.currency.to_string(),
+            amount: item.request.amount,
+            currency: item.request.currency.to_string(),
             processing_channel_id,
             three_ds,
             return_url,

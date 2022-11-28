@@ -192,8 +192,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
         };
 
         Ok(PaymentIntentRequest {
-            amount: item.amount,                 //hopefully we don't loose some cents here
-            currency: item.currency.to_string(), //we need to copy the value and not transfer ownership
+            amount: item.request.amount, //hopefully we don't loose some cents here
+            currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             metadata_order_id,
             metadata_txn_id,

@@ -85,8 +85,6 @@ where
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         status: payment_data.payment_attempt.status,
-        amount: payment_data.amount,
-        currency: payment_data.currency,
         payment_method,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
@@ -281,6 +279,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
+            amount: payment_data.amount,
+            currency: payment_data.currency,
         })
     }
 }
