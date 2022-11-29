@@ -35,6 +35,7 @@ pub struct PaymentAttempt {
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
     pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -68,6 +69,7 @@ pub struct PaymentAttemptNew {
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
     pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug)]

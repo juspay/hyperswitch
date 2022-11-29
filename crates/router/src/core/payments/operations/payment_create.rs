@@ -26,7 +26,7 @@ use crate::{
             enums::{self, IntentStatus},
         },
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
@@ -70,6 +70,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let billing_address =
             helpers::get_address_for_payment_request(db, request.billing.as_ref(), None).await?;
 
+        let browser_info = request
+            .browser_info
+            .clone()
+            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         payment_attempt = match db
             .insert_payment_attempt(Self::make_payment_attempt(
                 &payment_id,
@@ -78,6 +87,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 money,
                 payment_method_type,
                 request,
+                browser_info,
             ))
             .await
         {
@@ -287,6 +297,7 @@ impl PaymentCreate {
         money: (i32, enums::Currency),
         payment_method: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
+        browser_info: Option<serde_json::Value>,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(crate::utils::date_time::now());
         let status =
@@ -308,6 +319,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             authentication_type: request.authentication_type,
+            browser_info,
             ..storage::PaymentAttemptNew::default()
         }
     }

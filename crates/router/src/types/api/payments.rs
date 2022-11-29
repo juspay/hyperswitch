@@ -50,6 +50,7 @@ pub struct PaymentsRequest {
     pub payment_token: Option<i32>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
+    pub browser_info: Option<types::BrowserInformation>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<serde_json::Value>,
