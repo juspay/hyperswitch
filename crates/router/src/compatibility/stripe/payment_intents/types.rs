@@ -1,3 +1,4 @@
+use common_utils::custom_serde;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -12,7 +13,6 @@ use crate::{
         },
         storage::enums::{self, FutureUsage, IntentStatus, PaymentMethodType},
     },
-    utils::custom_serde,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
