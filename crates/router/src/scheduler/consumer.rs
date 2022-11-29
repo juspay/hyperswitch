@@ -23,7 +23,6 @@ use crate::{
     routes::AppState,
     scheduler::utils as pt_utils,
     types::storage::{self, enums},
-    utils::date_time,
 };
 
 // Valid consumer business statuses
@@ -114,7 +113,7 @@ pub async fn consumer_operations(
     let mut handler = vec![];
 
     for task in tasks.iter_mut() {
-        let pickup_time = date_time::now();
+        let pickup_time = common_utils::date_time::now();
 
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 

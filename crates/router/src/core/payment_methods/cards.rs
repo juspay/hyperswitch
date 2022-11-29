@@ -82,7 +82,7 @@ pub async fn add_payment_method(
                 payment_method_issuer: req.payment_method_issuer,
                 card: None,
                 metadata: req.metadata,
-                created: Some(crate::utils::date_time::now()),
+                created: Some(common_utils::date_time::now()),
                 payment_method_issuer_code: req.payment_method_issuer_code,
                 recurring_enabled: false,           //TODO
                 installment_payment_enabled: false, //TODO
@@ -504,7 +504,7 @@ pub async fn get_tempcard_from_payment_method(
     let card_info_val = get_card_info_value(&state.conf.keys, card_info).await?;
     let temp_card = storage::TempCard {
         card_info: Some(card_info_val),
-        date_created: crate::utils::date_time::now(),
+        date_created: common_utils::date_time::now(),
         txn_id: None,
         id: payment_token,
     };

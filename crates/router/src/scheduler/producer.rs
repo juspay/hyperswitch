@@ -13,7 +13,6 @@ use crate::{
     routes::AppState,
     scheduler::{utils::*, SchedulerFlow, SchedulerOptions},
     types::storage::{self, enums::ProcessTrackerStatus},
-    utils,
 };
 
 #[instrument(skip_all)]
@@ -87,7 +86,7 @@ pub async fn fetch_producer_tasks(
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {
     let upper = conf.producer.upper_fetch_limit;
     let lower = conf.producer.lower_fetch_limit;
-    let now = utils::date_time::now();
+    let now = common_utils::date_time::now();
     // Add these to validations
     let time_upper_limit = now.checked_add(Duration::seconds(upper)).ok_or_else(|| {
         report!(errors::ProcessTrackerError::ConfigurationError)

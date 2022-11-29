@@ -25,7 +25,7 @@ impl TestApp {
 #[actix_web::test]
 async fn test_webhook_config_lookup() {
     let app = TestApp::init().await;
-    let timestamp = router::utils::date_time::now();
+    let timestamp = common_utils::date_time::now();
 
     let merchant_id = format!("merchant_{timestamp}");
     let connector_id = "stripe";

@@ -16,7 +16,7 @@ use crate::{
     routes::AppState,
     scheduler::{ProcessTrackerBatch, SchedulerFlow},
     types::storage::{self, enums::ProcessTrackerStatus},
-    utils::{self, date_time, OptionExt, StringExt},
+    utils::{OptionExt, StringExt},
 };
 
 pub async fn acquire_pt_lock(
@@ -120,7 +120,7 @@ pub async fn update_status_and_append(
         SchedulerFlow::Cleaner => {
             let res = state
                 .store
-                .reinitialize_limbo_processes(process_ids, utils::date_time::now())
+                .reinitialize_limbo_processes(process_ids, common_utils::date_time::now())
                 .await;
             match res {
                 Ok(count) => {
@@ -157,7 +157,7 @@ pub fn divide(
     tasks: Vec<storage::ProcessTracker>,
     conf: &SchedulerSettings,
 ) -> Vec<ProcessTrackerBatch> {
-    let now = utils::date_time::now();
+    let now = common_utils::date_time::now();
     let batch_size = conf.producer.batch_size;
     divide_into_batches(batch_size, tasks, now, conf)
 }
@@ -257,7 +257,7 @@ pub fn get_process_tracker_id<'a>(
 }
 
 pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime> {
-    delta.map(|t| date_time::now().saturating_add(time::Duration::seconds(t.into())))
+    delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
 pub async fn consumer_operation_handler<E>(
