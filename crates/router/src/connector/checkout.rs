@@ -529,7 +529,7 @@ impl
             .clone()
             .ok()
             .get_required_value("response")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
             .connector_refund_id;
 
         let response: Vec<checkout::ActionResponse> = res
