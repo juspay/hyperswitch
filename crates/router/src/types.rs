@@ -12,10 +12,15 @@ pub mod storage;
 
 use std::marker::PhantomData;
 
+use error_stack::{IntoReport, ResultExt};
+
 pub use self::connector::Connector;
 use self::{api::payments, storage::enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{core::errors::ApiErrorResponse, services};
+use crate::{
+    core::errors::{self, ApiErrorResponse},
+    services,
+};
 
 pub type PaymentsRouterData = RouterData<api::Authorize, PaymentsRequestData, PaymentsResponseData>;
 pub type PaymentsRouterSyncData =
@@ -97,10 +102,37 @@ pub struct PaymentRequestCancelData {
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsResponseData {
-    pub connector_transaction_id: String,
+    pub resource_id: ResponseId,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum ResponseId {
+    ConnectorTransactionId(String),
+    EncodedData,
+}
+
+impl ResponseId {
+    pub fn get_connector_transaction_id(
+        &self,
+    ) -> errors::CustomResult<String, errors::ValidationError> {
+        match self {
+            Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
+            Self::EncodedData => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "connector_transaction_id",
+            })
+            .into_report()
+            .attach_printable("Expected connector transaction ID but got encoded data"),
+        }
+    }
+}
+
+impl Default for ResponseId {
+    fn default() -> Self {
+        Self::ConnectorTransactionId(Default::default())
+    }
 }
 
 #[derive(Debug, Clone)]

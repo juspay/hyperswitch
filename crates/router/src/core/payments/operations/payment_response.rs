@@ -131,7 +131,12 @@ async fn payment_response_ut<F: Clone, T>(
 
             storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
-                connector_transaction_id: Some(response.connector_transaction_id),
+                connector_transaction_id: Some(
+                    response
+                        .resource_id
+                        .get_connector_transaction_id()
+                        .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
+                ),
                 authentication_type: None,
                 payment_method_id: Some(router_data.payment_method_id),
                 redirect: Some(response.redirect),
@@ -155,7 +160,12 @@ async fn payment_response_ut<F: Clone, T>(
                 .attach_printable("Could not parse the connector response")?;
 
             let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
-                connector_transaction_id: Some(connector_response.connector_transaction_id.clone()),
+                connector_transaction_id: Some(
+                    connector_response
+                        .resource_id
+                        .get_connector_transaction_id()
+                        .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
+                ),
                 authentication_data,
                 encoded_data: payment_data.connector_response.encoded_data.clone(),
             };
