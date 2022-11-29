@@ -181,6 +181,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     {
         let is_payment_method_unavailable =
             payment_data.payment_attempt.payment_method_id.is_none()
+                && payment_data.payment_method_data.is_none()
                 && payment_data.payment_intent.status == enums::IntentStatus::RequiresPaymentMethod;
 
         let payment_method = payment_data.payment_attempt.payment_method;
