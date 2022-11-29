@@ -95,12 +95,25 @@ pub struct PaymentRequestCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct VerifyRequestData {
+    pub payment_method_data: payments::PaymentMethod,
+    pub confirm: bool,
+    pub statement_descriptor_suffix: Option<String>,
+}
 #[derive(Debug, Clone)]
 pub struct PaymentsResponseData {
     pub connector_transaction_id: String,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyResponseData {
+    pub connector_transaction_id: String,
+    pub redirection_data: Option<services::RedirectForm>,
 }
 
 #[derive(Debug, Clone)]
