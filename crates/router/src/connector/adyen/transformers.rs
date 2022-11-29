@@ -216,11 +216,7 @@ impl TryFrom<&types::BrowserInformation> for AdyenBrowserInfo {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::BrowserInformation) -> Result<Self, Self::Error> {
         Ok(Self {
-            accept_header: item.accept_header.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "accept_header".to_string(),
-                },
-            )?,
+            accept_header: item.accept_header.clone(),
             language: item.language.clone(),
             screen_height: item.screen_height,
             screen_width: item.screen_width,
