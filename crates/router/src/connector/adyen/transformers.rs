@@ -31,7 +31,7 @@ pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest {
     amount: Amount,
@@ -39,15 +39,15 @@ pub struct AdyenPaymentRequest {
     payment_method: AdyenPaymentMethod,
     reference: String,
     return_url: String,
-    browser_info: Option<BrowserInfo>,
+    browser_info: Option<AdyenBrowserInfo>,
     shopper_interaction: AdyenShopperInteraction,
     #[serde(skip_serializing_if = "Option::is_none")]
     recurring_processing_model: Option<AdyenRecurringModel>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct BrowserInfo {
+struct AdyenBrowserInfo {
     user_agent: String,
     accept_header: String,
     language: String,
@@ -212,9 +212,9 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     }
 }
 
-impl TryFrom<&types::DeviceInformation> for BrowserInfo {
+impl TryFrom<&types::BrowserInformation> for AdyenBrowserInfo {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::DeviceInformation) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::BrowserInformation) -> Result<Self, Self::Error> {
         Ok(Self {
             accept_header: item.accept_header.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
@@ -293,9 +293,9 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
 
         let browser_info = if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
             item.request
-                .device_info
+                .browser_info
                 .clone()
-                .map(|d| BrowserInfo::try_from(&d))
+                .map(|d| AdyenBrowserInfo::try_from(&d))
                 .transpose()?
         } else {
             None

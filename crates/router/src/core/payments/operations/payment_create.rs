@@ -71,12 +71,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             helpers::get_address_for_payment_request(db, request.billing.as_ref(), None).await?;
 
         let browser_info = request
-            .device_info
+            .browser_info
             .clone()
-            .map(|x| utils::Encode::<types::DeviceInformation>::encode_to_value(&x))
+            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "device_info",
+                field_name: "browser_info",
             })?;
 
         payment_attempt = match db
@@ -297,7 +297,7 @@ impl PaymentCreate {
         money: (i32, enums::Currency),
         payment_method: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
-        device_info: Option<serde_json::Value>,
+        browser_info: Option<serde_json::Value>,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(crate::utils::date_time::now());
         let status =
@@ -319,7 +319,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             authentication_type: request.authentication_type,
-            browser_info: device_info,
+            browser_info,
             ..storage::PaymentAttemptNew::default()
         }
     }

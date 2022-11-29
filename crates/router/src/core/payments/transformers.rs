@@ -255,10 +255,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        let browser_info: Option<types::DeviceInformation> = payment_data
+        let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
-            .map(|b| b.parse_value("DeviceInformation"))
+            .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -284,7 +284,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            device_info: browser_info,
+            browser_info,
         })
     }
 }
