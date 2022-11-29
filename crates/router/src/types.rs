@@ -204,3 +204,9 @@ impl From<ApiErrorResponse> for ErrorResponse {
         }
     }
 }
+
+impl Default for ErrorResponse {
+    fn default() -> Self {
+        Self::from(ApiErrorResponse::InternalServerError)
+    }
+}

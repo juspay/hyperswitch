@@ -101,14 +101,7 @@ where
 
         request: T::try_from(payment_data.clone())?,
 
-        response: response.map_or_else(
-            || {
-                Err(types::ErrorResponse::from(
-                    errors::ApiErrorResponse::InternalServerError,
-                ))
-            },
-            Ok,
-        ),
+        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
     Ok((payment_data, router_data))

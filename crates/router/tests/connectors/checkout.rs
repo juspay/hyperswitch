@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use router::{
-    core::{errors, payments},
+    core::payments,
     routes::AppState,
     types::{self, api, storage::enums, PaymentAddress},
 };
@@ -43,9 +43,7 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             setup_mandate_details: None,
             capture_method: None,
         },
-        response: Err(types::ErrorResponse::from(
-            errors::ApiErrorResponse::InternalServerError,
-        )),
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
         address: PaymentAddress::default(),
     }
@@ -82,9 +80,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 10,
         },
-        response: Err(types::ErrorResponse::from(
-            errors::ApiErrorResponse::InternalServerError,
-        )),
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
         address: PaymentAddress::default(),
     }
