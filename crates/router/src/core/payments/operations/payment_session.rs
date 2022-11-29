@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -36,7 +36,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
         _connector: Connector,
-        _request: &api::PaymentsSessionRequest,
+        request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
@@ -71,14 +71,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         amount = payment_intent.amount;
 
-        //FIXME: is client-secret validation required?
-        // if let Some(ref req_cs) = request.client_secret {
-        //     if let Some(ref pi_cs) = payment_intent.client_secret {
-        //         if req_cs.ne(pi_cs) {
-        //             return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
-        //         }
-        //     }
-        // }
+        if let Some(ref req_cs) = request.client_secret {
+            if let Some(ref pi_cs) = payment_intent.client_secret {
+                if req_cs.ne(pi_cs) {
+                    return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
+                }
+            }
+        }
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,

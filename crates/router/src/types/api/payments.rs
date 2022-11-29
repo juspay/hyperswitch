@@ -617,6 +617,7 @@ pub struct PaymentsRetrieveRequest {
 pub struct PaymentsSessionRequest {
     pub merchant_id: Option<String>,
     pub payment_id: Option<PaymentIdType>,
+    pub client_secret: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
