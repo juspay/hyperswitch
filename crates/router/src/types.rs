@@ -122,7 +122,7 @@ pub struct BrowserInformation {
     pub screen_width: u32,
     pub time_zone: i32,
     pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: Option<String>,
+    pub accept_header: String,
     pub user_agent: String,
 }
 
