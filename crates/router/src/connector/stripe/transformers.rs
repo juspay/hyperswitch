@@ -542,6 +542,20 @@ pub enum CancellationReason {
     Abandoned,
 }
 
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct CaptureRequest {
+    amount_to_capture: Option<i32>,
+}
+
+impl TryFrom<&types::PaymentsRouterCaptureData> for CaptureRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentsRouterCaptureData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount_to_capture: item.request.amount_to_capture,
+        })
+    }
+}
+
 // #[cfg(test)]
 // mod test_stripe_transformers {
 //     use super::*;

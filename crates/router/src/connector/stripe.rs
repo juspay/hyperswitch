@@ -70,11 +70,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterCaptureData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -94,11 +90,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterCaptureData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
@@ -111,13 +103,18 @@ impl
         ))
     }
 
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsRouterCaptureData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(stripe_req))
+    }
+
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterCaptureData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -132,11 +129,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsRouterCaptureData,
         res: Response,
     ) -> CustomResult<types::PaymentsRouterCaptureData, errors::ConnectorError>
     where
