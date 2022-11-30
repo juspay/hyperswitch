@@ -440,10 +440,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
 
         let (status, error_message) = match response {
             Ok(response) => (response.refund_status.into(), None),
-            Err(error_response) => {
-                // FIXME: Properly handle status updation
-                (api::RefundStatus::Pending, Some(error_response.message))
-            }
+            Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
         };
 
         Ok(refunds::RefundResponse {
