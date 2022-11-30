@@ -20,7 +20,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api::{self, PgRedirectResponse},
+        api::{self, MandateValidationFields, PgRedirectResponse},
         storage::{self, enums},
     },
     utils::{
@@ -234,7 +234,10 @@ pub fn validate_request_amount_and_amount_to_capture(
     )
 }
 
-pub fn validate_mandate(req: &api::PaymentsRequest) -> RouterResult<Option<api::MandateTxnType>> {
+pub fn validate_mandate(
+    req: impl Into<MandateValidationFields>,
+) -> RouterResult<Option<api::MandateTxnType>> {
+    let req: MandateValidationFields = req.into();
     match req.is_mandate() {
         Some(api::MandateTxnType::NewMandateTxn) => {
             validate_new_mandate_request(req)?;
@@ -248,7 +251,7 @@ pub fn validate_mandate(req: &api::PaymentsRequest) -> RouterResult<Option<api::
     }
 }
 
-fn validate_new_mandate_request(req: &api::PaymentsRequest) -> RouterResult<()> {
+fn validate_new_mandate_request(req: MandateValidationFields) -> RouterResult<()> {
     let confirm = req.confirm.get_required_value("confirm")?;
 
     if !confirm {
@@ -314,7 +317,7 @@ pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAt
         payment_attempt.connector
     )
 }
-fn validate_recurring_mandate(req: &api::PaymentsRequest) -> RouterResult<()> {
+fn validate_recurring_mandate(req: MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
     req.customer_id.check_value_present("customer_id")?;

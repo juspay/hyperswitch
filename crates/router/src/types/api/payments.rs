@@ -3,7 +3,7 @@ use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 
-use super::{ConnectorCommon, RefundResponse};
+use super::{ConnectorCommon, FutureUsage, RefundResponse};
 use crate::{
     core::errors,
     pii,
@@ -90,6 +90,8 @@ pub struct VerifyRequest {
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_token: Option<i32>,
     pub mandate_data: Option<MandateData>,
+    pub setup_future_usage: Option<FutureUsage>,
+    pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
 
@@ -414,6 +416,51 @@ fn default_limit() -> i64 {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsRedirectionResponse {
     pub redirect_url: String,
+}
+
+pub struct MandateValidationFields {
+    pub mandate_id: Option<String>,
+    pub confirm: Option<bool>,
+    pub customer_id: Option<String>,
+    pub mandate_data: Option<MandateData>,
+    pub setup_future_usage: Option<FutureUsage>,
+    pub off_session: Option<bool>,
+}
+
+impl MandateValidationFields {
+    pub fn is_mandate(&self) -> Option<MandateTxnType> {
+        match (&self.mandate_data, &self.mandate_id) {
+            (None, None) => None,
+            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
+            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+        }
+    }
+}
+
+impl From<&PaymentsRequest> for MandateValidationFields {
+    fn from(req: &PaymentsRequest) -> Self {
+        Self {
+            mandate_id: req.mandate_id.clone(),
+            confirm: req.confirm,
+            customer_id: req.customer_id.clone(),
+            mandate_data: req.mandate_data.clone(),
+            setup_future_usage: req.setup_future_usage,
+            off_session: req.off_session,
+        }
+    }
+}
+
+impl From<&VerifyRequest> for MandateValidationFields {
+    fn from(req: &VerifyRequest) -> Self {
+        Self {
+            mandate_id: None,
+            confirm: Some(true),
+            customer_id: req.customer_id.clone(),
+            mandate_data: req.mandate_data.clone(),
+            off_session: req.off_session,
+            setup_future_usage: req.setup_future_usage,
+        }
+    }
 }
 
 impl PaymentsRedirectionResponse {
