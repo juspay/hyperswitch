@@ -5,9 +5,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    core::errors, db, scheduler::metrics, schema::process_tracker, types::storage::enums, utils,
-};
+use crate::{core::errors, db, scheduler::metrics, schema::process_tracker, types::storage::enums};
 
 #[derive(
     Clone,
@@ -53,7 +51,7 @@ impl ProcessTracker {
     where
         T: Serialize,
     {
-        let current_time = crate::utils::date_time::now();
+        let current_time = common_utils::date_time::now();
         Ok(ProcessTrackerNew {
             id: process_tracker_id,
             name: Some(String::from(task)),
@@ -170,7 +168,7 @@ impl Default for ProcessTrackerUpdateInternal {
             tracking_data: Option::default(),
             business_status: Option::default(),
             status: Option::default(),
-            updated_at: Some(utils::date_time::now()),
+            updated_at: Some(common_utils::date_time::now()),
         }
     }
 }

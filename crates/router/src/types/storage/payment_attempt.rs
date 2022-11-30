@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_attempt, types::enums, utils::date_time};
+use crate::{schema::payment_attempt, types::enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
@@ -142,7 +142,7 @@ impl PaymentAttemptUpdate {
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
-            modified_at: date_time::now(),
+            modified_at: common_utils::date_time::now(),
             ..source
         }
     }
@@ -165,14 +165,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 // connector_transaction_id,
                 authentication_type,
                 payment_method,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
             } => Self {
                 authentication_type: Some(authentication_type),
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::ConfirmUpdate {
@@ -181,7 +181,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 payment_method,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -204,7 +204,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 redirect,
                 mandate_id,
                 ..Default::default()
@@ -215,7 +215,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 error_message,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status } => Self {
@@ -247,7 +247,7 @@ mod tests {
 
         // let conn = config.conn.get();
 
-        let current_time = crate::utils::date_time::now();
+        let current_time = common_utils::date_time::now();
         let payment_attempt = PaymentAttemptNew {
             payment_id: "1".to_string(),
             connector: types::Connector::Dummy.to_string(),
@@ -276,7 +276,7 @@ mod tests {
             store: Store::new(&conf).await,
             conf,
         };
-        let current_time = crate::utils::date_time::now();
+        let current_time = common_utils::date_time::now();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: "1".to_string(),
@@ -313,7 +313,7 @@ mod tests {
             store: Store::new(&conf).await,
             conf,
         };
-        let current_time = crate::utils::date_time::now();
+        let current_time = common_utils::date_time::now();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),

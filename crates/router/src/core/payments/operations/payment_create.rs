@@ -299,7 +299,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
     ) -> storage::PaymentAttemptNew {
-        let created_at @ modified_at @ last_synced = Some(crate::utils::date_time::now());
+        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
@@ -334,7 +334,7 @@ impl PaymentCreate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
     ) -> storage::PaymentIntentNew {
-        let created_at @ modified_at @ last_synced = Some(crate::utils::date_time::now());
+        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
         let client_secret =

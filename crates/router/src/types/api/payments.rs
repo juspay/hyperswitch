@@ -1,3 +1,4 @@
+use common_utils::custom_serde;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -9,7 +10,6 @@ use crate::{
     pii,
     services::api,
     types::{self, api as api_types, enums, storage},
-    utils::custom_serde,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub enum PaymentOp {
 pub struct PaymentsRequest {
     #[serde(
         default,
-        deserialize_with = "custom_serde::payment_id_type::deserialize_option"
+        deserialize_with = "crate::utils::custom_serde::payment_id_type::deserialize_option"
     )]
     pub payment_id: Option<PaymentIdType>,
     pub merchant_id: Option<String>,
@@ -109,7 +109,7 @@ impl CustomerAcceptance {
     }
     pub fn get_accepted_at(&self) -> PrimitiveDateTime {
         self.accepted_at
-            .unwrap_or_else(crate::utils::date_time::now)
+            .unwrap_or_else(common_utils::date_time::now)
     }
 }
 
