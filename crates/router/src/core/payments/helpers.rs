@@ -170,12 +170,7 @@ pub async fn get_token_for_recurring_mandate(
 
     let token = Uuid::new_v4().to_string();
 
-    let _ = crate::core::payment_methods::cards::get_lookup_key_from_locker(
-        state,
-        &token,
-        &payment_method,
-    )
-    .await?;
+    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
         if payment_method_from_request != payment_method.payment_method {
@@ -583,20 +578,20 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     txn_id: &str,
     _payment_attempt: &storage::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
-    token: Option<String>,
+    token: &Option<String>,
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method == Some(enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                BasiliskSupport::get_payment_method_data_from_locker(state, &token).await?
+                Vault::get_payment_method_data_from_locker(state, &token).await?
             } else {
                 // TODO: Implement token flow for other payment methods
                 None
             },
         ),
         (pm @ Some(api::PaymentMethod::Card(card)), _) => {
-            BasiliskSupport::store_payment_method_data_in_locker(state, txn_id, card).await?;
+            Vault::store_payment_method_data_in_locker(state, txn_id, card).await?;
             Ok(pm.to_owned())
         }
         (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
@@ -605,16 +600,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
     let payment_method = match payment_method {
         Some(pm) => Some(pm),
-        None => BasiliskSupport::get_payment_method_data_from_locker(state, txn_id).await?,
+        None => Vault::get_payment_method_data_from_locker(state, txn_id).await?,
     };
 
     Ok((operation, payment_method))
 }
 
-pub struct BasiliskSupport {}
+pub struct Vault {}
 
 #[cfg(not(feature = "basilisk"))]
-impl BasiliskSupport {
+impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
@@ -670,7 +665,7 @@ impl BasiliskSupport {
 use crate::{core::payment_methods::transformers, utils::StringExt};
 
 #[cfg(feature = "basilisk")]
-impl BasiliskSupport {
+impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
@@ -683,6 +678,7 @@ impl BasiliskSupport {
             .attach_printable("Error parsing TokenizedCardValue1")?;
         let value2 = de_tokenize.value2;
         let card_cvc = if value2.is_empty() {
+            //mandatory field in api contract (when querying from legacy locker we don't get cvv), cvv handling needs to done
             "".to_string()
         } else {
             let tk_value2: api::TokenizedCardValue2 = value2

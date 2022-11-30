@@ -245,7 +245,7 @@ pub struct PaymentMethodId {
 
 //------------------------------------------------TokenizeService------------------------------------------------
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TokenizeRequestResponse {
+pub struct TokenizePayloadEncrypted {
     pub payload: String,
     pub key_id: String,
     pub version: Option<String>,

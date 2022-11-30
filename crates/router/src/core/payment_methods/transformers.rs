@@ -187,9 +187,9 @@ pub fn get_card_detail(
 pub fn mk_crud_locker_request(
     locker: &Locker,
     path: &str,
-    req: api::TokenizeRequestResponse,
+    req: api::TokenizePayloadEncrypted,
 ) -> CustomResult<services::Request, errors::CardVaultError> {
-    let body = utils::Encode::<api::TokenizeRequestResponse>::encode_to_value(&req)
+    let body = utils::Encode::<api::TokenizePayloadEncrypted>::encode_to_value(&req)
         .change_context(errors::CardVaultError::RequestEncodingFailed)?;
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
@@ -218,7 +218,9 @@ pub fn mk_card_value1(
         card_last_four,
         card_token,
     };
-    Ok(serde_json::to_string(&value1).map_err(|_x| errors::CardVaultError::FetchCardFailed)?)
+    let value1_req = utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+        .change_context(errors::CardVaultError::FetchCardFailed)?;
+    Ok(value1_req)
 }
 
 pub fn mk_card_value2(
@@ -233,5 +235,7 @@ pub fn mk_card_value2(
         external_id,
         customer_id,
     };
-    Ok(serde_json::to_string(&value2).map_err(|_x| errors::CardVaultError::FetchCardFailed)?)
+    let value2_req = utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+        .change_context(errors::CardVaultError::FetchCardFailed)?;
+    Ok(value2_req)
 }

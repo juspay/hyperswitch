@@ -680,7 +680,7 @@ pub async fn create_tokenize(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encrypt JWE response")?;
 
-    let create_tokenize_request = api::TokenizeRequestResponse {
+    let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
         key_id: services::get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
@@ -698,16 +698,16 @@ pub async fn create_tokenize(
 
     match response {
         Ok(r) => {
-            let resp: api::TokenizeRequestResponse = r
+            let resp: api::TokenizePayloadEncrypted = r
                 .response
-                .parse_struct("TokenizeRequestResponse")
+                .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizeRequestResponse")?;
+                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
             let decrypted_payload =
                 services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Decrypt Jwe failed for TokenizeRequestResponse")?;
+                    .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
             let get_response: api::GetTokenizePayloadResponse = decrypted_payload
                 .parse_struct("GetTokenizePayloadResponse")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -736,7 +736,7 @@ pub async fn get_tokenized_data(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encrypt JWE response")?;
-    let create_tokenize_request = api::TokenizeRequestResponse {
+    let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
         key_id: services::get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
@@ -753,17 +753,17 @@ pub async fn get_tokenized_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     match response {
         Ok(r) => {
-            let resp: api::TokenizeRequestResponse = r
+            let resp: api::TokenizePayloadEncrypted = r
                 .response
-                .parse_struct("TokenizeRequestResponse")
+                .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizeRequestResponse")?;
+                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
             let decrypted_payload =
                 services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                        "GetTokenizedApi: Decrypt Jwe failed for TokenizeRequestResponse",
+                        "GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
                     )?;
             let get_response: api::TokenizePayloadRequest = decrypted_payload
                 .parse_struct("TokenizePayloadRequest")
@@ -786,7 +786,7 @@ pub async fn delete_tokenized_data(state: &AppState, lookup_key: &str) -> Router
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encrypt JWE response")?;
-    let create_tokenize_request = api::TokenizeRequestResponse {
+    let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
         key_id: services::get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
@@ -803,22 +803,24 @@ pub async fn delete_tokenized_data(state: &AppState, lookup_key: &str) -> Router
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     match response {
         Ok(r) => {
-            let resp: api::TokenizeRequestResponse = r
+            let resp: api::TokenizePayloadEncrypted = r
                 .response
-                .parse_struct("TokenizeRequestResponse")
+                .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizeRequestResponse")?;
+                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
             let decrypted_payload =
                 services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                        "DeleteTokenizedApi: Decrypt Jwe failed for TokenizeRequestResponse",
+                        "DeleteTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
                     )?;
             let delete_response = decrypted_payload
                 .parse_struct("Delete")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting TokenizeRequestResponse from tokenize response")?;
+                .attach_printable(
+                    "Error getting TokenizePayloadEncrypted from tokenize response",
+                )?;
             Ok(delete_response)
         }
         Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)

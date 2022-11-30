@@ -103,7 +103,7 @@ where
             &payment_data.payment_attempt.txn_id,
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
-            payment_data.token.clone(),
+            &payment_data.token,
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
