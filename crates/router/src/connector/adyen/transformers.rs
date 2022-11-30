@@ -475,7 +475,7 @@ pub fn get_redirection_response(
     };
 
     let payments_response_data = types::PaymentsResponseData {
-        resource_id: types::ResponseId::EncodedData,
+        resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
         redirect: true,
     };

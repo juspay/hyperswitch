@@ -135,7 +135,7 @@ async fn payment_response_ut<F: Clone, T>(
                     response
                         .resource_id
                         .get_connector_transaction_id()
-                        .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
+                        .change_context(errors::ApiErrorResponse::PaymentNotSucceeded)?,
                 ),
                 authentication_type: None,
                 payment_method_id: Some(router_data.payment_method_id),
@@ -164,7 +164,7 @@ async fn payment_response_ut<F: Clone, T>(
                     connector_response
                         .resource_id
                         .get_connector_transaction_id()
-                        .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
+                        .change_context(errors::ApiErrorResponse::PaymentNotSucceeded)?,
                 ),
                 authentication_data,
                 encoded_data: payment_data.connector_response.encoded_data.clone(),

@@ -17,10 +17,7 @@ use error_stack::{IntoReport, ResultExt};
 pub use self::connector::Connector;
 use self::{api::payments, storage::enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{
-    core::errors::{self, ApiErrorResponse},
-    services,
-};
+use crate::{core::errors, services};
 
 pub type PaymentsRouterData = RouterData<api::Authorize, PaymentsRequestData, PaymentsResponseData>;
 pub type PaymentsRouterSyncData =
@@ -109,10 +106,12 @@ pub struct PaymentsResponseData {
     pub redirect: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum ResponseId {
     ConnectorTransactionId(String),
-    EncodedData,
+    EncodedData(String),
+    #[default]
+    NoResponseId,
 }
 
 impl ResponseId {
@@ -121,18 +120,12 @@ impl ResponseId {
     ) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
-            Self::EncodedData => Err(errors::ValidationError::IncorrectValueProvided {
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .into_report()
-            .attach_printable("Expected connector transaction ID but got encoded data"),
+            .attach_printable("Expected connector transaction ID not found"),
         }
-    }
-}
-
-impl Default for ResponseId {
-    fn default() -> Self {
-        Self::ConnectorTransactionId(Default::default())
     }
 }
 
@@ -223,8 +216,8 @@ pub struct ErrorResponse {
 impl ErrorResponse {
     pub fn get_not_implemented() -> Self {
         Self {
-            code: ApiErrorResponse::NotImplemented.error_code(),
-            message: ApiErrorResponse::NotImplemented.error_message(),
+            code: errors::ApiErrorResponse::NotImplemented.error_code(),
+            message: errors::ApiErrorResponse::NotImplemented.error_message(),
             reason: None,
         }
     }
