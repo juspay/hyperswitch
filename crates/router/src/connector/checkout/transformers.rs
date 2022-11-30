@@ -7,6 +7,7 @@ use crate::{
     pii::{self, Secret},
     services,
     types::{self, api, storage::enums},
+    utils::FromExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -46,6 +47,7 @@ pub struct PaymentsRequest {
     pub three_ds: CheckoutThreeDS,
     #[serde(flatten)]
     pub return_url: ReturnUrl,
+    pub capture: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -100,6 +102,11 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
                 .map(|return_url| format!("{return_url}?status=failure")),
         };
 
+        let capture = matches!(
+            item.request.capture_method,
+            Some(enums::CaptureMethod::Automatic)
+        );
+
         let source_var = Source::Card(CardSource {
             source_type: Some("card".to_owned()),
             number: ccard.map(|x| x.card_number.clone()),
@@ -116,6 +123,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
             processing_channel_id,
             three_ds,
             return_url,
+            capture,
         })
     }
 }
@@ -131,12 +139,18 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<CheckoutPaymentStatus> for enums::AttemptStatus {
-    fn from(item: CheckoutPaymentStatus) -> Self {
+impl FromExt<CheckoutPaymentStatus, Option<enums::CaptureMethod>> for enums::AttemptStatus {
+    fn from_ext(item: CheckoutPaymentStatus, capture_method: Option<enums::CaptureMethod>) -> Self {
         match item {
-            CheckoutPaymentStatus::Authorized | CheckoutPaymentStatus::Captured => {
-                enums::AttemptStatus::Charged
+            CheckoutPaymentStatus::Authorized => {
+                if capture_method == Some(enums::CaptureMethod::Automatic) || capture_method == None
+                {
+                    enums::AttemptStatus::Charged
+                } else {
+                    enums::AttemptStatus::Authorized
+                }
             }
+            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
             CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
             CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
@@ -188,7 +202,7 @@ impl<F, Req>
             ),
         });
         Ok(types::RouterData {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from_ext(item.response.status, item.data.request.capture_method),
             response: Some(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
                 redirect: redirection_data.is_some(),
@@ -196,6 +210,79 @@ impl<F, Req>
             }),
             error_response: None,
             ..item.data
+        })
+    }
+}
+
+
+// impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
+//     for types::PaymentRouterCancelData
+// {
+//     type Error = error_stack::Report<errors::ValidateError>;
+//     fn try_from(
+//         item: types::PaymentsCancelResponseRouterData<PaymentVoidResponse>,
+//     ) -> Result<Self, Self::Error> {
+//         let response = &item.response;
+//         Ok(types::RouterData {
+//             response: Some(types::PaymentsResponseData {
+//                 connector_transaction_id: response.action_id.clone(),
+//                 redirect: false,
+//                 redirection_data: None,
+//             }),
+//             status: response.into(),
+//             error_response: None,
+//             ..item.data
+//         })
+//     }
+// }
+
+#[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
+pub struct PaymentVoidRequest {
+    reference: String,
+}
+#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize)]
+pub struct PaymentVoidResponse {
+    #[serde(skip)]
+    pub(super) status: u16,
+    action_id: String,
+    reference: String,
+}
+impl From<&PaymentVoidResponse> for enums::AttemptStatus {
+    fn from(item: &PaymentVoidResponse) -> enums::AttemptStatus {
+        if item.status == 202 {
+            Self::Voided
+        } else {
+            Self::VoidFailed
+        }
+    }
+}
+
+impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
+    for types::PaymentRouterCancelData
+{
+    type Error = error_stack::Report<errors::ValidateError>;
+    fn try_from(
+        item: types::PaymentsCancelResponseRouterData<PaymentVoidResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        Ok(types::RouterData {
+            response: Some(types::PaymentsResponseData {
+                connector_transaction_id: response.action_id.clone(),
+                redirect: false,
+                redirection_data: None,
+            }),
+            status: response.into(),
+            error_response: None,
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentRouterCancelData> for PaymentVoidRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            reference: item.request.connector_transaction_id.clone(),
         })
     }
 }

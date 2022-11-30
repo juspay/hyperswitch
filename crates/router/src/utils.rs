@@ -10,7 +10,7 @@ use nanoid::nanoid;
 pub(crate) use self::{
     ext_traits::{
         validate_address, validate_email, ByteSliceExt, BytesExt, Encode, OptionExt, StringExt,
-        ValidateCall, ValueExt,
+        ValidateCall, ValueExt, FromExt
     },
     fp_utils::when,
 };

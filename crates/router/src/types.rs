@@ -30,6 +30,8 @@ pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsRequestData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentRequestCancelData, PaymentsResponseData>;
+pub type PaymentsCaptureResponseRouterData<R> =
+    ResponseRouterData<api::PCapture, R, PaymentsRequestCaptureData, PaymentsResponseData>;
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsRequestData, RefundsResponseData>;
 
