@@ -70,11 +70,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -94,11 +90,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsCaptureRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
@@ -113,11 +105,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsCaptureRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -132,11 +120,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PCapture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError>
     where
@@ -189,7 +173,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -209,7 +193,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
@@ -223,7 +207,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -238,7 +222,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
@@ -337,11 +321,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -633,7 +613,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_url(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &types::RefundsRouterData<api::RSync>,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
@@ -648,7 +628,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &types::RefundsRouterData<api::RSync>,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -666,7 +646,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        data: &types::RefundsRouterData<api::RSync>,
         res: Response,
     ) -> CustomResult<
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
