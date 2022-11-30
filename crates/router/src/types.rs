@@ -17,21 +17,20 @@ use self::{api::payments, storage::enums};
 pub use crate::core::payments::PaymentAddress;
 use crate::{core::errors::ApiErrorResponse, services};
 
-pub type PaymentsRouterData = RouterData<api::Authorize, PaymentsRequestData, PaymentsResponseData>;
-pub type PaymentsRouterSyncData =
-    RouterData<api::PSync, PaymentsRequestSyncData, PaymentsResponseData>;
-pub type PaymentsRouterCaptureData =
-    RouterData<api::PCapture, PaymentsRequestCaptureData, PaymentsResponseData>;
+pub type PaymentsAuthorizeRouterData =
+    RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsCaptureRouterData =
+    RouterData<api::PCapture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
-pub type PaymentRouterCancelData =
-    RouterData<api::Void, PaymentRequestCancelData, PaymentsResponseData>;
-pub type RefundsRouterData<F> = RouterData<F, RefundsRequestData, RefundsResponseData>;
 pub type PaymentsResponseRouterData<R> =
-    ResponseRouterData<api::Authorize, R, PaymentsRequestData, PaymentsResponseData>;
+    ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
-    ResponseRouterData<api::Void, R, PaymentRequestCancelData, PaymentsResponseData>;
+    ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type RefundsResponseRouterData<F, R> =
-    ResponseRouterData<F, R, RefundsRequestData, RefundsResponseData>;
+    ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -63,7 +62,7 @@ pub struct RouterData<Flow, Request, Response> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRequestData {
+pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -79,20 +78,20 @@ pub struct PaymentsRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRequestCaptureData {
+pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i32>,
     pub connector_transaction_id: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRequestSyncData {
+pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: String,
     pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentRequestCancelData {
+pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
 }
@@ -105,7 +104,7 @@ pub struct PaymentsResponseData {
 }
 
 #[derive(Debug, Clone)]
-pub struct RefundsRequestData {
+pub struct RefundsData {
     pub refund_id: String,
     pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,

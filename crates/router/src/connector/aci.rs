@@ -57,7 +57,7 @@ impl api::PaymentCapture for Aci {}
 impl
     services::ConnectorIntegration<
         api::PCapture,
-        types::PaymentsRequestCaptureData,
+        types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Aci
 {
@@ -66,24 +66,17 @@ impl
 
 type PSync = dyn services::ConnectorIntegration<
     api::PSync,
-    types::PaymentsRequestSyncData,
+    types::PaymentsSyncData,
     types::PaymentsResponseData,
 >;
 
 impl
-    services::ConnectorIntegration<
-        api::PSync,
-        types::PaymentsRequestSyncData,
-        types::PaymentsResponseData,
-    > for Aci
+    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Aci
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -103,11 +96,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
@@ -123,11 +112,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -142,15 +127,11 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError>
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
-        types::PaymentsRequestData: Clone,
+        types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let response: aci::AciPaymentsResponse =
@@ -189,20 +170,20 @@ impl
 
 type Authorize = dyn services::ConnectorIntegration<
     api::Authorize,
-    types::PaymentsRequestData,
+    types::PaymentsAuthorizeData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Aci
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -222,7 +203,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v1/payments"))
@@ -230,7 +211,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         // encode only for for urlencoded things.
         let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
@@ -243,7 +224,7 @@ impl
         &self,
         req: &types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: Connectors,
@@ -262,9 +243,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: aci::AciPaymentsResponse =
             res.response
                 .parse_struct("AciPaymentsResponse")
@@ -301,20 +282,20 @@ impl
 
 type Void = dyn services::ConnectorIntegration<
     api::Void,
-    types::PaymentRequestCancelData,
+    types::PaymentsCancelData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::Void,
-        types::PaymentRequestCancelData,
+        types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Aci
 {
     fn get_headers(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -334,7 +315,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = &req.request.connector_transaction_id;
@@ -343,7 +324,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let aci_req = utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -351,7 +332,7 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -367,9 +348,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentRouterCancelData,
+        data: &types::PaymentsCancelRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: aci::AciPaymentsResponse =
             res.response
                 .parse_struct("AciPaymentsResponse")
@@ -410,15 +391,11 @@ impl api::RefundSync for Aci {}
 
 type Execute = dyn services::ConnectorIntegration<
     api::Execute,
-    types::RefundsRequestData,
+    types::RefundsData,
     types::RefundsResponseData,
 >;
-impl
-    services::ConnectorIntegration<
-        api::Execute,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Aci
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Aci
 {
     fn get_headers(
         &self,
@@ -517,12 +494,8 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::RSync,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Aci
+impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Aci
 {
 }
 

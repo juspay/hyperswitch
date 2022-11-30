@@ -9,8 +9,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, storage, PaymentsRequestCaptureData, PaymentsResponseData,
-        PaymentsRouterCaptureData,
+        self, api, storage, PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
 
@@ -18,7 +17,7 @@ use crate::{
 impl
     ConstructFlowSpecificData<
         api::PCapture,
-        types::PaymentsRequestCaptureData,
+        types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for PaymentData<api::PCapture>
 {
@@ -27,10 +26,10 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<PaymentsRouterCaptureData> {
+    ) -> RouterResult<PaymentsCaptureRouterData> {
         let output = transformers::construct_payment_router_data::<
             api::PCapture,
-            types::PaymentsRequestCaptureData,
+            types::PaymentsCaptureData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
         Ok(output.1)
@@ -38,12 +37,8 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::PCapture, types::PaymentsRequestCaptureData>
-    for types::RouterData<
-        api::PCapture,
-        types::PaymentsRequestCaptureData,
-        types::PaymentsResponseData,
-    >
+impl Feature<api::PCapture, types::PaymentsCaptureData>
+    for types::RouterData<api::PCapture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
@@ -56,7 +51,7 @@ impl Feature<api::PCapture, types::PaymentsRequestCaptureData>
     where
         dyn api::Connector: services::ConnectorIntegration<
             api::PCapture,
-            types::PaymentsRequestCaptureData,
+            types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
     {
@@ -74,7 +69,7 @@ impl Feature<api::PCapture, types::PaymentsRequestCaptureData>
     }
 }
 
-impl PaymentsRouterCaptureData {
+impl PaymentsCaptureRouterData {
     #[allow(clippy::too_many_arguments)]
     pub async fn decide_flow<'a, 'b>(
         &'b self,
@@ -83,17 +78,17 @@ impl PaymentsRouterCaptureData {
         _maybe_customer: &Option<api::CustomerResponse>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsRouterCaptureData>
+    ) -> RouterResult<PaymentsCaptureRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
             api::PCapture,
-            PaymentsRequestCaptureData,
+            PaymentsCaptureData,
             PaymentsResponseData,
         >,
     {
         let connector_integration: services::BoxedConnectorIntegration<
             api::PCapture,
-            PaymentsRequestCaptureData,
+            PaymentsCaptureData,
             PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(

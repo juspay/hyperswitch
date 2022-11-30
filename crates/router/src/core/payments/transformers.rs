@@ -251,7 +251,7 @@ where
     })
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
@@ -289,7 +289,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestSyncData {
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
@@ -303,7 +303,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestSyncData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestCaptureData {
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
     type Error = errors::ApiErrorResponse;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
@@ -317,7 +317,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestCaptureData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentRequestCancelData {
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
     type Error = errors::ApiErrorResponse;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {

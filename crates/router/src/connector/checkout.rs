@@ -61,14 +61,14 @@ impl api::PaymentCapture for Checkout {}
 #[allow(dead_code)]
 type PCapture = dyn services::ConnectorIntegration<
     api::PCapture,
-    types::PaymentsRequestSyncData,
+    types::PaymentsSyncData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::PCapture,
-        types::PaymentsRequestCaptureData,
+        types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Checkout
 {
@@ -77,20 +77,17 @@ impl
 #[allow(dead_code)]
 type PSync = dyn services::ConnectorIntegration<
     api::PSync,
-    types::PaymentsRequestSyncData,
+    types::PaymentsSyncData,
     types::PaymentsResponseData,
 >;
 
 impl
-    services::ConnectorIntegration<
-        api::PSync,
-        types::PaymentsRequestSyncData,
-        types::PaymentsResponseData,
-    > for Checkout
+    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Checkout
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -106,7 +103,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -119,7 +116,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -135,12 +132,12 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterSyncData,
+        data: &types::PaymentsSyncRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError>
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
         api::PSync: Clone,
-        types::PaymentsRequestSyncData: Clone,
+        types::PaymentsSyncData: Clone,
         types::PaymentsResponseData: Clone,
     {
         logger::debug!(raw_response=?res);
@@ -179,20 +176,20 @@ impl
 
 type Authorize = dyn services::ConnectorIntegration<
     api::Authorize,
-    types::PaymentsRequestData,
+    types::PaymentsAuthorizeData,
     types::PaymentsResponseData,
 >; // why is this named Authorize
 
 impl
     services::ConnectorIntegration<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Checkout
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -208,7 +205,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "payments"))
@@ -216,7 +213,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let checkout_req = utils::Encode::<checkout::PaymentsRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -226,7 +223,7 @@ impl
         &self,
         req: &types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: Connectors,
@@ -245,9 +242,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         //TODO: [ORCA-618] If 3ds fails, the response should be a redirect response, to redirect client to success/failed page
         let response: checkout::PaymentsResponse = res
             .response
@@ -286,20 +283,20 @@ impl
 
 type Void = dyn services::ConnectorIntegration<
     api::Void,
-    types::PaymentRequestCancelData,
+    types::PaymentsCancelData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::Void,
-        types::PaymentRequestCancelData,
+        types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Checkout
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
     }
@@ -310,7 +307,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
         _connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
@@ -318,13 +315,13 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
     }
     fn build_request(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
         _connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
@@ -332,9 +329,9 @@ impl
 
     fn handle_response(
         &self,
-        _data: &types::PaymentRouterCancelData,
+        _data: &types::PaymentsCancelRouterData,
         _res: Response,
-    ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
     }
 
@@ -352,15 +349,11 @@ impl api::RefundSync for Checkout {}
 
 type Execute = dyn services::ConnectorIntegration<
     api::Execute,
-    types::RefundsRequestData,
+    types::RefundsData,
     types::RefundsResponseData,
 >;
-impl
-    services::ConnectorIntegration<
-        api::Execute,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Checkout
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Checkout
 {
     fn get_headers(
         &self,
@@ -463,17 +456,10 @@ impl
     }
 }
 
-type RSync = dyn services::ConnectorIntegration<
-    api::RSync,
-    types::RefundsRequestData,
-    types::RefundsResponseData,
->;
-impl
-    services::ConnectorIntegration<
-        api::RSync,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Checkout
+type RSync =
+    dyn services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>;
+impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Checkout
 {
     fn get_headers(
         &self,

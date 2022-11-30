@@ -57,13 +57,13 @@ impl api::PaymentCapture for Adyen {}
 #[allow(dead_code)]
 type PCapture = dyn services::ConnectorIntegration<
     api::PCapture,
-    types::PaymentsRequestCaptureData,
+    types::PaymentsCaptureData,
     types::PaymentsResponseData,
 >;
 impl
     services::ConnectorIntegration<
         api::PCapture,
-        types::PaymentsRequestCaptureData,
+        types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Adyen
 {
@@ -72,23 +72,16 @@ impl
 
 type PSync = dyn services::ConnectorIntegration<
     api::PSync,
-    types::PaymentsRequestSyncData,
+    types::PaymentsSyncData,
     types::PaymentsResponseData,
 >;
 impl
-    services::ConnectorIntegration<
-        api::PSync,
-        types::PaymentsRequestSyncData,
-        types::PaymentsResponseData,
-    > for Adyen
+    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -104,11 +97,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let encoded_data = req
             .request
@@ -154,11 +143,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -170,11 +155,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -190,13 +171,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: adyen::AdyenPaymentResponse = res
             .response
@@ -228,24 +205,24 @@ impl
 
 type Authorize = dyn services::ConnectorIntegration<
     api::Authorize,
-    types::PaymentsRequestData,
+    types::PaymentsAuthorizeData,
     types::PaymentsResponseData,
 >;
 impl
     services::ConnectorIntegration<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError>
     where
         Self: services::ConnectorIntegration<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     {
@@ -263,7 +240,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
@@ -271,7 +248,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -282,7 +259,7 @@ impl
         &self,
         req: &types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: Connectors,
@@ -301,9 +278,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: adyen::AdyenPaymentResponse = res
             .response
             .parse_struct("AdyenPaymentResponse")
@@ -334,20 +311,20 @@ impl
 
 type Void = dyn services::ConnectorIntegration<
     api::Void,
-    types::PaymentRequestCancelData,
+    types::PaymentsCancelData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::Void,
-        types::PaymentRequestCancelData,
+        types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -363,7 +340,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/cancel"))
@@ -371,7 +348,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let adyen_req = utils::Encode::<adyen::AdyenCancelRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -379,7 +356,7 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -396,9 +373,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentRouterCancelData,
+        data: &types::PaymentsCancelRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: adyen::AdyenCancelResponse = res
             .response
             .parse_struct("AdyenCancelResponse")
@@ -433,15 +410,11 @@ impl api::RefundSync for Adyen {}
 
 type Execute = dyn services::ConnectorIntegration<
     api::Execute,
-    types::RefundsRequestData,
+    types::RefundsData,
     types::RefundsResponseData,
 >;
-impl
-    services::ConnectorIntegration<
-        api::Execute,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Adyen
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Adyen
 {
     fn get_headers(
         &self,
@@ -531,12 +504,8 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::RSync,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Adyen
+impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Adyen
 {
 }
 

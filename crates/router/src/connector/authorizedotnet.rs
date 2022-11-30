@@ -47,13 +47,13 @@ impl api::PaymentCapture for Authorizedotnet {}
 #[allow(dead_code)]
 type PCapture = dyn services::ConnectorIntegration<
     api::PCapture,
-    types::PaymentsRequestCaptureData,
+    types::PaymentsCaptureData,
     types::PaymentsResponseData,
 >;
 impl
     services::ConnectorIntegration<
         api::PCapture,
-        types::PaymentsRequestCaptureData,
+        types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
@@ -62,19 +62,16 @@ impl
 
 type PSync = dyn services::ConnectorIntegration<
     api::PSync,
-    types::PaymentsRequestSyncData,
+    types::PaymentsSyncData,
     types::PaymentsResponseData,
 >;
 impl
-    services::ConnectorIntegration<
-        api::PSync,
-        types::PaymentsRequestSyncData,
-        types::PaymentsResponseData,
-    > for Authorizedotnet
+    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Authorizedotnet
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsRouterSyncData,
+        _req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
@@ -92,7 +89,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterSyncData,
+        _req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -100,7 +97,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let sync_request =
             utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::convert_and_encode(
@@ -112,7 +109,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -126,9 +123,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterSyncData,
+        data: &types::PaymentsSyncRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         use bytes::Buf;
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
@@ -179,20 +176,20 @@ impl
 
 type Authorize = dyn services::ConnectorIntegration<
     api::Authorize,
-    types::PaymentsRequestData,
+    types::PaymentsAuthorizeData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
@@ -210,7 +207,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -218,7 +215,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         logger::debug!(request=?req);
         let authorizedotnet_req =
@@ -231,7 +228,7 @@ impl
         &self,
         req: &types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: Connectors,
@@ -250,9 +247,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         use bytes::Buf;
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
@@ -304,20 +301,20 @@ impl
 
 type Void = dyn services::ConnectorIntegration<
     api::Void,
-    types::PaymentRequestCancelData,
+    types::PaymentsCancelData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
         api::Void,
-        types::PaymentRequestCancelData,
+        types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![
             (
@@ -334,7 +331,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -342,7 +339,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let authorizedotnet_req =
             utils::Encode::<authorizedotnet::CancelTransactionRequest>::convert_and_encode(req)
@@ -351,7 +348,7 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -368,9 +365,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentRouterCancelData,
+        data: &types::PaymentsCancelRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         use bytes::Buf;
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
@@ -426,16 +423,12 @@ impl api::RefundSync for Authorizedotnet {}
 
 type Execute = dyn services::ConnectorIntegration<
     api::Execute,
-    types::RefundsRequestData,
+    types::RefundsData,
     types::RefundsResponseData,
 >;
 
-impl
-    services::ConnectorIntegration<
-        api::Execute,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Authorizedotnet
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Authorizedotnet
 {
     fn get_headers(
         &self,
@@ -544,18 +537,11 @@ impl
     }
 }
 
-type RSync = dyn services::ConnectorIntegration<
-    api::RSync,
-    types::RefundsRequestData,
-    types::RefundsResponseData,
->;
+type RSync =
+    dyn services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>;
 
-impl
-    services::ConnectorIntegration<
-        api::RSync,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Authorizedotnet
+impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Authorizedotnet
 {
     fn get_headers(
         &self,

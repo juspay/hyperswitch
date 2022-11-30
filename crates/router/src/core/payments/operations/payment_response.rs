@@ -25,7 +25,7 @@ use crate::{
 pub struct PaymentResponse;
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -34,7 +34,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestData>
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentsRequestData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -49,16 +49,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestSyncData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn Db,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentsRequestSyncData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -69,7 +67,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestSyncDa
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestCaptureData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -78,7 +76,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestCaptur
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentsRequestCaptureData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -89,16 +87,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestCaptur
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentRequestCancelData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn Db,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentRequestCancelData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where

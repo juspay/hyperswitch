@@ -97,9 +97,9 @@ pub enum AciPaymentType {
     Refund,
 }
 
-impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => PaymentDetails::Card(CardDetails {
                 card_number: ccard.card_number.peek().clone(),
@@ -128,9 +128,9 @@ impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
     }
 }
 
-impl TryFrom<&types::PaymentRouterCancelData> for AciCancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
         let aci_payment_request = AciCancelRequest {
             entity_id: auth.entity_id,
