@@ -8,9 +8,8 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        errors::{self, RouterResult, StorageErrorExt},
+        payments::{self, helpers, PaymentData},
     },
     db::{payment_attempt::IPaymentAttempt, payment_intent::IPaymentIntent, Db},
     routes::AppState,
@@ -21,6 +20,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "session")]
 pub struct PaymentSession;
@@ -41,41 +41,37 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
-        Option<CustomerDetails>,
+        Option<payments::CustomerDetails>,
     )> {
-        let (mut payment_intent, mut payment_attempt, currency, amount);
-
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &state.store;
 
-        payment_attempt = db
+        let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        payment_intent = db
+        let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        currency = payment_intent.currency.get_required_value("currency")?;
+        let currency = payment_intent.currency.get_required_value("currency")?;
 
         payment_attempt.payment_method = Some(enums::PaymentMethodType::Wallet);
 
-        amount = payment_intent.amount;
+        let amount = payment_intent.amount;
 
-        if let Some(ref req_cs) = request.client_secret {
-            if let Some(ref pi_cs) = payment_intent.client_secret {
-                if req_cs.ne(pi_cs) {
-                    return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
-                }
+        if let Some(ref payment_intent_client_secret) = payment_intent.client_secret {
+            if request.client_secret.ne(payment_intent_client_secret) {
+                return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
             }
         }
 
@@ -120,7 +116,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 mandate_id: None,
                 token: None,
                 setup_mandate: None,
-                address: PaymentAddress {
+                address: payments::PaymentAddress {
                     shipping: shipping_address.as_ref().map(|a| a.into()),
                     billing: billing_address.as_ref().map(|a| a.into()),
                 },
@@ -167,28 +163,16 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         api::PaymentIdType,
         Option<api::MandateTxnType>,
     )> {
-        let given_payment_id = match &request.payment_id {
-            Some(id_type) => Some(
-                id_type
-                    .get_payment_intent_id()
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
-            ),
-            None => None,
-        };
-
-        let request_merchant_id = request.merchant_id.as_deref();
-        helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
-                expected_format: "merchant_id from merchant account".to_string(),
-            })?;
-
-        let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+        //paymentid is already generated and should be sent in the request
+        let given_payment_id = request
+            .payment_id
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         Ok((
             Box::new(self),
             &merchant_account.merchant_id,
-            api::PaymentIdType::PaymentIntentId(payment_id),
+            api::PaymentIdType::PaymentIntentId(given_payment_id),
             None,
         ))
     }
@@ -205,9 +189,9 @@ where
         &'a self,
         db: &dyn Db,
         payment_data: &mut PaymentData<F>,
-        request: Option<CustomerDetails>,
+        request: Option<payments::CustomerDetails>,
         merchant_id: &str,
-    ) -> CustomResult<
+    ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
             Option<api::CustomerResponse>,
