@@ -18,8 +18,12 @@ macro_rules! create_counter {
     };
 }
 
-create_counter!(PAYMENT_COUNT, PT_METER);
-create_counter!(JOB_COUNT, PT_METER);
-create_counter!(BATCHES_CREATED, PT_METER);
-create_counter!(BATCHES_CONSUMED, PT_METER);
-create_counter!(TASK_CONSUMED, PT_METER);
+create_counter!(PAYMENT_COUNT, PT_METER); // No. of payments created
+create_counter!(TASKS_ADDED_COUNT, PT_METER); // Tasks added to process tracker
+create_counter!(TASKS_PICKED_COUNT, PT_METER); // Tasks picked by
+create_counter!(BATCHES_CREATED, PT_METER); // Batches added to stream
+create_counter!(BATCHES_CONSUMED, PT_METER); // Batches consumed by consumer
+create_counter!(TASK_CONSUMED, PT_METER); // Tasks consumed by consumer
+create_counter!(TASK_PROCESSED, PT_METER); // Tasks completed processing
+create_counter!(TASK_FINISHED, PT_METER); // Tasks finished
+create_counter!(TASK_RETRIED, PT_METER); // Tasks added for retries

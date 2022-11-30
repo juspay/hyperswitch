@@ -46,6 +46,7 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             off_session: None,
             setup_mandate_details: None,
             capture_method: None,
+            browser_info: None,
         },
         payment_method_id: None,
         response: None,

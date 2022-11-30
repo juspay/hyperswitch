@@ -1,8 +1,12 @@
+// TODO: Add crate & modules documentation for this crate
+
 pub mod commands;
+pub mod errors;
 pub mod types;
 
+use router_env::logger;
+
 pub use self::{commands::*, types::*};
-use crate::logger;
 
 pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
@@ -17,7 +21,7 @@ impl RedisConnectionPool {
     ///
     /// Panics if a connection to Redis is not successful.
     #[allow(clippy::expect_used)]
-    pub(crate) async fn new(conf: &crate::configs::settings::Redis) -> Self {
+    pub async fn new(conf: &types::RedisSettings) -> Self {
         let redis_connection_url = match conf.cluster_enabled {
             // Fred relies on this format for specifying cluster where the host port is ignored & only query parameters are used for node addresses
             // redis-cluster://username:password@host:port?node=bar.com:30002&node=baz.com:30003
@@ -79,11 +83,23 @@ struct RedisConfig {
     default_stream_read_count: u64,
 }
 
-impl From<&crate::configs::settings::Redis> for RedisConfig {
-    fn from(config: &crate::configs::settings::Redis) -> Self {
+impl From<&types::RedisSettings> for RedisConfig {
+    fn from(config: &types::RedisSettings) -> Self {
         Self {
             default_ttl: config.default_ttl,
             default_stream_read_count: config.stream_read_count,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_redis_error() {
+        let x = errors::RedisError::ConsumerGroupClaimFailed.to_string();
+
+        assert_eq!(x, "Failed to set redis stream message owner".to_string())
     }
 }

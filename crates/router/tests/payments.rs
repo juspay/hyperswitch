@@ -326,6 +326,7 @@ async fn payments_create_core() {
         mandate_id: None,
         off_session: None,
         client_secret: None,
+        browser_info: None,
     };
 
     let expected_response = api::PaymentsResponse {
@@ -484,6 +485,7 @@ async fn payments_create_core_adyen_no_redirect() {
         mandate_id: None,
         off_session: None,
         client_secret: None,
+        browser_info: None,
     };
 
     let expected_response = services::BachResponse::Json(api::PaymentsResponse {

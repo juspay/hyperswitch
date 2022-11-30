@@ -1,3 +1,5 @@
+use std::{collections::HashMap, str::FromStr};
+
 use error_stack::{IntoReport, ResultExt};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -30,7 +32,7 @@ pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest {
     amount: Amount,
@@ -38,9 +40,23 @@ pub struct AdyenPaymentRequest {
     payment_method: AdyenPaymentMethod,
     reference: String,
     return_url: String,
+    browser_info: Option<AdyenBrowserInfo>,
     shopper_interaction: AdyenShopperInteraction,
     #[serde(skip_serializing_if = "Option::is_none")]
     recurring_processing_model: Option<AdyenRecurringModel>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AdyenBrowserInfo {
+    user_agent: String,
+    accept_header: String,
+    language: String,
+    color_depth: u8,
+    screen_height: u32,
+    screen_width: u32,
+    time_zone_offset: i32,
+    java_enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -110,6 +126,7 @@ pub struct AdyenRedirectionAction {
     method: String,
     #[serde(rename = "type")]
     type_of_response: String,
+    data: HashMap<String, String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +221,23 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
         }
     }
 }
+
+impl TryFrom<&types::BrowserInformation> for AdyenBrowserInfo {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::BrowserInformation) -> Result<Self, Self::Error> {
+        Ok(Self {
+            accept_header: item.accept_header.clone(),
+            language: item.language.clone(),
+            screen_height: item.screen_height,
+            screen_width: item.screen_width,
+            color_depth: item.color_depth,
+            user_agent: item.user_agent.clone(),
+            time_zone_offset: item.time_zone,
+            java_enabled: item.java_enabled,
+        })
+    }
+}
+
 // Payment Request Transform
 impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -293,14 +327,29 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
             }),
         }?;
 
+        let browser_info = if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
+            item.request
+                .browser_info
+                .clone()
+                .map(|d| AdyenBrowserInfo::try_from(&d))
+                .transpose()?
+        } else {
+            None
+        };
+
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
             reference,
-            return_url: "juspay.io".to_string(),
+            return_url: item.orca_return_url.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "orca_return_url".into(),
+                },
+            )?,
             shopper_interaction,
             recurring_processing_model,
+            browser_info,
         })
     }
 }
@@ -419,12 +468,10 @@ pub fn get_redirection_response(
 
     let redirection_data = services::RedirectForm {
         url: redirection_url_response.to_string(),
-        method: services::Method::Get,
-        form_fields: std::collections::HashMap::from_iter(
-            redirection_url_response
-                .query_pairs()
-                .map(|(k, v)| (k.to_string(), v.to_string())),
-        ),
+        method: services::Method::from_str(&response.action.method)
+            .into_report()
+            .change_context(errors::ParsingError)?,
+        form_fields: response.action.data,
     };
 
     // We don't get connector transaction id for redirections in Adyen.
