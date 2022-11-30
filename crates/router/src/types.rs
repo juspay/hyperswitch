@@ -111,12 +111,6 @@ pub struct PaymentsResponseData {
 }
 
 #[derive(Debug, Clone)]
-pub struct VerifyResponseData {
-    pub connector_transaction_id: String,
-    pub redirection_data: Option<services::RedirectForm>,
-}
-
-#[derive(Debug, Clone)]
 pub struct RefundsRequestData {
     pub refund_id: String,
     pub payment_method_data: payments::PaymentMethod,
