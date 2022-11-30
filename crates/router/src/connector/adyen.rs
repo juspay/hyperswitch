@@ -308,6 +308,7 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

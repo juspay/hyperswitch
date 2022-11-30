@@ -1,7 +1,7 @@
 use diesel::{Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
-use crate::{pii::Secret, schema::payment_methods, types::storage::enums, utils};
+use crate::{pii::Secret, schema::payment_methods, types::storage::enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
 #[diesel(table_name = payment_methods)]
@@ -58,7 +58,7 @@ pub struct PaymentMethodNew {
 
 impl Default for PaymentMethodNew {
     fn default() -> Self {
-        let now = utils::date_time::now();
+        let now = common_utils::date_time::now();
 
         Self {
             customer_id: String::default(),

@@ -1,5 +1,13 @@
+//!
+//! An interface to abstract the `fred` commands
+//!
+
 use std::fmt::Debug;
 
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{ByteSliceExt, Encode},
+};
 use error_stack::{IntoReport, ResultExt};
 use fred::{
     interfaces::{KeysInterface, StreamsInterface},
@@ -11,9 +19,8 @@ use fred::{
 use router_env::{tracing, tracing::instrument};
 
 use crate::{
-    core::errors::{self, CustomResult},
-    services::redis::types::{RedisEntryId, SetNXReply},
-    utils::{ByteSliceExt, Encode},
+    errors,
+    types::{RedisEntryId, SetNXReply},
 };
 
 impl super::RedisConnectionPool {
