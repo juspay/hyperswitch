@@ -214,7 +214,7 @@ impl Default for PaymentIdType {
 #[derive(Debug, Clone)]
 pub struct Authorize;
 #[derive(Debug, Clone)]
-pub struct PCapture;
+pub struct Capture;
 
 #[derive(Debug, Clone)]
 pub struct PSync;
@@ -601,7 +601,7 @@ pub trait PaymentVoid:
 }
 
 pub trait PaymentCapture:
-    api::ConnectorIntegration<PCapture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
 }
 

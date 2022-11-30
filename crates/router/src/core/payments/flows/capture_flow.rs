@@ -15,11 +15,8 @@ use crate::{
 
 #[async_trait]
 impl
-    ConstructFlowSpecificData<
-        api::PCapture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for PaymentData<api::PCapture>
+    ConstructFlowSpecificData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for PaymentData<api::Capture>
 {
     async fn construct_r_d<'a>(
         &self,
@@ -28,7 +25,7 @@ impl
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<PaymentsCaptureRouterData> {
         let output = transformers::construct_payment_router_data::<
-            api::PCapture,
+            api::Capture,
             types::PaymentsCaptureData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
@@ -37,20 +34,20 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::PCapture, types::PaymentsCaptureData>
-    for types::RouterData<api::PCapture, types::PaymentsCaptureData, types::PaymentsResponseData>
+impl Feature<api::Capture, types::PaymentsCaptureData>
+    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::PCapture>,
+        payment_data: PaymentData<api::Capture>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::PCapture>)
+    ) -> (RouterResult<Self>, PaymentData<api::Capture>)
     where
         dyn api::Connector: services::ConnectorIntegration<
-            api::PCapture,
+            api::Capture,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
@@ -80,14 +77,11 @@ impl PaymentsCaptureRouterData {
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsCaptureRouterData>
     where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::PCapture,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        dyn api::Connector + Sync:
+            services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>,
     {
         let connector_integration: services::BoxedConnectorIntegration<
-            api::PCapture,
+            api::Capture,
             PaymentsCaptureData,
             PaymentsResponseData,
         > = connector.connector.get_connector_integration();

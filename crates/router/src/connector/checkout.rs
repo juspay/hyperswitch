@@ -60,14 +60,14 @@ impl api::PaymentCapture for Checkout {}
 
 #[allow(dead_code)]
 type PCapture = dyn services::ConnectorIntegration<
-    api::PCapture,
+    api::Capture,
     types::PaymentsSyncData,
     types::PaymentsResponseData,
 >;
 
 impl
     services::ConnectorIntegration<
-        api::PCapture,
+        api::Capture,
         types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Checkout

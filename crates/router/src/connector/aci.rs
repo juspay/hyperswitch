@@ -56,7 +56,7 @@ impl api::PaymentCapture for Aci {}
 
 impl
     services::ConnectorIntegration<
-        api::PCapture,
+        api::Capture,
         types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Aci

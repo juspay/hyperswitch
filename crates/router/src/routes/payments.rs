@@ -18,7 +18,7 @@ use crate::{
                 PaymentIdType, PaymentListConstraints, PaymentsCancelRequest,
                 PaymentsCaptureRequest, PaymentsRequest, PaymentsRetrieveRequest,
             },
-            Authorize, PCapture, PSync, PaymentRetrieveBody, PaymentsStartRequest, Void,
+            Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsStartRequest, Void,
         },
         storage::enums::CaptureMethod,
     }, // FIXME imports
@@ -234,7 +234,7 @@ pub(crate) async fn payments_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<PCapture, _, _, _>(
+            payments::payments_core::<Capture, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,

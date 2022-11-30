@@ -21,7 +21,7 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
-    RouterData<api::PCapture, PaymentsCaptureData, PaymentsResponseData>;
+    RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
@@ -31,6 +31,19 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
+
+pub type PaymentsAuthorizeType =
+    dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsSyncType =
+    dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsCaptureType =
+    dyn services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsVoidType =
+    dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type RefundExecuteType =
+    dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
+pub type RefundSyncType =
+    dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {

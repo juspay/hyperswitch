@@ -46,13 +46,13 @@ impl api::PaymentCapture for Authorizedotnet {}
 
 #[allow(dead_code)]
 type PCapture = dyn services::ConnectorIntegration<
-    api::PCapture,
+    api::Capture,
     types::PaymentsCaptureData,
     types::PaymentsResponseData,
 >;
 impl
     services::ConnectorIntegration<
-        api::PCapture,
+        api::Capture,
         types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Authorizedotnet
