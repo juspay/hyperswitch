@@ -53,6 +53,17 @@ impl api::PaymentAuthorize for Aci {}
 impl api::PaymentSync for Aci {}
 impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
+impl api::PreVerify for Aci {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Aci
+{
+    // TODO: Critical Implement
+}
 
 impl
     services::ConnectorIntegration<

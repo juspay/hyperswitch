@@ -54,6 +54,7 @@ impl api::PaymentAuthorize for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
+impl api::PreVerify for Stripe {}
 
 type PaymentCaptureType = dyn services::ConnectorIntegration<
     api::PCapture,
@@ -519,6 +520,22 @@ impl
             reason: None,
         })
     }
+}
+
+#[allow(dead_code)]
+type Verify = dyn services::ConnectorIntegration<
+    api::Verify,
+    types::VerifyRequestData,
+    types::PaymentsResponseData,
+>;
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    // TODO CRITICAL: Implement for POC
 }
 
 impl api::Refund for Stripe {}

@@ -236,6 +236,9 @@ pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
 
+#[derive(Debug, Clone)]
+pub struct Verify;
+
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
 //#[serde(untagged)]
 //pub enum enums::CaptureMethod {
@@ -640,8 +643,13 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PreVerify:
+    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+{
+}
+
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid
+    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PreVerify
 {
 }
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

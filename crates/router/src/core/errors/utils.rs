@@ -62,6 +62,7 @@ impl ApiClientErrorExt for error_stack::Report<super::ApiClientError> {
 pub(crate) trait ConnectorErrorExt {
     fn to_refund_failed_response(self) -> error_stack::Report<super::ApiErrorResponse>;
     fn to_payment_failed_response(self) -> error_stack::Report<super::ApiErrorResponse>;
+    fn to_verify_failed_response(self) -> error_stack::Report<super::ApiErrorResponse>;
 }
 
 // FIXME: The implementation can be improved by handling BOM maybe?
@@ -99,6 +100,25 @@ impl ConnectorErrorExt for error_stack::Report<super::ConnectorError> {
                         .ok(),
                     Err(error) => {
                         logger::error!(%error,"Failed to convert response to UTF8 string");
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+        self.change_context(super::ApiErrorResponse::PaymentAuthorizationFailed { data })
+    }
+
+    fn to_verify_failed_response(self) -> error_stack::Report<super::ApiErrorResponse> {
+        let data = match self.current_context() {
+            super::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                let response_str = std::str::from_utf8(bytes);
+                match response_str {
+                    Ok(s) => serde_json::from_str(s)
+                        .map_err(|err| logger::error!(%err, "Failed to convert response to JSON"))
+                        .ok(),
+                    Err(err) => {
+                        logger::error!(%err, "Failed to convert response to UTF8 string");
                         None
                     }
                 }
