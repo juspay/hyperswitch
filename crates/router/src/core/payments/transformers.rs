@@ -68,7 +68,7 @@ where
         .connector_transaction_id
         .as_ref()
         .map(|id| types::PaymentsResponseData {
-            connector_transaction_id: id.to_string(),
+            resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
             //TODO: Add redirection details here
             redirection_data: None,
             redirect: false,

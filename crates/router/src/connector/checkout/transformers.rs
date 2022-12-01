@@ -208,7 +208,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.data.request.capture_method,
             )),
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),

@@ -214,7 +214,7 @@ impl<F, T>
                 &item.response.result.code,
             )?),
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 //TODO: Add redirection details here
                 redirection_data: None,
                 redirect: false,

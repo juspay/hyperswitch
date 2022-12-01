@@ -1,3 +1,4 @@
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -299,7 +300,9 @@ impl<F, T>
                 Some(err) => Err(err),
                 None => {
                     Ok(types::PaymentsResponseData {
-                        connector_transaction_id: item.response.transaction_response.transaction_id,
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            item.response.transaction_response.transaction_id,
+                        ),
                         //TODO: Add redirection details here
                         redirection_data: None,
                         redirect: false,
@@ -468,8 +471,15 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
         let transaction_id = item
             .response
             .as_ref()
-            .map(|payment_response_data| payment_response_data.connector_transaction_id.clone())
-            .ok();
+            .ok()
+            .map(|payment_response_data| {
+                payment_response_data
+                    .resource_id
+                    .get_connector_transaction_id()
+            })
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = AuthorizedotnetCreateSyncRequest {
@@ -571,7 +581,9 @@ impl<F, Req>
             enums::AttemptStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.transaction.transaction_id,
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction.transaction_id,
+                ),
                 redirection_data: None,
                 redirect: false,
             }),

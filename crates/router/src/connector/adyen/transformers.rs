@@ -381,7 +381,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         Ok(types::RouterData {
             status,
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.psp_reference,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
                 redirect: false,
             }),
@@ -421,7 +421,7 @@ pub fn get_adyen_response(
     };
 
     let payments_response_data = types::PaymentsResponseData {
-        connector_transaction_id: response.psp_reference,
+        resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         redirect: false,
     };
@@ -476,7 +476,7 @@ pub fn get_redirection_response(
 
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData {
-        connector_transaction_id: "".to_string(),
+        resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
         redirect: true,
     };
