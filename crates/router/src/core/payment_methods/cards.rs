@@ -80,7 +80,7 @@ pub async fn add_payment_method(
                 payment_method_issuer: req.payment_method_issuer,
                 card: None,
                 metadata: req.metadata,
-                created: Some(crate::utils::date_time::now()),
+                created: Some(common_utils::date_time::now()),
                 payment_method_issuer_code: req.payment_method_issuer_code,
                 recurring_enabled: false,           //TODO
                 installment_payment_enabled: false, //TODO
