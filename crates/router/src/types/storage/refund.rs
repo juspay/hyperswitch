@@ -73,7 +73,7 @@ pub enum RefundUpdate {
         refund_status: enums::RefundStatus,
     },
     ErrorUpdate {
-        refund_status: enums::RefundStatus,
+        refund_status: Option<enums::RefundStatus>,
         refund_error_message: Option<String>,
     },
 }
@@ -124,7 +124,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_status,
                 refund_error_message,
             } => Self {
-                refund_status: Some(refund_status),
+                refund_status,
                 refund_error_message,
                 ..Default::default()
             },

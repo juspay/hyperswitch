@@ -151,11 +151,18 @@ pub enum PaymentMethod {
     Card(CCard),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    Wallet,
+    #[serde(rename(deserialize = "wallet"))]
+    Wallet(WalletData),
     #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
     #[serde(rename(deserialize = "paypal"))]
     Paypal,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct WalletData {
+    pub issuer_name: enums::WalletIssuer,
+    pub token: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
@@ -171,7 +178,7 @@ pub enum PaymentMethodDataResponse {
     Card(CCardResponse),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    Wallet,
+    Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
 }
@@ -544,7 +551,7 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
             PaymentMethod::PayLater(pay_later_data) => {
                 PaymentMethodDataResponse::PayLater(pay_later_data)
             }
-            PaymentMethod::Wallet => PaymentMethodDataResponse::Wallet,
+            PaymentMethod::Wallet(wallet_data) => PaymentMethodDataResponse::Wallet(wallet_data),
             PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
         }
     }

@@ -160,7 +160,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
                     billing_country: klarna_data.country.clone(),
                 })
             }
-            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
             api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
         };
         let shipping_address = match item.address.shipping.clone() {
@@ -192,8 +192,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
         };
 
         Ok(PaymentIntentRequest {
-            amount: item.amount,                 //hopefully we don't loose some cents here
-            currency: item.currency.to_string(), //we need to copy the value and not transfer ownership
+            amount: item.request.amount, //hopefully we don't loose some cents here
+            currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             metadata_order_id,
             metadata_txn_id,
@@ -313,12 +313,11 @@ impl<F, T>
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
-            response: Some(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -435,11 +434,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -453,11 +451,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }

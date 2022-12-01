@@ -85,8 +85,6 @@ where
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         status: payment_data.payment_attempt.status,
-        amount: payment_data.amount,
-        currency: payment_data.currency,
         payment_method,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
@@ -100,10 +98,7 @@ where
             .unwrap_or_default(),
 
         request: T::try_from(payment_data.clone())?,
-
-        response,
-
-        error_response: None,
+        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
     Ok((payment_data, router_data))
@@ -271,7 +266,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
                     .get_required_value("payment_method_type")?;
 
                 match payment_method_type {
-                    enums::PaymentMethodType::Wallet => api::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::Paypal => api::PaymentMethod::Paypal,
                     _ => payment_data
                         .payment_method_data
                         .get_required_value("payment_method_data")?,
@@ -284,6 +279,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
+            amount: payment_data.amount,
+            currency: payment_data.currency,
             browser_info,
         })
     }

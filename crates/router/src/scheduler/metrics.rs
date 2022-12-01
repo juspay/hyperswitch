@@ -1,15 +1,15 @@
 use once_cell::sync::Lazy;
 use router_env::opentelemetry::{
     global,
-    metrics::{Counter, Meter, ValueRecorder},
+    metrics::{Counter, Histogram, Meter},
+    Context,
 };
 
+pub static CONTEXT: Lazy<Context> = Lazy::new(Context::current);
 static PT_METER: Lazy<Meter> = Lazy::new(|| global::meter("PROCESS_TRACKER"));
 
-// Using ValueRecorder till https://bitbucket.org/juspay/orca/pull-requests/319
-// Histogram available in opentelemetry:0.18
-pub(crate) static CONSUMER_STATS: Lazy<ValueRecorder<f64>> =
-    Lazy::new(|| PT_METER.f64_value_recorder("CONSUMER_OPS").init());
+pub(crate) static CONSUMER_STATS: Lazy<Histogram<f64>> =
+    Lazy::new(|| PT_METER.f64_histogram("CONSUMER_OPS").init());
 
 macro_rules! create_counter {
     ($name:ident, $meter:ident) => {
