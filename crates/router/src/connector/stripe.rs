@@ -9,8 +9,9 @@ use router_env::{tracing, tracing::instrument};
 use self::transformers as stripe;
 use crate::{
     configs::settings::Connectors,
-    connection, consts,
+    consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers, logger, services,
     types::{
         self,
@@ -70,11 +71,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterCaptureData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -94,11 +91,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterCaptureData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
@@ -111,13 +104,18 @@ impl
         ))
     }
 
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsRouterCaptureData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(stripe_req))
+    }
+
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsRouterCaptureData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -132,11 +130,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsRouterCaptureData,
         res: Response,
     ) -> CustomResult<types::PaymentsRouterCaptureData, errors::ConnectorError>
     where
@@ -669,6 +663,7 @@ impl
         let id = req
             .response
             .as_ref()
+            .ok()
             .get_required_value("response")
             .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
             .connector_refund_id
@@ -816,12 +811,12 @@ impl api::IncomingWebhook for Stripe {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
+        db: &dyn StorageInterface,
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = redis_conn
-            .get_key::<Vec<u8>>(&key)
+        let secret = db
+            .get_key(&key)
             .await
             .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
 

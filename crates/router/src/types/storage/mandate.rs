@@ -8,8 +8,9 @@ use crate::{
     types::enums,
 };
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = mandate)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = mandate))]
 pub struct Mandate {
     pub id: i32,
     pub mandate_id: String,
@@ -26,8 +27,9 @@ pub struct Mandate {
     pub created_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Insertable, Default, router_derive::DebugAsDisplay)]
-#[diesel(table_name = mandate)]
+#[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = mandate))]
 pub struct MandateNew {
     pub mandate_id: String,
     pub customer_id: String,
@@ -50,8 +52,9 @@ pub enum MandateUpdate {
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = mandate)]
+#[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(AsChangeset))]
+#[cfg_attr(feature = "diesel", diesel(table_name = mandate))]
 pub(super) struct MandateUpdateInternal {
     mandate_status: enums::MandateStatus,
 }

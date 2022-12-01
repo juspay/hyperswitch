@@ -25,7 +25,7 @@ use crate::{
         payments,
         payments::transformers as payments_transformers,
     },
-    db::Db,
+    db::StorageInterface,
     pii::Email,
     routes::AppState,
     scheduler::utils as pt_utils,
@@ -87,7 +87,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
-            &state.store,
+            &*state.store,
             &mut payment_data,
             customer_details,
             merchant_id,
@@ -110,7 +110,7 @@ where
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
-        .update_trackers(&state.store, &payment_id, payment_data, customer.clone())
+        .update_trackers(&*state.store, &payment_id, payment_data, customer.clone())
         .await?;
 
     operation
@@ -290,7 +290,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
-    let db = &state.store;
+    let db = &*state.store;
 
     let stime_connector = Instant::now();
 
@@ -454,7 +454,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
 }
 
 pub async fn list_payments(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant: storage::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
@@ -476,7 +476,7 @@ pub async fn list_payments(
 }
 
 pub async fn add_process_sync_task(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {

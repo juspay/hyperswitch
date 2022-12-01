@@ -12,10 +12,7 @@ use crate::{
         errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::transformers as payment_methods,
     },
-    db::{
-        merchant_connector_account::IMerchantConnectorAccount, payment_method::IPaymentMethod,
-        temp_card::ITempCard, Db,
-    },
+    db::StorageInterface,
     pii::prelude::*,
     routes::AppState,
     services,
@@ -28,7 +25,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn create_payment_method(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     req: &api::CreatePaymentMethod,
     customer_id: String,
     payment_method_id: String,
@@ -65,7 +62,7 @@ pub async fn add_payment_method(
             .attach_printable("Add Card Failed"),
         None => {
             create_payment_method(
-                &state.store,
+                &*state.store,
                 &req,
                 customer_id,
                 "payment_method_id".to_owned(),
@@ -102,7 +99,7 @@ pub async fn add_card(
     merchant_id: &str,
 ) -> CustomResult<api::PaymentMethodResponse, errors::CardVaultError> {
     let locker = &state.conf.locker;
-    let db = &state.store;
+    let db = &*state.store;
     let request = payment_methods::mk_add_card_request(locker, &card, &customer_id, &req)?;
     // FIXME use call_api 2. Serde's handle should be inside the generic function
     let response = if !locker.mock_locker {
@@ -139,7 +136,7 @@ pub async fn add_card(
 
 #[instrument(skip_all)]
 pub async fn mock_add_card(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     card: &api::CardDetail,
 ) -> CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
     let locker_mock_up = storage::LockerMockUpNew {
@@ -175,7 +172,7 @@ pub async fn mock_add_card(
 
 #[instrument(skip_all)]
 pub async fn mock_get_card<'a>(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     card_id: &'a str,
 ) -> CustomResult<payment_methods::GetCardResponse, errors::CardVaultError> {
     let locker_mock_up = db
@@ -227,7 +224,7 @@ pub async fn get_card<'a>(
                 .attach_printable(format!("Got 4xx from the locker: {err:?}"))),
         }?
     } else {
-        mock_get_card(&state.store, card_id)
+        mock_get_card(&*state.store, card_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?
     };
@@ -256,7 +253,7 @@ pub async fn delete_card<'a>(
 }
 
 pub async fn list_payment_methods(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
 ) -> RouterResponse<Vec<api::ListPaymentMethodResponse>> {
@@ -386,7 +383,7 @@ pub async fn list_customer_payment_method(
     merchant_account: storage::MerchantAccount,
     customer_id: &str,
 ) -> RouterResponse<api::ListCustomerPaymentMethodsResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
         .await
@@ -552,7 +549,7 @@ pub async fn retrieve_payment_method(
     state: &AppState,
     pm: api::PaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await

@@ -10,7 +10,6 @@ use crate::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, helpers},
     },
-    db::Db,
     routes::AppState,
     services::{self, RedirectForm},
     types::{
@@ -41,7 +40,7 @@ where
     //TODO: everytime parsing the json may have impact?
 
     let (merchant_connector_account, payment_method, router_data);
-    let db = &state.store as &dyn Db;
+    let db = &*state.store;
     merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,
@@ -85,8 +84,6 @@ where
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         status: payment_data.payment_attempt.status,
-        amount: payment_data.amount,
-        currency: payment_data.currency,
         payment_method,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
@@ -100,10 +97,7 @@ where
             .unwrap_or_default(),
 
         request: T::try_from(payment_data.clone())?,
-
-        response,
-
-        error_response: None,
+        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
     Ok((payment_data, router_data))
@@ -271,7 +265,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
                     .get_required_value("payment_method_type")?;
 
                 match payment_method_type {
-                    enums::PaymentMethodType::Wallet => api::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::Paypal => api::PaymentMethod::Paypal,
                     _ => payment_data
                         .payment_method_data
                         .get_required_value("payment_method_data")?,
@@ -284,6 +278,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
+            amount: payment_data.amount,
+            currency: payment_data.currency,
             browser_info,
         })
     }

@@ -1,10 +1,11 @@
+use super::{MockDb, Sqlx};
 use crate::{
     core::errors::{self, CustomResult},
     types::storage::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
 };
 
 #[async_trait::async_trait]
-pub trait IPaymentAttempt {
+pub trait PaymentAttemptInterface {
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -50,7 +51,7 @@ pub trait IPaymentAttempt {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use super::IPaymentAttempt;
+    use super::PaymentAttemptInterface;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
@@ -59,13 +60,13 @@ mod storage {
     };
 
     #[async_trait::async_trait]
-    impl IPaymentAttempt for Store {
+    impl PaymentAttemptInterface for Store {
         async fn insert_payment_attempt(
             &self,
             payment_attempt: PaymentAttemptNew,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool.conn).await;
-            payment_attempt.insert(&conn).await
+            payment_attempt.insert_diesel(&conn).await
         }
 
         async fn update_payment_attempt(
@@ -144,6 +145,189 @@ mod storage {
     }
 }
 
+#[async_trait::async_trait]
+impl PaymentAttemptInterface for Sqlx {
+    async fn find_payment_attempt_by_merchant_id_txn_id(
+        &self,
+        merchant_id: &str,
+        txn_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    #[allow(clippy::panic)]
+    async fn insert_payment_attempt(
+        &self,
+        payment_attempt: PaymentAttemptNew,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let val = payment_attempt
+            .insert::<PaymentAttempt>(&self.pool, "payment_attempt")
+            .await;
+
+        match val {
+            Ok(val) => Ok(val),
+            Err(err) => {
+                panic!("{err}");
+            }
+        }
+    }
+
+    async fn update_payment_attempt(
+        &self,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        Ok(payment_attempt.apply_changeset(this))
+    }
+
+    async fn find_payment_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
+        &self,
+        transaction_id: &str,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+        &self,
+        merchant_id: &str,
+        connector_txn_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+}
+
+#[async_trait::async_trait]
+impl PaymentAttemptInterface for MockDb {
+    async fn find_payment_attempt_by_merchant_id_txn_id(
+        &self,
+        merchant_id: &str,
+        txn_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+        &self,
+        merchant_id: &str,
+        connector_txn_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    #[allow(clippy::panic)]
+    async fn insert_payment_attempt(
+        &self,
+        payment_attempt: PaymentAttemptNew,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let mut payment_attempts = self.payment_attempts().await;
+        let id = payment_attempts.len() as i32;
+        let time = common_utils::date_time::now();
+
+        let payment_attempt = PaymentAttempt {
+            id,
+            payment_id: payment_attempt.payment_id,
+            merchant_id: payment_attempt.merchant_id,
+            txn_id: payment_attempt.txn_id,
+            status: payment_attempt.status,
+            amount: payment_attempt.amount,
+            currency: payment_attempt.currency,
+            save_to_locker: payment_attempt.save_to_locker,
+            connector: payment_attempt.connector,
+            error_message: payment_attempt.error_message,
+            offer_amount: payment_attempt.offer_amount,
+            surcharge_amount: payment_attempt.surcharge_amount,
+            tax_amount: payment_attempt.tax_amount,
+            payment_method_id: payment_attempt.payment_method_id,
+            payment_method: payment_attempt.payment_method,
+            payment_flow: payment_attempt.payment_flow,
+            redirect: payment_attempt.redirect,
+            connector_transaction_id: payment_attempt.connector_transaction_id,
+            capture_method: payment_attempt.capture_method,
+            capture_on: payment_attempt.capture_on,
+            confirm: payment_attempt.confirm,
+            authentication_type: payment_attempt.authentication_type,
+            created_at: payment_attempt.created_at.unwrap_or(time),
+            modified_at: payment_attempt.modified_at.unwrap_or(time),
+            last_synced: payment_attempt.last_synced,
+            cancellation_reason: payment_attempt.cancellation_reason,
+            amount_to_capture: payment_attempt.amount_to_capture,
+            mandate_id: None,
+            browser_info: None,
+        };
+        payment_attempts.push(payment_attempt.clone());
+        Ok(payment_attempt)
+    }
+
+    async fn update_payment_attempt(
+        &self,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let mut payment_attempts = self.payment_attempts().await;
+
+        let item = payment_attempts
+            .iter_mut()
+            .find(|item| item.id == this.id)
+            .unwrap();
+
+        *item = payment_attempt.apply_changeset(this);
+
+        Ok(item.clone())
+    }
+
+    async fn find_payment_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
+        &self,
+        transaction_id: &str,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let payment_attempts = self.payment_attempts().await;
+
+        Ok(payment_attempts
+            .iter()
+            .find(|payment_attempt| {
+                payment_attempt.payment_id == payment_id
+                    && payment_attempt.merchant_id == merchant_id
+            })
+            .cloned()
+            .unwrap())
+    }
+}
+
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
@@ -151,7 +335,7 @@ mod storage {
     use fred::prelude::*;
     use redis_interface::RedisEntryId;
 
-    use super::IPaymentAttempt;
+    use super::PaymentAttemptInterface;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
@@ -161,7 +345,7 @@ mod storage {
     };
 
     #[async_trait::async_trait]
-    impl IPaymentAttempt for Store {
+    impl PaymentAttemptInterface for Store {
         async fn insert_payment_attempt(
             &self,
             payment_attempt: PaymentAttemptNew,
@@ -221,7 +405,7 @@ mod storage {
                 Ok(1) => {
                     let conn = pg_connection(&self.master_pool.conn).await;
                     let query = payment_attempt
-                        .insert(&conn)
+                        .insert_diesel(&conn)
                         .await
                         .change_context(errors::StorageError::KVError)?;
                     let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(

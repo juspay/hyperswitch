@@ -319,7 +319,9 @@ pub async fn payments_list(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| payments::list_payments(&state.store, merchant_account, req),
+        |state, merchant_account, req| {
+            payments::list_payments(&*state.store, merchant_account, req)
+        },
         api::MerchantAuthentication::ApiKey,
     )
     .await

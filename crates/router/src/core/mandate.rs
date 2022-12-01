@@ -3,7 +3,7 @@ use router_env::{tracing, tracing::instrument};
 
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
-    db::{mandate::IMandate, Db},
+    db::StorageInterface,
     routes::AppState,
     services,
     types::{
@@ -30,7 +30,7 @@ pub async fn get_mandate(
 
 #[instrument(skip(db))]
 pub async fn revoke_mandate(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {

@@ -18,8 +18,9 @@ pub struct EventNew {
     pub primary_object_type: enums::EventObjectType,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, Deserialize, Serialize)]
-#[diesel(table_name = events)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = events))]
 pub struct Event {
     #[serde(skip_serializing)]
     pub id: i32,

@@ -1,4 +1,3 @@
-use common_utils::custom_serde;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -257,7 +256,7 @@ pub(crate) struct StripePaymentIntentResponse {
     pub(crate) currency: String,
     pub(crate) status: StripePaymentStatus,
     pub(crate) client_secret: Option<Secret<String>>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub(crate) created: Option<time::PrimitiveDateTime>,
     pub(crate) customer: Option<String>,
     pub(crate) refunds: Option<Vec<RefundResponse>>,

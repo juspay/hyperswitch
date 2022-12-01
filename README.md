@@ -305,3 +305,6 @@ Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 ## Copyright and License
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
+
+* Repo owner or admin
+* Other community or team contact

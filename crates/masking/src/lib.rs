@@ -23,6 +23,8 @@
 
 pub use zeroize::{self, DefaultIsZeroes, Zeroize as ZeroizableSecret};
 
+#[cfg(feature = "sqlx")]
+mod sqlx;
 mod strategy;
 
 pub use strategy::{Strategy, WithType, WithoutType};

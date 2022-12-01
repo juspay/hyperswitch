@@ -9,10 +9,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments, utils as core_utils,
     },
-    db::{
-        merchant_account::IMerchantAccount, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, process_tracker::IProcessTracker, refund::IRefund, Db,
-    },
+    db::StorageInterface,
     logger,
     routes::AppState,
     services,
@@ -32,7 +29,7 @@ pub async fn refund_create_core(
     merchant_account: storage::merchant_account::MerchantAccount,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, amount);
 
     merchant_id = &merchant_account.merchant_id;
@@ -129,21 +126,18 @@ pub async fn trigger_refund_to_gateway(
     .await
     .map_err(|error| error.to_refund_failed_response())?;
 
-    let refund_update = match router_data.error_response {
-        Some(err) => storage::RefundUpdate::ErrorUpdate {
-            refund_status: enums::RefundStatus::Failure,
+    let refund_update = match router_data.response {
+        Err(err) => storage::RefundUpdate::ErrorUpdate {
+            refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: Some(err.message),
         },
-        None => {
-            let response = router_data.response.get_required_value("response")?;
-            storage::RefundUpdate::Update {
-                pg_refund_id: response.connector_refund_id,
-                refund_status: response.refund_status,
-                sent_to_gateway: true,
-                refund_error_message: router_data.error_response.map(|error| error.message),
-                refund_arn: "".to_string(),
-            }
-        }
+        Ok(response) => storage::RefundUpdate::Update {
+            pg_refund_id: response.connector_refund_id,
+            refund_status: response.refund_status,
+            sent_to_gateway: true,
+            refund_error_message: None,
+            refund_arn: "".to_string(),
+        },
     };
 
     let response = state
@@ -162,7 +156,7 @@ pub async fn refund_retrieve_core(
     merchant_account: storage::MerchantAccount,
     refund_id: String,
 ) -> RouterResponse<refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 
     merchant_id = &merchant_account.merchant_id;
@@ -241,24 +235,18 @@ pub async fn sync_refund_with_gateway(
     .await
     .map_err(|error| error.to_refund_failed_response())?;
 
-    let refund_update = match router_data.error_response {
-        Some(error_message) => {
-            let response = router_data.response.get_required_value("response")?;
-            storage::RefundUpdate::ErrorUpdate {
-                refund_status: response.refund_status,
-                refund_error_message: Some(error_message.message),
-            }
-        }
-        None => {
-            let response = router_data.response.get_required_value("response")?;
-            storage::RefundUpdate::Update {
-                pg_refund_id: response.connector_refund_id,
-                refund_status: response.refund_status,
-                sent_to_gateway: true,
-                refund_error_message: router_data.error_response.map(|error| error.message),
-                refund_arn: "".to_string(),
-            }
-        }
+    let refund_update = match router_data.response {
+        Err(error_message) => storage::RefundUpdate::ErrorUpdate {
+            refund_status: None,
+            refund_error_message: Some(error_message.message),
+        },
+        Ok(response) => storage::RefundUpdate::Update {
+            pg_refund_id: response.connector_refund_id,
+            refund_status: response.refund_status,
+            sent_to_gateway: true,
+            refund_error_message: None,
+            refund_arn: "".to_string(),
+        },
     };
 
     let response = state
@@ -272,7 +260,7 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundRequest,
@@ -306,7 +294,7 @@ pub async fn validate_and_create_refund(
     refund_amount: i32,
     req: refunds::RefundRequest,
 ) -> RouterResult<refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
@@ -445,22 +433,22 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
         let refund_id = data.request.refund_id.to_string();
-        let status = data
-            .response
-            .get_required_value("response")?
-            .refund_status
-            .into();
+        let response = data.response;
+
+        let (status, error_message) = match response {
+            Ok(response) => (response.refund_status.into(), None),
+            Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
+        };
+
         Ok(refunds::RefundResponse {
             payment_id: data.payment_id,
             refund_id,
-            amount: data.amount / 100,
-            currency: data.currency.to_string(),
+            amount: data.request.amount / 100,
+            currency: data.request.currency.to_string(),
             reason: Some("TODO: Not propagated".to_string()), // TODO: Not propagated
             status,
             metadata: None,
-            error_message: data
-                .error_response
-                .map(|error_response| error_response.message),
+            error_message,
         })
     }
 }
@@ -493,7 +481,7 @@ pub async fn schedule_refund_execution(
     payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let runner = "REFUND_WORKFLOW_ROUTER";
     let task = "EXECUTE_REFUND";
     let task_id = format!("{}_{}_{}", runner, task, refund.internal_reference_id);
@@ -547,7 +535,7 @@ pub async fn schedule_refund_execution(
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     refund_tracker: &storage::ProcessTracker,
 ) -> RouterResult<()> {
     let refund_core =
@@ -581,7 +569,7 @@ pub async fn start_refund_workflow(
     match refund_tracker.name.as_deref() {
         Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
         Some("SYNC_REFUND") => {
-            sync_refund_with_gateway_workflow(&state.store, refund_tracker).await
+            sync_refund_with_gateway_workflow(&*state.store, refund_tracker).await
         }
         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Job name cannot be identified")),
@@ -593,7 +581,7 @@ pub async fn trigger_refund_execute_workflow(
     state: &AppState,
     refund_tracker: &storage::ProcessTracker,
 ) -> RouterResult<()> {
-    let db = &state.store;
+    let db = &*state.store;
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
@@ -677,7 +665,7 @@ pub fn refund_to_refund_core_workflow_model(
 
 #[instrument(skip_all)]
 pub async fn add_refund_sync_task(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
@@ -712,7 +700,7 @@ pub async fn add_refund_sync_task(
 
 #[instrument(skip_all)]
 pub async fn add_refund_execute_task(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {

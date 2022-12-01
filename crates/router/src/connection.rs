@@ -30,7 +30,7 @@ pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnecti
 }
 
 #[allow(clippy::expect_used)]
-pub async fn make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
+pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
         database.username, database.password, database.host, database.port, database.dbname

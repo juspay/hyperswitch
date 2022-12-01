@@ -11,7 +11,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, CustomerDetails, PaymentAddress, PaymentData},
     },
-    db::Db,
+    db::StorageInterface,
     routes::AppState,
     types::{
         api,
@@ -42,7 +42,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         Option<CustomerDetails>,
     )> {
         let (mut payment_intent, payment_attempt, currency, amount);
-        let db = &state.store as &dyn Db;
+        let db = &*state.store;
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -141,7 +141,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn Db,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<Customer>,
@@ -195,7 +195,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,

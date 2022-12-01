@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use router::{
     core::payments,
-    routes::AppState,
+    db::StorageImpl,
+    routes,
     types::{self, api, storage::enums, PaymentAddress},
 };
 
@@ -19,15 +20,15 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 100,
         orca_return_url: None,
-        currency: enums::Currency::USD,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::PaymentsRequestData {
+            amount: 100,
+            currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                 card_number: "4242424242424242".to_string().into(),
                 card_exp_month: "10".to_string().into(),
@@ -44,9 +45,8 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             capture_method: None,
             browser_info: None,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -62,8 +62,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 100,
-        currency: enums::Currency::USD,
         orca_return_url: None,
         payment_method: enums::PaymentMethodType::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
@@ -71,6 +69,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::RefundsRequestData {
+            amount: 100,
+            currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                 card_number: "4242424242424242".to_string().into(),
@@ -82,14 +82,14 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 10,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
 
 #[actix_web::test]
+#[ignore]
 async fn test_checkout_payment_success() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
@@ -99,11 +99,7 @@ async fn test_checkout_payment_success() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
     };
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
         types::PaymentsRequestData,
@@ -129,16 +125,13 @@ async fn test_checkout_payment_success() {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn test_checkout_refund_success() {
     // Successful payment
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -198,11 +191,7 @@ async fn test_checkout_payment_failure() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -228,15 +217,12 @@ async fn test_checkout_payment_failure() {
     assert!(response.is_err(), "The payment passed");
 }
 #[actix_web::test]
+#[ignore]
 async fn test_checkout_refund_failure() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -284,8 +270,8 @@ async fn test_checkout_refund_failure() {
 
     println!("{response:?}");
     let response = response.unwrap();
-    assert!(response.error_response.is_some());
+    assert!(response.response.is_err());
 
-    let code = response.error_response.unwrap().code;
+    let code = response.response.unwrap_err().code;
     assert_eq!(code, "refund_amount_exceeds_balance");
 }

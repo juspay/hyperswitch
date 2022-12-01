@@ -75,6 +75,15 @@ clippy :
 test :
 	cargo test --all-features
 
+
+# Next-generation test runner for Rust.
+# cargo nextest ignores the doctests at the moment. So if you are using it locally you also have to run `cargo test --doc`.
+# Usage:
+# 	make nextest
+
+nextest:
+	cargo nextest run
+
 # Run format clippy test and tests.
 #
 # Usage :

@@ -1,5 +1,6 @@
 use time::PrimitiveDateTime;
 
+use super::{MockDb, Sqlx};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -8,7 +9,7 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait IProcessTracker {
+pub trait ProcessTrackerInterface {
     async fn reinitialize_limbo_processes(
         &self,
         ids: Vec<String>,
@@ -52,7 +53,7 @@ pub trait IProcessTracker {
 }
 
 #[async_trait::async_trait]
-impl IProcessTracker for Store {
+impl ProcessTrackerInterface for Store {
     async fn find_process_by_id(
         &self,
         id: &str,
@@ -121,5 +122,145 @@ impl IProcessTracker for Store {
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ProcessTrackerInterface for Sqlx {
+    async fn find_process_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<Option<ProcessTracker>, errors::StorageError> {
+        todo!()
+    }
+
+    async fn reinitialize_limbo_processes(
+        &self,
+        ids: Vec<String>,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<usize, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_processes_by_time_status(
+        &self,
+        time_lower_limit: PrimitiveDateTime,
+        time_upper_limit: PrimitiveDateTime,
+        status: enums::ProcessTrackerStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
+        todo!()
+    }
+
+    async fn insert_process(
+        &self,
+        new: ProcessTrackerNew,
+    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+        todo!()
+    }
+
+    async fn update_process(
+        &self,
+        this: ProcessTracker,
+        process: ProcessTrackerUpdate,
+    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+        todo!()
+    }
+
+    async fn update_process_tracker(
+        &self,
+        this: ProcessTracker,
+        process: ProcessTrackerUpdate,
+    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+        todo!()
+    }
+
+    async fn process_tracker_update_process_status_by_ids(
+        &self,
+        task_ids: Vec<String>,
+        task_update: ProcessTrackerUpdate,
+    ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
+        todo!()
+    }
+}
+
+#[async_trait::async_trait]
+impl ProcessTrackerInterface for MockDb {
+    async fn find_process_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<Option<ProcessTracker>, errors::StorageError> {
+        Ok(self
+            .processes()
+            .await
+            .iter()
+            .find(|process| process.id == id)
+            .cloned())
+    }
+
+    async fn reinitialize_limbo_processes(
+        &self,
+        ids: Vec<String>,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<usize, errors::StorageError> {
+        todo!()
+    }
+
+    async fn find_processes_by_time_status(
+        &self,
+        time_lower_limit: PrimitiveDateTime,
+        time_upper_limit: PrimitiveDateTime,
+        status: enums::ProcessTrackerStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
+        todo!()
+    }
+
+    async fn insert_process(
+        &self,
+        new: ProcessTrackerNew,
+    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+        let mut processes = self.processes().await;
+        let process = ProcessTracker {
+            id: new.id,
+            name: new.name,
+            tag: new.tag,
+            runner: new.runner,
+            retry_count: new.retry_count,
+            schedule_time: new.schedule_time,
+            rule: new.rule,
+            tracking_data: new.tracking_data,
+            business_status: new.business_status,
+            status: new.status,
+            event: new.event,
+            created_at: new.created_at,
+            updated_at: new.updated_at,
+        };
+        processes.push(process.clone());
+        Ok(process)
+    }
+
+    async fn update_process(
+        &self,
+        this: ProcessTracker,
+        process: ProcessTrackerUpdate,
+    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+        todo!()
+    }
+
+    async fn update_process_tracker(
+        &self,
+        this: ProcessTracker,
+        process: ProcessTrackerUpdate,
+    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+        todo!()
+    }
+
+    async fn process_tracker_update_process_status_by_ids(
+        &self,
+        task_ids: Vec<String>,
+        task_update: ProcessTrackerUpdate,
+    ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
+        todo!()
     }
 }

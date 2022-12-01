@@ -9,7 +9,7 @@ use crate::{PeekInterface, Secret, Strategy, StrongSecret, ZeroizableSecret};
 /// Marker trait for secret types which can be [`Serialize`]-d by [`serde`].
 ///
 /// When the `serde` feature of this crate is enabled and types are marked with
-/// this trait, they receive a [`Serialize` impl][1] for `Secret<T>`.
+/// this trait, they receive a [`Serialize` impl] for `Secret<T>`.
 /// (NOTE: all types which impl `DeserializeOwned` receive a [`Deserialize`]
 /// impl)
 ///

@@ -2,8 +2,9 @@ use diesel::{Identifiable, Insertable, Queryable};
 
 use crate::schema::locker_mock_up;
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
-#[diesel(table_name = locker_mock_up)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = locker_mock_up))]
 pub struct LockerMockUp {
     pub id: i32,
     pub card_id: String,
@@ -20,8 +21,9 @@ pub struct LockerMockUp {
     pub duplicate: Option<bool>,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = locker_mock_up)]
+#[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = locker_mock_up))]
 pub struct LockerMockUpNew {
     pub card_id: String,
     pub external_id: String,

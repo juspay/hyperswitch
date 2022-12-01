@@ -3,8 +3,9 @@ use time::PrimitiveDateTime;
 
 use crate::{pii::Secret, schema::payment_methods, types::storage::enums};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
-#[diesel(table_name = payment_methods)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = payment_methods))]
 pub struct PaymentMethod {
     pub id: i32,
     pub customer_id: String,
@@ -31,8 +32,9 @@ pub struct PaymentMethod {
     pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payment_methods)]
+#[derive(Clone, Debug, Eq, PartialEq, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = payment_methods))]
 pub struct PaymentMethodNew {
     pub customer_id: String,
     pub merchant_id: String,

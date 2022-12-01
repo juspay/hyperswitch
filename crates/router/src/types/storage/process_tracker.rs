@@ -5,20 +5,14 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{core::errors, db, scheduler::metrics, schema::process_tracker, types::storage::enums};
+use crate::{
+    core::errors, db::StorageInterface, scheduler::metrics, schema::process_tracker,
+    types::storage::enums,
+};
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Identifiable,
-    Queryable,
-    Deserialize,
-    Serialize,
-    router_derive::DebugAsDisplay,
-)]
-#[diesel(table_name = process_tracker)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = process_tracker))]
 pub struct ProcessTracker {
     pub id: String,
     pub name: Option<String>,
@@ -72,10 +66,10 @@ impl ProcessTracker {
 
     pub async fn retry(
         self,
-        db: &dyn db::Db,
+        db: &dyn StorageInterface,
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), errors::ProcessTrackerError> {
-        metrics::TASK_RETRIED.add(1, &[]);
+        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
         db.update_process_tracker(
             self.clone(),
             ProcessTrackerUpdate::StatusRetryUpdate {
@@ -90,7 +84,7 @@ impl ProcessTracker {
 
     pub async fn finish_with_status(
         self,
-        db: &dyn db::Db,
+        db: &dyn StorageInterface,
         status: String,
     ) -> Result<(), errors::ProcessTrackerError> {
         db.update_process(
@@ -102,13 +96,14 @@ impl ProcessTracker {
         )
         .await
         .attach_printable("Failed while updating status of the process")?;
-        metrics::TASK_FINISHED.add(1, &[]);
+        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
         Ok(())
     }
 }
 
-#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = process_tracker)]
+#[derive(Clone, Debug, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = process_tracker))]
 pub struct ProcessTrackerNew {
     pub id: String,
     pub name: Option<String>,
@@ -147,8 +142,9 @@ pub enum ProcessTrackerUpdate {
     },
 }
 
-#[derive(Debug, Clone, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = process_tracker)]
+#[derive(Debug, Clone, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(AsChangeset))]
+#[cfg_attr(feature = "diesel", diesel(table_name = process_tracker))]
 pub(super) struct ProcessTrackerUpdateInternal {
     name: Option<String>,
     retry_count: Option<i32>,

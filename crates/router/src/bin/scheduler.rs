@@ -19,7 +19,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path).unwrap();
     let mut state = routes::AppState {
         flow_name: String::from("default"),
-        store: Store::new(&conf).await,
+        store: Box::new(Store::new(&conf).await),
         conf,
     };
     let _guard =
@@ -29,10 +29,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
 
     start_scheduler(&state).await?;
 
-    std::sync::Arc::get_mut(&mut state.store.redis_conn)
-        .expect("Redis connection pool cannot be closed")
-        .close_connections()
-        .await;
+    state.store.close().await;
 
     eprintln!("Scheduler shut down");
     Ok(())

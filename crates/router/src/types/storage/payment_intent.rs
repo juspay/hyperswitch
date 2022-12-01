@@ -4,8 +4,13 @@ use time::PrimitiveDateTime;
 
 use crate::{schema::payment_intent, types::enums};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_intent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "diesel",
+    derive(Identifiable, Queryable, Serialize, Deserialize)
+)]
+#[cfg_attr(feature = "diesel", diesel(table_name = payment_intent))]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct PaymentIntent {
     pub id: i32,
     pub payment_id: String,
@@ -31,8 +36,100 @@ pub struct PaymentIntent {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payment_intent)]
+impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntent {
+    fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
+        let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
+        encoder.encode(&self.id);
+        encoder.encode(&self.payment_id);
+        encoder.encode(&self.merchant_id);
+        encoder.encode(&self.status);
+        encoder.encode(&self.amount);
+        encoder.encode(&self.currency);
+        encoder.encode(&self.amount_captured);
+        encoder.encode(&self.customer_id);
+        encoder.encode(&self.description);
+        encoder.encode(&self.return_url);
+        encoder.encode(&self.metadata);
+        encoder.encode(&self.connector_id);
+        encoder.encode(&self.shipping_address_id);
+        encoder.encode(&self.billing_address_id);
+        encoder.encode(&self.statement_descriptor_name);
+        encoder.encode(&self.statement_descriptor_suffix);
+        encoder.encode(&self.created_at);
+        encoder.encode(&self.modified_at);
+        encoder.encode(&self.last_synced);
+        encoder.encode(&self.setup_future_usage);
+        encoder.encode(&self.off_session);
+        encoder.encode(&self.client_secret);
+        encoder.finish();
+        sqlx::encode::IsNull::No
+    }
+}
+
+impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentIntent {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+        let id = decoder.try_decode()?;
+        let payment_id = decoder.try_decode()?;
+        let merchant_id = decoder.try_decode()?;
+        let status = decoder.try_decode()?;
+        let amount = decoder.try_decode()?;
+        let currency = decoder.try_decode()?;
+        let amount_captured = decoder.try_decode()?;
+        let customer_id = decoder.try_decode()?;
+        let description = decoder.try_decode()?;
+        let return_url = decoder.try_decode()?;
+        let metadata = decoder.try_decode()?;
+        let connector_id = decoder.try_decode()?;
+        let shipping_address_id = decoder.try_decode()?;
+        let billing_address_id = decoder.try_decode()?;
+        let statement_descriptor_name = decoder.try_decode()?;
+        let statement_descriptor_suffix = decoder.try_decode()?;
+        let created_at = decoder.try_decode()?;
+        let modified_at = decoder.try_decode()?;
+        let last_synced = decoder.try_decode()?;
+        let setup_future_usage = decoder.try_decode()?;
+        let off_session = decoder.try_decode()?;
+        let client_secret = decoder.try_decode()?;
+
+        Ok(PaymentIntent {
+            id,
+            payment_id,
+            merchant_id,
+            status,
+            amount,
+            currency,
+            amount_captured,
+            customer_id,
+            description,
+            return_url,
+            metadata,
+            connector_id,
+            shipping_address_id,
+            billing_address_id,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            created_at,
+            modified_at,
+            last_synced,
+            setup_future_usage,
+            off_session,
+            client_secret,
+        })
+    }
+}
+
+impl sqlx::Type<sqlx::Postgres> for PaymentIntent {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("PaymentIntent")
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = payment_intent))]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
@@ -57,7 +154,135 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
-#[derive(Clone, Debug)]
+impl PaymentIntentNew {
+    fn insert_query(&self, table: &str) -> String {
+        let sqlquery = format!("insert into {} ( {} ) values ( {} ) returning *",table,"payment_id , merchant_id , status , amount , currency , amount_captured , customer_id , description , return_url , metadata , connector_id , shipping_address_id , billing_address_id , statement_descriptor_name , statement_descriptor_suffix , created_at , modified_at , last_synced , client_secret , setup_future_usage , off_session","$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21");
+        sqlquery
+    }
+    pub async fn insert<T>(&self, pool: &sqlx::PgPool, table: &str) -> Result<T, sqlx::Error>
+    where
+        T: Send,
+        T: for<'c> sqlx::FromRow<'c, sqlx::postgres::PgRow>,
+        T: std::marker::Unpin,
+    {
+        let sql = self.insert_query(table);
+        sqlx::query_as::<_, T>(&sql)
+            .bind(&self.payment_id)
+            .bind(&self.merchant_id)
+            .bind(&self.status)
+            .bind(&self.amount)
+            .bind(&self.currency)
+            .bind(&self.amount_captured)
+            .bind(&self.customer_id)
+            .bind(&self.description)
+            .bind(&self.return_url)
+            .bind(&self.metadata)
+            .bind(&self.connector_id)
+            .bind(&self.shipping_address_id)
+            .bind(&self.billing_address_id)
+            .bind(&self.statement_descriptor_name)
+            .bind(&self.statement_descriptor_suffix)
+            .bind(&self.created_at)
+            .bind(&self.modified_at)
+            .bind(&self.last_synced)
+            .bind(&self.client_secret)
+            .bind(&self.setup_future_usage)
+            .bind(&self.off_session)
+            .fetch_one(pool)
+            .await
+    }
+}
+
+impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntentNew {
+    fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
+        let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
+        encoder.encode(&self.payment_id);
+        encoder.encode(&self.merchant_id);
+        encoder.encode(&self.status);
+        encoder.encode(&self.amount);
+        encoder.encode(&self.currency);
+        encoder.encode(&self.amount_captured);
+        encoder.encode(&self.customer_id);
+        encoder.encode(&self.description);
+        encoder.encode(&self.return_url);
+        encoder.encode(&self.metadata);
+        encoder.encode(&self.connector_id);
+        encoder.encode(&self.shipping_address_id);
+        encoder.encode(&self.billing_address_id);
+        encoder.encode(&self.statement_descriptor_name);
+        encoder.encode(&self.statement_descriptor_suffix);
+        encoder.encode(&self.created_at);
+        encoder.encode(&self.modified_at);
+        encoder.encode(&self.last_synced);
+        encoder.encode(&self.client_secret);
+        encoder.encode(&self.setup_future_usage);
+        encoder.encode(&self.off_session);
+        encoder.finish();
+
+        sqlx::encode::IsNull::No
+    }
+}
+
+impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentIntentNew {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+        let payment_id = decoder.try_decode()?;
+        let merchant_id = decoder.try_decode()?;
+        let status = decoder.try_decode()?;
+        let amount = decoder.try_decode()?;
+        let currency = decoder.try_decode()?;
+        let amount_captured = decoder.try_decode()?;
+        let customer_id = decoder.try_decode()?;
+        let description = decoder.try_decode()?;
+        let return_url = decoder.try_decode()?;
+        let metadata = decoder.try_decode()?;
+        let connector_id = decoder.try_decode()?;
+        let shipping_address_id = decoder.try_decode()?;
+        let billing_address_id = decoder.try_decode()?;
+        let statement_descriptor_name = decoder.try_decode()?;
+        let statement_descriptor_suffix = decoder.try_decode()?;
+        let created_at = decoder.try_decode()?;
+        let modified_at = decoder.try_decode()?;
+        let last_synced = decoder.try_decode()?;
+        let client_secret = decoder.try_decode()?;
+        let setup_future_usage = decoder.try_decode()?;
+        let off_session = decoder.try_decode()?;
+
+        Ok(PaymentIntentNew {
+            payment_id,
+            merchant_id,
+            status,
+            amount,
+            currency,
+            amount_captured,
+            customer_id,
+            description,
+            return_url,
+            metadata,
+            connector_id,
+            shipping_address_id,
+            billing_address_id,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            created_at,
+            modified_at,
+            last_synced,
+            client_secret,
+            setup_future_usage,
+            off_session,
+        })
+    }
+}
+
+impl sqlx::Type<sqlx::Postgres> for PaymentIntentNew {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("PaymentIntentNew")
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: enums::IntentStatus,
@@ -92,22 +317,24 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payment_intent)]
-pub(super) struct PaymentIntentUpdateInternal {
-    amount: Option<i32>,
-    currency: Option<enums::Currency>,
-    status: Option<enums::IntentStatus>,
-    amount_captured: Option<i32>,
-    customer_id: Option<String>,
-    return_url: Option<String>,
-    setup_future_usage: Option<enums::FutureUsage>,
-    off_session: Option<bool>,
-    metadata: Option<serde_json::Value>,
-    client_secret: Option<Option<String>>,
-    billing_address_id: Option<String>,
-    shipping_address_id: Option<String>,
-    modified_at: Option<PrimitiveDateTime>,
+#[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(AsChangeset))]
+#[cfg_attr(feature = "diesel", diesel(table_name = payment_intent))]
+
+pub struct PaymentIntentUpdateInternal {
+    pub amount: Option<i32>,
+    pub currency: Option<enums::Currency>,
+    pub status: Option<enums::IntentStatus>,
+    pub amount_captured: Option<i32>,
+    pub customer_id: Option<String>,
+    pub return_url: Option<String>,
+    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub off_session: Option<bool>,
+    pub metadata: Option<serde_json::Value>,
+    pub client_secret: Option<Option<String>>,
+    pub billing_address_id: Option<String>,
+    pub shipping_address_id: Option<String>,
+    pub modified_at: Option<PrimitiveDateTime>,
 }
 
 impl PaymentIntentUpdate {

@@ -4,8 +4,9 @@ use time::PrimitiveDateTime;
 
 use crate::{schema::refund, types::enums};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
-#[diesel(table_name = refund)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = refund))]
 pub struct Refund {
     pub id: i32,
     pub internal_reference_id: String,
@@ -30,8 +31,9 @@ pub struct Refund {
     pub description: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = refund)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = refund))]
 pub struct RefundNew {
     pub refund_id: String,
     pub payment_id: String,
@@ -73,13 +75,14 @@ pub enum RefundUpdate {
         refund_status: enums::RefundStatus,
     },
     ErrorUpdate {
-        refund_status: enums::RefundStatus,
+        refund_status: Option<enums::RefundStatus>,
         refund_error_message: Option<String>,
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = refund)]
+#[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(AsChangeset))]
+#[cfg_attr(feature = "diesel", diesel(table_name = refund))]
 pub(super) struct RefundUpdateInternal {
     pg_refund_id: Option<String>,
     refund_status: Option<enums::RefundStatus>,
@@ -124,7 +127,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_status,
                 refund_error_message,
             } => Self {
-                refund_status: Some(refund_status),
+                refund_status,
                 refund_error_message,
                 ..Default::default()
             },

@@ -5,13 +5,11 @@ mod fp_utils;
 #[cfg(feature = "kv_store")]
 pub(crate) mod storage_partitioning;
 
+pub(crate) use common_utils::ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt};
 use nanoid::nanoid;
 
 pub(crate) use self::{
-    ext_traits::{
-        validate_address, validate_email, ByteSliceExt, BytesExt, Encode, OptionExt, StringExt,
-        ValidateCall, ValueExt,
-    },
+    ext_traits::{validate_address, validate_email, OptionExt, ValidateCall},
     fp_utils::when,
 };
 use crate::consts;

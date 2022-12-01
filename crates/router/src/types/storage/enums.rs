@@ -29,6 +29,8 @@ pub mod diesel_exports {
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
@@ -70,6 +72,8 @@ pub enum AttemptStatus {
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum AuthenticationType {
     #[default]
     ThreeDs,
@@ -92,6 +96,8 @@ pub enum AuthenticationType {
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum CaptureMethod {
     #[default]
     Automatic,
@@ -115,6 +121,8 @@ pub enum CaptureMethod {
 #[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum ConnectorType {
     /// PayFacs, Acquirers, Gateways, BNPL etc
     PaymentProcessor,
@@ -148,6 +156,7 @@ pub enum ConnectorType {
     strum::EnumString,
 )]
 #[router_derive::diesel_enum]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
 pub enum Currency {
     AED,
     ALL,
@@ -328,6 +337,8 @@ pub enum EventType {
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum IntentStatus {
     Succeeded,
     Failed,
@@ -356,6 +367,8 @@ pub enum IntentStatus {
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum FutureUsage {
     #[default]
     OffSession,
@@ -376,6 +389,8 @@ pub enum FutureUsage {
 )]
 #[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum PaymentFlow {
     Vsc,
     Emi,
@@ -457,6 +472,8 @@ pub enum PaymentMethodSubType {
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum PaymentMethodType {
     Card,
     PaymentContainer,
@@ -471,6 +488,27 @@ pub enum PaymentMethodType {
     Wallet,
     Klarna,
     Paypal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    router_derive::DieselEnum,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum WalletIssuer {
+    GooglePay,
+    ApplePay,
 }
 
 #[derive(
@@ -555,9 +593,11 @@ pub enum RefundType {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum RoutingAlgorithm {
     RoundRobin,
     MaxConversion,
