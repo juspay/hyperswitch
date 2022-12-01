@@ -93,7 +93,7 @@ pub enum ApiErrorResponse {
     MerchantAccountNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Merchant connector account does not exist in our records.")]
     MerchantConnectorAccountNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Resource id does not exist in our records.")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Resource ID does not exist in our records.")]
     ResourceIdNotFound,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID.")]
     DuplicateMandate,
