@@ -584,7 +584,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method == Some(enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                Vault::get_payment_method_data_from_locker(state, &token).await?
+                Vault::get_payment_method_data_from_locker(state, token).await?
             } else {
                 // TODO: Implement token flow for other payment methods
                 None
