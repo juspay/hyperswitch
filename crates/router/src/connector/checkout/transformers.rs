@@ -237,27 +237,6 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     }
 }
 
-// impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
-//     for types::PaymentRouterCancelData
-// {
-//     type Error = error_stack::Report<errors::ValidateError>;
-//     fn try_from(
-//         item: types::PaymentsCancelResponseRouterData<PaymentVoidResponse>,
-//     ) -> Result<Self, Self::Error> {
-//         let response = &item.response;
-//         Ok(types::RouterData {
-//             response: Some(types::PaymentsResponseData {
-//                 connector_transaction_id: response.action_id.clone(),
-//                 redirect: false,
-//                 redirection_data: None,
-//             }),
-//             status: response.into(),
-//             error_response: None,
-//             ..item.data
-//         })
-//     }
-// }
-
 #[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentVoidRequest {
     reference: String,
