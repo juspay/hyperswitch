@@ -49,8 +49,7 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             browser_info: None,
         },
         payment_method_id: None,
-        response: None,
-        error_response: None,
+        response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
     }
 }
@@ -86,9 +85,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 1,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }

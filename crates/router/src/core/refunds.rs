@@ -129,21 +129,18 @@ pub async fn trigger_refund_to_gateway(
     .await
     .map_err(|error| error.to_refund_failed_response())?;
 
-    let refund_update = match router_data.error_response {
-        Some(err) => storage::RefundUpdate::ErrorUpdate {
-            refund_status: enums::RefundStatus::Failure,
+    let refund_update = match router_data.response {
+        Err(err) => storage::RefundUpdate::ErrorUpdate {
+            refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: Some(err.message),
         },
-        None => {
-            let response = router_data.response.get_required_value("response")?;
-            storage::RefundUpdate::Update {
-                pg_refund_id: response.connector_refund_id,
-                refund_status: response.refund_status,
-                sent_to_gateway: true,
-                refund_error_message: router_data.error_response.map(|error| error.message),
-                refund_arn: "".to_string(),
-            }
-        }
+        Ok(response) => storage::RefundUpdate::Update {
+            pg_refund_id: response.connector_refund_id,
+            refund_status: response.refund_status,
+            sent_to_gateway: true,
+            refund_error_message: None,
+            refund_arn: "".to_string(),
+        },
     };
 
     let response = state
@@ -241,24 +238,18 @@ pub async fn sync_refund_with_gateway(
     .await
     .map_err(|error| error.to_refund_failed_response())?;
 
-    let refund_update = match router_data.error_response {
-        Some(error_message) => {
-            let response = router_data.response.get_required_value("response")?;
-            storage::RefundUpdate::ErrorUpdate {
-                refund_status: response.refund_status,
-                refund_error_message: Some(error_message.message),
-            }
-        }
-        None => {
-            let response = router_data.response.get_required_value("response")?;
-            storage::RefundUpdate::Update {
-                pg_refund_id: response.connector_refund_id,
-                refund_status: response.refund_status,
-                sent_to_gateway: true,
-                refund_error_message: router_data.error_response.map(|error| error.message),
-                refund_arn: "".to_string(),
-            }
-        }
+    let refund_update = match router_data.response {
+        Err(error_message) => storage::RefundUpdate::ErrorUpdate {
+            refund_status: None,
+            refund_error_message: Some(error_message.message),
+        },
+        Ok(response) => storage::RefundUpdate::Update {
+            pg_refund_id: response.connector_refund_id,
+            refund_status: response.refund_status,
+            sent_to_gateway: true,
+            refund_error_message: None,
+            refund_arn: "".to_string(),
+        },
     };
 
     let response = state
@@ -445,11 +436,13 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
         let refund_id = data.request.refund_id.to_string();
-        let status = data
-            .response
-            .get_required_value("response")?
-            .refund_status
-            .into();
+        let response = data.response;
+
+        let (status, error_message) = match response {
+            Ok(response) => (response.refund_status.into(), None),
+            Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
+        };
+
         Ok(refunds::RefundResponse {
             payment_id: data.payment_id,
             refund_id,
@@ -458,9 +451,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
             reason: Some("TODO: Not propagated".to_string()), // TODO: Not propagated
             status,
             metadata: None,
-            error_message: data
-                .error_response
-                .map(|error_response| error_response.message),
+            error_message,
         })
     }
 }
