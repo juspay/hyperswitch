@@ -77,10 +77,10 @@ pub struct PaymentsRedirectRequest {
     pub param: String,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
-    pub merchant_id: String,
+    pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
     pub name: Option<Secret<String>>,
@@ -90,6 +90,8 @@ pub struct VerifyRequest {
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_token: Option<i32>,
     pub mandate_data: Option<MandateData>,
+    pub setup_future_usage: Option<FutureUsage>,
+    pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
 
