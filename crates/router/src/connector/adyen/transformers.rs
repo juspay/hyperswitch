@@ -380,7 +380,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         };
         Ok(types::RouterData {
             status,
-            response: Some(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData {
                 connector_transaction_id: item.response.psp_reference,
                 redirection_data: None,
                 redirect: false,
@@ -500,8 +500,8 @@ impl<F, Req>
 
         Ok(types::RouterData {
             status,
-            error_response: error,
-            response: Some(payment_response_data),
+            response: error.map_or_else(|| Ok(payment_response_data), Err),
+
             ..item.data
         })
     }
@@ -567,11 +567,10 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
             _ => enums::RefundStatus::Pending,
         };
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.reference,
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }

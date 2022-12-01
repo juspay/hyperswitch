@@ -526,11 +526,11 @@ impl
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
         let refund_action_id = data
             .response
-            .as_ref()
+            .clone()
+            .ok()
             .get_required_value("response")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-            .connector_refund_id
-            .clone();
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            .connector_refund_id;
 
         let response: Vec<checkout::ActionResponse> = res
             .response

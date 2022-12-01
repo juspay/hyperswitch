@@ -44,9 +44,8 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             capture_method: None,
             browser_info: None,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -82,9 +81,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 10,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -284,8 +282,8 @@ async fn test_checkout_refund_failure() {
 
     println!("{response:?}");
     let response = response.unwrap();
-    assert!(response.error_response.is_some());
+    assert!(response.response.is_err());
 
-    let code = response.error_response.unwrap().code;
+    let code = response.response.unwrap_err().code;
     assert_eq!(code, "refund_amount_exceeds_balance");
 }

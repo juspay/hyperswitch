@@ -54,11 +54,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub request: Request,
 
     /// Contains flow-specific data that the connector responds with.
-    pub response: Option<Response>,
+    pub response: Result<Response, ErrorResponse>,
 
     /// Contains any error response that the connector returns.
-    pub error_response: Option<ErrorResponse>,
-
     pub payment_method_id: Option<String>,
 }
 
@@ -195,5 +193,21 @@ impl ErrorResponse {
             message: ApiErrorResponse::NotImplemented.error_message(),
             reason: None,
         }
+    }
+}
+
+impl From<ApiErrorResponse> for ErrorResponse {
+    fn from(error: ApiErrorResponse) -> Self {
+        Self {
+            code: error.error_code(),
+            message: error.error_message(),
+            reason: None,
+        }
+    }
+}
+
+impl Default for ErrorResponse {
+    fn default() -> Self {
+        Self::from(ApiErrorResponse::InternalServerError)
     }
 }

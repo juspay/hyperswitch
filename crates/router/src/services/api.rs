@@ -147,7 +147,7 @@ where
                                 Err(body) => {
                                     let error =
                                         connector_integration.get_error_response(body.response)?;
-                                    router_data.error_response = Some(error);
+                                    router_data.response = Err(error);
 
                                     router_data
                                 }

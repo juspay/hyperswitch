@@ -72,7 +72,7 @@ pub async fn divide_and_append_tasks(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let batches = divide(tasks, settings);
-    metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
+    metrics::BATCHES_CREATED.add(&metrics::CONTEXT, batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;
         match result {
@@ -209,7 +209,7 @@ pub async fn get_batches(
             logger::error!(%error, "Error finding batch in stream");
             error.change_context(errors::ProcessTrackerError::BatchNotFound)
         })?;
-    metrics::BATCHES_CONSUMED.add(1, &[]);
+    metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
 
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_iter().map(|(_key, entries)| {
         entries.into_iter().try_fold(
@@ -303,6 +303,7 @@ pub fn add_histogram_metrics(
         logger::error!(%pickup_schedule_delta, "<- Time delta for scheduled tasks");
         let runner_name = runner.clone();
         metrics::CONSUMER_STATS.record(
+            &metrics::CONTEXT,
             pickup_schedule_delta,
             &[opentelemetry::KeyValue::new(
                 stream_name.to_owned(),

@@ -669,6 +669,7 @@ impl
         let id = req
             .response
             .as_ref()
+            .ok()
             .get_required_value("response")
             .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
             .connector_refund_id
