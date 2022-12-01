@@ -511,7 +511,6 @@ pub enum WalletIssuer {
     ApplePay,
 }
 
-
 #[derive(
     Clone,
     Copy,

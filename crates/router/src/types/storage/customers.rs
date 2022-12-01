@@ -30,6 +30,7 @@ pub struct CustomerNew {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl CustomerNew {
     fn insert_query(&self, table: &str) -> String {
         let sqlquery = format!("insert into {} ( {} ) values ( {} ) returning *",table,"customer_id , merchant_id , name , email , phone , description , phone_country_code , address , metadata","$1,$2,$3,$4,$5,$6,$7,$8,$9");
@@ -58,6 +59,7 @@ impl CustomerNew {
     }
 }
 
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for CustomerNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
@@ -76,6 +78,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for CustomerNew {
     }
 }
 
+#[allow(clippy::needless_borrow)]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for CustomerNew {
     fn decode(
         value: sqlx::postgres::PgValueRef<'r>,
@@ -161,6 +164,7 @@ pub struct Customer {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for Customer {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
@@ -180,6 +184,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for Customer {
     }
 }
 
+#[allow(clippy::needless_borrow)]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for Customer {
     fn decode(
         value: sqlx::postgres::PgValueRef<'r>,

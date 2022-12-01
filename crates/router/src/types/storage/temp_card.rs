@@ -26,6 +26,7 @@ pub struct TempCardNew {
     pub txn_id: Option<String>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl TempCardNew {
     fn insert_query(&self, table: &str) -> String {
         let sqlquery = format!(

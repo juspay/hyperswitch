@@ -36,6 +36,7 @@ pub struct PaymentIntent {
     pub client_secret: Option<String>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntent {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
@@ -154,11 +155,13 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl PaymentIntentNew {
     fn insert_query(&self, table: &str) -> String {
         let sqlquery = format!("insert into {} ( {} ) values ( {} ) returning *",table,"payment_id , merchant_id , status , amount , currency , amount_captured , customer_id , description , return_url , metadata , connector_id , shipping_address_id , billing_address_id , statement_descriptor_name , statement_descriptor_suffix , created_at , modified_at , last_synced , client_secret , setup_future_usage , off_session","$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21");
         sqlquery
     }
+
     pub async fn insert<T>(&self, pool: &sqlx::PgPool, table: &str) -> Result<T, sqlx::Error>
     where
         T: Send,
@@ -193,6 +196,7 @@ impl PaymentIntentNew {
     }
 }
 
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntentNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);

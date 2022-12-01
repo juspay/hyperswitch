@@ -51,6 +51,7 @@ pub struct MerchantAccountNew {
     pub(crate) publishable_key: Option<String>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for MerchantAccountNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
@@ -74,6 +75,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for MerchantAccountNew {
 }
 
 #[cfg(feature = "sqlx")]
+#[allow(clippy::needless_borrow)]
 impl MerchantAccountNew {
     fn insert_query(&self, table: &str) -> String {
         format!("insert into {} ({}) values ({}) returning *", table, "merchant_id, merchant_name, api_key, merchant_details, return_url, webhook_details, routing_algorithm, custom_routing_rules, sub_merchants_enabled, parent_merchant_id, enable_payment_response_hash, payment_response_hash_key, redirect_to_merchant_with_http_post, publishable_key","$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14")

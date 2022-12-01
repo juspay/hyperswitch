@@ -44,6 +44,7 @@ pub struct PaymentAttempt {
 }
 
 #[cfg(feature = "sqlx")]
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentAttempt {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
@@ -187,6 +188,7 @@ pub struct PaymentAttemptNew {
     pub browser_info: Option<serde_json::Value>,
 }
 
+#[allow(clippy::needless_borrow)]
 impl PaymentAttemptNew {
     fn insert_query(&self, table: &str) -> String {
         let sqlquery = format!("insert into {} ( {} ) values ( {} ) returning *",table,"payment_id , merchant_id , txn_id , status , amount , currency , save_to_locker , connector , error_message , offer_amount , surcharge_amount , tax_amount , payment_method_id , payment_method , payment_flow , redirect , connector_transaction_id , capture_method , capture_on , confirm , authentication_type , created_at , modified_at , last_synced","$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24");
@@ -231,6 +233,7 @@ impl PaymentAttemptNew {
     }
 }
 
+#[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentAttemptNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
         let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);

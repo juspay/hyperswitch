@@ -35,6 +35,7 @@ pub struct MerchantConnectorAccountNew {
 }
 
 #[cfg(feature = "sqlx")]
+#[allow(clippy::needless_borrow)]
 impl MerchantConnectorAccountNew {
     fn insert_query(&self, table: &str) -> String {
         let sqlquery = format!("insert into {} ( {} ) values ( {} ) returning *",table,"merchant_id , connector_type , connector_name , connector_account_details , test_mode , disabled , merchant_connector_id , payment_methods_enabled","$1,$2,$3,$4,$5,$6,$7,$8");
