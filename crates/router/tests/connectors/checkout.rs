@@ -19,15 +19,15 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 100,
         orca_return_url: None,
-        currency: enums::Currency::USD,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::PaymentsRequestData {
+            amount: 100,
+            currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                 card_number: "4242424242424242".to_string().into(),
                 card_exp_month: "10".to_string().into(),
@@ -61,8 +61,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 100,
-        currency: enums::Currency::USD,
         orca_return_url: None,
         payment_method: enums::PaymentMethodType::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
@@ -70,6 +68,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::RefundsRequestData {
+            amount: 100,
+            currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                 card_number: "4242424242424242".to_string().into(),

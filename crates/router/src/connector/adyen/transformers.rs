@@ -245,8 +245,8 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let reference = item.payment_id.to_string();
         let amount = Amount {
-            currency: item.currency.to_string(),
-            value: item.amount,
+            currency: item.request.currency.to_string(),
+            value: item.request.amount,
         };
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),

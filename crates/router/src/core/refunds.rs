@@ -446,8 +446,8 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
         Ok(refunds::RefundResponse {
             payment_id: data.payment_id,
             refund_id,
-            amount: data.amount / 100,
-            currency: data.currency.to_string(),
+            amount: data.request.amount / 100,
+            currency: data.request.currency.to_string(),
             reason: Some("TODO: Not propagated".to_string()), // TODO: Not propagated
             status,
             metadata: None,

@@ -155,9 +155,9 @@ impl TryFrom<&types::PaymentsRouterData> for CreateTransactionRequest {
             });
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::Payment,
-            amount: item.amount,
+            amount: item.request.amount,
             payment: payment_details,
-            currency_code: item.currency.to_string(),
+            currency_code: item.request.currency.to_string(),
             authorization_indicator_type,
         };
 
@@ -365,7 +365,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             transaction_type: TransactionType::Refund,
             amount: item.request.refund_amount,
             payment: payment_details,
-            currency_code: item.currency.to_string(),
+            currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
 

@@ -40,8 +40,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector: String,
     pub payment_id: String,
     pub status: enums::AttemptStatus,
-    pub amount: i32,
-    pub currency: enums::Currency,
     pub payment_method: enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
@@ -63,6 +61,8 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone)]
 pub struct PaymentsRequestData {
     pub payment_method_data: payments::PaymentMethod,
+    pub amount: i32,
+    pub currency: enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     // redirect form not used https://juspay.atlassian.net/browse/ORCA-301
@@ -107,6 +107,10 @@ pub struct RefundsRequestData {
     pub refund_id: String,
     pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
+    pub currency: enums::Currency,
+    /// Amount for the payment against which this refund is issued
+    pub amount: i32,
+    /// Amount to be refunded
     pub refund_amount: i32,
 }
 
