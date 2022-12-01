@@ -70,8 +70,6 @@ pub async fn construct_refund_router_data<'a, F>(
         connector: merchant_connector_account.connector_name,
         payment_id: payment_attempt.payment_id.clone(),
         status,
-        amount,
-        currency,
         payment_method: payment_method_type,
         connector_auth_type: auth_type,
         description: None,
@@ -87,14 +85,14 @@ pub async fn construct_refund_router_data<'a, F>(
             payment_method_data,
             connector_transaction_id: refund.transaction_id.clone(),
             refund_amount: refund.refund_amount,
+            currency,
+            amount,
         },
 
-        response: Some(types::RefundsResponseData {
+        response: Ok(types::RefundsResponseData {
             connector_refund_id: refund.pg_refund_id.clone().unwrap_or_default(),
             refund_status: refund.refund_status,
         }),
-
-        error_response: None,
     };
 
     Ok(router_data)

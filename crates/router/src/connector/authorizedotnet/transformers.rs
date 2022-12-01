@@ -156,9 +156,9 @@ impl TryFrom<&types::PaymentsRouterData> for CreateTransactionRequest {
             });
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::Payment,
-            amount: item.amount,
+            amount: item.request.amount,
             payment: payment_details,
-            currency_code: item.currency.to_string(),
+            currency_code: item.request.currency.to_string(),
             authorization_indicator_type,
         };
 
@@ -296,15 +296,19 @@ impl<F, T>
 
         Ok(types::RouterData {
             status,
-            response: Some(types::PaymentsResponseData {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_response.transaction_id,
-                ),
-                //TODO: Add redirection details here
-                redirection_data: None,
-                redirect: false,
-            }),
-            error_response: error,
+            response: match error {
+                Some(err) => Err(err),
+                None => {
+                    Ok(types::PaymentsResponseData {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            item.response.transaction_response.transaction_id,
+                        ),
+                        //TODO: Add redirection details here
+                        redirection_data: None,
+                        redirect: false,
+                    })
+                }
+            },
             ..item.data
         })
     }
@@ -364,7 +368,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             transaction_type: TransactionType::Refund,
             amount: item.request.refund_amount,
             payment: payment_details,
-            currency_code: item.currency.to_string(),
+            currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
 
@@ -414,11 +418,13 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
         });
 
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
-                connector_refund_id: transaction_response.transaction_id.clone(),
-                refund_status,
-            }),
-            error_response: error,
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(types::RefundsResponseData {
+                    connector_refund_id: transaction_response.transaction_id.clone(),
+                    refund_status,
+                }),
+            },
             ..item.data
         })
     }
@@ -444,7 +450,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncReque
         let transaction_id = item
             .response
             .as_ref()
-            .map(|refund_response_data| refund_response_data.connector_refund_id.clone());
+            .map(|refund_response_data| refund_response_data.connector_refund_id.clone())
+            .ok();
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = AuthorizedotnetCreateSyncRequest {
@@ -464,6 +471,7 @@ impl TryFrom<&types::PaymentsRouterSyncData> for AuthorizedotnetCreateSyncReques
         let transaction_id = item
             .response
             .as_ref()
+            .ok()
             .map(|payment_response_data| {
                 payment_response_data
                     .resource_id
@@ -545,7 +553,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction.transaction_id.clone(),
                 refund_status,
             }),
@@ -572,7 +580,7 @@ impl<F, Req>
         let payment_status =
             enums::AttemptStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
-            response: Some(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.transaction_id,
                 ),

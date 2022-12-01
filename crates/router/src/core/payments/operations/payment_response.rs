@@ -14,7 +14,7 @@ use crate::{
         self, api,
         storage::{self, enums},
     },
-    utils::{self, OptionExt},
+    utils,
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -117,16 +117,12 @@ async fn payment_response_ut<F: Clone, T>(
     let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
     let mut connector_response_data = None;
 
-    let payment_attempt_update = match router_data.error_response.as_ref() {
-        Some(err) => storage::PaymentAttemptUpdate::ErrorUpdate {
+    let payment_attempt_update = match router_data.response.clone() {
+        Err(err) => storage::PaymentAttemptUpdate::ErrorUpdate {
             status: storage::enums::AttemptStatus::Failure,
-            error_message: Some(err.message.to_owned()),
+            error_message: Some(err.message),
         },
-        None => {
-            let response = router_data
-                .response
-                .get_required_value("router_data.response")?;
-
+        Ok(response) => {
             connector_response_data = Some(response.clone());
 
             storage::PaymentAttemptUpdate::ResponseUpdate {
@@ -135,7 +131,7 @@ async fn payment_response_ut<F: Clone, T>(
                     response
                         .resource_id
                         .get_connector_transaction_id()
-                        .change_context(errors::ApiErrorResponse::PaymentNotSucceeded)?,
+                        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
                 ),
                 authentication_type: None,
                 payment_method_id: Some(router_data.payment_method_id),
@@ -164,7 +160,7 @@ async fn payment_response_ut<F: Clone, T>(
                     connector_response
                         .resource_id
                         .get_connector_transaction_id()
-                        .change_context(errors::ApiErrorResponse::PaymentNotSucceeded)?,
+                        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
                 ),
                 authentication_data,
                 encoded_data: payment_data.connector_response.encoded_data.clone(),
@@ -179,11 +175,11 @@ async fn payment_response_ut<F: Clone, T>(
         None => payment_data.connector_response,
     };
 
-    let payment_intent_update = match router_data.error_response {
-        Some(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
+    let payment_intent_update = match router_data.response {
+        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::Failed,
         },
-        None => storage::PaymentIntentUpdate::ResponseUpdate {
+        Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.into(),
             return_url: router_data.return_url,
             amount_captured: None,

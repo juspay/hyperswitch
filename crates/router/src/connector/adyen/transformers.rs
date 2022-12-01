@@ -245,8 +245,8 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let reference = item.payment_id.to_string();
         let amount = Amount {
-            currency: item.currency.to_string(),
-            value: item.amount,
+            currency: item.request.currency.to_string(),
+            value: item.request.amount,
         };
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
@@ -380,7 +380,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         };
         Ok(types::RouterData {
             status,
-            response: Some(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
                 redirect: false,
@@ -474,6 +474,7 @@ pub fn get_redirection_response(
         form_fields: response.action.data,
     };
 
+    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
@@ -499,8 +500,8 @@ impl<F, Req>
 
         Ok(types::RouterData {
             status,
-            error_response: error,
-            response: Some(payment_response_data),
+            response: error.map_or_else(|| Ok(payment_response_data), Err),
+
             ..item.data
         })
     }
@@ -566,11 +567,10 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
             _ => enums::RefundStatus::Pending,
         };
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.reference,
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }

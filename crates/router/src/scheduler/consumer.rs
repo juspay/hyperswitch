@@ -117,7 +117,7 @@ pub async fn consumer_operations(
 
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 
-        metrics::TASK_CONSUMED.add(1, &[]);
+        metrics::TASK_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
         let runner = pt_utils::runner_from_task(task)?;
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
@@ -205,7 +205,7 @@ pub async fn run_executor<'a>(
             }
         },
     };
-    metrics::TASK_PROCESSED.add(1, &[]);
+    metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
 }
 
 #[instrument(skip_all)]
