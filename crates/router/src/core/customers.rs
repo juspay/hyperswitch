@@ -2,8 +2,12 @@ use error_stack::ResultExt;
 use router_env::{tracing, tracing::instrument};
 
 use crate::{
-    core::errors::{self, RouterResponse, StorageErrorExt},
-    db::Db,
+    core::{
+        errors::{self, RouterResponse, StorageErrorExt},
+        payment_methods::cards,
+    },
+    db::{customers::ICustomer, payment_method::IPaymentMethod, Db},
+    routes::AppState,
     services,
     types::{api::customers, storage},
 };
@@ -46,18 +50,35 @@ pub async fn retrieve_customer(
     Ok(services::BachResponse::Json(response))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip_all)]
 pub async fn delete_customer(
-    db: &dyn Db,
+    state: &AppState,
     merchant_account: storage::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
+    let db = &state.store;
+    //check if there are any existing mandates/subscriptions that exist for the current customer
+    let resp = db
+        .find_payment_method_by_customer_id_merchant_id_list(
+            &req.customer_id,
+            &merchant_account.merchant_id,
+        )
+        .await
+        .map_err(|err| {
+            err.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
+    for pm in resp.into_iter() {
+        cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id).await?;
+    }
+    //delete address from address table
     let response = db
         .delete_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
         .await
         .map(|response| customers::CustomerDeleteResponse {
             customer_id: req.customer_id,
-            deleted: response,
+            customer_deleted: response,
+            address_deleted: false,
+            payment_methods_deleted: true,
         })
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
     Ok(services::BachResponse::Json(response))
