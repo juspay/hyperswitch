@@ -239,9 +239,9 @@ impl TryFrom<&types::BrowserInformation> for AdyenBrowserInfo {
 }
 
 // Payment Request Transform
-impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let reference = item.payment_id.to_string();
         let amount = Amount {
@@ -354,9 +354,9 @@ impl TryFrom<&types::PaymentsRouterData> for AdyenPaymentRequest {
     }
 }
 
-impl TryFrom<&types::PaymentRouterCancelData> for AdyenCancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(AdyenCancelRequest {
             merchant_account: auth_type.merchant_account,
@@ -367,7 +367,7 @@ impl TryFrom<&types::PaymentRouterCancelData> for AdyenCancelRequest {
 }
 
 impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
-    for types::PaymentRouterCancelData
+    for types::PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(

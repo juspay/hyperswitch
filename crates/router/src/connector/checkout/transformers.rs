@@ -68,9 +68,9 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
         }
     }
 }
-impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ValidateError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
             api::PaymentMethod::BankTransfer
@@ -177,7 +177,9 @@ pub struct PaymentsResponse {
     #[serde(rename = "_links")]
     links: Links,
 }
-impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>> for types::PaymentsRouterData {
+impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
+{
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
@@ -216,7 +218,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>> for types::Pay
 }
 
 impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
-    for types::PaymentsRouterSyncData
+    for types::PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
@@ -257,7 +259,7 @@ impl From<&PaymentVoidResponse> for enums::AttemptStatus {
 }
 
 impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
-    for types::PaymentRouterCancelData
+    for types::PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ValidateError>;
     fn try_from(
@@ -276,9 +278,9 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
     }
 }
 
-impl TryFrom<&types::PaymentRouterCancelData> for PaymentVoidRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for PaymentVoidRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             reference: item.request.connector_transaction_id.clone(),
         })

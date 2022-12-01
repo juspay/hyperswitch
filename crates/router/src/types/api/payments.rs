@@ -221,7 +221,7 @@ impl Default for PaymentIdType {
 #[derive(Debug, Clone)]
 pub struct Authorize;
 #[derive(Debug, Clone)]
-pub struct PCapture;
+pub struct Capture;
 
 #[derive(Debug, Clone)]
 pub struct PSync;
@@ -593,22 +593,22 @@ impl From<enums::AttemptStatus> for enums::IntentStatus {
 }
 
 pub trait PaymentAuthorize:
-    api::ConnectorIntegration<Authorize, types::PaymentsRequestData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentSync:
-    api::ConnectorIntegration<PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>
+    api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentVoid:
-    api::ConnectorIntegration<Void, types::PaymentRequestCancelData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentCapture:
-    api::ConnectorIntegration<PCapture, types::PaymentsRequestCaptureData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
 }
 

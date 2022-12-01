@@ -8,7 +8,7 @@ use router::{
 
 use crate::connector_auth::ConnectorAuthentication;
 
-fn construct_payment_router_data() -> types::PaymentsRouterData {
+fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
         .checkout
         .expect("Missing Checkout connector authentication configuration");
@@ -25,7 +25,7 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
-        request: types::PaymentsRequestData {
+        request: types::PaymentsAuthorizeData {
             amount: 100,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
@@ -67,7 +67,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
-        request: types::RefundsRequestData {
+        request: types::RefundsData {
             amount: 100,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
@@ -104,7 +104,7 @@ async fn test_checkout_payment_success() {
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
     let request = construct_payment_router_data();
@@ -144,7 +144,7 @@ async fn test_checkout_refund_success() {
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
     let request = construct_payment_router_data();
@@ -167,7 +167,7 @@ async fn test_checkout_refund_success() {
     // Successful refund
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Execute,
-        types::RefundsRequestData,
+        types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
@@ -208,7 +208,7 @@ async fn test_checkout_payment_failure() {
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
     let mut request = construct_payment_router_data();
@@ -242,7 +242,7 @@ async fn test_checkout_refund_failure() {
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
     let request = construct_payment_router_data();
@@ -263,7 +263,7 @@ async fn test_checkout_refund_failure() {
     // Unsuccessful refund
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Execute,
-        types::RefundsRequestData,
+        types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();

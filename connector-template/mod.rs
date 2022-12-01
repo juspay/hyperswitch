@@ -69,7 +69,7 @@ impl
         types::PaymentsRequestData,
         types::PaymentsResponseData,
     > for {{project-name | downcase | pascal_case}} {
-    fn get_headers(&self, _req: &types::PaymentsRouterData) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+    fn get_headers(&self, _req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
         todo!()
     }
 
@@ -77,11 +77,11 @@ impl
         todo!()
     }
 
-    fn get_url(&self, _req: &types::PaymentsRouterData) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData) -> CustomResult<String,errors::ConnectorError> {
         todo!()
     }
 
-    fn get_request_body(&self, req: &types::PaymentsRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
         let {{project-name | downcase}}_req =
             utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::convert_and_url_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some({{project-name | downcase}}_req))
@@ -89,9 +89,9 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData,errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
         let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!({{project-name | downcase}}payments_create_response=?response);
         types::ResponseRouterData {
@@ -152,7 +152,7 @@ impl
     }
 
     fn handle_response(
-        &self, 
+        &self,
         data: &types::RefundsRouterData,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData,errors::ConnectorError> {
@@ -189,7 +189,7 @@ impl
 
     fn get_url(&self, _req: &types::RefundsRouterData) -> CustomResult<String,errors::ConnectorError> {
         todo!()
-    } 
+    }
 
     fn handle_response(
         &self,
@@ -197,7 +197,7 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundsRouterData,errors::ConnectorError> {
         logger::debug!(target: "router::connector::{{project-name | downcase}}", response=?res);
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?; 
+        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
