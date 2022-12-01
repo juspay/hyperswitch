@@ -539,6 +539,22 @@ pub enum CancellationReason {
     Abandoned,
 }
 
+/// Represents the capture request body for stripe connector.
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct CaptureRequest {
+    /// If amount_to_capture is None stripe captures the amount in the payment intent.
+    amount_to_capture: Option<i32>,
+}
+
+impl TryFrom<&types::PaymentsRouterCaptureData> for CaptureRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentsRouterCaptureData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount_to_capture: item.request.amount_to_capture,
+        })
+    }
+}
+
 // #[cfg(test)]
 // mod test_stripe_transformers {
 //     use super::*;
