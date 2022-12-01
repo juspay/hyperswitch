@@ -80,7 +80,7 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
 
-        request: types::RefundsRequestData {
+        request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             payment_method_data,
             connector_transaction_id: refund.transaction_id.clone(),

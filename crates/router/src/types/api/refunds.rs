@@ -67,12 +67,12 @@ pub struct Execute;
 pub struct RSync;
 
 pub trait RefundExecute:
-    api::ConnectorIntegration<Execute, types::RefundsRequestData, types::RefundsResponseData>
+    api::ConnectorIntegration<Execute, types::RefundsData, types::RefundsResponseData>
 {
 }
 
 pub trait RefundSync:
-    api::ConnectorIntegration<RSync, types::RefundsRequestData, types::RefundsResponseData>
+    api::ConnectorIntegration<RSync, types::RefundsData, types::RefundsResponseData>
 {
 }
 

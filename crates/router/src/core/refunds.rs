@@ -117,7 +117,7 @@ pub async fn trigger_refund_to_gateway(
     logger::debug!(?router_data);
     let connector_integration: services::BoxedConnectorIntegration<
         api::Execute,
-        types::RefundsRequestData,
+        types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
     let router_data = services::execute_connector_processing_step(
@@ -226,7 +226,7 @@ pub async fn sync_refund_with_gateway(
 
     let connector_integration: services::BoxedConnectorIntegration<
         api::RSync,
-        types::RefundsRequestData,
+        types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
     let router_data = services::execute_connector_processing_step(
