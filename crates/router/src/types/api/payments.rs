@@ -47,7 +47,7 @@ pub struct PaymentsRequest {
     pub authentication_type: Option<enums::AuthenticationType>,
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_method: Option<enums::PaymentMethodType>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub browser_info: Option<types::BrowserInformation>,
@@ -329,7 +329,7 @@ pub struct PaymentsResponse {
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub metadata: Option<serde_json::Value>,

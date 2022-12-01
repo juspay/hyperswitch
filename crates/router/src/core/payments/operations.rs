@@ -112,7 +112,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -188,7 +188,7 @@ where
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -276,7 +276,7 @@ where
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
@@ -332,7 +332,7 @@ where
         _txn_id: &str,
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
-        _token: Option<i32>,
+        _token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
@@ -380,7 +380,7 @@ where
         _txn_id: &str,
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
-        _token: Option<i32>,
+        _token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,
