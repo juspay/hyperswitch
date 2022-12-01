@@ -242,3 +242,64 @@ pub struct CustomerPaymentMethod {
 pub struct PaymentMethodId {
     pub payment_method_id: String,
 }
+
+//------------------------------------------------TokenizeService------------------------------------------------
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenizePayloadEncrypted {
+    pub payload: String,
+    pub key_id: String,
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, router_derive::DebugAsDisplay)]
+pub struct TokenizePayloadRequest {
+    pub value1: String,
+    pub value2: String,
+    pub lookup_key: String,
+    pub service_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, router_derive::DebugAsDisplay)]
+pub struct GetTokenizePayloadRequest {
+    pub lookup_key: String,
+    pub get_value2: bool,
+}
+
+#[derive(Debug, Serialize, router_derive::DebugAsDisplay)]
+pub struct DeleteTokenizeByTokenRequest {
+    pub lookup_key: String,
+}
+
+#[derive(Debug, Serialize)] //FIXME yet to be implemented
+pub struct DeleteTokenizeByDateRequest {
+    pub buffer_minutes: i32,
+    pub service_name: String,
+    pub max_rows: i32,
+}
+
+#[derive(Debug, Deserialize, router_derive::DebugAsDisplay)]
+pub struct GetTokenizePayloadResponse {
+    pub lookup_key: String,
+    pub get_value2: Option<bool>,
+}
+#[derive(Debug, Serialize, Deserialize, router_derive::DebugAsDisplay)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue1 {
+    pub card_number: String,
+    pub exp_year: String,
+    pub exp_month: String,
+    pub name_on_card: Option<String>,
+    pub nickname: Option<String>,
+    pub card_last_four: Option<String>,
+    pub card_token: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, router_derive::DebugAsDisplay)]
+#[serde(rename_all = "camelCase")]
+
+pub struct TokenizedCardValue2 {
+    pub card_security_code: Option<String>,
+    pub card_fingerprint: Option<String>,
+    pub external_id: Option<String>,
+    pub customer_id: Option<String>,
+}

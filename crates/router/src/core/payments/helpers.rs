@@ -3,15 +3,15 @@ use std::borrow::Cow;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{PeekInterface, PeekOptionInterface};
-use rand::Rng;
 use router_env::{instrument, tracing};
+use uuid::Uuid;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{Keys, Server},
+    configs::settings::Server,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::cards,
@@ -97,7 +97,7 @@ pub async fn get_token_pm_type_mandate_details(
     mandate_type: Option<api::MandateTxnType>,
     merchant_id: &str,
 ) -> RouterResult<(
-    Option<i32>,
+    Option<String>,
     Option<enums::PaymentMethodType>,
     Option<api::MandateData>,
 )> {
@@ -108,7 +108,7 @@ pub async fn get_token_pm_type_mandate_details(
                 .clone()
                 .get_required_value("mandate_data")?;
             Ok((
-                request.payment_token,
+                request.payment_token.to_owned(),
                 request.payment_method,
                 Some(setup_mandate),
             ))
@@ -119,7 +119,7 @@ pub async fn get_token_pm_type_mandate_details(
             Ok((token_, payment_method_type_, None))
         }
         None => Ok((
-            request.payment_token,
+            request.payment_token.to_owned(),
             request.payment_method,
             request.mandate_data.clone(),
         )),
@@ -130,7 +130,7 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_id: &str,
-) -> RouterResult<(Option<i32>, Option<enums::PaymentMethodType>)> {
+) -> RouterResult<(Option<String>, Option<enums::PaymentMethodType>)> {
     let db = &state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -168,14 +168,9 @@ pub async fn get_token_for_recurring_mandate(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
 
-    let token = rand::thread_rng().gen::<i32>();
+    let token = Uuid::new_v4().to_string();
 
-    let _ = crate::core::payment_methods::cards::get_tempcard_from_payment_method(
-        state,
-        token,
-        &payment_method,
-    )
-    .await?;
+    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
         if payment_method_from_request != payment_method.payment_method {
@@ -583,34 +578,20 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     txn_id: &str,
     _payment_attempt: &storage::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
-    token: Option<i32>,
+    token: &Option<String>,
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method == Some(enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                payment_method_data_from_temp_card(
-                    &state.conf.keys,
-                    state
-                        .store
-                        .find_tempcard_by_token(&token)
-                        .await
-                        .map_err(|error| {
-                            error.to_not_found_response(
-                                errors::ApiErrorResponse::PaymentMethodNotFound,
-                            )
-                        })?,
-                )
-                .await?
+                Vault::get_payment_method_data_from_locker(state, token).await?
             } else {
                 // TODO: Implement token flow for other payment methods
                 None
             },
         ),
         (pm @ Some(api::PaymentMethod::Card(card)), _) => {
-            create_temp_card(state, txn_id, card)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            Vault::store_payment_method_data_in_locker(state, txn_id, card).await?;
             Ok(pm.to_owned())
         }
         (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
@@ -620,43 +601,128 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
     let payment_method = match payment_method {
         Some(pm) => Some(pm),
-        None => {
-            let temp_card = state.store.find_tempcard_by_transaction_id(txn_id).await;
-            if let Ok(Some(temp_card)) = temp_card {
-                payment_method_data_from_temp_card(&state.conf.keys, temp_card).await?
-            } else {
-                None
-            }
-        }
+        None => Vault::get_payment_method_data_from_locker(state, txn_id).await?,
     };
 
     Ok((operation, payment_method))
 }
 
-#[instrument(skip_all)]
-pub async fn payment_method_data_from_temp_card(
-    keys: &Keys,
-    temp_card: storage::TempCard,
-) -> RouterResult<Option<api::PaymentMethod>> {
-    match temp_card.card_info {
-        Some(card_info_val) => {
-            let card_info = cards::get_card_info_from_value(keys, card_info_val).await?;
-            let card_info_split: Vec<&str> = card_info.split(":::").collect();
+pub struct Vault {}
 
-            let card = api::PaymentMethod::Card(api::CCard {
-                card_number: card_info_split[0].to_string().into(),
-                card_exp_month: card_info_split[1].to_string().into(),
-                card_exp_year: card_info_split[2].to_string().into(),
-                card_holder_name: card_info_split[3].to_string().into(),
-                card_cvc: if card_info_split.len() > 4 {
-                    card_info_split[4].to_string().into()
-                } else {
-                    "".to_string().into()
-                },
-            });
-            Ok(Some(card))
-        }
-        None => Ok(None),
+#[cfg(not(feature = "basilisk"))]
+impl Vault {
+    #[instrument(skip_all)]
+    pub async fn get_payment_method_data_from_locker(
+        state: &AppState,
+        lookup_key: &str,
+    ) -> RouterResult<Option<api::PaymentMethod>> {
+        let resp = cards::mock_get_card(&state.store, lookup_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let card = resp.card;
+        let card_number = card
+            .card_number
+            .peek_cloning()
+            .get_required_value("card_number")?;
+        let card_exp_month = card
+            .card_exp_month
+            .peek_cloning()
+            .get_required_value("expiry_month")?;
+        let card_exp_year = card
+            .card_exp_year
+            .peek_cloning()
+            .get_required_value("expiry_year")?;
+        let card_holder_name = card.name_on_card.peek_cloning().unwrap_or_default();
+        let card = api::PaymentMethod::Card(api::CCard {
+            card_number: card_number.into(),
+            card_exp_month: card_exp_month.into(),
+            card_exp_year: card_exp_year.into(),
+            card_holder_name: card_holder_name.into(),
+            card_cvc: "card_cvc".to_string().into(),
+        });
+        Ok(Some(card))
+    }
+
+    #[instrument(skip_all)]
+    async fn store_payment_method_data_in_locker(
+        state: &AppState,
+        txn_id: &str,
+        card: &api::CCard,
+    ) -> RouterResult<String> {
+        let card_detail = api::CardDetail {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: Some(card.card_holder_name.clone()),
+        };
+        let db = &state.store;
+        cards::mock_add_card(db, txn_id, &card_detail)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")?;
+        Ok(txn_id.to_string())
+    }
+}
+
+#[cfg(feature = "basilisk")]
+use crate::{core::payment_methods::transformers, utils::StringExt};
+
+#[cfg(feature = "basilisk")]
+impl Vault {
+    #[instrument(skip_all)]
+    pub async fn get_payment_method_data_from_locker(
+        state: &AppState,
+        lookup_key: &str,
+    ) -> RouterResult<Option<api::PaymentMethod>> {
+        let de_tokenize = cards::get_tokenized_data(state, lookup_key, true).await?;
+        let value1: api::TokenizedCardValue1 = de_tokenize
+            .value1
+            .parse_struct("TokenizedCardValue1")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error parsing TokenizedCardValue1")?;
+        let value2 = de_tokenize.value2;
+        let card_cvc = if value2.is_empty() {
+            //mandatory field in api contract (when querying from legacy locker we don't get cvv), cvv handling needs to done
+            "".to_string()
+        } else {
+            let tk_value2: api::TokenizedCardValue2 = value2
+                .parse_struct("TokenizedCardValue2")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error parsing TokenizedCardValue2")?;
+            tk_value2.card_security_code.unwrap_or_default()
+        };
+        let card = api::PaymentMethod::Card(api::CCard {
+            card_number: value1.card_number.into(),
+            card_exp_month: value1.exp_month.into(),
+            card_exp_year: value1.exp_year.into(),
+            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
+            card_cvc: card_cvc.into(),
+        });
+        Ok(Some(card))
+    }
+
+    #[instrument(skip_all)]
+    async fn store_payment_method_data_in_locker(
+        state: &AppState,
+        txn_id: &str,
+        card: &api::CCard,
+    ) -> RouterResult<String> {
+        let value1 = transformers::mk_card_value1(
+            card.card_number.peek().clone(),
+            card.card_exp_year.peek().clone(),
+            card.card_exp_month.peek().clone(),
+            Some(card.card_holder_name.peek().clone()),
+            None,
+            None,
+            None,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value1 for locker")?;
+        let value2 =
+            transformers::mk_card_value2(Some(card.card_cvc.peek().clone()), None, None, None)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error getting Value12 for locker")?;
+        cards::create_tokenize(state, value1, Some(value2), txn_id.to_string()).await
     }
 }
 
