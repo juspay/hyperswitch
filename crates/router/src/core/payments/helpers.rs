@@ -837,7 +837,7 @@ pub fn make_pg_redirect_response(
         status: response.status,
         gateway_id: connector,
         customer_id: response.customer_id.to_owned(),
-        amount: Some(response.amount),
+        amount: response.amount,
     }
 }
 

@@ -134,6 +134,8 @@ pub enum Flow {
     RefundsList,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Validate payment method flow
+    ValidatePM,
 }
 
 /// Category of log event.

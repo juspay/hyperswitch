@@ -14,6 +14,7 @@ pub use payment_cancel::PaymentCancel;
 pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
 pub use payment_create::PaymentCreate;
+pub use payment_method_validate::PaymentMethodValidate;
 pub use payment_response::PaymentResponse;
 pub use payment_start::PaymentStart;
 pub use payment_status::PaymentStatus;

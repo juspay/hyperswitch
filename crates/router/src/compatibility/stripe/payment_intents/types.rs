@@ -251,10 +251,10 @@ pub(crate) struct StripeCaptureRequest {
 pub(crate) struct StripePaymentIntentResponse {
     pub(crate) id: Option<String>,
     pub(crate) object: String,
-    pub(crate) amount: i32,
+    pub(crate) amount: Option<i32>,
     pub(crate) amount_received: Option<i32>,
     pub(crate) amount_capturable: Option<i32>,
-    pub(crate) currency: String,
+    pub(crate) currency: Option<String>,
     pub(crate) status: StripePaymentStatus,
     pub(crate) client_secret: Option<Secret<String>>,
     #[serde(with = "custom_serde::iso8601::option")]
@@ -271,7 +271,7 @@ impl From<PaymentsResponse> for StripePaymentIntentResponse {
             amount: resp.amount,
             amount_received: resp.amount_received,
             amount_capturable: resp.amount_capturable,
-            currency: resp.currency.to_lowercase(),
+            currency: resp.currency.map(|x| x.to_lowercase()),
             status: StripePaymentStatus::from(resp.status),
             client_secret: resp.client_secret,
             created: resp.created,

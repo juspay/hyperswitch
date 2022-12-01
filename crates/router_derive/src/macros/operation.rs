@@ -14,6 +14,7 @@ enum Derives {
     Syncdata,
     Canceldata,
     Capturedata,
+    VerifyData,
     Start,
     Verify,
 }
@@ -31,6 +32,7 @@ impl From<String> for Derives {
             "capturedata" => Self::Capturedata,
             "start" => Self::Start,
             "verify" => Self::Verify,
+            "verifydata" => Self::VerifyData,
             _ => Self::Authorize,
         }
     }
@@ -103,6 +105,7 @@ impl Conversion {
             }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
+            Derives::VerifyData => syn::Ident::new("VerifyRequestData", Span::call_site()),
         }
     }
 
@@ -283,13 +286,15 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                     PaymentsRequestCaptureData,
                     PaymentRequestCancelData,
                     PaymentsRequestData,
+                    VerifyRequestData,
 
                     api::{
                         PaymentsCaptureRequest,
                         PaymentsCancelRequest,
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
-                        PaymentsStartRequest
+                        PaymentsStartRequest,
+                        VerifyRequest
                     }
                 };
                 #trait_derive

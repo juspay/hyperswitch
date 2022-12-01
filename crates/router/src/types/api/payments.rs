@@ -80,7 +80,7 @@ pub struct PaymentsRedirectRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
-    pub merchant_id: String,
+    pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
     pub name: Option<Secret<String>>,
@@ -321,13 +321,13 @@ pub struct PaymentsResponse {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
     pub status: enums::IntentStatus,
-    pub amount: i32,
+    pub amount: Option<i32>,
     pub amount_capturable: Option<i32>,
     pub amount_received: Option<i32>,
     pub client_secret: Option<Secret<String>>,
     #[serde(with = "custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
-    pub currency: String,
+    pub currency: Option<String>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub refunds: Option<Vec<RefundResponse>>,
@@ -506,6 +506,27 @@ impl From<PaymentsRequest> for PaymentsResponse {
     }
 }
 
+impl From<VerifyRequest> for PaymentsResponse {
+    fn from(item: VerifyRequest) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            email: item.email,
+            name: item.name,
+            phone: item.phone,
+            payment_method: item.payment_method,
+            payment_method_data: item
+                .payment_method_data
+                .map(PaymentMethodDataResponse::from),
+            payment_token: item.payment_token,
+            mandate_data: item.mandate_data,
+            setup_future_usage: item.setup_future_usage,
+            off_session: item.off_session,
+            ..Default::default()
+        }
+    }
+}
+
 impl From<PaymentsStartRequest> for PaymentsResponse {
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
@@ -522,11 +543,11 @@ impl From<types::storage::PaymentIntent> for PaymentsResponse {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
             status: item.status,
-            amount: item.amount,
+            amount: Some(item.amount),
             amount_capturable: item.amount_captured,
             client_secret: item.client_secret.map(|s| s.into()),
             created: Some(item.created_at),
-            currency: item.currency.map(|c| c.to_string()).unwrap_or_default(),
+            currency: Some(item.currency.map(|c| c.to_string()).unwrap_or_default()),
             description: item.description,
             metadata: item.metadata,
             customer_id: item.customer_id,

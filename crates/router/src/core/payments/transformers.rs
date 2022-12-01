@@ -136,7 +136,6 @@ where
         .as_ref()
         .get_required_value("currency")?
         .to_string();
-
     let refunds_response = if refunds.is_empty() {
         None
     } else {
@@ -169,12 +168,12 @@ where
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
-                        .set_amount(payment_attempt.amount)
+                        .set_amount(Some(payment_attempt.amount))
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
-                        .set_currency(currency)
+                        .set_currency(Some(currency))
                         .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
                         .set_email(
                             customer
@@ -221,12 +220,12 @@ where
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
             status: payment_intent.status,
-            amount: payment_attempt.amount,
+            amount: Some(payment_attempt.amount),
             amount_capturable: None,
             amount_received: payment_intent.amount_captured,
             client_secret: payment_intent.client_secret.map(masking::Secret::new),
             created: Some(payment_intent.created_at),
-            currency,
+            currency: Some(currency),
             customer_id: payment_intent.customer_id,
             description: payment_intent.description,
             refunds: refunds_response,
