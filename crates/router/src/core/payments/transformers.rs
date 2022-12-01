@@ -269,7 +269,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
                     .get_required_value("payment_method_type")?;
 
                 match payment_method_type {
-                    enums::PaymentMethodType::Wallet => api::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::Paypal => api::PaymentMethod::Paypal,
                     _ => payment_data
                         .payment_method_data
                         .get_required_value("payment_method_data")?,

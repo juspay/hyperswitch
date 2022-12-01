@@ -146,7 +146,7 @@ impl TryFrom<&types::PaymentsRouterData> for CreateTransactionRequest {
                 account_number: "XXXXX".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
+            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
             api::PaymentMethod::Paypal => PaymentDetails::Paypal,
         };
         let authorization_indicator_type =
@@ -355,7 +355,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
                 account_number: "XXXXX".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
+            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
             api::PaymentMethod::Paypal => PaymentDetails::Paypal,
         };
 
