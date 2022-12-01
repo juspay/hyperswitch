@@ -405,7 +405,7 @@ fn mk_new_refund(
     merchant_id: &str,
     refund_amount: i32,
 ) -> storage::RefundNew {
-    let current_time = crate::utils::date_time::now();
+    let current_time = common_utils::date_time::now();
     let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
         Some(id) => id,
         None => "",
@@ -440,10 +440,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
 
         let (status, error_message) = match response {
             Ok(response) => (response.refund_status.into(), None),
-            Err(error_response) => {
-                // FIXME: Properly handle status updation
-                (api::RefundStatus::Pending, Some(error_response.message))
-            }
+            Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
         };
 
         Ok(refunds::RefundResponse {
@@ -675,7 +672,7 @@ pub async fn add_refund_sync_task(
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
-    let current_time = crate::utils::date_time::now();
+    let current_time = common_utils::date_time::now();
     let refund_workflow_model = serde_json::to_value(refund_to_refund_core_workflow_model(refund))
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -687,7 +684,7 @@ pub async fn add_refund_sync_task(
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
         retry_count: 0,
-        schedule_time: Some(crate::utils::date_time::now()),
+        schedule_time: Some(common_utils::date_time::now()),
         rule: String::new(),
         tracking_data: refund_workflow_model,
         business_status: String::from("Pending"),
@@ -711,7 +708,7 @@ pub async fn add_refund_execute_task(
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
-    let current_time = crate::utils::date_time::now();
+    let current_time = common_utils::date_time::now();
     let refund_workflow_model = serde_json::to_value(refund_to_refund_core_workflow_model(refund))
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -722,7 +719,7 @@ pub async fn add_refund_execute_task(
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
         retry_count: 0,
-        schedule_time: Some(crate::utils::date_time::now()),
+        schedule_time: Some(common_utils::date_time::now()),
         rule: String::new(),
         tracking_data: refund_workflow_model,
         business_status: String::from("Pending"),

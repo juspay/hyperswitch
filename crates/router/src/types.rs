@@ -73,6 +73,7 @@ pub struct PaymentsRequestData {
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -113,7 +114,7 @@ pub struct RefundsRequestData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DeviceInformation {
+pub struct BrowserInformation {
     pub color_depth: u8,
     pub java_enabled: bool,
     pub java_script_enabled: bool,
@@ -122,7 +123,7 @@ pub struct DeviceInformation {
     pub screen_width: u32,
     pub time_zone: i32,
     pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: Option<String>,
+    pub accept_header: String,
     pub user_agent: String,
 }
 
@@ -205,5 +206,11 @@ impl From<ApiErrorResponse> for ErrorResponse {
             message: error.error_message(),
             reason: None,
         }
+    }
+}
+
+impl Default for ErrorResponse {
+    fn default() -> Self {
+        Self::from(ApiErrorResponse::InternalServerError)
     }
 }

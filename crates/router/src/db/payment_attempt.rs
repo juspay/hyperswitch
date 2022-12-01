@@ -146,16 +146,18 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
+    use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
     use fred::prelude::*;
+    use redis_interface::RedisEntryId;
 
     use super::IPaymentAttempt;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        services::{redis::RedisEntryId, Store},
+        services::Store,
         types::storage::{enums, payment_attempt::*},
-        utils::{date_time, storage_partitioning::KvStorePartition},
+        utils::storage_partitioning::KvStorePartition,
     };
 
     #[async_trait::async_trait]
@@ -199,6 +201,7 @@ mod storage {
                 amount_to_capture: payment_attempt.amount_to_capture,
                 cancellation_reason: payment_attempt.cancellation_reason.clone(),
                 mandate_id: payment_attempt.mandate_id.clone(),
+                browser_info: payment_attempt.browser_info.clone(),
             };
             // TODO: Add a proper error for serialization failure
             let redis_value = serde_json::to_string(&created_attempt)

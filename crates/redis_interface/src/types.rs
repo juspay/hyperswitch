@@ -1,3 +1,23 @@
+//!
+//! Data types and type conversions
+//! from `fred`'s internal data-types to custom data-types
+//!
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct RedisSettings {
+    pub host: String,
+    pub port: u16,
+    pub cluster_urls: Vec<String>,
+    pub cluster_enabled: bool,
+    pub use_legacy_version: bool,
+    pub pool_size: usize,
+    pub reconnect_max_attempts: u32,
+    /// Reconnect delay in milliseconds
+    pub reconnect_delay: u32,
+    /// TTL in seconds
+    pub default_ttl: u32,
+    pub stream_read_count: u64,
+}
+
 #[derive(Debug)]
 pub enum RedisEntryId {
     UserSpecifiedID {

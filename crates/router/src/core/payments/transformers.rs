@@ -98,15 +98,7 @@ where
             .unwrap_or_default(),
 
         request: T::try_from(payment_data.clone())?,
-
-        response: response.map_or_else(
-            || {
-                Err(types::ErrorResponse::from(
-                    errors::ApiErrorResponse::InternalServerError,
-                ))
-            },
-            Ok,
-        ),
+        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
     Ok((payment_data, router_data))
@@ -258,6 +250,14 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
         Ok(Self {
             payment_method_data: {
                 let payment_method_type = payment_data
@@ -281,6 +281,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsRequestData {
             capture_method: payment_data.payment_attempt.capture_method,
             amount: payment_data.amount,
             currency: payment_data.currency,
+            browser_info,
         })
     }
 }

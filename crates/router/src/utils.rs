@@ -16,15 +16,6 @@ pub(crate) use self::{
 };
 use crate::consts;
 
-pub mod date_time {
-    use time::{OffsetDateTime, PrimitiveDateTime};
-
-    pub fn now() -> PrimitiveDateTime {
-        let utc_date_time = OffsetDateTime::now_utc();
-        PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
-    }
-}
-
 pub mod error_parser {
     use std::fmt::Display;
 

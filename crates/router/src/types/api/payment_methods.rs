@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use common_utils::custom_serde;
 use error_stack::report;
 use literally::hmap;
 use once_cell::sync::Lazy;
@@ -10,7 +11,6 @@ use crate::{
     core::errors::{self, RouterResult},
     pii::{self, Secret},
     types::storage::enums,
-    utils::custom_serde,
 };
 
 /// Static collection that contains valid Payment Method Type and Payment Method SubType

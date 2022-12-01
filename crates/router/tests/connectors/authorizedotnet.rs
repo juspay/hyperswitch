@@ -4,7 +4,7 @@ use masking::Secret;
 use router::{
     configs::settings::Settings,
     connector::Authorizedotnet,
-    core::{errors, payments},
+    core::payments,
     routes::AppState,
     services,
     types::{self, storage::enums, PaymentAddress},
@@ -46,11 +46,10 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             off_session: None,
             setup_mandate_details: None,
             capture_method: None,
+            browser_info: None,
         },
         payment_method_id: None,
-        response: Err(types::ErrorResponse::from(
-            errors::ApiErrorResponse::InternalServerError,
-        )),
+        response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
     }
 }
@@ -86,9 +85,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 1,
         },
-        response: Err(types::ErrorResponse::from(
-            errors::ApiErrorResponse::InternalServerError,
-        )),
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
         address: PaymentAddress::default(),
     }

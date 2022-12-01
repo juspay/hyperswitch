@@ -6,7 +6,7 @@ use crate::configs::settings::{Database, Settings};
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
-pub type RedisPool = std::sync::Arc<crate::services::redis::RedisConnectionPool>;
+pub type RedisPool = std::sync::Arc<redis_interface::RedisConnectionPool>;
 
 #[derive(Debug)]
 struct TestTransaction;
@@ -25,8 +25,8 @@ impl CustomizeConnection<PgPooledConn, ConnectionError> for TestTransaction {
     }
 }
 
-pub async fn redis_connection(conf: &Settings) -> crate::services::redis::RedisConnectionPool {
-    crate::services::redis::RedisConnectionPool::new(&conf.redis).await
+pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnectionPool {
+    redis_interface::RedisConnectionPool::new(&conf.redis).await
 }
 
 #[allow(clippy::expect_used)]
