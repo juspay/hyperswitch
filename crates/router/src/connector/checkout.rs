@@ -58,13 +58,6 @@ impl api::PaymentSync for Checkout {}
 impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 
-#[allow(dead_code)]
-type PCapture = dyn services::ConnectorIntegration<
-    api::Capture,
-    types::PaymentsSyncData,
-    types::PaymentsResponseData,
->;
-
 impl
     services::ConnectorIntegration<
         api::Capture,
@@ -73,13 +66,6 @@ impl
     > for Checkout
 {
 }
-
-#[allow(dead_code)]
-type PSync = dyn services::ConnectorIntegration<
-    api::PSync,
-    types::PaymentsSyncData,
-    types::PaymentsResponseData,
->;
 
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -92,7 +78,7 @@ impl
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -122,10 +108,10 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Get)
-                .url(&PSync::get_url(self, req, connectors)?)
-                .headers(PSync::get_headers(self, req)?)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsSyncType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(PSync::get_request_body(self, req)?)
+                .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -174,12 +160,6 @@ impl
     }
 }
 
-type Authorize = dyn services::ConnectorIntegration<
-    api::Authorize,
-    types::PaymentsAuthorizeData,
-    types::PaymentsResponseData,
->; // why is this named Authorize
-
 impl
     services::ConnectorIntegration<
         api::Authorize,
@@ -194,7 +174,7 @@ impl
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -231,11 +211,12 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
-                .url(&Authorize::get_url(self, req, connectors)?)
-                .headers(Authorize::get_headers(self, req)?)
+                .url(&types::PaymentsAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(Authorize::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -280,12 +261,6 @@ impl
         //TODO : No sufficient information of error codes (no.of error codes to consider)
     }
 }
-
-type Void = dyn services::ConnectorIntegration<
-    api::Void,
-    types::PaymentsCancelData,
-    types::PaymentsResponseData,
->;
 
 impl
     services::ConnectorIntegration<
@@ -347,11 +322,6 @@ impl api::Refund for Checkout {}
 impl api::RefundExecute for Checkout {}
 impl api::RefundSync for Checkout {}
 
-type Execute = dyn services::ConnectorIntegration<
-    api::Execute,
-    types::RefundsData,
-    types::RefundsResponseData,
->;
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Checkout
 {
@@ -362,7 +332,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Execute::get_content_type(self).to_string(),
+                types::RefundExecuteType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -404,9 +374,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            .url(&Execute::get_url(self, req, connectors)?)
-            .headers(Execute::get_headers(self, req)?)
-            .body(Execute::get_request_body(self, req)?)
+            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .headers(types::RefundExecuteType::get_headers(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }
@@ -456,8 +426,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 }
 
-type RSync =
-    dyn services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>;
 impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Checkout
 {
@@ -468,7 +436,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                RSync::get_content_type(self).to_string(),
+                types::RefundSyncType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -498,9 +466,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Get)
-                .url(&RSync::get_url(self, req, connectors)?)
-                .headers(RSync::get_headers(self, req)?)
-                .body(RSync::get_request_body(self, req)?)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .headers(types::RefundSyncType::get_headers(self, req)?)
+                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
