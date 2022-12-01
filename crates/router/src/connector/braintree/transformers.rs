@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    pii::{PeekInterface, Secret},
+    pii::PeekInterface,
     types::{self, api, storage::enums},
 };
 
@@ -29,47 +29,44 @@ pub struct TransactionBody {
     #[serde(rename = "type")]
     kind: String,
 }
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: Option<Secret<String>>,
-    expiration_month: Option<Secret<String>>,
-    expiration_year: Option<Secret<String>>,
-    cvv: Option<String>,
+    number: String,
+    expiration_month: String,
+    expiration_year: String,
+    cvv: String,
 }
 
-impl TryFrom<&types::PaymentsRouterData> for BraintreePaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ValidateError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
-        let ccard = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer => None,
-            api::PaymentMethod::PayLater(_) => None,
-            api::PaymentMethod::Wallet => None,
-            api::PaymentMethod::Paypal => None,
-        };
-
-        let braintree_payment_request = TransactionBody {
-            amount: item.amount.to_string(),
-            device_data: DeviceData {},
-            options: PaymentOptions {
-                submit_for_settlement: true,
-            },
-            credit_card: Card {
-                number: ccard.map(|x| x.card_number.peek().clone().into()),
-                expiration_month: ccard.map(|x| x.card_exp_month.peek().clone().into()),
-                expiration_year: ccard.map(|x| x.card_exp_year.peek().clone().into()),
-                cvv: ccard.map(|x| x.card_cvc.peek().clone().into()),
-            },
-            kind: "sale".to_string(),
-        };
-        Ok(BraintreePaymentsRequest {
-            transaction: braintree_payment_request,
-        })
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => {
+                let braintree_payment_request = TransactionBody {
+                    amount: item.request.amount.to_string(),
+                    device_data: DeviceData {},
+                    options: PaymentOptions {
+                        submit_for_settlement: true,
+                    },
+                    credit_card: Card {
+                        number: ccard.card_number.peek().clone(),
+                        expiration_month: ccard.card_exp_month.peek().clone(),
+                        expiration_year: ccard.card_exp_year.peek().clone(),
+                        cvv: ccard.card_cvc.peek().clone(),
+                    },
+                    kind: "sale".to_string(),
+                };
+                Ok(BraintreePaymentsRequest {
+                    transaction: braintree_payment_request,
+                })
+            }
+            _ => Err(errors::ValidateError.into()),
+        }
     }
 }
 
-// Auth Struct
 pub struct BraintreeAuthType {
     pub(super) api_key: String,
     pub(super) merchant_account: String,
@@ -89,7 +86,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BraintreePaymentStatus {
     Succeeded,
@@ -107,7 +104,6 @@ pub enum BraintreePaymentStatus {
     SettlementConfirmed,
 }
 
-// Default should be Processing
 impl Default for BraintreePaymentStatus {
     fn default() -> Self {
         BraintreePaymentStatus::Settling
@@ -144,25 +140,25 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.transaction.id,
-                //TODO: Add redirection details here
+            response: Ok(types::PaymentsResponseData {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction.id,
+                ),
                 redirection_data: None,
                 redirect: false,
             }),
-            error_response: None,
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     transaction: TransactionResponse,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionResponse {
     id: String,
@@ -171,21 +167,18 @@ pub struct TransactionResponse {
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
 pub struct ApiErrorResponse {
     pub message: String,
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize)]
 pub struct RefundRequest {}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
@@ -195,17 +188,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     }
 }
 
-// Type definition for Refund Response
-
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
     Processing,
 }
 
-// Default should be Processing
 impl Default for RefundStatus {
     fn default() -> Self {
         RefundStatus::Processing
@@ -218,13 +208,11 @@ impl From<self::RefundStatus> for enums::RefundStatus {
             self::RefundStatus::Succeeded => enums::RefundStatus::Success,
             self::RefundStatus::Failed => enums::RefundStatus::Failure,
             self::RefundStatus::Processing => enums::RefundStatus::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
     pub status: RefundStatus,
@@ -238,11 +226,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -256,11 +243,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
