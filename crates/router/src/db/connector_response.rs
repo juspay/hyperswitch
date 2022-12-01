@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
 };
 
@@ -25,8 +25,9 @@ pub trait ConnectorResponseInterface {
     ) -> CustomResult<ConnectorResponse, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl ConnectorResponseInterface for Store {
+impl ConnectorResponseInterface for super::Store {
     async fn insert_connector_response(
         &self,
         connector_response: ConnectorResponseNew,
@@ -61,8 +62,9 @@ impl ConnectorResponseInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl ConnectorResponseInterface for Sqlx {
+impl ConnectorResponseInterface for super::Sqlx {
     async fn insert_connector_response(
         &self,
         connector_response: ConnectorResponseNew,

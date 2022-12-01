@@ -35,7 +35,7 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
     let mut merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
         .await
@@ -186,7 +186,7 @@ async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();

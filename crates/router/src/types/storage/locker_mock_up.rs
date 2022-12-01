@@ -1,5 +1,7 @@
+#[cfg(feature = "diesel")]
 use diesel::{Identifiable, Insertable, Queryable};
 
+#[cfg(feature = "diesel")]
 use crate::schema::locker_mock_up;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

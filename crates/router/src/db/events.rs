@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{Event, EventNew},
 };
 
@@ -11,16 +11,18 @@ pub trait EventInterface {
     async fn insert_event(&self, event: EventNew) -> CustomResult<Event, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl EventInterface for Store {
+impl EventInterface for super::Store {
     async fn insert_event(&self, event: EventNew) -> CustomResult<Event, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         event.insert(&conn).await
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl EventInterface for Sqlx {
+impl EventInterface for super::Sqlx {
     async fn insert_event(&self, event: EventNew) -> CustomResult<Event, errors::StorageError> {
         todo!()
     }

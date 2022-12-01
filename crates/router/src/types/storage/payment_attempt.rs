@@ -1,14 +1,14 @@
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_attempt, types::enums};
+#[cfg(feature = "diesel")]
+use crate::schema::payment_attempt;
+use crate::types::enums;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(
-    feature = "diesel",
-    derive(Identifiable, Queryable, Serialize, Deserialize)
-)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
 #[cfg_attr(feature = "diesel", diesel(table_name = payment_attempt))]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct PaymentAttempt {
@@ -188,6 +188,7 @@ pub struct PaymentAttemptNew {
     pub browser_info: Option<serde_json::Value>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl PaymentAttemptNew {
     fn insert_query(&self, table: &str) -> String {
@@ -233,6 +234,7 @@ impl PaymentAttemptNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentAttemptNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
@@ -266,6 +268,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentAttemptNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentAttemptNew {
     fn decode(
         value: sqlx::postgres::PgValueRef<'r>,
@@ -331,6 +334,7 @@ impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentAttemptNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl sqlx::Type<sqlx::Postgres> for PaymentAttemptNew {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         sqlx::postgres::PgTypeInfo::with_name("PaymentAttemptNew")
@@ -378,6 +382,7 @@ pub enum PaymentAttemptUpdate {
 #[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = payment_attempt))]
+#[allow(dead_code)]
 pub(super) struct PaymentAttemptUpdateInternal {
     amount: Option<i32>,
     currency: Option<enums::Currency>,
@@ -511,7 +516,7 @@ mod tests {
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
 
-        let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
@@ -537,7 +542,7 @@ mod tests {
     async fn test_find_payment_attempt() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
-        let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
@@ -573,7 +578,7 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let uuid = uuid::Uuid::new_v4().to_string();
-        let state = routes::AppState::new(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
         let current_time = common_utils::date_time::now();
 
         let payment_attempt = PaymentAttemptNew {

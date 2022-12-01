@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{Config, ConfigNew, ConfigUpdate},
 };
 
@@ -17,8 +17,9 @@ pub trait ConfigInterface {
     ) -> CustomResult<Config, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl ConfigInterface for Store {
+impl ConfigInterface for super::Store {
     async fn insert_config(&self, config: ConfigNew) -> CustomResult<Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         config.insert(&conn).await
@@ -39,8 +40,9 @@ impl ConfigInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl ConfigInterface for Sqlx {
+impl ConfigInterface for super::Sqlx {
     async fn insert_config(&self, config: ConfigNew) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }

@@ -30,6 +30,7 @@ pub mod env;
 pub mod pii;
 pub mod routes;
 pub mod scheduler;
+#[cfg(feature = "diesel")]
 #[allow(unused_imports)] // Allow unused imports only for schema module
 pub mod schema;
 pub mod services;
@@ -48,7 +49,6 @@ pub use self::env::logger;
 use crate::{
     configs::settings::Settings,
     core::errors::{self, BachResult},
-    services::Store,
 };
 
 /// Header Constants
@@ -114,11 +114,7 @@ pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
 
     let server = conf.server.clone();
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: Box::new(Store::new(&conf).await),
-        conf,
-    };
+    let state = routes::AppState::new(conf).await;
     // Cloning to close connections before shutdown
     let app_state = state.clone();
     let request_body_limit = server.request_body_limit;

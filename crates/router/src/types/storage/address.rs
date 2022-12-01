@@ -1,10 +1,14 @@
 use common_utils::custom_serde;
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use crate::{consts, schema::address, types::api, utils::generate_id};
+#[cfg(feature = "diesel")]
+use crate::schema::address;
+use crate::{consts, types::api, utils::generate_id};
+
 #[derive(Clone, Debug, Deserialize, Serialize, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(Insertable))]
 #[cfg_attr(feature = "diesel", diesel(table_name = address))]
@@ -71,6 +75,7 @@ pub enum AddressUpdate {
 #[derive(Clone, Debug, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = address))]
+#[allow(dead_code)]
 pub(super) struct AddressUpdateInternal {
     city: Option<String>,
     country: Option<String>,

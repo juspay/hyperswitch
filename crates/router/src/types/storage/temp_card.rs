@@ -1,7 +1,9 @@
+#[cfg(feature = "diesel")]
 use diesel::{Identifiable, Insertable, Queryable};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "diesel")]
 use crate::schema::temp_card;
 
 #[derive(Clone, Debug, router_derive::DebugAsDisplay)]
@@ -26,6 +28,7 @@ pub struct TempCardNew {
     pub txn_id: Option<String>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl TempCardNew {
     fn insert_query(&self, table: &str) -> String {

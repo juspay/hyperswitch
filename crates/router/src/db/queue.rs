@@ -1,11 +1,12 @@
-use redis_interface::{errors::RedisError, RedisEntryId, SetNXReply};
+#[cfg(feature = "diesel")]
+use redis_interface::SetNXReply;
+use redis_interface::{errors::RedisError, RedisEntryId};
+#[cfg(feature = "diesel")]
 use router_env::logger;
 
-use super::{MockDb, Sqlx};
+use super::MockDb;
 use crate::{
     core::errors::{CustomResult, ProcessTrackerError},
-    scheduler::consumer::fetch_consumer_tasks,
-    services::Store,
     types::storage::ProcessTracker,
 };
 
@@ -39,15 +40,16 @@ pub trait QueueInterface {
     async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl QueueInterface for Store {
+impl QueueInterface for super::Store {
     async fn fetch_consumer_tasks(
         &self,
         stream_name: &str,
         group_name: &str,
         consumer_name: &str,
     ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
-        fetch_consumer_tasks(
+        crate::scheduler::consumer::fetch_consumer_tasks(
             self,
             &self.redis_conn.clone(),
             stream_name,
@@ -162,8 +164,9 @@ impl QueueInterface for MockDb {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl QueueInterface for Sqlx {
+impl QueueInterface for super::Sqlx {
     async fn fetch_consumer_tasks(
         &self,
         stream_name: &str,

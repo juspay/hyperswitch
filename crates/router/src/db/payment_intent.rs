@@ -1,4 +1,4 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
     types::{
@@ -33,6 +33,7 @@ pub trait PaymentIntentInterface {
     ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
@@ -207,6 +208,7 @@ mod storage {
     }
 }
 
+#[cfg(feature = "diesel")]
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use super::PaymentIntentInterface;
@@ -256,8 +258,9 @@ mod storage {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl PaymentIntentInterface for Sqlx {
+impl PaymentIntentInterface for super::Sqlx {
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,

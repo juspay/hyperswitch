@@ -1,10 +1,12 @@
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "diesel")]
+use crate::schema::mandate;
 // use serde::{Deserialize, Serialize};
 use crate::{
     pii::{self, Secret},
-    schema::mandate,
     types::enums,
 };
 
@@ -55,6 +57,7 @@ pub enum MandateUpdate {
 #[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = mandate))]
+#[allow(dead_code)]
 pub(super) struct MandateUpdateInternal {
     mandate_status: enums::MandateStatus,
 }

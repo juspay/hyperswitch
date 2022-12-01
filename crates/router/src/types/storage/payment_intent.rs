@@ -1,14 +1,14 @@
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_intent, types::enums};
+#[cfg(feature = "diesel")]
+use crate::schema::payment_intent;
+use crate::types::enums;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(
-    feature = "diesel",
-    derive(Identifiable, Queryable, Serialize, Deserialize)
-)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
 #[cfg_attr(feature = "diesel", diesel(table_name = payment_intent))]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct PaymentIntent {
@@ -36,6 +36,7 @@ pub struct PaymentIntent {
     pub client_secret: Option<String>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntent {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
@@ -67,6 +68,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntent {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentIntent {
     fn decode(
         value: sqlx::postgres::PgValueRef<'r>,
@@ -122,6 +124,7 @@ impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentIntent {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl sqlx::Type<sqlx::Postgres> for PaymentIntent {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         sqlx::postgres::PgTypeInfo::with_name("PaymentIntent")
@@ -155,6 +158,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl PaymentIntentNew {
     fn insert_query(&self, table: &str) -> String {
@@ -196,6 +200,7 @@ impl PaymentIntentNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntentNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
@@ -227,6 +232,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for PaymentIntentNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentIntentNew {
     fn decode(
         value: sqlx::postgres::PgValueRef<'r>,
@@ -280,6 +286,7 @@ impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for PaymentIntentNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl sqlx::Type<sqlx::Postgres> for PaymentIntentNew {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         sqlx::postgres::PgTypeInfo::with_name("PaymentIntentNew")

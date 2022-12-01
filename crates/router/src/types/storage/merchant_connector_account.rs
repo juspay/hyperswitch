@@ -1,6 +1,9 @@
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::{pii::Secret, schema::merchant_connector_account, types::enums};
+#[cfg(feature = "diesel")]
+use crate::schema::merchant_connector_account;
+use crate::{pii::Secret, types::enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
@@ -14,7 +17,7 @@ pub struct MerchantConnectorAccount {
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: i32,
-    #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
+    #[cfg_attr(feature = "diesel", diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>))]
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: enums::ConnectorType,
 }
@@ -79,6 +82,7 @@ pub enum MerchantConnectorAccountUpdate {
 #[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = merchant_connector_account))]
+#[allow(dead_code)]
 pub(super) struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
     connector_type: Option<enums::ConnectorType>,

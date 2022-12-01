@@ -9,7 +9,7 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [features]
-default = ["diesel", "sqlx", "kv_store"]
+default = ["diesel", "kv_store"]
 kms = ["aws-config", "aws-sdk-kms"]
 basilisk = []
 stripe = ["dep:serde_qs"]

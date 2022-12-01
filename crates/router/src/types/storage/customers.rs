@@ -1,14 +1,16 @@
 use common_utils::custom_serde;
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use uuid::Uuid;
 
+#[cfg(feature = "diesel")]
+use crate::schema::customers;
 use crate::{
     core::errors::{self, RouterResult},
     pii::{self, PeekInterface, Secret},
-    schema::customers,
     utils::{self, ValidateCall},
 };
 
@@ -30,6 +32,7 @@ pub struct CustomerNew {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl CustomerNew {
     fn insert_query(&self, table: &str) -> String {
@@ -59,6 +62,7 @@ impl CustomerNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for CustomerNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
@@ -78,6 +82,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for CustomerNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for CustomerNew {
     fn decode(
@@ -108,6 +113,7 @@ impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for CustomerNew {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl sqlx::Type<sqlx::Postgres> for CustomerNew {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         sqlx::postgres::PgTypeInfo::with_name("CustomerNew")
@@ -164,6 +170,7 @@ pub struct Customer {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for Customer {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
@@ -184,6 +191,7 @@ impl sqlx::encode::Encode<'_, sqlx::Postgres> for Customer {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for Customer {
     fn decode(
@@ -218,6 +226,7 @@ impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for Customer {
     }
 }
 
+#[cfg(feature = "sqlx")]
 impl sqlx::Type<sqlx::Postgres> for Customer {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         sqlx::postgres::PgTypeInfo::with_name("Customer")
@@ -240,6 +249,7 @@ pub enum CustomerUpdate {
 #[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = customers))]
+#[allow(dead_code)]
 pub(super) struct CustomerUpdateInternal {
     name: Option<String>,
     email: Option<Secret<String, pii::Email>>,

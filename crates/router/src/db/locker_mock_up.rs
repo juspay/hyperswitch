@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{LockerMockUp, LockerMockUpNew},
 };
 
@@ -19,8 +19,9 @@ pub trait LockerMockUpInterface {
     ) -> CustomResult<LockerMockUp, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl LockerMockUpInterface for Store {
+impl LockerMockUpInterface for super::Store {
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,
@@ -38,8 +39,9 @@ impl LockerMockUpInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl LockerMockUpInterface for Sqlx {
+impl LockerMockUpInterface for super::Sqlx {
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,

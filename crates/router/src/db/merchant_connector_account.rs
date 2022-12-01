@@ -1,10 +1,10 @@
 use masking::ExposeInterface;
 
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{
         MerchantConnectorAccount, MerchantConnectorAccountNew, MerchantConnectorAccountUpdate,
     },
@@ -47,8 +47,9 @@ pub trait MerchantConnectorAccountInterface {
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl MerchantConnectorAccountInterface for Store {
+impl MerchantConnectorAccountInterface for super::Store {
     async fn find_merchant_connector_account_by_merchant_id_connector(
         &self,
         merchant_id: &str,
@@ -112,8 +113,9 @@ impl MerchantConnectorAccountInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl MerchantConnectorAccountInterface for Sqlx {
+impl MerchantConnectorAccountInterface for super::Sqlx {
     async fn find_merchant_connector_account_by_merchant_id_connector(
         &self,
         merchant_id: &str,

@@ -1,10 +1,10 @@
 use time::PrimitiveDateTime;
 
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{enums, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate},
 };
 
@@ -52,8 +52,9 @@ pub trait ProcessTrackerInterface {
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl ProcessTrackerInterface for Store {
+impl ProcessTrackerInterface for super::Store {
     async fn find_process_by_id(
         &self,
         id: &str,
@@ -125,8 +126,9 @@ impl ProcessTrackerInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl ProcessTrackerInterface for Sqlx {
+impl ProcessTrackerInterface for super::Sqlx {
     async fn find_process_by_id(
         &self,
         id: &str,

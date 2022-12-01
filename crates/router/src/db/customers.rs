@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::{
         api::CreateCustomerRequest,
         storage::{Customer, CustomerNew, CustomerUpdate},
@@ -42,8 +42,9 @@ pub trait CustomerInterface {
     ) -> CustomResult<Customer, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl CustomerInterface for Store {
+impl CustomerInterface for super::Store {
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
@@ -90,8 +91,9 @@ impl CustomerInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl CustomerInterface for Sqlx {
+impl CustomerInterface for super::Sqlx {
     #[allow(clippy::panic)]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,

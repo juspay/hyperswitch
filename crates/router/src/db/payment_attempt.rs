@@ -1,4 +1,4 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
     types::storage::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
@@ -49,6 +49,7 @@ pub trait PaymentAttemptInterface {
     ) -> CustomResult<PaymentAttempt, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use super::PaymentAttemptInterface;
@@ -59,6 +60,7 @@ mod storage {
         types::storage::payment_attempt::*,
     };
 
+    #[cfg(feature = "diesel")]
     #[async_trait::async_trait]
     impl PaymentAttemptInterface for Store {
         async fn insert_payment_attempt(
@@ -145,8 +147,9 @@ mod storage {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl PaymentAttemptInterface for Sqlx {
+impl PaymentAttemptInterface for super::Sqlx {
     async fn find_payment_attempt_by_merchant_id_txn_id(
         &self,
         merchant_id: &str,
@@ -328,6 +331,7 @@ impl PaymentAttemptInterface for MockDb {
     }
 }
 
+#[cfg(feature = "diesel")]
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;

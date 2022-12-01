@@ -1,8 +1,11 @@
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::refund, types::enums};
+#[cfg(feature = "diesel")]
+use crate::schema::refund;
+use crate::types::enums;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
@@ -83,6 +86,7 @@ pub enum RefundUpdate {
 #[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = refund))]
+#[allow(dead_code)]
 pub(super) struct RefundUpdateInternal {
     pg_refund_id: Option<String>,
     refund_status: Option<enums::RefundStatus>,

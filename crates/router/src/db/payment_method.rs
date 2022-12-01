@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{PaymentMethod, PaymentMethodNew},
 };
 
@@ -31,8 +31,9 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl PaymentMethodInterface for Store {
+impl PaymentMethodInterface for super::Store {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
@@ -73,8 +74,9 @@ impl PaymentMethodInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl PaymentMethodInterface for Sqlx {
+impl PaymentMethodInterface for super::Sqlx {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,

@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{Mandate, MandateNew, MandateUpdate},
 };
 
@@ -33,8 +33,9 @@ pub trait MandateInterface {
     ) -> CustomResult<Mandate, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl MandateInterface for Store {
+impl MandateInterface for super::Store {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -72,8 +73,9 @@ impl MandateInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl MandateInterface for Sqlx {
+impl MandateInterface for super::Sqlx {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,

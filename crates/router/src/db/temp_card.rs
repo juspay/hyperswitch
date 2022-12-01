@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{TempCard, TempCardNew},
 };
 
@@ -29,8 +29,9 @@ pub trait TempCardInterface {
     ) -> CustomResult<TempCard, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl TempCardInterface for Store {
+impl TempCardInterface for super::Store {
     async fn insert_temp_card(
         &self,
         address: TempCardNew,
@@ -64,8 +65,9 @@ impl TempCardInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl TempCardInterface for Sqlx {
+impl TempCardInterface for super::Sqlx {
     #[allow(clippy::panic)]
     async fn insert_temp_card(
         &self,

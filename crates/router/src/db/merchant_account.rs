@@ -1,11 +1,11 @@
 use error_stack::Report;
 use masking::PeekInterface;
 
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
-    services::Store,
     types::storage::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdate},
 };
 
@@ -43,8 +43,9 @@ pub trait MerchantAccountInterface {
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl MerchantAccountInterface for Store {
+impl MerchantAccountInterface for super::Store {
     async fn insert_merchant(
         &self,
         merchant_account: MerchantAccountNew,
@@ -95,8 +96,9 @@ impl MerchantAccountInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl MerchantAccountInterface for Sqlx {
+impl MerchantAccountInterface for super::Sqlx {
     #[allow(clippy::panic)]
     async fn insert_merchant(
         &self,

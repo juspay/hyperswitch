@@ -1,8 +1,8 @@
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
-    services::Store,
     types::storage::{Address, AddressNew, AddressUpdate},
 };
 
@@ -20,8 +20,9 @@ pub trait AddressInterface {
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl AddressInterface for Store {
+impl AddressInterface for super::Store {
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         Address::find_by_address_id(&conn, address_id).await
@@ -45,8 +46,9 @@ impl AddressInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl AddressInterface for Sqlx {
+impl AddressInterface for super::Sqlx {
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError> {
         todo!()
     }

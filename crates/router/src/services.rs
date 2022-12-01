@@ -2,10 +2,12 @@ pub mod api;
 pub mod encryption;
 pub mod logger;
 
+#[cfg(feature = "diesel")]
 use std::sync::Arc;
 
 pub use self::{api::*, encryption::*};
 
+#[cfg(feature = "diesel")]
 #[derive(Clone)]
 pub struct Store {
     pub master_pool: crate::db::SqlDb,
@@ -18,11 +20,13 @@ pub struct Store {
 
 #[cfg(feature = "kv_store")]
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) struct StoreConfig {
     pub(crate) drainer_stream_name: String,
     pub(crate) drainer_num_partitions: u8,
 }
 
+#[cfg(feature = "diesel")]
 impl Store {
     pub async fn new(config: &crate::configs::settings::Settings) -> Self {
         Self {

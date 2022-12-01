@@ -1,18 +1,14 @@
+#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::{pii::StrongSecret, schema::merchant_account, types::enums};
+#[cfg(feature = "diesel")]
+use crate::schema::merchant_account;
+use crate::{pii::StrongSecret, types::enums};
 
-#[derive(
-    sqlx::FromRow,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    router_derive::DebugAsDisplay,
-    Identifiable,
-    Queryable,
-)]
+#[derive(Clone, Debug, Eq, PartialEq, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
 #[cfg_attr(feature = "diesel", diesel(table_name = merchant_account))]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct MerchantAccount {
     pub id: i32,
     pub merchant_id: String,
@@ -51,6 +47,7 @@ pub struct MerchantAccountNew {
     pub(crate) publishable_key: Option<String>,
 }
 
+#[cfg(feature = "sqlx")]
 #[allow(clippy::needless_borrow)]
 impl sqlx::encode::Encode<'_, sqlx::Postgres> for MerchantAccountNew {
     fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
@@ -178,6 +175,7 @@ pub enum MerchantAccountUpdate {
 #[derive(Clone, Debug, Default, router_derive::DebugAsDisplay)]
 #[cfg_attr(feature = "diesel", derive(AsChangeset))]
 #[cfg_attr(feature = "diesel", diesel(table_name = merchant_account))]
+#[allow(dead_code)]
 pub(super) struct MerchantAccountUpdateInternal {
     merchant_id: Option<String>,
     merchant_name: Option<String>,

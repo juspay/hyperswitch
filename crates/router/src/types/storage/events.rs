@@ -1,12 +1,16 @@
 use common_utils::custom_serde;
+#[cfg(feature = "diesel")]
 use diesel::{Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::events, types::storage::enums};
+#[cfg(feature = "diesel")]
+use crate::schema::events;
+use crate::types::storage::enums;
 
-#[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = events)]
+#[derive(Clone, Debug, Deserialize, Serialize, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "diesel", derive(Insertable))]
+#[cfg_attr(feature = "diesel", diesel(table_name = events))]
 #[serde(deny_unknown_fields)]
 pub struct EventNew {
     pub event_id: String,

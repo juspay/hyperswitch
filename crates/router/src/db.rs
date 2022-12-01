@@ -21,24 +21,28 @@ pub mod temp_card;
 
 use std::{collections::HashMap, sync::Arc};
 
-use dyn_clone::DynClone;
 use futures_locks::{Mutex, MutexGuard};
+#[cfg(feature = "sqlx")]
 use sqlx::PgPool as SqlxPgPool;
 
-use crate::{
-    configs::settings::{Database, Settings},
-    connection::{diesel_make_pg_pool, PgPool as PgPoolDiesel},
-    services::Store,
-    types::storage::{
-        ConnectorResponse, Customer, MerchantAccount, MerchantConnectorAccount, PaymentAttempt,
-        PaymentIntent, ProcessTracker, Refund, TempCard,
-    },
+#[cfg(any(feature = "diesel", feature = "sqlx"))]
+use crate::configs::settings::Database;
+#[cfg(feature = "diesel")]
+use crate::connection::{diesel_make_pg_pool, PgPool as PgPoolDiesel};
+#[cfg(feature = "diesel")]
+use crate::services::Store;
+use crate::types::storage::{
+    ConnectorResponse, Customer, MerchantAccount, MerchantConnectorAccount, PaymentAttempt,
+    PaymentIntent, ProcessTracker, Refund, TempCard,
 };
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
+    #[cfg(feature = "diesel")]
     DieselPostgresql,
+    #[cfg(feature = "diesel")]
     DieselPostgresqlTest,
+    #[cfg(feature = "sqlx")]
     Sqlx,
     Mock,
 }
@@ -47,7 +51,7 @@ pub enum StorageImpl {
 pub trait StorageInterface:
     Send
     + Sync
-    + DynClone
+    + dyn_clone::DynClone
     + payment_attempt::PaymentAttemptInterface
     + mandate::MandateInterface
     + address::AddressInterface
@@ -69,11 +73,13 @@ pub trait StorageInterface:
     async fn close(&mut self) {}
 }
 
+#[cfg(feature = "diesel")]
 #[derive(Clone)]
 pub struct SqlDb {
     pub conn: PgPoolDiesel,
 }
 
+#[cfg(feature = "diesel")]
 impl SqlDb {
     pub async fn new(database: &Database) -> Self {
         Self {
@@ -95,6 +101,7 @@ impl SqlDb {
     }
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl StorageInterface for Store {
     #[allow(clippy::expect_used)]
@@ -106,11 +113,13 @@ impl StorageInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[derive(Clone)]
 pub struct Sqlx {
     pool: SqlxPgPool,
 }
 
+#[cfg(feature = "sqlx")]
 impl Sqlx {
     #[allow(clippy::expect_used)]
     pub async fn new(database: &Database) -> Sqlx {
@@ -127,6 +136,7 @@ impl Sqlx {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
 impl StorageInterface for Sqlx {}
 
@@ -146,7 +156,7 @@ pub struct MockDb {
 }
 
 impl MockDb {
-    pub async fn new(redis: &Settings) -> Self {
+    pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),

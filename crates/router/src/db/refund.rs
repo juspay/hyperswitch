@@ -1,10 +1,10 @@
 use error_stack::Report;
 
-use super::{MockDb, Sqlx};
+use super::MockDb;
+#[cfg(feature = "diesel")]
+use crate::connection::pg_connection;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
-    services::Store,
     types::storage::{Refund, RefundNew, RefundUpdate},
 };
 
@@ -50,8 +50,9 @@ pub trait RefundInterface {
     async fn insert_refund(&self, new: RefundNew) -> CustomResult<Refund, errors::StorageError>;
 }
 
+#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
-impl RefundInterface for Store {
+impl RefundInterface for super::Store {
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
@@ -114,8 +115,9 @@ impl RefundInterface for Store {
     }
 }
 
+#[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
-impl RefundInterface for Sqlx {
+impl RefundInterface for super::Sqlx {
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
