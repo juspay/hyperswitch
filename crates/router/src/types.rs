@@ -28,8 +28,11 @@ pub type PaymentRouterCancelData =
 pub type RefundsRouterData<F> = RouterData<F, RefundsRequestData, RefundsResponseData>;
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsRequestData, PaymentsResponseData>;
+pub type PaymentsSyncResponseRouterData<R> =
+    ResponseRouterData<api::PSync, R, PaymentsRequestSyncData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentRequestCancelData, PaymentsResponseData>;
+
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::PCapture, R, PaymentsRequestCaptureData, PaymentsResponseData>;
 pub type RefundsResponseRouterData<F, R> =

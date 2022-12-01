@@ -7,7 +7,6 @@ use crate::{
     pii::{self, Secret},
     services,
     types::{self, api, storage::enums},
-    utils::FromExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -139,11 +138,14 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl FromExt<CheckoutPaymentStatus, Option<enums::CaptureMethod>> for enums::AttemptStatus {
-    fn from_ext(item: CheckoutPaymentStatus, capture_method: Option<enums::CaptureMethod>) -> Self {
-        match item {
+impl From<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::AttemptStatus {
+    fn from(item: (CheckoutPaymentStatus, Option<enums::CaptureMethod>)) -> Self {
+        let status = item.0;
+        let capture_method = item.1;
+        match status {
             CheckoutPaymentStatus::Authorized => {
-                if capture_method == Some(enums::CaptureMethod::Automatic) || capture_method == None
+                if capture_method == Some(enums::CaptureMethod::Automatic)
+                    || capture_method.is_none()
                 {
                     enums::AttemptStatus::Charged
                 } else {
@@ -175,13 +177,10 @@ pub struct PaymentsResponse {
     #[serde(rename = "_links")]
     links: Links,
 }
-impl<F, Req>
-    TryFrom<types::ResponseRouterData<F, PaymentsResponse, Req, types::PaymentsResponseData>>
-    for types::RouterData<F, Req, types::PaymentsResponseData>
-{
+impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>> for types::PaymentsRouterData {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymentsResponse, Req, types::PaymentsResponseData>,
+        item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let redirection_url = item
             .response
@@ -202,7 +201,10 @@ impl<F, Req>
             ),
         });
         Ok(types::RouterData {
-            status: enums::AttemptStatus::from_ext(item.response.status, item.data.request.capture_method),
+            status: enums::AttemptStatus::from((
+                item.response.status,
+                item.data.request.capture_method,
+            )),
             response: Some(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
                 redirect: redirection_data.is_some(),
@@ -214,6 +216,26 @@ impl<F, Req>
     }
 }
 
+impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
+    for types::PaymentsRouterSyncData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(types::RouterData {
+            status: enums::AttemptStatus::from((item.response.status, None)),
+            response: Some(types::PaymentsResponseData {
+                connector_transaction_id: item.response.id,
+                //TODO: Add redirection details here
+                redirection_data: None,
+                redirect: false,
+            }),
+            error_response: None,
+            ..item.data
+        })
+    }
+}
 
 // impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 //     for types::PaymentRouterCancelData

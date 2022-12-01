@@ -171,10 +171,6 @@ pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), Validat
     Ok(())
 }
 
-pub(crate) trait FromExt<T, X> {
-    fn from_ext(item: T, extra: X) -> Self;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
