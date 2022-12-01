@@ -108,8 +108,9 @@ pub struct RefundsRequestData {
     pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
     pub currency: enums::Currency,
-    // This amount is for the payment to which this refund is linked
+    /// Amount for the payment against which this refund is issued
     pub amount: i32,
+    /// Amount to be refunded
     pub refund_amount: i32,
 }
 
