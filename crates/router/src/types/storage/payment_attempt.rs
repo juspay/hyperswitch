@@ -87,6 +87,7 @@ pub enum PaymentAttemptUpdate {
     ConfirmUpdate {
         status: enums::AttemptStatus,
         payment_method: Option<enums::PaymentMethodType>,
+        browser_info: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: enums::AttemptStatus,
@@ -124,6 +125,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     modified_at: Option<PrimitiveDateTime>,
     redirect: Option<bool>,
     mandate_id: Option<String>,
+    browser_info: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -142,6 +144,7 @@ impl PaymentAttemptUpdate {
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
+            browser_info: pa_update.browser_info,
             modified_at: common_utils::date_time::now(),
             ..source
         }
@@ -178,10 +181,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::ConfirmUpdate {
                 status,
                 payment_method,
+                browser_info,
             } => Self {
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
+                browser_info,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
