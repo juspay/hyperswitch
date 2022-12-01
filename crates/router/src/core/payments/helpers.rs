@@ -610,6 +610,7 @@ pub struct Vault {}
 
 #[cfg(not(feature = "basilisk"))]
 impl Vault {
+    #[instrument(skip_all)]
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
@@ -641,6 +642,7 @@ impl Vault {
         Ok(Some(card))
     }
 
+    #[instrument(skip_all)]
     async fn store_payment_method_data_in_locker(
         state: &AppState,
         txn_id: &str,
@@ -666,6 +668,7 @@ use crate::{core::payment_methods::transformers, utils::StringExt};
 
 #[cfg(feature = "basilisk")]
 impl Vault {
+    #[instrument(skip_all)]
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,

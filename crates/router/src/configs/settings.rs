@@ -30,7 +30,7 @@ pub struct Settings {
     pub replica_database: Database,
     pub redis: RedisSettings,
     pub log: Log,
-    pub keys: Keys,
+    pub keys: Keys, //remove this during refactoring
     pub locker: Locker,
     pub connectors: Connectors,
     pub scheduler: Option<SchedulerSettings>,

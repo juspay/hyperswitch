@@ -481,7 +481,7 @@ pub async fn get_lookup_key_from_locker(
     Ok(resp)
 }
 
-pub struct BasiliskCardSupport {}
+pub struct BasiliskCardSupport;
 
 #[cfg(not(feature = "basilisk"))]
 impl BasiliskCardSupport {
