@@ -23,15 +23,15 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 1000,
         auth_type: enums::AuthenticationType::NoThreeDs,
-        currency: enums::Currency::USD,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         orca_return_url: None,
         return_url: None,
         request: types::PaymentsAuthorizeData {
+            amount: 1000,
+            currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
                 card_number: Secret::new("4200000000000000".to_string()),
                 card_exp_month: Secret::new("10".to_string()),
@@ -48,9 +48,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             capture_method: None,
             browser_info: None,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -66,15 +65,16 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 1000,
         orca_return_url: None,
-        currency: enums::Currency::USD,
         payment_method: enums::PaymentMethodType::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::RefundsData {
+            amount: 1000,
+            currency: enums::Currency::USD,
+
             refund_id: uuid::Uuid::new_v4().to_string(),
             payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
                 card_number: Secret::new("4200000000000000".to_string()),
@@ -87,8 +87,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             refund_amount: 100,
         },
         payment_method_id: None,
-        response: None,
-        error_response: None,
+        response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
     }
 }

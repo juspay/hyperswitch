@@ -85,6 +85,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCaptureRouterData,
+
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
@@ -97,9 +98,19 @@ impl
         ))
     }
 
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsRouterCaptureData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(stripe_req))
+    }
+
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
+
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -588,6 +599,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let id = req
             .response
             .as_ref()
+            .ok()
             .get_required_value("response")
             .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
             .connector_refund_id

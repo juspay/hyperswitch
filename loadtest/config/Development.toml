@@ -7,7 +7,7 @@ enabled = false
 [log.telemetry]
 enabled = true
 
-[database]
+[master_database]
 username = "postgres"
 password = "postgres"
 host = "db"

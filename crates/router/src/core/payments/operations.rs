@@ -212,7 +212,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if helpers::check_if_operation_confirm(self) {
-            metrics::TASKS_ADDED_COUNT.add(1, &[]); // Metrics
+            metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
             let schedule_time = payment_sync::get_sync_process_schedule_time(
                 &payment_attempt.connector,

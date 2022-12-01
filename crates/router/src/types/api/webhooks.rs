@@ -1,3 +1,4 @@
+use common_utils::custom_serde;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -8,7 +9,7 @@ use crate::{
     core::errors::{self, CustomResult},
     services,
     types::{api, storage::enums},
-    utils::{crypto, custom_serde},
+    utils::crypto,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -22,7 +22,7 @@ impl TestApp {
 }
 
 fn mk_merchant_account() -> serde_json::Value {
-    let timestamp = router::utils::date_time::now();
+    let timestamp = common_utils::date_time::now();
 
     serde_json::json!({
       "merchant_id": format!("merchant_{timestamp}"),

@@ -614,6 +614,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             Ok(pm.to_owned())
         }
         (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethod::Wallet(_)), _) => Ok(pm.to_owned()),
         _ => Ok(None),
     }?;
 
@@ -678,7 +679,7 @@ pub async fn create_temp_card(
     let card_info_val = cards::get_card_info_value(&state.conf.keys, card_info).await?;
     temp_card = storage::TempCardNew {
         card_info: Some(card_info_val),
-        date_created: crate::utils::date_time::now(),
+        date_created: common_utils::date_time::now(),
         txn_id: Some(txn_id.to_string()),
         id: None,
     };
