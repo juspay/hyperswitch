@@ -173,6 +173,7 @@ async fn test_checkout_refund_success() {
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
+
     refund_request.request.connector_transaction_id = response
         .response
         .unwrap()
