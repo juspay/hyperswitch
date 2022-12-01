@@ -15,6 +15,7 @@ enum Derives {
     Canceldata,
     Capturedata,
     Start,
+    Session,
 }
 
 impl From<String> for Derives {
@@ -29,6 +30,7 @@ impl From<String> for Derives {
             "capture" => Self::Capture,
             "capturedata" => Self::Capturedata,
             "start" => Self::Start,
+            "session" => Self::Session,
             _ => Self::Authorize,
         }
     }
@@ -98,6 +100,7 @@ impl Conversion {
             Derives::Capture => syn::Ident::new("PaymentsCaptureRequest", Span::call_site()),
             Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
+            Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
         }
     }
 
@@ -284,7 +287,8 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                         PaymentsCancelRequest,
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
-                        PaymentsStartRequest
+                        PaymentsStartRequest,
+                        PaymentsSessionRequest
                     }
                 };
                 #trait_derive
