@@ -546,9 +546,9 @@ pub struct CaptureRequest {
     amount_to_capture: Option<i32>,
 }
 
-impl TryFrom<&types::PaymentsRouterCaptureData> for CaptureRequest {
+impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentsRouterCaptureData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: item.request.amount_to_capture,
         })

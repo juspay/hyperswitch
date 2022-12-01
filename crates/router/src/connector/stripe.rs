@@ -100,7 +100,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterCaptureData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
