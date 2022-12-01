@@ -5,9 +5,9 @@ use crate::{core::errors,types::{self,storage::enums}};
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {}
 
-impl TryFrom<&types::PaymentsRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
     type Error = error_stack::Report<errors::ValidateError>;
-    fn try_from(_item: &types::PaymentsRouterData) -> Result<Self,Self::Error> {
+    fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
         todo!()
     }
 }
@@ -39,7 +39,7 @@ impl Default for {{project-name | downcase | pascal_case}}PaymentStatus {
     }
 }
 
-impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::AttemptStatus { 
+impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::AttemptStatus {
     fn from(item: {{project-name | downcase | pascal_case}}PaymentStatus) -> Self {
         match item {
             {{project-name | downcase | pascal_case}}PaymentStatus::Succeeded => enums::AttemptStatus::Charged,
@@ -53,7 +53,7 @@ impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::Att
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {}
 
-impl TryFrom<types::PaymentsResponseRouterData<{{project-name | downcase | pascal_case}}PaymentsResponse>> for types::PaymentsRouterData {
+impl TryFrom<types::PaymentsResponseRouterData<{{project-name | downcase | pascal_case}}PaymentsResponse>> for types::PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(_item: types::PaymentsResponseRouterData<{{project-name | downcase | pascal_case}}PaymentsResponse>) -> Result<Self,Self::Error> {
         todo!()

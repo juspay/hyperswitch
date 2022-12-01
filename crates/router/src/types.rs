@@ -12,26 +12,40 @@ pub mod storage;
 
 use std::marker::PhantomData;
 
+use error_stack::{IntoReport, ResultExt};
+
 pub use self::connector::Connector;
 use self::{api::payments, storage::enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{core::errors::ApiErrorResponse, services};
+use crate::{core::errors, services};
 
-pub type PaymentsRouterData = RouterData<api::Authorize, PaymentsRequestData, PaymentsResponseData>;
-pub type PaymentsRouterSyncData =
-    RouterData<api::PSync, PaymentsRequestSyncData, PaymentsResponseData>;
-pub type PaymentsRouterCaptureData =
-    RouterData<api::PCapture, PaymentsRequestCaptureData, PaymentsResponseData>;
+pub type PaymentsAuthorizeRouterData =
+    RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsCaptureRouterData =
+    RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
-pub type PaymentRouterCancelData =
-    RouterData<api::Void, PaymentRequestCancelData, PaymentsResponseData>;
-pub type RefundsRouterData<F> = RouterData<F, RefundsRequestData, RefundsResponseData>;
 pub type PaymentsResponseRouterData<R> =
-    ResponseRouterData<api::Authorize, R, PaymentsRequestData, PaymentsResponseData>;
+    ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
-    ResponseRouterData<api::Void, R, PaymentRequestCancelData, PaymentsResponseData>;
+    ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type RefundsResponseRouterData<F, R> =
-    ResponseRouterData<F, R, RefundsRequestData, RefundsResponseData>;
+    ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
+
+pub type PaymentsAuthorizeType =
+    dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsSyncType =
+    dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsCaptureType =
+    dyn services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsVoidType =
+    dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type RefundExecuteType =
+    dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
+pub type RefundSyncType =
+    dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -59,7 +73,7 @@ pub struct RouterData<Flow, Request, Response> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRequestData {
+pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
     pub amount: i32,
     pub currency: enums::Currency,
@@ -77,33 +91,56 @@ pub struct PaymentsRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRequestCaptureData {
+pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i32>,
     pub connector_transaction_id: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRequestSyncData {
+pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: String,
     pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentRequestCancelData {
+pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsResponseData {
-    pub connector_transaction_id: String,
+    pub resource_id: ResponseId,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
 }
 
+#[derive(Debug, Clone, Default)]
+pub enum ResponseId {
+    ConnectorTransactionId(String),
+    EncodedData(String),
+    #[default]
+    NoResponseId,
+}
+
+impl ResponseId {
+    pub fn get_connector_transaction_id(
+        &self,
+    ) -> errors::CustomResult<String, errors::ValidationError> {
+        match self {
+            Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "connector_transaction_id",
+            })
+            .into_report()
+            .attach_printable("Expected connector transaction ID not found"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct RefundsRequestData {
+pub struct RefundsData {
     pub refund_id: String,
     pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
@@ -193,15 +230,15 @@ pub struct ErrorResponse {
 impl ErrorResponse {
     pub fn get_not_implemented() -> Self {
         Self {
-            code: ApiErrorResponse::NotImplemented.error_code(),
-            message: ApiErrorResponse::NotImplemented.error_message(),
+            code: errors::ApiErrorResponse::NotImplemented.error_code(),
+            message: errors::ApiErrorResponse::NotImplemented.error_message(),
             reason: None,
         }
     }
 }
 
-impl From<ApiErrorResponse> for ErrorResponse {
-    fn from(error: ApiErrorResponse) -> Self {
+impl From<errors::ApiErrorResponse> for ErrorResponse {
+    fn from(error: errors::ApiErrorResponse) -> Self {
         Self {
             code: error.error_code(),
             message: error.error_message(),
@@ -212,6 +249,6 @@ impl From<ApiErrorResponse> for ErrorResponse {
 
 impl Default for ErrorResponse {
     fn default() -> Self {
-        Self::from(ApiErrorResponse::InternalServerError)
+        Self::from(errors::ApiErrorResponse::InternalServerError)
     }
 }

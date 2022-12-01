@@ -15,7 +15,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        PaymentsRequestData, PaymentsResponseData, PaymentsRouterData,
+        PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
     utils,
 };
@@ -24,7 +24,7 @@ use crate::{
 impl
     ConstructFlowSpecificData<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for PaymentData<api::Authorize>
 {
@@ -34,11 +34,15 @@ impl
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<
-        types::RouterData<api::Authorize, types::PaymentsRequestData, types::PaymentsResponseData>,
+        types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     > {
         let output = transformers::construct_payment_router_data::<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
         Ok(output.1)
@@ -46,8 +50,8 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsRequestData>
-    for types::RouterData<api::Authorize, types::PaymentsRequestData, types::PaymentsResponseData>
+impl Feature<api::Authorize, types::PaymentsAuthorizeData>
+    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
@@ -60,7 +64,7 @@ impl Feature<api::Authorize, types::PaymentsRequestData>
     where
         dyn api::Connector: services::ConnectorIntegration<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     {
@@ -80,7 +84,7 @@ impl Feature<api::Authorize, types::PaymentsRequestData>
     }
 }
 
-impl PaymentsRouterData {
+impl PaymentsAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -88,11 +92,11 @@ impl PaymentsRouterData {
         maybe_customer: &Option<api::CustomerResponse>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsRouterData>
+    ) -> RouterResult<PaymentsAuthorizeRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
             api::Authorize,
-            PaymentsRequestData,
+            PaymentsAuthorizeData,
             PaymentsResponseData,
         >,
     {
@@ -100,7 +104,7 @@ impl PaymentsRouterData {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     api::Authorize,
-                    PaymentsRequestData,
+                    PaymentsAuthorizeData,
                     PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
                 let mut resp = services::execute_connector_processing_step(

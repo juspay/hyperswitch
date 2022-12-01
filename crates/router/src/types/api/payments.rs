@@ -47,7 +47,7 @@ pub struct PaymentsRequest {
     pub authentication_type: Option<enums::AuthenticationType>,
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_method: Option<enums::PaymentMethodType>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub statement_descriptor_name: Option<String>,
@@ -221,7 +221,7 @@ impl Default for PaymentIdType {
 #[derive(Debug, Clone)]
 pub struct Authorize;
 #[derive(Debug, Clone)]
-pub struct PCapture;
+pub struct Capture;
 
 #[derive(Debug, Clone)]
 pub struct PSync;
@@ -329,7 +329,7 @@ pub struct PaymentsResponse {
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub metadata: Option<serde_json::Value>,
@@ -593,22 +593,22 @@ impl From<enums::AttemptStatus> for enums::IntentStatus {
 }
 
 pub trait PaymentAuthorize:
-    api::ConnectorIntegration<Authorize, types::PaymentsRequestData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentSync:
-    api::ConnectorIntegration<PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>
+    api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentVoid:
-    api::ConnectorIntegration<Void, types::PaymentRequestCancelData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentCapture:
-    api::ConnectorIntegration<PCapture, types::PaymentsRequestCaptureData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
 }
 
@@ -623,6 +623,12 @@ pub struct PaymentsRetrieveRequest {
     pub force_sync: bool,
     pub param: Option<String>,
     pub connector: Option<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, Clone)]
+pub struct PaymentsSessionRequest {
+    pub payment_id: PaymentIdType,
+    pub client_secret: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

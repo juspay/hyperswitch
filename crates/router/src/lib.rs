@@ -15,6 +15,7 @@
     clippy::unreachable,
     clippy::unwrap_in_result,
 )]
+#![recursion_limit = "256"]
 
 #[cfg(feature = "stripe")]
 pub mod compatibility;

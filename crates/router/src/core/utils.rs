@@ -51,16 +51,9 @@ pub async fn construct_refund_router_data<'a, F>(
         .get_required_value("payment_method_type")?;
     let payment_method_data = match payment_method_data.cloned() {
         Some(v) => v,
-        None => {
-            let temp_card = db
-                .find_tempcard_by_transaction_id(&payment_attempt.txn_id)
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
-                .ok_or(errors::ApiErrorResponse::InvalidCardData { data: None })?;
-            helpers::payment_method_data_from_temp_card(&state.conf.keys, temp_card)
-                .await?
-                .get_required_value("payment_method_data")?
-        }
+        None => helpers::Vault::get_payment_method_data_from_locker(state, &payment_attempt.txn_id)
+            .await?
+            .get_required_value("payment_method_data")?,
     };
 
     let router_data = types::RouterData {
@@ -79,7 +72,7 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
 
-        request: types::RefundsRequestData {
+        request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             payment_method_data,
             connector_transaction_id: refund.transaction_id.clone(),
