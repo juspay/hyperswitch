@@ -75,7 +75,7 @@ impl Feature<api::Authorize, types::PaymentsRequestData>
             )
             .await;
 
-        metrics::PAYMENT_COUNT.add(1, &[]); // Metrics
+        metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
         (resp, payment_data)
     }
