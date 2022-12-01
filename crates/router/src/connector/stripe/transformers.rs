@@ -314,7 +314,7 @@ impl<F, T>
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),

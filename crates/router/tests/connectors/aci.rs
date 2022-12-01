@@ -207,8 +207,12 @@ async fn refund_for_successful_payments() {
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
-    refund_request.request.connector_transaction_id =
-        response.response.unwrap().connector_transaction_id;
+    refund_request.request.connector_transaction_id = response
+        .response
+        .unwrap()
+        .resource_id
+        .get_connector_transaction_id()
+        .unwrap();
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,

@@ -478,7 +478,6 @@ pub enum PaymentMethodType {
     Copy,
     Debug,
     Eq,
-    Hash,
     PartialEq,
     router_derive::DieselEnum,
     serde::Deserialize,

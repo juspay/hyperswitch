@@ -190,7 +190,7 @@ impl<F, Req>
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),
