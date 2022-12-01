@@ -343,7 +343,6 @@ impl
                 .method(services::Method::Post)
                 .url(&Void::get_url(self, req, connectors)?)
                 .headers(Void::get_headers(self, req)?)
-                .header(headers::X_ROUTER, "test")
                 .body(Void::get_request_body(self, req)?)
                 .build(),
         ))
