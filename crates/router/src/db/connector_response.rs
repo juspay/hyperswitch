@@ -1,7 +1,6 @@
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
 };
@@ -25,7 +24,6 @@ pub trait ConnectorResponseInterface {
     ) -> CustomResult<ConnectorResponse, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl ConnectorResponseInterface for super::Store {
     async fn insert_connector_response(
@@ -59,34 +57,6 @@ impl ConnectorResponseInterface for super::Store {
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         this.update(&conn, connector_response_update).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl ConnectorResponseInterface for super::Sqlx {
-    async fn insert_connector_response(
-        &self,
-        connector_response: ConnectorResponseNew,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_connector_response_by_payment_id_merchant_id_txn_id(
-        &self,
-        payment_id: &str,
-        merchant_id: &str,
-        txn_id: &str,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        todo!()
-    }
-
-    async fn update_connector_response(
-        &self,
-        this: ConnectorResponse,
-        connector_response_update: ConnectorResponseUpdate,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        todo!()
     }
 }
 

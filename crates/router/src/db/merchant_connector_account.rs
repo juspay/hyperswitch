@@ -1,9 +1,8 @@
 use masking::ExposeInterface;
 
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage::{
         MerchantConnectorAccount, MerchantConnectorAccountNew, MerchantConnectorAccountUpdate,
@@ -47,7 +46,6 @@ pub trait MerchantConnectorAccountInterface {
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for super::Store {
     async fn find_merchant_connector_account_by_merchant_id_connector(
@@ -110,101 +108,6 @@ impl MerchantConnectorAccountInterface for super::Store {
             merchant_connector_id,
         )
         .await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl MerchantConnectorAccountInterface for super::Sqlx {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
-        &self,
-        merchant_id: &str,
-        connector: &str,
-    ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        #[allow(clippy::panic)]
-        let val = sqlx::query_as!(
-            MerchantConnectorAccount,
-            r#"
-          SELECT
-            "merchant_connector_account"."id",
-            "merchant_connector_account"."merchant_id",
-            "merchant_connector_account"."connector_name",
-            "merchant_connector_account"."connector_account_details",
-            "merchant_connector_account"."test_mode",
-            "merchant_connector_account"."disabled",
-            "merchant_connector_account"."merchant_connector_id",
-            "merchant_connector_account"."payment_methods_enabled",
-            "merchant_connector_account"."connector_type" "connector_type: _"
-          FROM
-            "merchant_connector_account"
-          WHERE
-            (
-              (
-                "merchant_connector_account"."merchant_id" = $1
-              )
-              AND (
-                "merchant_connector_account"."connector_name" = $2
-              )
-            )"#,
-            merchant_id,
-            connector,
-        )
-        .fetch_one(&self.pool)
-        .await;
-
-        #[allow(clippy::panic)]
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-        &self,
-        merchant_id: &str,
-        merchant_connector_id: &i32,
-    ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        todo!()
-    }
-
-    #[allow(clippy::panic)]
-    async fn insert_merchant_connector_account(
-        &self,
-        t: MerchantConnectorAccountNew,
-    ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        let val = t
-            .insert::<MerchantConnectorAccount>(&self.pool, "merchant_connector_account")
-            .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => panic!("{err}"),
-        }
-    }
-
-    async fn find_merchant_connector_account_by_merchant_id_list(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<MerchantConnectorAccount>, errors::StorageError> {
-        todo!()
-    }
-
-    async fn update_merchant_connector_account(
-        &self,
-        this: MerchantConnectorAccount,
-        merchant_connector_account: MerchantConnectorAccountUpdate,
-    ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        todo!()
-    }
-
-    async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-        &self,
-        merchant_id: &str,
-        merchant_connector_id: &i32,
-    ) -> CustomResult<bool, errors::StorageError> {
-        todo!()
     }
 }
 

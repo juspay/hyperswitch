@@ -1,9 +1,8 @@
 use error_stack::Report;
 
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
     types::storage::{Refund, RefundNew, RefundUpdate},
 };
@@ -50,7 +49,6 @@ pub trait RefundInterface {
     async fn insert_refund(&self, new: RefundNew) -> CustomResult<Refund, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl RefundInterface for super::Store {
     async fn find_refund_by_internal_reference_id_merchant_id(
@@ -112,64 +110,6 @@ impl RefundInterface for super::Store {
     ) -> CustomResult<Vec<Refund>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl RefundInterface for super::Sqlx {
-    async fn find_refund_by_internal_reference_id_merchant_id(
-        &self,
-        internal_reference_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<Refund, errors::StorageError> {
-        todo!()
-    }
-
-    async fn insert_refund(&self, new: RefundNew) -> CustomResult<Refund, errors::StorageError> {
-        todo!()
-    }
-    async fn find_refund_by_merchant_id_transaction_id(
-        &self,
-        merchant_id: &str,
-        txn_id: &str,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError> {
-        todo!()
-    }
-
-    async fn update_refund(
-        &self,
-        this: Refund,
-        refund: RefundUpdate,
-    ) -> CustomResult<Refund, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_refund_by_merchant_id_refund_id(
-        &self,
-        merchant_id: &str,
-        refund_id: &str,
-    ) -> CustomResult<Refund, errors::StorageError> {
-        todo!()
-    }
-
-    // async fn find_refund_by_payment_id_merchant_id_refund_id(
-    //     &self,
-    //     payment_id: &str,
-    //     merchant_id: &str,
-    //     refund_id: &str,
-    // ) -> CustomResult<Refund, errors::StorageError> {
-    //     let conn = pg_connection(&self.conn).await;
-    //     Refund::find_by_payment_id_merchant_id_refund_id(&conn, payment_id, merchant_id, refund_id)
-    //         .await
-    // }
-
-    async fn find_refund_by_payment_id_merchant_id(
-        &self,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError> {
-        todo!()
     }
 }
 

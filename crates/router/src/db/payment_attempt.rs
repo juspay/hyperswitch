@@ -49,7 +49,6 @@ pub trait PaymentAttemptInterface {
     ) -> CustomResult<PaymentAttempt, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use super::PaymentAttemptInterface;
@@ -60,7 +59,6 @@ mod storage {
         types::storage::payment_attempt::*,
     };
 
-    #[cfg(feature = "diesel")]
     #[async_trait::async_trait]
     impl PaymentAttemptInterface for Store {
         async fn insert_payment_attempt(
@@ -144,76 +142,6 @@ mod storage {
 
             PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id).await
         }
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl PaymentAttemptInterface for super::Sqlx {
-    async fn find_payment_attempt_by_merchant_id_txn_id(
-        &self,
-        merchant_id: &str,
-        txn_id: &str,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        todo!()
-    }
-
-    #[allow(clippy::panic)]
-    async fn insert_payment_attempt(
-        &self,
-        payment_attempt: PaymentAttemptNew,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let val = payment_attempt
-            .insert::<PaymentAttempt>(&self.pool, "payment_attempt")
-            .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn update_payment_attempt(
-        &self,
-        this: PaymentAttempt,
-        payment_attempt: PaymentAttemptUpdate,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        Ok(payment_attempt.apply_changeset(this))
-    }
-
-    async fn find_payment_attempt_by_payment_id_merchant_id(
-        &self,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
-        &self,
-        transaction_id: &str,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
-        &self,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
-        &self,
-        merchant_id: &str,
-        connector_txn_id: &str,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        todo!()
     }
 }
 
@@ -331,7 +259,6 @@ impl PaymentAttemptInterface for MockDb {
     }
 }
 
-#[cfg(feature = "diesel")]
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;

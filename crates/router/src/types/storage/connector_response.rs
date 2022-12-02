@@ -1,14 +1,11 @@
-#[cfg(feature = "diesel")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-#[cfg(feature = "diesel")]
 use crate::schema::connector_response;
 
-#[derive(Clone, Debug, Deserialize, Serialize, router_derive::DebugAsDisplay)]
-#[cfg_attr(feature = "diesel", derive(Insertable))]
-#[cfg_attr(feature = "diesel", diesel(table_name = connector_response))]
+#[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
+#[diesel(table_name = connector_response)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorResponseNew {
     pub payment_id: String,
@@ -22,9 +19,8 @@ pub struct ConnectorResponseNew {
     pub encoded_data: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
-#[cfg_attr(feature = "diesel", diesel(table_name = connector_response))]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
+#[diesel(table_name = connector_response)]
 
 pub struct ConnectorResponse {
     #[serde(skip_serializing)]
@@ -40,9 +36,8 @@ pub struct ConnectorResponse {
     pub encoded_data: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "diesel", derive(AsChangeset))]
-#[cfg_attr(feature = "diesel", diesel(table_name = connector_response))]
+#[derive(Clone, Debug, Deserialize, AsChangeset, Serialize)]
+#[diesel(table_name = connector_response)]
 pub struct ConnectorResponseUpdateInternal {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,

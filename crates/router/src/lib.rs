@@ -30,7 +30,7 @@ pub mod env;
 pub mod pii;
 pub mod routes;
 pub mod scheduler;
-#[cfg(feature = "diesel")]
+
 #[allow(unused_imports)] // Allow unused imports only for schema module
 pub mod schema;
 pub mod services;

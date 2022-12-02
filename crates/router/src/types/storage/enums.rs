@@ -1,4 +1,3 @@
-#[cfg(feature = "diesel")]
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -25,13 +24,11 @@ pub mod diesel_exports {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
@@ -68,13 +65,11 @@ pub enum AttemptStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
 pub enum AuthenticationType {
     #[default]
     ThreeDs,
@@ -92,13 +87,11 @@ pub enum AuthenticationType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum CaptureMethod {
     #[default]
     Automatic,
@@ -117,13 +110,11 @@ pub enum CaptureMethod {
     strum::EnumString,
     serde::Deserialize,
     serde::Serialize,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
 pub enum ConnectorType {
     /// PayFacs, Acquirers, Gateways, BNPL etc
     PaymentProcessor,
@@ -154,10 +145,9 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
+#[router_derive::diesel_enum]
 pub enum Currency {
     AED,
     ALL,
@@ -275,11 +265,11 @@ pub enum Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
 pub enum EventClass {
     Payments,
 }
@@ -294,9 +284,9 @@ pub enum EventClass {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventObjectType {
@@ -313,9 +303,9 @@ pub enum EventObjectType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
@@ -333,13 +323,11 @@ pub enum EventType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum IntentStatus {
     Succeeded,
     Failed,
@@ -363,13 +351,11 @@ pub enum IntentStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum FutureUsage {
     #[default]
     OffSession,
@@ -386,12 +372,10 @@ pub enum FutureUsage {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum PaymentFlow {
     Vsc,
     Emi,
@@ -413,9 +397,9 @@ pub enum PaymentFlow {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodIssuerCode {
@@ -442,9 +426,9 @@ pub enum PaymentMethodIssuerCode {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodSubType {
@@ -468,13 +452,11 @@ pub enum PaymentMethodSubType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
 pub enum PaymentMethodType {
     Card,
     PaymentContainer,
@@ -502,9 +484,9 @@ pub enum PaymentMethodType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum WalletIssuer {
@@ -522,9 +504,9 @@ pub enum WalletIssuer {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ProcessTrackerStatus {
@@ -540,9 +522,18 @@ pub enum ProcessTrackerStatus {
     Finish,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, strum::Display, strum::EnumString)]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    router_derive::DieselEnum,
+)]
+#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
@@ -553,9 +544,18 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, strum::Display, strum::EnumString)]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    router_derive::DieselEnum,
+)]
+#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
@@ -574,13 +574,11 @@ pub enum RefundType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(rename_all = "snake_case"))]
+#[router_derive::diesel_enum]
 pub enum RoutingAlgorithm {
     RoundRobin,
     MaxConversion,
@@ -600,11 +598,11 @@ pub enum RoutingAlgorithm {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
 pub enum MandateType {
     SingleUse,
     #[default]
@@ -622,9 +620,9 @@ pub enum MandateType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[cfg_attr(feature = "diesel", derive(router_derive::DieselEnum))]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum)]
+#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MandateStatus {

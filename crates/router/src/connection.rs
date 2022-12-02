@@ -1,23 +1,17 @@
-#[cfg(feature = "diesel")]
 use async_bb8_diesel::{AsyncConnection, ConnectionError, ConnectionManager};
-#[cfg(feature = "diesel")]
 use bb8::{CustomizeConnection, PooledConnection};
-#[cfg(feature = "diesel")]
 use diesel::PgConnection;
 
-#[cfg(any(feature = "diesel"))]
 use crate::configs::settings::Database;
-#[cfg(feature = "diesel")]
+
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
-#[cfg(feature = "diesel")]
+
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 pub type RedisPool = std::sync::Arc<redis_interface::RedisConnectionPool>;
 
-#[cfg(feature = "diesel")]
 #[derive(Debug)]
 struct TestTransaction;
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl CustomizeConnection<PgPooledConn, ConnectionError> for TestTransaction {
     #[allow(clippy::unwrap_used)]
@@ -38,7 +32,6 @@ pub async fn redis_connection(
     redis_interface::RedisConnectionPool::new(&conf.redis).await
 }
 
-#[cfg(feature = "diesel")]
 #[allow(clippy::expect_used)]
 pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
     let database_url = format!(
@@ -57,7 +50,6 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
         .expect("Failed to create PostgreSQL connection pool")
 }
 
-#[cfg(feature = "diesel")]
 #[allow(clippy::expect_used)]
 pub async fn pg_connection(pool: &PgPool) -> PooledConnection<ConnectionManager<PgConnection>> {
     pool.get()

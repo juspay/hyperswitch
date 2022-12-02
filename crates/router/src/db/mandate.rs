@@ -1,7 +1,6 @@
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage::{Mandate, MandateNew, MandateUpdate},
 };
@@ -33,7 +32,6 @@ pub trait MandateInterface {
     ) -> CustomResult<Mandate, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl MandateInterface for super::Store {
     async fn find_mandate_by_merchant_id_mandate_id(
@@ -70,42 +68,6 @@ impl MandateInterface for super::Store {
     ) -> CustomResult<Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         mandate.insert(&conn).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl MandateInterface for super::Sqlx {
-    async fn find_mandate_by_merchant_id_mandate_id(
-        &self,
-        merchant_id: &str,
-        mandate_id: &str,
-    ) -> CustomResult<Mandate, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_mandate_by_merchant_id_customer_id(
-        &self,
-        merchant_id: &str,
-        customer_id: &str,
-    ) -> CustomResult<Vec<Mandate>, errors::StorageError> {
-        todo!()
-    }
-
-    async fn update_mandate_by_merchant_id_mandate_id(
-        &self,
-        merchant_id: &str,
-        mandate_id: &str,
-        mandate: MandateUpdate,
-    ) -> CustomResult<Mandate, errors::StorageError> {
-        todo!()
-    }
-
-    async fn insert_mandate(
-        &self,
-        mandate: MandateNew,
-    ) -> CustomResult<Mandate, errors::StorageError> {
-        todo!()
     }
 }
 

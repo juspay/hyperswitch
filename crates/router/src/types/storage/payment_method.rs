@@ -1,27 +1,23 @@
-#[cfg(feature = "diesel")]
 use diesel::{Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
-#[cfg(feature = "diesel")]
-use crate::schema::payment_methods;
-use crate::{pii::Secret, types::storage::enums};
+use crate::{pii::Secret, schema::payment_methods, types::storage::enums};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "diesel", derive(Identifiable, Queryable))]
-#[cfg_attr(feature = "diesel", diesel(table_name = payment_methods))]
+#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
+#[diesel(table_name = payment_methods)]
 pub struct PaymentMethod {
     pub id: i32,
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    #[cfg_attr(feature = "diesel", diesel(deserialize_as = super::OptionalDieselArray<enums::Currency>))]
+    #[diesel(deserialize_as = super::OptionalDieselArray<enums::Currency>)]
     pub accepted_currency: Option<Vec<enums::Currency>>,
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
     pub issuer_name: Option<String>,
     pub issuer_country: Option<String>,
-    #[cfg_attr(feature = "diesel", diesel(deserialize_as = super::OptionalDieselArray<String>))]
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub payer_country: Option<Vec<String>>,
     pub is_stored: Option<bool>,
     pub swift_code: Option<String>,
@@ -35,9 +31,8 @@ pub struct PaymentMethod {
     pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, router_derive::DebugAsDisplay)]
-#[cfg_attr(feature = "diesel", derive(Insertable, Queryable))]
-#[cfg_attr(feature = "diesel", diesel(table_name = payment_methods))]
+#[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
+#[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
     pub customer_id: String,
     pub merchant_id: String,

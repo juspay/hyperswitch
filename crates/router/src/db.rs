@@ -22,28 +22,21 @@ pub mod temp_card;
 use std::{collections::HashMap, sync::Arc};
 
 use futures_locks::{Mutex, MutexGuard};
-#[cfg(feature = "sqlx")]
-use sqlx::PgPool as SqlxPgPool;
 
-#[cfg(any(feature = "diesel", feature = "sqlx"))]
-use crate::configs::settings::Database;
-#[cfg(feature = "diesel")]
-use crate::connection::{diesel_make_pg_pool, PgPool as PgPoolDiesel};
-#[cfg(feature = "diesel")]
-use crate::services::Store;
-use crate::types::storage::{
-    ConnectorResponse, Customer, MerchantAccount, MerchantConnectorAccount, PaymentAttempt,
-    PaymentIntent, ProcessTracker, Refund, TempCard,
+use crate::{
+    configs::settings::Database,
+    connection::{diesel_make_pg_pool, PgPool as PgPoolDiesel},
+    services::Store,
+    types::storage::{
+        ConnectorResponse, Customer, MerchantAccount, MerchantConnectorAccount, PaymentAttempt,
+        PaymentIntent, ProcessTracker, Refund, TempCard,
+    },
 };
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
-    #[cfg(feature = "diesel")]
     DieselPostgresql,
-    #[cfg(feature = "diesel")]
     DieselPostgresqlTest,
-    #[cfg(feature = "sqlx")]
-    Sqlx,
     Mock,
 }
 
@@ -73,13 +66,11 @@ pub trait StorageInterface:
     async fn close(&mut self) {}
 }
 
-#[cfg(feature = "diesel")]
 #[derive(Clone)]
 pub struct SqlDb {
     pub conn: PgPoolDiesel,
 }
 
-#[cfg(feature = "diesel")]
 impl SqlDb {
     pub async fn new(database: &Database) -> Self {
         Self {
@@ -91,7 +82,7 @@ impl SqlDb {
         Self {
             conn: diesel_make_pg_pool(
                 &Database {
-                    dbname: String::from("test_db"),
+                    dbname: String::from("qwerty"),
                     ..database.clone()
                 },
                 true,
@@ -101,7 +92,6 @@ impl SqlDb {
     }
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl StorageInterface for Store {
     #[allow(clippy::expect_used)]
@@ -112,33 +102,6 @@ impl StorageInterface for Store {
             .await;
     }
 }
-
-#[cfg(feature = "sqlx")]
-#[derive(Clone)]
-pub struct Sqlx {
-    pool: SqlxPgPool,
-}
-
-#[cfg(feature = "sqlx")]
-impl Sqlx {
-    #[allow(clippy::expect_used)]
-    pub async fn new(database: &Database) -> Sqlx {
-        let database_url = format!(
-            "postgres://{}:{}@{}:{}/{}",
-            database.username, database.password, database.host, database.port, database.dbname
-        );
-
-        let pool = SqlxPgPool::connect(&database_url)
-            .await
-            .expect("Failed to create PostgreSQL connection pool");
-
-        Sqlx { pool }
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl StorageInterface for Sqlx {}
 
 #[derive(Clone)]
 pub struct MockDb {

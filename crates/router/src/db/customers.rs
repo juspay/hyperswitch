@@ -1,7 +1,6 @@
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::{
         api::CreateCustomerRequest,
@@ -42,7 +41,6 @@ pub trait CustomerInterface {
     ) -> CustomResult<Customer, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl CustomerInterface for super::Store {
     async fn find_customer_optional_by_customer_id_merchant_id(
@@ -88,94 +86,6 @@ impl CustomerInterface for super::Store {
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl CustomerInterface for super::Sqlx {
-    #[allow(clippy::panic)]
-    async fn find_customer_optional_by_customer_id_merchant_id(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<Option<Customer>, errors::StorageError> {
-        let val = sqlx::query_as!(
-            Customer,
-            r#"
-      SELECT
-        "customers"."id",
-        "customers"."customer_id",
-        "customers"."merchant_id",
-        "customers"."name",
-        "customers"."email" as "email: _",
-        "customers"."phone" as "phone: _",
-        "customers"."phone_country_code",
-        "customers"."description",
-        "customers"."address" as "address: _",
-        "customers"."created_at",
-        "customers"."metadata"
-      FROM
-        "customers"
-      WHERE
-        (
-          ("customers"."customer_id" = $1)
-          AND ("customers"."merchant_id" = $2)
-        )"#,
-            customer_id,
-            merchant_id
-        )
-        .fetch_optional(&self.pool)
-        .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn update_customer_by_customer_id_merchant_id(
-        &self,
-        customer_id: String,
-        merchant_id: String,
-        customer: CustomerUpdate,
-    ) -> CustomResult<Customer, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_customer_by_customer_id_merchant_id(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<Customer, errors::StorageError> {
-        todo!()
-    }
-
-    #[allow(clippy::panic)]
-    async fn insert_customer(
-        &self,
-        customer_data: CustomerNew,
-    ) -> CustomResult<Customer, errors::StorageError> {
-        let val = customer_data
-            .insert::<Customer>(&self.pool, "customers")
-            .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn delete_customer_by_customer_id_merchant_id(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        todo!()
     }
 }
 

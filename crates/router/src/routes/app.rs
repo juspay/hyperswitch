@@ -1,4 +1,3 @@
-#[cfg(feature = "diesel")]
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
@@ -7,17 +6,11 @@ use super::{
     admin::*, customers::*, health::*, mandates::*, payment_methods::*, payments::*, payouts::*,
     refunds::*, webhooks::*,
 };
-#[cfg(feature = "diesel")]
-use crate::connection;
-#[cfg(feature = "diesel")]
-use crate::db::SqlDb;
-#[cfg(feature = "sqlx")]
-use crate::db::Sqlx;
-#[cfg(feature = "diesel")]
-use crate::services::Store;
 use crate::{
     configs::settings::Settings,
-    db::{MockDb, StorageImpl, StorageInterface},
+    connection,
+    db::{MockDb, SqlDb, StorageImpl, StorageInterface},
+    services::Store,
 };
 
 #[derive(Clone)]
@@ -29,10 +22,8 @@ pub struct AppState {
 
 impl AppState {
     pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> AppState {
-        #[cfg(feature = "diesel")]
         let testable = storage_impl == StorageImpl::DieselPostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            #[cfg(feature = "diesel")]
             StorageImpl::DieselPostgresql | StorageImpl::DieselPostgresqlTest => Box::new(Store {
                 master_pool: if testable {
                     SqlDb::test(&conf.master_database).await
@@ -55,8 +46,6 @@ impl AppState {
                     drainer_num_partitions: conf.drainer.num_partitions,
                 },
             }),
-            #[cfg(feature = "sqlx")]
-            StorageImpl::Sqlx => Box::new(Sqlx::new(&conf.master_database).await),
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
@@ -69,14 +58,7 @@ impl AppState {
 
     #[allow(unused_variables)]
     pub async fn new(conf: Settings) -> AppState {
-        #[cfg(feature = "diesel")]
-        {
-            AppState::with_storage(conf, StorageImpl::DieselPostgresql).await
-        }
-        #[cfg(not(feature = "diesel"))]
-        {
-            todo!()
-        }
+        AppState::with_storage(conf, StorageImpl::DieselPostgresql).await
     }
 }
 

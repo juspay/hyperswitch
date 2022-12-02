@@ -2,9 +2,8 @@ use error_stack::Report;
 use masking::PeekInterface;
 
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
     types::storage::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdate},
 };
@@ -43,7 +42,6 @@ pub trait MerchantAccountInterface {
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl MerchantAccountInterface for super::Store {
     async fn insert_merchant(
@@ -93,136 +91,6 @@ impl MerchantAccountInterface for super::Store {
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         MerchantAccount::delete_by_merchant_id(&conn, merchant_id).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl MerchantAccountInterface for super::Sqlx {
-    #[allow(clippy::panic)]
-    async fn insert_merchant(
-        &self,
-        merchant_account: MerchantAccountNew,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        match merchant_account
-            .insert::<MerchantAccount>(&self.pool, "merchant_account")
-            .await
-        {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    #[allow(clippy::panic)]
-    async fn find_merchant_account_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let val = sqlx::query_as!(
-            MerchantAccount,
-            r#"
-      SELECT
-        "merchant_account"."id",
-        "merchant_account"."merchant_id",
-        "merchant_account"."api_key" as "api_key: _",
-        "merchant_account"."return_url",
-        "merchant_account"."enable_payment_response_hash",
-        "merchant_account"."payment_response_hash_key",
-        "merchant_account"."redirect_to_merchant_with_http_post",
-        "merchant_account"."merchant_name",
-        "merchant_account"."merchant_details",
-        "merchant_account"."webhook_details",
-        "merchant_account"."routing_algorithm" as "routing_algorithm: _",
-        "merchant_account"."custom_routing_rules",
-        "merchant_account"."sub_merchants_enabled",
-        "merchant_account"."parent_merchant_id",
-        "merchant_account"."publishable_key"
-      FROM
-        "merchant_account"
-      WHERE
-        (
-          "merchant_account"."merchant_id" = $1
-        )
-      "#,
-            merchant_id
-        )
-        .fetch_one(&self.pool)
-        .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn update_merchant(
-        &self,
-        this: MerchantAccount,
-        merchant_account: MerchantAccountUpdate,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        todo!()
-    }
-
-    #[allow(clippy::panic)]
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let val = sqlx::query_as!(
-            MerchantAccount,
-            r#"
-          SELECT
-            "merchant_account"."id",
-            "merchant_account"."merchant_id",
-            "merchant_account"."api_key" as "api_key: _",
-            "merchant_account"."return_url",
-            "merchant_account"."enable_payment_response_hash",
-            "merchant_account"."payment_response_hash_key",
-            "merchant_account"."redirect_to_merchant_with_http_post",
-            "merchant_account"."merchant_name",
-            "merchant_account"."merchant_details",
-            "merchant_account"."webhook_details",
-            "merchant_account"."routing_algorithm" as "routing_algorithm: _",
-            "merchant_account"."custom_routing_rules",
-            "merchant_account"."sub_merchants_enabled",
-            "merchant_account"."parent_merchant_id",
-            "merchant_account"."publishable_key"
-          FROM
-            "merchant_account"
-          WHERE
-            (
-              "merchant_account"."api_key" = $1
-            )
-            "#,
-            api_key
-        )
-        .fetch_one(&self.pool)
-        .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn find_merchant_account_by_publishable_key(
-        &self,
-        publishable_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        todo!()
-    }
-
-    async fn delete_merchant_account_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        todo!()
     }
 }
 

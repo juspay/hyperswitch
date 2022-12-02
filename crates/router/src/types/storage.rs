@@ -12,12 +12,11 @@ pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
 pub mod process_tracker;
-#[cfg(feature = "diesel")]
+
 mod query;
 pub mod refund;
 pub mod temp_card;
 
-#[cfg(feature = "diesel")]
 use diesel_impl::{DieselArray, OptionalDieselArray};
 
 pub use self::{
@@ -35,7 +34,7 @@ pub use self::{
 /// `Option<T>` values.
 ///
 /// [diesel-2.0-array-nullability]: https://diesel.rs/guides/migration_guide.html#2-0-0-nullability-of-array-elements
-#[cfg(feature = "diesel")]
+
 #[doc(hidden)]
 pub(crate) mod diesel_impl {
     use diesel::{

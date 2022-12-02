@@ -1,9 +1,8 @@
 use time::PrimitiveDateTime;
 
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage::{enums, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate},
 };
@@ -52,7 +51,6 @@ pub trait ProcessTrackerInterface {
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl ProcessTrackerInterface for super::Store {
     async fn find_process_by_id(
@@ -123,66 +121,6 @@ impl ProcessTrackerInterface for super::Store {
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl ProcessTrackerInterface for super::Sqlx {
-    async fn find_process_by_id(
-        &self,
-        id: &str,
-    ) -> CustomResult<Option<ProcessTracker>, errors::StorageError> {
-        todo!()
-    }
-
-    async fn reinitialize_limbo_processes(
-        &self,
-        ids: Vec<String>,
-        schedule_time: PrimitiveDateTime,
-    ) -> CustomResult<usize, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_processes_by_time_status(
-        &self,
-        time_lower_limit: PrimitiveDateTime,
-        time_upper_limit: PrimitiveDateTime,
-        status: enums::ProcessTrackerStatus,
-        limit: Option<i64>,
-    ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
-        todo!()
-    }
-
-    async fn insert_process(
-        &self,
-        new: ProcessTrackerNew,
-    ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        todo!()
-    }
-
-    async fn update_process(
-        &self,
-        this: ProcessTracker,
-        process: ProcessTrackerUpdate,
-    ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        todo!()
-    }
-
-    async fn update_process_tracker(
-        &self,
-        this: ProcessTracker,
-        process: ProcessTrackerUpdate,
-    ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        todo!()
-    }
-
-    async fn process_tracker_update_process_status_by_ids(
-        &self,
-        task_ids: Vec<String>,
-        task_update: ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
-        todo!()
     }
 }
 

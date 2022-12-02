@@ -1,7 +1,4 @@
-#[cfg(feature = "diesel")]
-use redis_interface::SetNXReply;
-use redis_interface::{errors::RedisError, RedisEntryId};
-#[cfg(feature = "diesel")]
+use redis_interface::{errors::RedisError, RedisEntryId, SetNXReply};
 use router_env::logger;
 
 use super::MockDb;
@@ -40,7 +37,6 @@ pub trait QueueInterface {
     async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl QueueInterface for super::Store {
     async fn fetch_consumer_tasks(
@@ -161,48 +157,5 @@ impl QueueInterface for MockDb {
 
     async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
         self.redis.get_key(key).await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl QueueInterface for super::Sqlx {
-    async fn fetch_consumer_tasks(
-        &self,
-        stream_name: &str,
-        group_name: &str,
-        consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
-        todo!()
-    }
-
-    async fn consumer_group_create(
-        &self,
-        stream: &str,
-        group: &str,
-        id: &RedisEntryId,
-    ) -> CustomResult<(), RedisError> {
-        todo!()
-    }
-
-    async fn acquire_pt_lock(&self, tag: &str, lock_key: &str, lock_val: &str, ttl: i64) -> bool {
-        todo!()
-    }
-
-    async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> bool {
-        todo!()
-    }
-
-    async fn stream_append_entry(
-        &self,
-        stream: &str,
-        entry_id: &RedisEntryId,
-        fields: Vec<(&str, String)>,
-    ) -> CustomResult<(), RedisError> {
-        todo!()
-    }
-
-    async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
-        todo!()
     }
 }

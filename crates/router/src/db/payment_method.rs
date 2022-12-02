@@ -1,7 +1,6 @@
 use super::MockDb;
-#[cfg(feature = "diesel")]
-use crate::connection::pg_connection;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage::{PaymentMethod, PaymentMethodNew},
 };
@@ -31,7 +30,6 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[async_trait::async_trait]
 impl PaymentMethodInterface for super::Store {
     async fn find_payment_method(
@@ -71,40 +69,6 @@ impl PaymentMethodInterface for super::Store {
             payment_method_id,
         )
         .await
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl PaymentMethodInterface for super::Sqlx {
-    async fn find_payment_method(
-        &self,
-        payment_method_id: &str,
-    ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        todo!()
-    }
-
-    async fn insert_payment_method(
-        &self,
-        m: PaymentMethodNew,
-    ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        todo!()
-    }
-
-    async fn find_payment_method_by_customer_id_merchant_id_list(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError> {
-        todo!()
-    }
-
-    async fn delete_payment_method_by_merchant_id_payment_method_id(
-        &self,
-        merchant_id: &str,
-        payment_method_id: &str,
-    ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        todo!()
     }
 }
 

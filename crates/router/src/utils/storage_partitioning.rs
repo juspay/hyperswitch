@@ -8,7 +8,6 @@ pub(crate) trait KvStorePartition {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a str,

@@ -33,7 +33,6 @@ pub trait PaymentIntentInterface {
     ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
 }
 
-#[cfg(feature = "diesel")]
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
@@ -208,7 +207,6 @@ mod storage {
     }
 }
 
-#[cfg(feature = "diesel")]
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use super::PaymentIntentInterface;
@@ -255,51 +253,6 @@ mod storage {
             let conn = pg_connection(&self.master_pool.conn).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
         }
-    }
-}
-
-#[cfg(feature = "sqlx")]
-#[async_trait::async_trait]
-impl PaymentIntentInterface for super::Sqlx {
-    async fn filter_payment_intent_by_constraints(
-        &self,
-        merchant_id: &str,
-        pc: &api::PaymentListConstraints,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-        todo!()
-    }
-
-    #[allow(clippy::panic)]
-    async fn insert_payment_intent(
-        &self,
-        new: PaymentIntentNew,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        let val = new
-            .insert::<PaymentIntent>(&self.pool, "payment_intent")
-            .await;
-
-        match val {
-            Ok(val) => Ok(val),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
-    }
-
-    async fn update_payment_intent(
-        &self,
-        payment_intent: PaymentIntent,
-        update: PaymentIntentUpdate,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        Ok(update.apply_changeset(payment_intent))
-    }
-
-    async fn find_payment_intent_by_payment_id_merchant_id(
-        &self,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        todo!()
     }
 }
 
