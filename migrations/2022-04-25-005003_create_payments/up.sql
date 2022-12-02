@@ -1,6 +1,0 @@
-CREATE TABLE payments (
-	id SERIAL PRIMARY KEY,
-  payment_id VARCHAR NOT NULL,
-  merchant_id VARCHAR NOT NULL,
-  status TEXT NOT NULL DEFAULT 'NEW'
-)
