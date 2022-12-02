@@ -1,0 +1,16 @@
+[package]
+name = "drainer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+structopt = "0.3.26"
+thiserror = "1.0.37"
+fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
+
+# First Party Crates
+redis_interface = { version = "0.1.0", path = "../redis_interface" }
+router = { version = "0.2.0", path = "../router",features=["kv_store"] }

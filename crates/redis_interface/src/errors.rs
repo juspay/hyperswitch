@@ -18,8 +18,12 @@ pub enum RedisError {
     StreamAppendFailed,
     #[error("Failed to read entries from Redis stream")]
     StreamReadFailed,
+    #[error("Failed to get stream length")]
+    GetLengthFailed,
     #[error("Failed to delete entries from Redis stream")]
     StreamDeleteFailed,
+    #[error("Failed to trim entries from Redis stream")]
+    StreamTrimFailed,
     #[error("Failed to acknowledge Redis stream entry")]
     StreamAcknowledgeFailed,
     #[error("Failed to create Redis consumer group")]

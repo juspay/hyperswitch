@@ -13,7 +13,7 @@ use fred::{
     interfaces::{KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisValue, SetOptions, XReadResponse,
+        RedisKey, RedisValue, SetOptions, XCap, XReadResponse,
     },
 };
 use router_env::{tracing, tracing::instrument};
@@ -184,6 +184,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn stream_trim_entries<C>(
+        &self,
+        stream: &str,
+        xcap: C,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        C: TryInto<XCap> + Debug,
+        C::Error: Into<fred::error::RedisError>,
+    {
+        self.pool
+            .xtrim(stream, xcap)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::StreamTrimFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_acknowledge_entries<Ids>(
         &self,
         stream: &str,
@@ -198,6 +215,18 @@ impl super::RedisConnectionPool {
             .await
             .into_report()
             .change_context(errors::RedisError::StreamAcknowledgeFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
+    where
+        K: Into<RedisKey> + Debug,
+    {
+        self.pool
+            .xlen(stream)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetLengthFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
