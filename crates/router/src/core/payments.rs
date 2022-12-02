@@ -448,7 +448,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 payment_data.payment_intent.status,
                 enums::IntentStatus::RequiresCapture
             )
-        },
+        }
         _ => false,
     }
 }

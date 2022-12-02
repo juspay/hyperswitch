@@ -271,50 +271,92 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        ""
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsVoidType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: Connectors,
+        req: &types::PaymentsCancelRouterData,
+        connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
+        Ok(format!(
+            "{}payments/{}/voids",
+            self.base_url(connectors),
+            &req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
+        let checkout_req = utils::Encode::<checkout::PaymentVoidRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(checkout_req))
     }
     fn build_request(
         &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: Connectors,
+        req: &types::PaymentsCancelRouterData,
+        connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsCancelRouterData,
-        _res: Response,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
+        let mut response: checkout::PaymentVoidResponse = res
+            .response
+            .parse_struct("PaymentVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        response.status = res.status_code;
+        logger::debug!(payments_create_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("checkout".to_string()).into())
+        let response: checkout::ErrorResponse = res
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response
+                .error_codes
+                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
+                //Considered all the codes here but have to look into the exact no.of codes
+                .join(" & "),
+            message: response
+                .error_type
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
     }
 }
 
