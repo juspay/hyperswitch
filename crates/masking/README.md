@@ -25,7 +25,7 @@ Most fields are under `Option`. To simplify dealing with `Option`, use `expose_c
     card_info.push_str(
         &card_detail
             .card_holder_name
-            .peek_cloning()
+            .expose_cloning()
             .unwrap_or_default(),
     );
 ```
