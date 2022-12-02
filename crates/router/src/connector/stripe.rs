@@ -55,6 +55,17 @@ impl api::PaymentAuthorize for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
+impl api::PaymentSession for Stripe {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsSessionResponseData,
+    > for Stripe
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

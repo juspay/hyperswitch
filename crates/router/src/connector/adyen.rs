@@ -54,6 +54,18 @@ impl api::PaymentSync for Adyen {}
 impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
 
+impl api::PaymentSession for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsSessionResponseData,
+    > for Adyen
+{
+    // Not Implemented (R)
+}
+
 impl
     services::ConnectorIntegration<
         api::Capture,

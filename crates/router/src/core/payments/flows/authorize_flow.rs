@@ -50,9 +50,7 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsAuthorizeData>
-    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
+impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         self,
         state: &AppState,

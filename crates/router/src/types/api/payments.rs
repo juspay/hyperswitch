@@ -228,6 +228,9 @@ pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
 
+#[derive(Debug, Clone)]
+pub struct Session;
+
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
 //#[serde(untagged)]
 //pub enum enums::CaptureMethod {
@@ -612,10 +615,16 @@ pub trait PaymentCapture:
 {
 }
 
-pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid
+pub trait PaymentSession:
+    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsSessionResponseData>
 {
 }
+
+pub trait Payment:
+    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PaymentSession
+{
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsRetrieveRequest {
     pub resource_id: PaymentIdType,

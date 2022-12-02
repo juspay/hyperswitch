@@ -25,6 +25,8 @@ pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, Payme
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData =
+    RouterData<api::Session, PaymentsSessionData, PaymentsSessionResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
 pub type PaymentsResponseRouterData<R> =
@@ -110,6 +112,17 @@ pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct PaymentsSessionData {
+    //TODO: Add the fields here as required
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsSessionResponseData {
+    pub client_token: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsResponseData {
     pub resource_id: ResponseId,
