@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct DeviceData {}
+pub struct DeviceData;
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PaymentOptions {
@@ -114,11 +114,11 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
             BraintreePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            BraintreePaymentStatus::Failed => enums::AttemptStatus::Failure,
             BraintreePaymentStatus::AuthorizedExpired => enums::AttemptStatus::AuthorizationFailed,
-            BraintreePaymentStatus::GatewayRejected => enums::AttemptStatus::Failure,
-            BraintreePaymentStatus::ProcessorDeclined => enums::AttemptStatus::Failure,
-            BraintreePaymentStatus::SettlementDeclined => enums::AttemptStatus::Failure,
+            BraintreePaymentStatus::Failed
+            | BraintreePaymentStatus::GatewayRejected
+            | BraintreePaymentStatus::ProcessorDeclined
+            | BraintreePaymentStatus::SettlementDeclined => enums::AttemptStatus::Failure,
             BraintreePaymentStatus::Authorized => enums::AttemptStatus::Authorized,
             BraintreePaymentStatus::Voided => enums::AttemptStatus::Voided,
             _ => enums::AttemptStatus::Pending,
