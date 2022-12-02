@@ -34,6 +34,7 @@ pub trait IPaymentIntent {
 
 #[cfg(feature = "kv_store")]
 mod storage {
+    use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
     use fred::prelude::{RedisErrorKind, *};
     use redis_interface::RedisEntryId;
@@ -44,7 +45,7 @@ mod storage {
         core::errors::{self, CustomResult},
         services::Store,
         types::{api, storage::payment_intent::*},
-        utils::{date_time, storage_partitioning::KvStorePartition},
+        utils::storage_partitioning::KvStorePartition,
     };
 
     #[async_trait::async_trait]

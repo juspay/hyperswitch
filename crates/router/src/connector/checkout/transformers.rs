@@ -67,15 +67,15 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
         }
     }
 }
-impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ValidateError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer => None,
-            api::PaymentMethod::Wallet => None,
-            api::PaymentMethod::PayLater(_) => None,
-            api::PaymentMethod::Paypal => None,
+            api::PaymentMethod::BankTransfer
+            | api::PaymentMethod::Wallet(_)
+            | api::PaymentMethod::PayLater(_)
+            | api::PaymentMethod::Paypal => None,
         };
 
         let three_ds = match item.auth_type {
@@ -111,8 +111,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(PaymentsRequest {
             source: source_var,
-            amount: item.amount,
-            currency: item.currency.to_string(),
+            amount: item.request.amount,
+            currency: item.request.currency.to_string(),
             processing_channel_id,
             three_ds,
             return_url,
@@ -189,12 +189,11 @@ impl<F, Req>
         });
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+            response: Ok(types::PaymentsResponseData {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -249,11 +248,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CheckoutRefundRespon
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(&item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -268,11 +266,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(&item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -342,11 +339,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -361,11 +357,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }

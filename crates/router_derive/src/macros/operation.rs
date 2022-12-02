@@ -15,6 +15,7 @@ enum Derives {
     Canceldata,
     Capturedata,
     Start,
+    Session,
 }
 
 impl From<String> for Derives {
@@ -29,6 +30,7 @@ impl From<String> for Derives {
             "capture" => Self::Capture,
             "capturedata" => Self::Capturedata,
             "start" => Self::Start,
+            "session" => Self::Session,
             _ => Self::Authorize,
         }
     }
@@ -90,16 +92,15 @@ impl Conversion {
     fn get_req_type(ident: Derives) -> syn::Ident {
         match ident {
             Derives::Authorize => syn::Ident::new("PaymentsRequest", Span::call_site()),
-            Derives::Authorizedata => syn::Ident::new("PaymentsRequestData", Span::call_site()),
+            Derives::Authorizedata => syn::Ident::new("PaymentsAuthorizeData", Span::call_site()),
             Derives::Sync => syn::Ident::new("PaymentsRetrieveRequest", Span::call_site()),
-            Derives::Syncdata => syn::Ident::new("PaymentsRequestSyncData", Span::call_site()),
+            Derives::Syncdata => syn::Ident::new("PaymentsSyncData", Span::call_site()),
             Derives::Cancel => syn::Ident::new("PaymentsCancelRequest", Span::call_site()),
-            Derives::Canceldata => syn::Ident::new("PaymentRequestCancelData", Span::call_site()),
+            Derives::Canceldata => syn::Ident::new("PaymentsCancelData", Span::call_site()),
             Derives::Capture => syn::Ident::new("PaymentsCaptureRequest", Span::call_site()),
-            Derives::Capturedata => {
-                syn::Ident::new("PaymentsRequestCaptureData", Span::call_site())
-            }
+            Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
+            Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
         }
     }
 
@@ -276,17 +277,18 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                     PaymentData
                 };
                 use crate::types::{
-                    PaymentsRequestSyncData,
-                    PaymentsRequestCaptureData,
-                    PaymentRequestCancelData,
-                    PaymentsRequestData,
+                    PaymentsSyncData,
+                    PaymentsCaptureData,
+                    PaymentsCancelData,
+                    PaymentsAuthorizeData,
 
                     api::{
                         PaymentsCaptureRequest,
                         PaymentsCancelRequest,
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
-                        PaymentsStartRequest
+                        PaymentsStartRequest,
+                        PaymentsSessionRequest
                     }
                 };
                 #trait_derive

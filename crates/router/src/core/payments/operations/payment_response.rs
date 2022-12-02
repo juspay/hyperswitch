@@ -14,7 +14,7 @@ use crate::{
         self, api,
         storage::{self, enums},
     },
-    utils::{self, OptionExt},
+    utils,
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -25,7 +25,7 @@ use crate::{
 pub struct PaymentResponse;
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -34,7 +34,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestData>
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentsRequestData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -49,16 +49,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestSyncData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn Db,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentsRequestSyncData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -69,7 +67,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestSyncDa
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestCaptureData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -78,7 +76,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestCaptur
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentsRequestCaptureData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -89,16 +87,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRequestCaptur
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentRequestCancelData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn Db,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
-            types::RouterData<F, types::PaymentRequestCancelData, types::PaymentsResponseData>,
+            types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         >,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -117,21 +113,22 @@ async fn payment_response_ut<F: Clone, T>(
     let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
     let mut connector_response_data = None;
 
-    let payment_attempt_update = match router_data.error_response.as_ref() {
-        Some(err) => storage::PaymentAttemptUpdate::ErrorUpdate {
+    let payment_attempt_update = match router_data.response.clone() {
+        Err(err) => storage::PaymentAttemptUpdate::ErrorUpdate {
             status: storage::enums::AttemptStatus::Failure,
-            error_message: Some(err.message.to_owned()),
+            error_message: Some(err.message),
         },
-        None => {
-            let response = router_data
-                .response
-                .get_required_value("router_data.response")?;
-
+        Ok(response) => {
             connector_response_data = Some(response.clone());
 
             storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
-                connector_transaction_id: Some(response.connector_transaction_id),
+                connector_transaction_id: Some(
+                    response
+                        .resource_id
+                        .get_connector_transaction_id()
+                        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
+                ),
                 authentication_type: None,
                 payment_method_id: Some(router_data.payment_method_id),
                 redirect: Some(response.redirect),
@@ -155,7 +152,12 @@ async fn payment_response_ut<F: Clone, T>(
                 .attach_printable("Could not parse the connector response")?;
 
             let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
-                connector_transaction_id: Some(connector_response.connector_transaction_id.clone()),
+                connector_transaction_id: Some(
+                    connector_response
+                        .resource_id
+                        .get_connector_transaction_id()
+                        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
+                ),
                 authentication_data,
                 encoded_data: payment_data.connector_response.encoded_data.clone(),
             };
@@ -169,11 +171,11 @@ async fn payment_response_ut<F: Clone, T>(
         None => payment_data.connector_response,
     };
 
-    let payment_intent_update = match router_data.error_response {
-        Some(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
+    let payment_intent_update = match router_data.response {
+        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::Failed,
         },
-        None => storage::PaymentIntentUpdate::ResponseUpdate {
+        Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.into(),
             return_url: router_data.return_url,
             amount_captured: None,

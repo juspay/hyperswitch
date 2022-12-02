@@ -93,6 +93,8 @@ pub enum ApiErrorResponse {
     MerchantAccountNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Merchant connector account does not exist in our records.")]
     MerchantConnectorAccountNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Resource ID does not exist in our records.")]
+    ResourceIdNotFound,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID.")]
     DuplicateMandate,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Mandate does not exist in our records.")]
@@ -161,6 +163,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::MandateNotFound
             | ApiErrorResponse::ClientSecretInvalid
             | ApiErrorResponse::SuccessfulPaymentNotFound
+            | ApiErrorResponse::ResourceIdNotFound
             | ApiErrorResponse::AddressNotFound => StatusCode::BAD_REQUEST, // 400
             ApiErrorResponse::DuplicateMerchantAccount
             | ApiErrorResponse::DuplicateMerchantConnectorAccount

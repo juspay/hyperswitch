@@ -12,8 +12,9 @@ build = "src/build.rs"
 [features]
 default = []
 kms = ["aws-config", "aws-sdk-kms"]
+basilisk = []
 stripe = ["dep:serde_qs"]
-sandbox = ["kms", "stripe"]
+sandbox = ["kms", "stripe", "basilisk"]
 olap = []
 production = []
 kv_store = ["dep:fred"]
@@ -40,6 +41,7 @@ error-stack = "0.2.1"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] , optional = true }
 hex = "0.4.3"
 http = "0.2.8"
+josekit = "0.8.1"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
 mime = "0.3.16"

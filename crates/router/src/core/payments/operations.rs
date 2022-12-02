@@ -3,6 +3,7 @@ mod payment_capture;
 mod payment_confirm;
 mod payment_create;
 mod payment_response;
+mod payment_session;
 mod payment_start;
 mod payment_status;
 mod payment_update;
@@ -14,6 +15,7 @@ pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
 pub use payment_create::PaymentCreate;
 pub use payment_response::PaymentResponse;
+pub use payment_session::PaymentSession;
 pub use payment_start::PaymentStart;
 pub use payment_status::PaymentStatus;
 pub use payment_update::PaymentUpdate;
@@ -112,7 +114,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -188,7 +190,7 @@ where
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -212,7 +214,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if helpers::check_if_operation_confirm(self) {
-            metrics::TASKS_ADDED_COUNT.add(1, &[]); // Metrics
+            metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
             let schedule_time = payment_sync::get_sync_process_schedule_time(
                 &payment_attempt.connector,
@@ -276,7 +278,7 @@ where
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
@@ -332,7 +334,7 @@ where
         _txn_id: &str,
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
-        _token: Option<i32>,
+        _token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
@@ -380,7 +382,7 @@ where
         _txn_id: &str,
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
-        _token: Option<i32>,
+        _token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,

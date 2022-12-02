@@ -34,8 +34,8 @@ cluster_urls = []
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
 
 [locker]
-mock_locker = true
-host = ""
+
+[jwekey]
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
