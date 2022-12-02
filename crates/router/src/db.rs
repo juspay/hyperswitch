@@ -78,7 +78,7 @@ impl SqlDb {
         Self {
             conn: diesel_make_pg_pool(
                 &Database {
-                    dbname: String::from("qwerty"),
+                    dbname: String::from("test_db"),
                     ..database.clone()
                 },
                 true,

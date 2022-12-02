@@ -11,11 +11,11 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "cloud"
-password = "scape"
+username = "db_user"
+password = "db_pass"
 host = "localhost"
 port = 5432
-dbname = "qwerty"
+dbname = "orca_db"
 pool_size = 5
 
 [proxy]
