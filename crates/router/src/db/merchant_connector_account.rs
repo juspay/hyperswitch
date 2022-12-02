@@ -118,7 +118,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_id: &str,
         connector: &str,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        let accounts = self.merchant_connector_accounts().await;
+        let accounts = self.merchant_connector_accounts.lock().await;
 
         Ok(accounts
             .iter()
@@ -142,7 +142,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         t: MerchantConnectorAccountNew,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
-        let mut accounts = self.merchant_connector_accounts().await;
+        let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = MerchantConnectorAccount {
             id: accounts.len() as i32,
             merchant_id: t.merchant_id.unwrap_or_default(),

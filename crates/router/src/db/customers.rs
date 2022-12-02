@@ -97,7 +97,7 @@ impl CustomerInterface for MockDb {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Option<Customer>, errors::StorageError> {
-        let customers = self.customers().await;
+        let customers = self.customers.lock().await;
 
         Ok(customers
             .iter()
@@ -129,7 +129,7 @@ impl CustomerInterface for MockDb {
         &self,
         customer_data: CustomerNew,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let mut customers = self.customers().await;
+        let mut customers = self.customers.lock().await;
         let customer = Customer {
             id: customers.len() as i32,
             customer_id: customer_data.customer_id,

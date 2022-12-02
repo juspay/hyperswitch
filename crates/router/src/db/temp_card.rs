@@ -70,7 +70,7 @@ impl TempCardInterface for MockDb {
         &self,
         insert: TempCardNew,
     ) -> CustomResult<TempCard, errors::StorageError> {
-        let mut cards = self.temp_cards().await;
+        let mut cards = self.temp_cards.lock().await;
         let card = TempCard {
             id: cards.len() as i32,
             date_created: insert.date_created,

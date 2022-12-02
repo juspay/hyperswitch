@@ -21,7 +21,7 @@ pub mod temp_card;
 
 use std::{collections::HashMap, sync::Arc};
 
-use futures_locks::{Mutex, MutexGuard};
+use futures_locks::Mutex;
 
 use crate::{
     configs::settings::Database,
@@ -133,42 +133,6 @@ impl MockDb {
             values: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
         }
-    }
-
-    async fn merchant_accounts(&self) -> MutexGuard<Vec<MerchantAccount>> {
-        self.merchant_accounts.lock().await
-    }
-
-    async fn merchant_connector_accounts(&self) -> MutexGuard<Vec<MerchantConnectorAccount>> {
-        self.merchant_connector_accounts.lock().await
-    }
-
-    async fn payment_attempts(&self) -> MutexGuard<Vec<PaymentAttempt>> {
-        self.payment_attempts.lock().await
-    }
-
-    async fn payment_intents(&self) -> MutexGuard<Vec<PaymentIntent>> {
-        self.payment_intents.lock().await
-    }
-
-    async fn customers(&self) -> MutexGuard<Vec<Customer>> {
-        self.customers.lock().await
-    }
-
-    async fn temp_cards(&self) -> MutexGuard<Vec<TempCard>> {
-        self.temp_cards.lock().await
-    }
-
-    async fn refunds(&self) -> MutexGuard<Vec<Refund>> {
-        self.refunds.lock().await
-    }
-
-    async fn processes(&self) -> MutexGuard<Vec<ProcessTracker>> {
-        self.processes.lock().await
-    }
-
-    async fn connector_response(&self) -> MutexGuard<Vec<ConnectorResponse>> {
-        self.connector_response.lock().await
     }
 }
 

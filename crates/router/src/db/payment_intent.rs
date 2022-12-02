@@ -271,7 +271,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         new: PaymentIntentNew,
     ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        let mut payment_intents = self.payment_intents().await;
+        let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
         let payment_intent = PaymentIntent {
             id: payment_intents.len() as i32,
@@ -306,7 +306,7 @@ impl PaymentIntentInterface for MockDb {
         this: PaymentIntent,
         update: PaymentIntentUpdate,
     ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        let mut payment_intents = self.payment_intents().await;
+        let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter_mut()
             .find(|item| item.id == this.id)
@@ -320,7 +320,7 @@ impl PaymentIntentInterface for MockDb {
         payment_id: &str,
         merchant_id: &str,
     ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        let payment_intents = self.payment_intents().await;
+        let payment_intents = self.payment_intents.lock().await;
 
         Ok(payment_intents
             .iter()

@@ -168,7 +168,7 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         payment_attempt: PaymentAttemptNew,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let mut payment_attempts = self.payment_attempts().await;
+        let mut payment_attempts = self.payment_attempts.lock().await;
         let id = payment_attempts.len() as i32;
         let time = common_utils::date_time::now();
 
@@ -212,7 +212,7 @@ impl PaymentAttemptInterface for MockDb {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let mut payment_attempts = self.payment_attempts().await;
+        let mut payment_attempts = self.payment_attempts.lock().await;
 
         let item = payment_attempts
             .iter_mut()
@@ -246,7 +246,7 @@ impl PaymentAttemptInterface for MockDb {
         payment_id: &str,
         merchant_id: &str,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let payment_attempts = self.payment_attempts().await;
+        let payment_attempts = self.payment_attempts.lock().await;
 
         Ok(payment_attempts
             .iter()

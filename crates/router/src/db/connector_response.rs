@@ -66,7 +66,7 @@ impl ConnectorResponseInterface for MockDb {
         &self,
         new: ConnectorResponseNew,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        let mut connector_response = self.connector_response().await;
+        let mut connector_response = self.connector_response.lock().await;
         let response = ConnectorResponse {
             id: connector_response.len() as i32,
             payment_id: new.payment_id,
@@ -97,7 +97,7 @@ impl ConnectorResponseInterface for MockDb {
         this: ConnectorResponse,
         connector_response_update: ConnectorResponseUpdate,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
-        let mut connector_response = self.connector_response().await;
+        let mut connector_response = self.connector_response.lock().await;
         let response = connector_response
             .iter_mut()
             .find(|item| item.id == this.id)

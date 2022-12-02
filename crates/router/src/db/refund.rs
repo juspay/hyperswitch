@@ -124,7 +124,7 @@ impl RefundInterface for MockDb {
     }
 
     async fn insert_refund(&self, new: RefundNew) -> CustomResult<Refund, errors::StorageError> {
-        let mut refunds = self.refunds().await;
+        let mut refunds = self.refunds.lock().await;
         let current_time = common_utils::date_time::now();
 
         let refund = Refund {
@@ -158,7 +158,7 @@ impl RefundInterface for MockDb {
         merchant_id: &str,
         txn_id: &str,
     ) -> CustomResult<Vec<Refund>, errors::StorageError> {
-        let refunds = self.refunds().await;
+        let refunds = self.refunds.lock().await;
 
         Ok(refunds
             .iter()
@@ -182,7 +182,7 @@ impl RefundInterface for MockDb {
         merchant_id: &str,
         refund_id: &str,
     ) -> CustomResult<Refund, errors::StorageError> {
-        let refunds = self.refunds().await;
+        let refunds = self.refunds.lock().await;
 
         refunds
             .iter()

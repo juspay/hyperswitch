@@ -101,7 +101,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         merchant_account: MerchantAccountNew,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let mut accounts = self.merchant_accounts().await;
+        let mut accounts = self.merchant_accounts.lock().await;
         let account = MerchantAccount {
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
@@ -132,7 +132,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         merchant_id: &str,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let accounts = self.merchant_accounts().await;
+        let accounts = self.merchant_accounts.lock().await;
         let account = accounts
             .iter()
             .find(|account| account.merchant_id == merchant_id);
@@ -156,7 +156,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         api_key: &str,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let accounts = self.merchant_accounts().await;
+        let accounts = self.merchant_accounts.lock().await;
 
         accounts
             .iter()

@@ -130,12 +130,15 @@ impl ProcessTrackerInterface for MockDb {
         &self,
         id: &str,
     ) -> CustomResult<Option<ProcessTracker>, errors::StorageError> {
-        Ok(self
-            .processes()
+        let optional = self
+            .processes
+            .lock()
             .await
             .iter()
             .find(|process| process.id == id)
-            .cloned())
+            .cloned();
+
+        Ok(optional)
     }
 
     async fn reinitialize_limbo_processes(
@@ -160,7 +163,7 @@ impl ProcessTrackerInterface for MockDb {
         &self,
         new: ProcessTrackerNew,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        let mut processes = self.processes().await;
+        let mut processes = self.processes.lock().await;
         let process = ProcessTracker {
             id: new.id,
             name: new.name,
