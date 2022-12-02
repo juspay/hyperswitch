@@ -227,7 +227,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         Ok(types::RouterData {
             status: enums::AttemptStatus::from((item.response.status, None)),
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 //TODO: Add redirection details here
                 redirection_data: None,
                 redirect: false,
@@ -268,7 +268,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
         let response = &item.response;
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData {
-                connector_transaction_id: response.action_id.clone(),
+                resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
                 redirect: false,
                 redirection_data: None,
             }),

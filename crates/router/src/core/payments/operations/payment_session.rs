@@ -216,7 +216,7 @@ where
         _txn_id: &str,
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
-        _token: Option<i32>,
+        _token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
