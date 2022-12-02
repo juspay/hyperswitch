@@ -8,7 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [features]
-default = ["alloc", "serde", "diesel", "sqlx"]
+default = ["alloc", "serde", "diesel"]
 alloc = ["zeroize/alloc"]
 sqlx = ["dep:sqlx"]
 
