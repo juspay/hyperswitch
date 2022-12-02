@@ -10,8 +10,8 @@ use router_env::{tracing, tracing::instrument};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentResponse, PaymentStatus,
-    PaymentUpdate,
+    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentResponse, PaymentSession,
+    PaymentStatus, PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -103,7 +103,7 @@ where
             &payment_data.payment_attempt.txn_id,
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
-            payment_data.token,
+            &payment_data.token,
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
@@ -350,7 +350,7 @@ where
     pub mandate_id: Option<String>,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
-    pub token: Option<i32>,
+    pub token: Option<String>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,

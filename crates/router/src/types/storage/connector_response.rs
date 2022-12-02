@@ -77,7 +77,7 @@ impl From<ConnectorResponseUpdate> for ConnectorResponseUpdateInternal {
                 connector_transaction_id,
                 authentication_data,
                 encoded_data,
-                modified_at: crate::utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
             },
         }
     }

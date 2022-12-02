@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::errors::CustomResult;
+use common_utils::{date_time, errors::CustomResult};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -28,7 +28,7 @@ use crate::{
             enums::{self, IntentStatus},
         },
     },
-    utils::{self, date_time},
+    utils,
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -140,7 +140,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 amount: 0,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
-                token: request.payment_token,
+                token: request.payment_token.clone(),
                 connector_response,
                 payment_method_data: request.payment_method_data.clone(),
                 confirm: Some(true),
@@ -238,7 +238,7 @@ where
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,

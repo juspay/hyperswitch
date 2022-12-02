@@ -1,3 +1,4 @@
+use common_utils::custom_serde;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -9,7 +10,6 @@ use crate::{
     pii,
     services::api,
     types::{self, api as api_types, enums, storage},
-    utils::custom_serde,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub enum PaymentOp {
 pub struct PaymentsRequest {
     #[serde(
         default,
-        deserialize_with = "custom_serde::payment_id_type::deserialize_option"
+        deserialize_with = "crate::utils::custom_serde::payment_id_type::deserialize_option"
     )]
     pub payment_id: Option<PaymentIdType>,
     pub merchant_id: Option<String>,
@@ -47,9 +47,10 @@ pub struct PaymentsRequest {
     pub authentication_type: Option<enums::AuthenticationType>,
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_method: Option<enums::PaymentMethodType>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
+    pub browser_info: Option<types::BrowserInformation>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -88,7 +89,7 @@ pub struct VerifyRequest {
     pub phone_country_code: Option<String>,
     pub payment_method: Option<enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethod>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<FutureUsage>,
     pub off_session: Option<bool>,
@@ -126,7 +127,7 @@ impl CustomerAcceptance {
     }
     pub fn get_accepted_at(&self) -> PrimitiveDateTime {
         self.accepted_at
-            .unwrap_or_else(crate::utils::date_time::now)
+            .unwrap_or_else(common_utils::date_time::now)
     }
 }
 
@@ -168,11 +169,18 @@ pub enum PaymentMethod {
     Card(CCard),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    Wallet,
+    #[serde(rename(deserialize = "wallet"))]
+    Wallet(WalletData),
     #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
     #[serde(rename(deserialize = "paypal"))]
     Paypal,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct WalletData {
+    pub issuer_name: enums::WalletIssuer,
+    pub token: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
@@ -188,7 +196,7 @@ pub enum PaymentMethodDataResponse {
     Card(CCardResponse),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    Wallet,
+    Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
 }
@@ -231,7 +239,7 @@ impl Default for PaymentIdType {
 #[derive(Debug, Clone)]
 pub struct Authorize;
 #[derive(Debug, Clone)]
-pub struct PCapture;
+pub struct Capture;
 
 #[derive(Debug, Clone)]
 pub struct PSync;
@@ -342,7 +350,7 @@ pub struct PaymentsResponse {
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub metadata: Option<serde_json::Value>,
@@ -629,7 +637,7 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
             PaymentMethod::PayLater(pay_later_data) => {
                 PaymentMethodDataResponse::PayLater(pay_later_data)
             }
-            PaymentMethod::Wallet => PaymentMethodDataResponse::Wallet,
+            PaymentMethod::Wallet(wallet_data) => PaymentMethodDataResponse::Wallet(wallet_data),
             PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
         }
     }
@@ -671,22 +679,22 @@ impl From<enums::AttemptStatus> for enums::IntentStatus {
 }
 
 pub trait PaymentAuthorize:
-    api::ConnectorIntegration<Authorize, types::PaymentsRequestData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentSync:
-    api::ConnectorIntegration<PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>
+    api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentVoid:
-    api::ConnectorIntegration<Void, types::PaymentRequestCancelData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentCapture:
-    api::ConnectorIntegration<PCapture, types::PaymentsRequestCaptureData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
 }
 
@@ -706,6 +714,12 @@ pub struct PaymentsRetrieveRequest {
     pub force_sync: bool,
     pub param: Option<String>,
     pub connector: Option<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, Clone)]
+pub struct PaymentsSessionRequest {
+    pub payment_id: PaymentIdType,
+    pub client_secret: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

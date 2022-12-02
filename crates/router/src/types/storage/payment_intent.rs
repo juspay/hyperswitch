@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_intent, types::enums, utils::date_time};
+use crate::{schema::payment_intent, types::enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent)]
@@ -134,7 +134,7 @@ impl PaymentIntentUpdate {
             shipping_address_id: internal_update
                 .shipping_address_id
                 .or(source.shipping_address_id),
-            modified_at: date_time::now(),
+            modified_at: common_utils::date_time::now(),
             ..source
         }
     }
@@ -158,12 +158,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 client_secret: make_client_secret_null_if_success(Some(status)),
                 shipping_address_id,
                 billing_address_id,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
                 metadata: Some(metadata),
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentIntentUpdate::ReturnUrlUpdate {
@@ -179,12 +179,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentIntentUpdate::PGStatusUpdate { status } => Self {
                 status: Some(status),
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -196,7 +196,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 client_secret: make_client_secret_null_if_success(Some(status)),
                 shipping_address_id,
                 billing_address_id,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentIntentUpdate::ResponseUpdate {
@@ -214,7 +214,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 return_url,
                 client_secret: make_client_secret_null_if_success(Some(status)),
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
         }

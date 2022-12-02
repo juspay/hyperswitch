@@ -16,7 +16,7 @@ use crate::{
     routes::AppState,
     scheduler::{ProcessTrackerBatch, SchedulerFlow},
     types::storage::{self, enums::ProcessTrackerStatus},
-    utils::{self, date_time, OptionExt, StringExt},
+    utils::{OptionExt, StringExt},
 };
 
 pub async fn acquire_pt_lock(
@@ -72,7 +72,7 @@ pub async fn divide_and_append_tasks(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let batches = divide(tasks, settings);
-    metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
+    metrics::BATCHES_CREATED.add(&metrics::CONTEXT, batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;
         match result {
@@ -120,7 +120,7 @@ pub async fn update_status_and_append(
         SchedulerFlow::Cleaner => {
             let res = state
                 .store
-                .reinitialize_limbo_processes(process_ids, utils::date_time::now())
+                .reinitialize_limbo_processes(process_ids, common_utils::date_time::now())
                 .await;
             match res {
                 Ok(count) => {
@@ -157,7 +157,7 @@ pub fn divide(
     tasks: Vec<storage::ProcessTracker>,
     conf: &SchedulerSettings,
 ) -> Vec<ProcessTrackerBatch> {
-    let now = utils::date_time::now();
+    let now = common_utils::date_time::now();
     let batch_size = conf.producer.batch_size;
     divide_into_batches(batch_size, tasks, now, conf)
 }
@@ -209,7 +209,7 @@ pub async fn get_batches(
             logger::error!(%error, "Error finding batch in stream");
             error.change_context(errors::ProcessTrackerError::BatchNotFound)
         })?;
-    metrics::BATCHES_CONSUMED.add(1, &[]);
+    metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
 
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_iter().map(|(_key, entries)| {
         entries.into_iter().try_fold(
@@ -257,7 +257,7 @@ pub fn get_process_tracker_id<'a>(
 }
 
 pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime> {
-    delta.map(|t| date_time::now().saturating_add(time::Duration::seconds(t.into())))
+    delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
 pub async fn consumer_operation_handler<E>(
@@ -303,6 +303,7 @@ pub fn add_histogram_metrics(
         logger::error!(%pickup_schedule_delta, "<- Time delta for scheduled tasks");
         let runner_name = runner.clone();
         metrics::CONSUMER_STATS.record(
+            &metrics::CONTEXT,
             pickup_schedule_delta,
             &[opentelemetry::KeyValue::new(
                 stream_name.to_owned(),
