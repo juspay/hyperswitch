@@ -331,12 +331,12 @@ async fn payments_create_core() {
     let expected_response = api::PaymentsResponse {
         payment_id: Some("pay_mbabizu24mvu3mela5njyhpit10".to_string()),
         status: enums::IntentStatus::Succeeded,
-        amount: Some(6540),
+        amount: 6540,
         amount_capturable: None,
         amount_received: None,
         client_secret: None,
         created: None,
-        currency: Some("USD".to_string()),
+        currency: "USD".to_string(),
         customer_id: None,
         description: Some("Its my first payment request".to_string()),
         refunds: None,
@@ -344,16 +344,17 @@ async fn payments_create_core() {
         ..Default::default()
     };
     let expected_response = services::BachResponse::Json(expected_response);
-    let actual_response = payments::payments_core::<api::Authorize, _, _, _>(
-        &state,
-        merchant_account,
-        payments::PaymentCreate,
-        req,
-        services::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
+    let actual_response =
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account,
+            payments::PaymentCreate,
+            req,
+            services::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .unwrap();
     assert_eq!(expected_response, actual_response);
 }
 
@@ -489,27 +490,28 @@ async fn payments_create_core_adyen_no_redirect() {
     let expected_response = services::BachResponse::Json(api::PaymentsResponse {
         payment_id: Some(payment_id.clone()),
         status: enums::IntentStatus::Processing,
-        amount: Some(6540),
+        amount: 6540,
         amount_capturable: None,
         amount_received: None,
         client_secret: None,
         created: None,
-        currency: Some("USD".to_string()),
+        currency: "USD".to_string(),
         customer_id: None,
         description: Some("Its my first payment request".to_string()),
         refunds: None,
         mandate_id: None,
         ..Default::default()
     });
-    let actual_response = payments::payments_core::<api::Authorize, _, _, _>(
-        &state,
-        merchant_account,
-        payments::PaymentCreate,
-        req,
-        services::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
+    let actual_response =
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account,
+            payments::PaymentCreate,
+            req,
+            services::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .unwrap();
     assert_eq!(expected_response, actual_response);
 }

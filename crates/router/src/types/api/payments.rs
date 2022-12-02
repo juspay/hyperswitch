@@ -95,6 +95,26 @@ pub struct VerifyRequest {
     pub client_secret: Option<String>,
 }
 
+impl From<PaymentsRequest> for VerifyRequest {
+    fn from(item: PaymentsRequest) -> Self {
+        Self {
+            client_secret: item.client_secret,
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            email: item.email,
+            name: item.name,
+            phone: item.phone,
+            phone_country_code: item.phone_country_code,
+            payment_method: item.payment_method,
+            payment_method_data: item.payment_method_data,
+            payment_token: item.payment_token,
+            mandate_data: item.mandate_data,
+            setup_future_usage: item.setup_future_usage,
+            off_session: item.off_session,
+        }
+    }
+}
+
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,
@@ -321,13 +341,13 @@ pub struct PaymentsResponse {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
     pub status: enums::IntentStatus,
-    pub amount: Option<i32>,
+    pub amount: i32,
     pub amount_capturable: Option<i32>,
     pub amount_received: Option<i32>,
     pub client_secret: Option<Secret<String>>,
     #[serde(with = "custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
-    pub currency: Option<String>,
+    pub currency: String,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub refunds: Option<Vec<RefundResponse>>,
@@ -506,7 +526,7 @@ impl From<PaymentsRequest> for PaymentsResponse {
     }
 }
 
-impl From<VerifyRequest> for PaymentsResponse {
+impl From<VerifyRequest> for VerifyResponse {
     fn from(item: VerifyRequest) -> Self {
         Self {
             merchant_id: item.merchant_id,
@@ -519,9 +539,6 @@ impl From<VerifyRequest> for PaymentsResponse {
                 .payment_method_data
                 .map(PaymentMethodDataResponse::from),
             payment_token: item.payment_token,
-            mandate_data: item.mandate_data,
-            setup_future_usage: item.setup_future_usage,
-            off_session: item.off_session,
             ..Default::default()
         }
     }
@@ -543,11 +560,11 @@ impl From<types::storage::PaymentIntent> for PaymentsResponse {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
             status: item.status,
-            amount: Some(item.amount),
+            amount: item.amount,
             amount_capturable: item.amount_captured,
             client_secret: item.client_secret.map(|s| s.into()),
             created: Some(item.created_at),
-            currency: Some(item.currency.map(|c| c.to_string()).unwrap_or_default()),
+            currency: item.currency.map(|c| c.to_string()).unwrap_or_default(),
             description: item.description,
             metadata: item.metadata,
             customer_id: item.customer_id,
