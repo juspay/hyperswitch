@@ -75,32 +75,32 @@ impl MandateInterface for super::Store {
 impl MandateInterface for MockDb {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &str,
-        mandate_id: &str,
+        _merchant_id: &str,
+        _mandate_id: &str,
     ) -> CustomResult<Mandate, errors::StorageError> {
         todo!()
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
-        merchant_id: &str,
-        customer_id: &str,
+        _merchant_id: &str,
+        _customer_id: &str,
     ) -> CustomResult<Vec<Mandate>, errors::StorageError> {
         todo!()
     }
 
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &str,
-        mandate_id: &str,
-        mandate: MandateUpdate,
+        _merchant_id: &str,
+        _mandate_id: &str,
+        _mandate: MandateUpdate,
     ) -> CustomResult<Mandate, errors::StorageError> {
         todo!()
     }
 
     async fn insert_mandate(
         &self,
-        mandate: MandateNew,
+        _mandate: MandateNew,
     ) -> CustomResult<Mandate, errors::StorageError> {
         todo!()
     }

@@ -122,35 +122,41 @@ impl QueueInterface for super::Store {
 impl QueueInterface for MockDb {
     async fn fetch_consumer_tasks(
         &self,
-        stream_name: &str,
-        group_name: &str,
-        consumer_name: &str,
+        _stream_name: &str,
+        _group_name: &str,
+        _consumer_name: &str,
     ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
         todo!()
     }
 
     async fn consumer_group_create(
         &self,
-        stream: &str,
-        group: &str,
-        id: &RedisEntryId,
+        _stream: &str,
+        _group: &str,
+        _id: &RedisEntryId,
     ) -> CustomResult<(), RedisError> {
         todo!()
     }
 
-    async fn acquire_pt_lock(&self, tag: &str, lock_key: &str, lock_val: &str, ttl: i64) -> bool {
+    async fn acquire_pt_lock(
+        &self,
+        _tag: &str,
+        _lock_key: &str,
+        _lock_val: &str,
+        _ttl: i64,
+    ) -> bool {
         todo!()
     }
 
-    async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> bool {
+    async fn release_pt_lock(&self, _tag: &str, _lock_key: &str) -> bool {
         todo!()
     }
 
     async fn stream_append_entry(
         &self,
-        stream: &str,
-        entry_id: &RedisEntryId,
-        fields: Vec<(&str, String)>,
+        _stream: &str,
+        _entry_id: &RedisEntryId,
+        _fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
         todo!()
     }

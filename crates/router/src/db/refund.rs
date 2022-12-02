@@ -117,8 +117,8 @@ impl RefundInterface for super::Store {
 impl RefundInterface for MockDb {
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
-        internal_reference_id: &str,
-        merchant_id: &str,
+        _internal_reference_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<Refund, errors::StorageError> {
         todo!()
     }
@@ -171,8 +171,8 @@ impl RefundInterface for MockDb {
 
     async fn update_refund(
         &self,
-        this: Refund,
-        refund: RefundUpdate,
+        _this: Refund,
+        _refund: RefundUpdate,
     ) -> CustomResult<Refund, errors::StorageError> {
         todo!()
     }
@@ -193,8 +193,8 @@ impl RefundInterface for MockDb {
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        _payment_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<Vec<Refund>, errors::StorageError> {
         todo!()
     }

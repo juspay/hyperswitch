@@ -85,9 +85,9 @@ impl ConnectorResponseInterface for MockDb {
 
     async fn find_connector_response_by_payment_id_merchant_id_txn_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
-        txn_id: &str,
+        _payment_id: &str,
+        _merchant_id: &str,
+        _txn_id: &str,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
         todo!()
     }

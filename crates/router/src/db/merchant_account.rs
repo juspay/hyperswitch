@@ -145,8 +145,8 @@ impl MerchantAccountInterface for MockDb {
 
     async fn update_merchant(
         &self,
-        this: MerchantAccount,
-        merchant_account: MerchantAccountUpdate,
+        _this: MerchantAccount,
+        _merchant_account: MerchantAccountUpdate,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         todo!()
     }
@@ -167,14 +167,14 @@ impl MerchantAccountInterface for MockDb {
 
     async fn find_merchant_account_by_publishable_key(
         &self,
-        publishable_key: &str,
+        _publishable_key: &str,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         todo!()
     }
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
-        merchant_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         todo!()
     }

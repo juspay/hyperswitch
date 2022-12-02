@@ -83,21 +83,21 @@ impl TempCardInterface for MockDb {
 
     async fn find_tempcard_by_transaction_id(
         &self,
-        transaction_id: &str,
+        _transaction_id: &str,
     ) -> CustomResult<Option<TempCard>, errors::StorageError> {
         todo!()
     }
 
     async fn insert_tempcard_with_token(
         &self,
-        card: TempCard,
+        _card: TempCard,
     ) -> CustomResult<TempCard, errors::StorageError> {
         todo!()
     }
 
     async fn find_tempcard_by_token(
         &self,
-        token: &i32,
+        _token: &i32,
     ) -> CustomResult<TempCard, errors::StorageError> {
         todo!()
     }

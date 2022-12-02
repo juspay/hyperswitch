@@ -41,14 +41,14 @@ impl LockerMockUpInterface for super::Store {
 impl LockerMockUpInterface for MockDb {
     async fn find_locker_by_card_id(
         &self,
-        card_id: &str,
+        _card_id: &str,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
         todo!()
     }
 
     async fn insert_locker_mock_up(
         &self,
-        new: LockerMockUpNew,
+        _new: LockerMockUpNew,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
         todo!()
     }

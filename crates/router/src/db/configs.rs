@@ -40,18 +40,21 @@ impl ConfigInterface for super::Store {
 
 #[async_trait::async_trait]
 impl ConfigInterface for MockDb {
-    async fn insert_config(&self, config: ConfigNew) -> CustomResult<Config, errors::StorageError> {
+    async fn insert_config(
+        &self,
+        _config: ConfigNew,
+    ) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }
 
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<Config, errors::StorageError> {
+    async fn find_config_by_key(&self, _key: &str) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }
 
     async fn update_config_by_key(
         &self,
-        key: &str,
-        config_update: ConfigUpdate,
+        _key: &str,
+        _config_update: ConfigUpdate,
     ) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }

@@ -198,8 +198,8 @@ mod storage {
         }
         async fn filter_payment_intent_by_constraints(
             &self,
-            merchant_id: &str,
-            pc: &api::PaymentListConstraints,
+            _merchant_id: &str,
+            _pc: &api::PaymentListConstraints,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             //TODO: Implement this
             Err(errors::StorageError::KVError.into())
@@ -260,8 +260,8 @@ mod storage {
 impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intent_by_constraints(
         &self,
-        merchant_id: &str,
-        pc: &api::PaymentListConstraints,
+        _merchant_id: &str,
+        _pc: &api::PaymentListConstraints,
     ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
         todo!()
     }

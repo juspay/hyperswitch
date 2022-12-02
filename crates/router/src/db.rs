@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(clippy::unwrap_used)]
-
 pub mod address;
 pub mod configs;
 pub mod connector_response;
@@ -19,7 +15,7 @@ pub mod queue;
 pub mod refund;
 pub mod temp_card;
 
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use futures_locks::Mutex;
 
@@ -114,7 +110,6 @@ pub struct MockDb {
     refunds: Arc<Mutex<Vec<Refund>>>,
     processes: Arc<Mutex<Vec<ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<ConnectorResponse>>>,
-    values: Arc<Mutex<HashMap<String, Vec<u8>>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
 }
 
@@ -130,7 +125,6 @@ impl MockDb {
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
-            values: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
         }
     }

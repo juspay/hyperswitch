@@ -119,20 +119,20 @@ impl MerchantConnectorAccountInterface for MockDb {
         connector: &str,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let accounts = self.merchant_connector_accounts.lock().await;
-
-        Ok(accounts
+        let account = accounts
             .iter()
             .find(|account| {
                 account.merchant_id == merchant_id && account.connector_name == connector
             })
             .cloned()
-            .unwrap())
+            .unwrap();
+        Ok(account)
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &str,
-        merchant_connector_id: &i32,
+        _merchant_id: &str,
+        _merchant_connector_id: &i32,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         todo!()
     }
@@ -162,23 +162,23 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_merchant_connector_account_by_merchant_id_list(
         &self,
-        merchant_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, errors::StorageError> {
         todo!()
     }
 
     async fn update_merchant_connector_account(
         &self,
-        this: MerchantConnectorAccount,
-        merchant_connector_account: MerchantConnectorAccountUpdate,
+        _this: MerchantConnectorAccount,
+        _merchant_connector_account: MerchantConnectorAccountUpdate,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         todo!()
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &str,
-        merchant_connector_id: &i32,
+        _merchant_id: &str,
+        _merchant_connector_id: &i32,
     ) -> CustomResult<bool, errors::StorageError> {
         todo!()
     }

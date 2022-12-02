@@ -109,17 +109,17 @@ impl CustomerInterface for MockDb {
 
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: String,
-        merchant_id: String,
-        customer: CustomerUpdate,
+        _customer_id: String,
+        _merchant_id: String,
+        _customer: CustomerUpdate,
     ) -> CustomResult<Customer, errors::StorageError> {
         todo!()
     }
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
-        merchant_id: &str,
+        _customer_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<Customer, errors::StorageError> {
         todo!()
     }
@@ -149,8 +149,8 @@ impl CustomerInterface for MockDb {
 
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
-        merchant_id: &str,
+        _customer_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         todo!()
     }

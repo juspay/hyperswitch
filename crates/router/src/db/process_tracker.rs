@@ -143,18 +143,18 @@ impl ProcessTrackerInterface for MockDb {
 
     async fn reinitialize_limbo_processes(
         &self,
-        ids: Vec<String>,
-        schedule_time: PrimitiveDateTime,
+        _ids: Vec<String>,
+        _schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::StorageError> {
         todo!()
     }
 
     async fn find_processes_by_time_status(
         &self,
-        time_lower_limit: PrimitiveDateTime,
-        time_upper_limit: PrimitiveDateTime,
-        status: enums::ProcessTrackerStatus,
-        limit: Option<i64>,
+        _time_lower_limit: PrimitiveDateTime,
+        _time_upper_limit: PrimitiveDateTime,
+        _status: enums::ProcessTrackerStatus,
+        _limit: Option<i64>,
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
         todo!()
     }
@@ -185,24 +185,24 @@ impl ProcessTrackerInterface for MockDb {
 
     async fn update_process(
         &self,
-        this: ProcessTracker,
-        process: ProcessTrackerUpdate,
+        _this: ProcessTracker,
+        _process: ProcessTrackerUpdate,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
         todo!()
     }
 
     async fn update_process_tracker(
         &self,
-        this: ProcessTracker,
-        process: ProcessTrackerUpdate,
+        _this: ProcessTracker,
+        _process: ProcessTrackerUpdate,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
         todo!()
     }
 
     async fn process_tracker_update_process_status_by_ids(
         &self,
-        task_ids: Vec<String>,
-        task_update: ProcessTrackerUpdate,
+        _task_ids: Vec<String>,
+        _task_update: ProcessTrackerUpdate,
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
         todo!()
     }

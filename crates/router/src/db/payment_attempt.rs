@@ -149,16 +149,16 @@ mod storage {
 impl PaymentAttemptInterface for MockDb {
     async fn find_payment_attempt_by_merchant_id_txn_id(
         &self,
-        merchant_id: &str,
-        txn_id: &str,
+        _merchant_id: &str,
+        _txn_id: &str,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
-        merchant_id: &str,
-        connector_txn_id: &str,
+        _merchant_id: &str,
+        _connector_txn_id: &str,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         todo!()
     }
@@ -226,17 +226,17 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn find_payment_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        _payment_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
     async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
         &self,
-        transaction_id: &str,
-        payment_id: &str,
-        merchant_id: &str,
+        _transaction_id: &str,
+        _payment_id: &str,
+        _merchant_id: &str,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         todo!()
     }
@@ -471,16 +471,16 @@ mod storage {
 
         async fn find_payment_attempt_by_merchant_id_connector_txn_id(
             &self,
-            merchant_id: &str,
-            connector_txn_id: &str,
+            _merchant_id: &str,
+            _connector_txn_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             Err(errors::StorageError::KVError).into_report()
         }
 
         async fn find_payment_attempt_by_merchant_id_txn_id(
             &self,
-            merchant_id: &str,
-            txn_id: &str,
+            _merchant_id: &str,
+            _txn_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             Err(errors::StorageError::KVError).into_report()
         }

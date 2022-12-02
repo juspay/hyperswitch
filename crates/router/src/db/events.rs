@@ -20,7 +20,7 @@ impl EventInterface for super::Store {
 
 #[async_trait::async_trait]
 impl EventInterface for MockDb {
-    async fn insert_event(&self, event: EventNew) -> CustomResult<Event, errors::StorageError> {
+    async fn insert_event(&self, _event: EventNew) -> CustomResult<Event, errors::StorageError> {
         todo!()
     }
 }
