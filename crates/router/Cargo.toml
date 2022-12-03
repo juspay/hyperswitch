@@ -38,7 +38,7 @@ dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.1"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] , optional = true }
-futures = "0.3"
+futures = "0.3.25"
 futures-locks = "0.7.0"
 hex = "0.4.3"
 http = "0.2.8"
