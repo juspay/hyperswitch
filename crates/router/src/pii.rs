@@ -22,11 +22,7 @@ where
             return WithType::fmt(val, f);
         }
 
-        f.write_str(&format!(
-            "{}{}",
-            &val_str[..6],
-            "*".repeat(val_str.len() - 6)
-        ))
+        write!(f, "{}{}", &val_str[..6], "*".repeat(val_str.len() - 6))
     }
 }
 
@@ -66,12 +62,11 @@ where
             return WithType::fmt(val, f);
         }
 
-        let parts: Vec<&str> = val_str.split('@').collect();
-        if parts.len() != 2 {
-            return WithType::fmt(val, f);
+        if let Some((a, b)) = val_str.split_once('@') {
+            write!(f, "{}@{}", "*".repeat(a.len()), b)
+        } else {
+            WithType::fmt(val, f)
         }
-
-        f.write_str(&format!("{}@{}", "*".repeat(parts[0].len()), parts[1]))
     }
 }
 
@@ -95,7 +90,7 @@ where
             }
         }
 
-        f.write_str(&format!("{}.**.**.**", segments[0]))
+        write!(f, "{}.**.**.**", segments[0])
     }
 }
 

@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 use crate::{schema::refund, types::enums};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
+#[derive(Clone, Debug, Eq, Identifiable, Queryable, PartialEq)]
 #[diesel(table_name = refund)]
 pub struct Refund {
     pub id: i32,

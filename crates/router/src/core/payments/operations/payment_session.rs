@@ -11,7 +11,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, PaymentData},
     },
-    db::{payment_attempt::IPaymentAttempt, payment_intent::IPaymentIntent, Db},
+    db::StorageInterface,
     routes::AppState,
     types::{
         api,
@@ -47,7 +47,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let db = &state.store;
+        let db = &*state.store;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id)
@@ -91,7 +91,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
-        let db = db as &dyn Db;
+        let db = db as &dyn StorageInterface;
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(
                 &payment_intent.payment_id,
@@ -136,7 +136,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn Db,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
@@ -187,7 +187,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         merchant_id: &str,

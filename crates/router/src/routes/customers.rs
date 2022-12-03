@@ -18,7 +18,7 @@ pub async fn customers_create(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| create_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| create_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await
@@ -39,7 +39,7 @@ pub async fn customers_retrieve(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| retrieve_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await
@@ -59,7 +59,7 @@ pub async fn customers_update(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| update_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| update_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await
@@ -80,7 +80,7 @@ pub async fn customers_delete(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| delete_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| delete_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await

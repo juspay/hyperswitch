@@ -22,6 +22,9 @@ serde_urlencoded = "0.7.1"
 strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.14", default-features = false, features = ["formatting"] }
 tokio = { version = "1.21.2" }
+
+# We put in a old version, we do not update to avoid clippy errors: https://github.com/tokio-rs/tracing/pull/2270#issuecomment-1282881008
+tracing-attributes = "=0.1.22"
 tracing = "0.1.36"
 tracing-actix-web = { version = "0.6.1", features = ["opentelemetry_0_17"], optional = true }
 tracing-appender = "0.2.2"

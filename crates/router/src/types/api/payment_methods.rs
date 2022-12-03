@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use common_utils::custom_serde;
 use error_stack::report;
 use literally::hmap;
 use once_cell::sync::Lazy;
@@ -159,7 +158,7 @@ pub struct PaymentMethodResponse {
     pub installment_payment_enabled: bool,
     pub payment_experience: Option<Vec<String>>, //TODO change it to enum
     pub metadata: Option<serde_json::Value>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 }
 
@@ -234,7 +233,7 @@ pub struct CustomerPaymentMethod {
     pub payment_experience: Option<Vec<String>>, //TODO change it to enum
     pub card: Option<CardDetailFromLocker>,
     pub metadata: Option<serde_json::Value>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 }
 

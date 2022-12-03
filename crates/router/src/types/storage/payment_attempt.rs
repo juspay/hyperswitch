@@ -72,7 +72,7 @@ pub struct PaymentAttemptNew {
     pub browser_info: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum PaymentAttemptUpdate {
     Update {
         amount: i32,
@@ -234,27 +234,23 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
+
+    use uuid::Uuid;
+
     use super::*;
-    use crate::{
-        configs::settings::Settings, db::payment_attempt::IPaymentAttempt, routes, services::Store,
-        types,
-    };
+    use crate::{configs::settings::Settings, db::StorageImpl, routes, types};
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
 
-        let state = routes::AppState {
-            flow_name: String::from("default"),
-            store: Store::new(&conf).await,
-            conf,
-        };
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
-        // let conn = config.conn.get();
-
+        let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
         let payment_attempt = PaymentAttemptNew {
-            payment_id: "1".to_string(),
+            payment_id: payment_id.clone(),
             connector: types::Connector::Dummy.to_string(),
             created_at: current_time.into(),
             modified_at: current_time.into(),
@@ -268,24 +264,22 @@ mod tests {
             .unwrap();
         eprintln!("{:?}", response);
 
-        assert_eq!(response.payment_id, "1");
+        assert_eq!(response.payment_id, payment_id.clone());
     }
 
     #[actix_rt::test]
     async fn test_find_payment_attempt() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
-        let state = routes::AppState {
-            flow_name: String::from("default"),
-            store: Store::new(&conf).await,
-            conf,
-        };
         let current_time = common_utils::date_time::now();
+        let payment_id = Uuid::new_v4().to_string();
+        let merchant_id = Uuid::new_v4().to_string();
 
         let payment_attempt = PaymentAttemptNew {
-            payment_id: "1".to_string(),
-            merchant_id: "1".to_string(),
+            payment_id: payment_id.clone(),
+            merchant_id: merchant_id.clone(),
             connector: types::Connector::Dummy.to_string(),
             created_at: current_time.into(),
             modified_at: current_time.into(),
@@ -299,13 +293,13 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id("1", "1")
+            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, &merchant_id)
             .await
             .unwrap();
 
         eprintln!("{:?}", response);
 
-        assert_eq!(response.payment_id, "1");
+        assert_eq!(response.payment_id, payment_id);
     }
 
     #[actix_rt::test]
@@ -313,11 +307,7 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let uuid = uuid::Uuid::new_v4().to_string();
-        let state = routes::AppState {
-            flow_name: String::from("default"),
-            store: Store::new(&conf).await,
-            conf,
-        };
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
         let current_time = common_utils::date_time::now();
 
         let payment_attempt = PaymentAttemptNew {

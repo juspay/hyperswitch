@@ -6,7 +6,6 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods,
     },
-    db::payment_method::IPaymentMethod,
     pii::Secret,
     routes::AppState,
     types::{api, storage},
@@ -38,7 +37,7 @@ impl MandateResponse {
         state: &AppState,
         mandate: storage::Mandate,
     ) -> RouterResult<Self> {
-        let db = &state.store;
+        let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
             .await
