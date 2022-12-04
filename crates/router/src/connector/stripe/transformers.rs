@@ -402,12 +402,11 @@ impl<F, T>
 
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+            response: Ok(types::PaymentsResponseData {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -740,7 +739,7 @@ impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMeth
                     billing_country: klarna_data.country.clone(),
                 })
             }
-            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
             api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
         }
     }

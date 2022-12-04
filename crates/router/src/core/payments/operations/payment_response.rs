@@ -108,7 +108,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<

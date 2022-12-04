@@ -251,7 +251,7 @@ pub async fn payment_intents_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<PCapture, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,

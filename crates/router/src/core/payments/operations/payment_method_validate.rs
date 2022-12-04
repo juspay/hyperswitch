@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::errors::CustomResult;
+use common_utils::{date_time, errors::CustomResult};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -15,10 +15,7 @@ use crate::{
         payments::{helpers, CustomerDetails, Operation, PaymentData},
         utils as core_utils,
     },
-    db::{
-        connector_response::IConnectorResponse, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, Db,
-    },
+    db::StorageInterface,
     routes::AppState,
     types::{
         self,
@@ -28,7 +25,7 @@ use crate::{
             enums::{self, IntentStatus},
         },
     },
-    utils::{self, date_time},
+    utils,
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -140,7 +137,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 amount: 0,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
-                token: request.payment_token,
+                token: request.payment_token.clone(),
                 connector_response,
                 payment_method_data: request.payment_method_data.clone(),
                 confirm: Some(true),
@@ -164,7 +161,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
@@ -209,7 +206,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,
@@ -238,7 +235,7 @@ where
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
-        token: Option<i32>,
+        token: &Option<String>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,

@@ -283,10 +283,6 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                     PaymentData
                 };
                 use crate::types::{
-                    PaymentsRequestSyncData,
-                    PaymentsRequestCaptureData,
-                    PaymentRequestCancelData,
-                    PaymentsRequestData,
                     VerifyRequestData,
                     PaymentsSyncData,
                     PaymentsCaptureData,
@@ -299,7 +295,7 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
                         PaymentsStartRequest,
-                        VerifyRequest
+                        VerifyRequest,
                         PaymentsSessionRequest
                     }
                 };

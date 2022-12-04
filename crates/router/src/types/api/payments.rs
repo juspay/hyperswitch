@@ -89,7 +89,7 @@ pub struct VerifyRequest {
     pub phone_country_code: Option<String>,
     pub payment_method: Option<enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethod>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<FutureUsage>,
     pub off_session: Option<bool>,
@@ -432,7 +432,7 @@ pub struct VerifyResponse {
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
