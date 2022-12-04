@@ -12,17 +12,14 @@ use crate::{
         payments::{helpers, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
-    db::{
-        connector_response::IConnectorResponse, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, Db,
-    },
+    db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        self, api,
         storage::{self, enums},
         Connector,
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -45,7 +42,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        let db = &state.store;
+        let db = &*state.store;
         let (mut payment_intent, mut payment_attempt, currency, amount, connector_response);
 
         let payment_id = payment_id
@@ -71,6 +68,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
         }
 
+        let browser_info = request
+            .browser_info
+            .clone()
+            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id)
             .await
@@ -80,6 +86,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
 
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
+        payment_attempt.browser_info = browser_info;
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount;
 
@@ -154,7 +161,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
@@ -163,6 +170,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         F: 'b + Send,
     {
         let payment_method = payment_data.payment_attempt.payment_method;
+        let browser_info = payment_data.payment_attempt.browser_info.clone();
 
         let (intent_status, attempt_status) = match payment_data.payment_attempt.authentication_type
         {
@@ -182,6 +190,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
                     status: attempt_status,
                     payment_method,
+                    browser_info,
                 },
             )
             .await

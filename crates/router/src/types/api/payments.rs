@@ -32,7 +32,7 @@ pub struct PaymentsRequest {
     pub currency: Option<String>,
     pub capture_method: Option<enums::CaptureMethod>,
     pub amount_to_capture: Option<i32>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
@@ -47,7 +47,7 @@ pub struct PaymentsRequest {
     pub authentication_type: Option<enums::AuthenticationType>,
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_method: Option<enums::PaymentMethodType>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub statement_descriptor_name: Option<String>,
@@ -56,6 +56,7 @@ pub struct PaymentsRequest {
     pub client_secret: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
 }
 
 impl PaymentsRequest {
@@ -130,7 +131,7 @@ pub struct MandateData {
 #[serde(deny_unknown_fields)]
 pub struct CustomerAcceptance {
     pub acceptance_type: AcceptanceType,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     pub online: Option<OnlineMandate>,
 }
@@ -146,7 +147,7 @@ impl CustomerAcceptance {
     }
     pub fn get_accepted_at(&self) -> PrimitiveDateTime {
         self.accepted_at
-            .unwrap_or_else(crate::utils::date_time::now)
+            .unwrap_or_else(common_utils::date_time::now)
     }
 }
 
@@ -188,11 +189,18 @@ pub enum PaymentMethod {
     Card(CCard),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    Wallet,
+    #[serde(rename(deserialize = "wallet"))]
+    Wallet(WalletData),
     #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
     #[serde(rename(deserialize = "paypal"))]
     Paypal,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct WalletData {
+    pub issuer_name: enums::WalletIssuer,
+    pub token: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
@@ -208,7 +216,7 @@ pub enum PaymentMethodDataResponse {
     Card(CCardResponse),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    Wallet,
+    Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
 }
@@ -251,7 +259,7 @@ impl Default for PaymentIdType {
 #[derive(Debug, Clone)]
 pub struct Authorize;
 #[derive(Debug, Clone)]
-pub struct PCapture;
+pub struct Capture;
 
 #[derive(Debug, Clone)]
 pub struct PSync;
@@ -345,7 +353,7 @@ pub struct PaymentsResponse {
     pub amount_capturable: Option<i32>,
     pub amount_received: Option<i32>,
     pub client_secret: Option<Secret<String>>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
     pub currency: String,
     pub customer_id: Option<String>,
@@ -355,14 +363,14 @@ pub struct PaymentsResponse {
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub capture_method: Option<enums::CaptureMethod>,
     #[auth_based]
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub metadata: Option<serde_json::Value>,
@@ -387,18 +395,18 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
     pub limit: i64,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lt")]
     pub created_lt: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gt")]
     pub created_gt: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lte")]
     pub created_lte: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gte")]
     pub created_gte: Option<PrimitiveDateTime>,
 }
@@ -667,7 +675,7 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
             PaymentMethod::PayLater(pay_later_data) => {
                 PaymentMethodDataResponse::PayLater(pay_later_data)
             }
-            PaymentMethod::Wallet => PaymentMethodDataResponse::Wallet,
+            PaymentMethod::Wallet(wallet_data) => PaymentMethodDataResponse::Wallet(wallet_data),
             PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
         }
     }
@@ -709,22 +717,22 @@ impl From<enums::AttemptStatus> for enums::IntentStatus {
 }
 
 pub trait PaymentAuthorize:
-    api::ConnectorIntegration<Authorize, types::PaymentsRequestData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentSync:
-    api::ConnectorIntegration<PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>
+    api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentVoid:
-    api::ConnectorIntegration<Void, types::PaymentRequestCancelData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
 }
 
 pub trait PaymentCapture:
-    api::ConnectorIntegration<PCapture, types::PaymentsRequestCaptureData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
 }
 
@@ -744,6 +752,12 @@ pub struct PaymentsRetrieveRequest {
     pub force_sync: bool,
     pub param: Option<String>,
     pub connector: Option<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, Clone)]
+pub struct PaymentsSessionRequest {
+    pub payment_id: PaymentIdType,
+    pub client_secret: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

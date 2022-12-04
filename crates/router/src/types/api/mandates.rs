@@ -6,7 +6,6 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods,
     },
-    db::payment_method::IPaymentMethod,
     pii::Secret,
     routes::AppState,
     types::{api, storage},
@@ -38,7 +37,7 @@ impl MandateResponse {
         state: &AppState,
         mandate: storage::Mandate,
     ) -> RouterResult<Self> {
-        let db = &state.store;
+        let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
             .await
@@ -46,7 +45,7 @@ impl MandateResponse {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
         let card = if payment_method.payment_method == storage::enums::PaymentMethodType::Card {
-            let get_card_resp = payment_methods::cards::get_card(
+            let get_card_resp = payment_methods::cards::get_card_from_legacy_locker(
                 state,
                 &payment_method.merchant_id,
                 &payment_method.payment_method_id,

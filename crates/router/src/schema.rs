@@ -203,6 +203,7 @@ diesel::table! {
         cancellation_reason -> Nullable<Varchar>,
         amount_to_capture -> Nullable<Int4>,
         mandate_id -> Nullable<Varchar>,
+        browser_info -> Nullable<Jsonb>,
     }
 }
 

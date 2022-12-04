@@ -1,15 +1,10 @@
-use std::sync;
-
-use redis_interface as redis;
-use redis_interface::errors as redis_errors;
-
 use super::{PaymentsSyncWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::payments::{self as payment_flows, operations},
-    db::Db,
+    db::{get_and_deserialize_key, StorageInterface},
     errors,
     routes::AppState,
-    scheduler::{consumer, process_data, utils as pt_utils},
+    scheduler::{consumer, process_data},
     types::{
         api,
         storage::{self, enums},
@@ -24,8 +19,7 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let redis_conn = state.store.redis_conn.clone();
-        let db: &dyn Db = &state.store;
+        let db: &dyn StorageInterface = &*state.store;
         let tracking_data: api::PaymentsRetrieveRequest = process
             .tracking_data
             .clone()
@@ -68,7 +62,6 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             _ => {
                 retry_sync_task(
                     db,
-                    redis_conn,
                     payment_data.payment_attempt.connector,
                     payment_data.payment_attempt.merchant_id,
                     process,
@@ -90,24 +83,25 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
 }
 
 pub async fn get_sync_process_schedule_time(
+    db: &dyn StorageInterface,
     connector: &str,
     merchant_id: &str,
-    redis: sync::Arc<redis::RedisConnectionPool>,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<
-        process_data::ConnectorPTMapping,
-        redis_errors::RedisError,
-    > = redis
-        .get_and_deserialize_key(&format!("pt_mapping_{}", connector), "ConnectorPTMapping")
+    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
+        get_and_deserialize_key(
+            db,
+            &format!("pt_mapping_{}", connector),
+            "ConnectorPTMapping",
+        )
         .await;
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(_) => process_data::ConnectorPTMapping::default(),
     };
-    let time_delta = get_sync_schedule_time(mapping, merchant_id, retry_count);
+    let time_delta = get_sync_schedule_time(mapping, merchant_id, retry_count + 1);
 
-    Ok(pt_utils::get_time_from_delta(time_delta))
+    Ok(crate::scheduler::utils::get_time_from_delta(time_delta))
 }
 
 pub fn get_sync_schedule_time(
@@ -148,15 +142,13 @@ fn get_delay<'a>(
 }
 
 pub async fn retry_sync_task(
-    db: &dyn Db,
-    redis_conn: sync::Arc<redis::RedisConnectionPool>,
+    db: &dyn StorageInterface,
     connector: String,
     merchant_id: String,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(&connector, &merchant_id, redis_conn, pt.retry_count + 1)
-            .await?;
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
         Some(s_time) => pt.retry(db, s_time).await,

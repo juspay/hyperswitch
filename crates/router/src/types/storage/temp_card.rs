@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 use crate::schema::temp_card;
 
-#[derive(Queryable, Identifiable, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, router_derive::DebugAsDisplay, Queryable, Identifiable, Insertable)]
 #[diesel(table_name = temp_card)]
 pub struct TempCard {
     pub id: i32,

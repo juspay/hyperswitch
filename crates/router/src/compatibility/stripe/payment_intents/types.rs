@@ -12,7 +12,6 @@ use crate::{
         },
         storage::enums::{self, FutureUsage, IntentStatus, PaymentMethodType},
     },
-    utils::custom_serde,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -257,7 +256,7 @@ pub(crate) struct StripePaymentIntentResponse {
     pub(crate) currency: String,
     pub(crate) status: StripePaymentStatus,
     pub(crate) client_secret: Option<Secret<String>>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub(crate) created: Option<time::PrimitiveDateTime>,
     pub(crate) customer: Option<String>,
     pub(crate) refunds: Option<Vec<RefundResponse>>,

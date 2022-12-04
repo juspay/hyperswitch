@@ -146,7 +146,7 @@ pub enum Category {
     /// API: general.
     Api,
     /// Database: general.
-    Db,
+    Store,
     /// Event: general.
     Event,
     /// General: general.

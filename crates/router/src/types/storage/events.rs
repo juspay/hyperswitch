@@ -1,10 +1,11 @@
+use common_utils::custom_serde;
 use diesel::{Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::events, types::storage::enums, utils::custom_serde};
+use crate::{schema::events, types::storage::enums};
 
-#[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Deserialize, Insertable, Serialize, router_derive::DebugAsDisplay)]
 #[diesel(table_name = events)]
 #[serde(deny_unknown_fields)]
 pub struct EventNew {
@@ -17,7 +18,7 @@ pub struct EventNew {
     pub primary_object_type: enums::EventObjectType,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
 #[diesel(table_name = events)]
 pub struct Event {
     #[serde(skip_serializing)]

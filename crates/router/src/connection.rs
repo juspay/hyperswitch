@@ -2,9 +2,10 @@ use async_bb8_diesel::{AsyncConnection, ConnectionError, ConnectionManager};
 use bb8::{CustomizeConnection, PooledConnection};
 use diesel::PgConnection;
 
-use crate::configs::settings::{Database, Settings};
+use crate::configs::settings::Database;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 pub type RedisPool = std::sync::Arc<redis_interface::RedisConnectionPool>;
 
@@ -25,12 +26,14 @@ impl CustomizeConnection<PgPooledConn, ConnectionError> for TestTransaction {
     }
 }
 
-pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnectionPool {
+pub async fn redis_connection(
+    conf: &crate::configs::settings::Settings,
+) -> redis_interface::RedisConnectionPool {
     redis_interface::RedisConnectionPool::new(&conf.redis).await
 }
 
 #[allow(clippy::expect_used)]
-pub async fn make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
+pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
         database.username, database.password, database.host, database.port, database.dbname

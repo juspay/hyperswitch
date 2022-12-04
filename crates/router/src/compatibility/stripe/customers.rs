@@ -34,7 +34,7 @@ pub async fn customer_create(
         &req,
         create_cust_req,
         |state, merchant_account, req| {
-            customers::create_customer(&state.store, merchant_account, req)
+            customers::create_customer(&*state.store, merchant_account, req)
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -57,7 +57,7 @@ pub async fn customer_retrieve(
         &req,
         payload,
         |state, merchant_account, req| {
-            customers::retrieve_customer(&state.store, merchant_account, req)
+            customers::retrieve_customer(&*state.store, merchant_account, req)
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -89,7 +89,7 @@ pub async fn customer_update(
         &req,
         cust_update_req,
         |state, merchant_account, req| {
-            customers::update_customer(&state.store, merchant_account, req)
+            customers::update_customer(&*state.store, merchant_account, req)
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -112,7 +112,7 @@ pub async fn customer_delete(
         &req,
         payload,
         |state, merchant_account, req| {
-            customers::delete_customer(&state.store, merchant_account, req)
+            customers::delete_customer(&*state.store, merchant_account, req)
         },
         api::MerchantAuthentication::ApiKey,
     )

@@ -3,20 +3,19 @@
 //!
 use std::{path::PathBuf, time::Duration};
 
+use once_cell::sync::Lazy;
 use opentelemetry::{
-    global,
+    global, runtime,
     sdk::{
-        metrics::{selectors, PushController},
+        export::metrics::aggregation::cumulative_temporality_selector,
+        metrics::{controllers::BasicController, selectors::simple},
         propagation::TraceContextPropagator,
         trace, Resource,
     },
-    util::tokio_interval_stream,
     KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;
 use tracing_appender::non_blocking::WorkerGuard;
-// use tracing_subscriber::fmt::format::FmtSpan;
-// use tracing_bunyan_formatter::JsonStorageLayer;
 use tracing_subscriber::{
     filter, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
@@ -51,7 +50,7 @@ where
 #[derive(Debug)]
 pub struct TelemetryGuard {
     _log_guards: Vec<WorkerGuard>,
-    _metric_controller: Option<PushController>,
+    _metric_controller: Option<BasicController>,
 }
 
 ///
@@ -92,29 +91,13 @@ pub fn setup<Str: AsRef<str>>(
 
         let file_filter = filter::Targets::new().with_default(conf.file.level.into_level());
         let file_layer = FormattingLayer::new(service_name, file_writer).with_filter(file_filter);
-        // let fmt_layer = fmt::layer()
-        //     .with_writer(file_writer)
-        //     .with_target(true)
-        //     .with_level(true)
-        //     .with_span_events(FmtSpan::ACTIVE)
-        //     .json();
-
-        // Some(fmt_layer)
-        //Some(FormattingLayer::new(service_name, file_writer))
         Some(file_layer)
-        // Some(BunyanFormattingLayer::new("router".into(), file_writer))
     } else {
         None
     };
 
-    let telemetry_layer = match telemetry {
-        Some(Ok(ref tracer)) => Some(tracing_opentelemetry::layer().with_tracer(tracer.clone())),
-        _ => None,
-    };
-
     // Use 'RUST_LOG' environment variable will override the config settings
     let subscriber = tracing_subscriber::registry()
-        .with(telemetry_layer)
         .with(StorageSubscription)
         .with(file_writer)
         .with(
@@ -166,15 +149,29 @@ pub fn setup<Str: AsRef<str>>(
     })
 }
 
-fn setup_metrics() -> Option<PushController> {
+static HISTOGRAM_BUCKETS: Lazy<[f64; 15]> = Lazy::new(|| {
+    let mut init = 0.01;
+    let mut buckets: [f64; 15] = [0.0; 15];
+
+    for bucket in &mut buckets {
+        init *= 2.0;
+        *bucket = init;
+    }
+    buckets
+});
+
+fn setup_metrics() -> Option<BasicController> {
     opentelemetry_otlp::new_pipeline()
-        .metrics(tokio::spawn, tokio_interval_stream)
+        .metrics(
+            simple::histogram(*HISTOGRAM_BUCKETS),
+            cumulative_temporality_selector(),
+            runtime::TokioCurrentThread,
+        )
         .with_exporter(
             opentelemetry_otlp::new_exporter().tonic().with_env(), // can also config it using with_* functions like the tracing part above.
         )
         .with_period(Duration::from_secs(3))
         .with_timeout(Duration::from_secs(10))
-        .with_aggregator_selector(selectors::simple::Selector::Exact)
         .build()
         .map_err(|err| eprintln!("Failed to Setup Metrics with {:?}", err))
         .ok()

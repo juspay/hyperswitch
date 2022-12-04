@@ -67,6 +67,9 @@ pub(crate) enum ErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
     MerchantAccountNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
+    ResourceIdNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant connector account")]
     MerchantConnectorAccountNotFound,
 
@@ -334,6 +337,7 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::PaymentNotFound => ErrorCode::PaymentNotFound,
             ApiErrorResponse::PaymentMethodNotFound => ErrorCode::PaymentMethodNotFound,
             ApiErrorResponse::MerchantAccountNotFound => ErrorCode::MerchantAccountNotFound,
+            ApiErrorResponse::ResourceIdNotFound => ErrorCode::ResourceIdNotFound,
             ApiErrorResponse::MerchantConnectorAccountNotFound => {
                 ErrorCode::MerchantConnectorAccountNotFound
             }
@@ -410,6 +414,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::DuplicateMandate
             | ErrorCode::SuccessfulPaymentNotFound
             | ErrorCode::AddressNotFound
+            | ErrorCode::ResourceIdNotFound
             | ErrorCode::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
             ErrorCode::RefundFailed | ErrorCode::InternalServerError => {
                 StatusCode::INTERNAL_SERVER_ERROR

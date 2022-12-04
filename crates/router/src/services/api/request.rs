@@ -12,7 +12,9 @@ use crate::{
 
 pub(crate) type Headers = Vec<(String, String)>;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Method {

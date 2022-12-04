@@ -1,3 +1,4 @@
+use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
@@ -8,11 +9,11 @@ use crate::{
     core::errors::{self, RouterResult},
     pii::{self, PeekInterface, Secret},
     schema::customers,
-    utils::{self, custom_serde, ValidateCall},
+    utils::{self, ValidateCall},
 };
 
 #[derive(
-    Default, Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay,
+    Default, Clone, Debug, Insertable, Deserialize, Serialize, router_derive::DebugAsDisplay,
 )]
 #[diesel(table_name = customers)]
 #[serde(deny_unknown_fields)]
