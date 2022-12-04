@@ -102,6 +102,12 @@ pub(crate) enum ErrorCode {
     InvalidRequestData { message: String },
 
     #[error(
+        error_type = StripeErrorType::InvalidRequestError, code = "IR_10",
+        message = "{message}"
+    )]
+    PreconditionFailed { message: String },
+
+    #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "",
         message = "The payment has not succeeded yet"
     )]
@@ -347,12 +353,15 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::InvalidRequestData { message } => {
                 ErrorCode::InvalidRequestData { message }
             }
+            ApiErrorResponse::PreconditionFailed { message } => {
+                ErrorCode::PreconditionFailed { message }
+            }
             ApiErrorResponse::BadCredentials => ErrorCode::Unauthorized,
             ApiErrorResponse::InvalidDataValue { field_name } => ErrorCode::ParameterMissing {
                 field_name: field_name.to_owned(),
                 param: field_name.to_owned(),
             },
-            ApiErrorResponse::MaxiumumRefundCount => ErrorCode::MaximumRefundCount,
+            ApiErrorResponse::MaximumRefundCount => ErrorCode::MaximumRefundCount,
             ApiErrorResponse::PaymentNotSucceeded => ErrorCode::PaymentFailed,
             ApiErrorResponse::DuplicateMandate => ErrorCode::DuplicateMandate,
             ApiErrorResponse::SuccessfulPaymentNotFound => ErrorCode::SuccessfulPaymentNotFound,
@@ -403,6 +412,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::PaymentIntentInvalidParameter { .. }
             | ErrorCode::SerdeQsError { .. }
             | ErrorCode::InvalidRequestData { .. }
+            | ErrorCode::PreconditionFailed { .. }
             | ErrorCode::DuplicateMandate
             | ErrorCode::SuccessfulPaymentNotFound
             | ErrorCode::AddressNotFound

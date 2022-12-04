@@ -42,17 +42,14 @@ pub enum ApiErrorResponse {
         field_name: String,
         expected_format: String,
     },
-    #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_07",
-        message = "{message}"
-    )]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "{message}")]
     InvalidRequestData { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Refund amount exceeds the payment amount.")]
     RefundAmountExceedsPaymentAmount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}.")]
     InvalidDataValue { field_name: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Reached maximum refund attempts")]
-    MaxiumumRefundCount,
+    MaximumRefundCount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_09", message = "This PaymentIntent could not be {current_flow} because it has a {field_name} of {current_value}. The expected state is {states}.")]
     PaymentUnexpectedState {
         current_flow: String,
@@ -60,6 +57,8 @@ pub enum ApiErrorResponse {
         current_value: String,
         states: String,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "{message}")]
+    PreconditionFailed { message: String },
 
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "The client_secret provided does not match the client_secret associated with the Payment.")]
     ClientSecretInvalid,
@@ -142,7 +141,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             ApiErrorResponse::InvalidDataFormat { .. }
             | ApiErrorResponse::InvalidRequestData { .. } => StatusCode::UNPROCESSABLE_ENTITY, // 422
             ApiErrorResponse::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            ApiErrorResponse::MaxiumumRefundCount => StatusCode::BAD_REQUEST,
+            ApiErrorResponse::MaximumRefundCount => StatusCode::BAD_REQUEST,               // 400
+            ApiErrorResponse::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,        // 400
 
             ApiErrorResponse::PaymentAuthorizationFailed { .. }
             | ApiErrorResponse::PaymentAuthenticationFailed { .. }
