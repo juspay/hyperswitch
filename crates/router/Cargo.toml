@@ -38,6 +38,8 @@ dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.1"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] , optional = true }
+futures = "0.3.25"
+futures-locks = "0.7.0"
 hex = "0.4.3"
 http = "0.2.8"
 josekit = "0.8.1"
@@ -62,8 +64,6 @@ time = { version = "0.3.14", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["serde", "v4"] }
-futures-locks = "0.6"
-futures = "0.3"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
