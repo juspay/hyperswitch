@@ -9,7 +9,6 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         payments::{self, helpers, transformers, PaymentData},
     },
-    db::mandate::IMandate,
     routes::AppState,
     scheduler::metrics,
     services,

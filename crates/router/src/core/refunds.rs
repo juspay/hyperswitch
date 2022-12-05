@@ -9,10 +9,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments, utils as core_utils,
     },
-    db::{
-        merchant_account::IMerchantAccount, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, process_tracker::IProcessTracker, refund::IRefund, Db,
-    },
+    db::StorageInterface,
     logger,
     routes::AppState,
     services,
@@ -32,7 +29,7 @@ pub async fn refund_create_core(
     merchant_account: storage::merchant_account::MerchantAccount,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, amount);
 
     merchant_id = &merchant_account.merchant_id;
@@ -159,7 +156,7 @@ pub async fn refund_retrieve_core(
     merchant_account: storage::MerchantAccount,
     refund_id: String,
 ) -> RouterResponse<refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 
     merchant_id = &merchant_account.merchant_id;
@@ -263,7 +260,7 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundRequest,
@@ -297,7 +294,7 @@ pub async fn validate_and_create_refund(
     refund_amount: i32,
     req: refunds::RefundRequest,
 ) -> RouterResult<refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
@@ -484,7 +481,7 @@ pub async fn schedule_refund_execution(
     payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let runner = "REFUND_WORKFLOW_ROUTER";
     let task = "EXECUTE_REFUND";
     let task_id = format!("{}_{}_{}", runner, task, refund.internal_reference_id);
@@ -538,7 +535,7 @@ pub async fn schedule_refund_execution(
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     refund_tracker: &storage::ProcessTracker,
 ) -> RouterResult<()> {
     let refund_core =
@@ -572,7 +569,7 @@ pub async fn start_refund_workflow(
     match refund_tracker.name.as_deref() {
         Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
         Some("SYNC_REFUND") => {
-            sync_refund_with_gateway_workflow(&state.store, refund_tracker).await
+            sync_refund_with_gateway_workflow(&*state.store, refund_tracker).await
         }
         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Job name cannot be identified")),
@@ -584,7 +581,7 @@ pub async fn trigger_refund_execute_workflow(
     state: &AppState,
     refund_tracker: &storage::ProcessTracker,
 ) -> RouterResult<()> {
-    let db = &state.store;
+    let db = &*state.store;
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
@@ -668,7 +665,7 @@ pub fn refund_to_refund_core_workflow_model(
 
 #[instrument(skip_all)]
 pub async fn add_refund_sync_task(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
@@ -703,7 +700,7 @@ pub async fn add_refund_sync_task(
 
 #[instrument(skip_all)]
 pub async fn add_refund_execute_task(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {

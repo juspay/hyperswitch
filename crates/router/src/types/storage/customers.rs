@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(
-    Default, Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay,
+    Default, Clone, Debug, Insertable, Deserialize, Serialize, router_derive::DebugAsDisplay,
 )]
 #[diesel(table_name = customers)]
 #[serde(deny_unknown_fields)]

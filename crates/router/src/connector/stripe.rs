@@ -9,8 +9,9 @@ use router_env::{tracing, tracing::instrument};
 use self::transformers as stripe;
 use crate::{
     configs::settings::Connectors,
-    connection, consts,
+    consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers, logger, services,
     types::{
         self,
@@ -747,12 +748,12 @@ impl api::IncomingWebhook for Stripe {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
+        db: &dyn StorageInterface,
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = redis_conn
-            .get_key::<Vec<u8>>(&key)
+        let secret = db
+            .get_key(&key)
             .await
             .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
 

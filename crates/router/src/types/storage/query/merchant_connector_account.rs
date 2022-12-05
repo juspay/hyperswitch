@@ -14,7 +14,7 @@ use crate::{
 
 impl MerchantConnectorAccountNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
+    pub async fn insert_diesel(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {

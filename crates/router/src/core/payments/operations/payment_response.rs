@@ -8,7 +8,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::PaymentData,
     },
-    db::Db,
+    db::StorageInterface,
     services::RedirectForm,
     types::{
         self, api,
@@ -30,7 +30,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         response: Option<
@@ -52,7 +52,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
@@ -72,7 +72,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
@@ -90,7 +90,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: Option<
@@ -105,7 +105,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 }
 
 async fn payment_response_ut<F: Clone, T>(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
     response: Option<types::RouterData<F, T, types::PaymentsResponseData>>,

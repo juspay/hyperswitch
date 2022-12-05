@@ -11,7 +11,7 @@ use crate::{strategy::Strategy, PeekInterface};
 ///
 /// Secret thing.
 ///
-/// To get access to value use method `expose()` of trait [`ExposeInterface`].
+/// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
 ///
 
 pub struct StrongSecret<S: ZeroizableSecret, I = crate::WithType> {

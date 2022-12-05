@@ -18,7 +18,7 @@ pub async fn merchant_account_create(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_merchant_account(&state.store, req),
+        |state, _, req| create_merchant_account(&*state.store, req),
         api::MerchantAuthentication::AdminApiKey,
     )
     .await
@@ -39,7 +39,7 @@ pub async fn retrieve_merchant_account(
         &state,
         &req,
         payload,
-        |state, _, req| get_merchant_account(&state.store, req),
+        |state, _, req| get_merchant_account(&*state.store, req),
         api::MerchantAuthentication::AdminApiKey,
     )
     .await
@@ -58,7 +58,7 @@ pub async fn update_merchant_account(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| merchant_account_update(&state.store, &merchant_id, req),
+        |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
         api::MerchantAuthentication::AdminApiKey,
     )
     .await
@@ -79,7 +79,7 @@ pub async fn delete_merchant_account(
         &state,
         &req,
         payload,
-        |state, _, req| merchant_account_delete(&state.store, req.merchant_id),
+        |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
         api::MerchantAuthentication::AdminApiKey,
     )
     .await
@@ -99,7 +99,7 @@ pub async fn payment_connector_create(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_payment_connector(&state.store, req, &merchant_id),
+        |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
         api::MerchantAuthentication::AdminApiKey,
     )
     .await
@@ -123,7 +123,7 @@ pub async fn payment_connector_retrieve(
         &req,
         payload,
         |state, _, req| {
-            retrieve_payment_connector(&state.store, req.merchant_id, req.merchant_connector_id)
+            retrieve_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
         api::MerchantAuthentication::AdminApiKey,
     )
@@ -144,7 +144,7 @@ pub async fn payment_connector_update(
         &req,
         json_payload.into_inner(),
         |state, _, req| {
-            update_payment_connector(&state.store, &merchant_id, merchant_connector_id, req)
+            update_payment_connector(&*state.store, &merchant_id, merchant_connector_id, req)
         },
         api::MerchantAuthentication::AdminApiKey,
     )
@@ -169,7 +169,7 @@ pub async fn payment_connector_delete(
         &req,
         payload,
         |state, _, req| {
-            delete_payment_connector(&state.store, req.merchant_id, req.merchant_connector_id)
+            delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
         api::MerchantAuthentication::AdminApiKey,
     )

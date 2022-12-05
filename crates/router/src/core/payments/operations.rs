@@ -7,7 +7,6 @@ mod payment_session;
 mod payment_start;
 mod payment_status;
 mod payment_update;
-
 use async_trait::async_trait;
 use error_stack::{report, IntoReport, ResultExt};
 pub use payment_cancel::PaymentCancel;
@@ -25,7 +24,7 @@ use storage::Customer;
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
-    db::Db,
+    db::StorageInterface,
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
     types::{
@@ -100,7 +99,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,
@@ -130,7 +129,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 pub trait UpdateTracker<F, D, R>: Send {
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: D,
         customer: Option<Customer>,
@@ -143,7 +142,7 @@ pub trait UpdateTracker<F, D, R>: Send {
 pub trait PostUpdateTracker<F, D, R>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: Option<types::RouterData<F, R, PaymentsResponseData>>,
@@ -161,7 +160,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,
@@ -217,9 +216,9 @@ where
             metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
             let schedule_time = payment_sync::get_sync_process_schedule_time(
+                &*state.store,
                 &payment_attempt.connector,
                 &payment_attempt.merchant_id,
-                state.store.redis_conn.clone(),
                 0,
             )
             .await
@@ -227,7 +226,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
             match schedule_time {
-                Some(stime) => super::add_process_sync_task(&state.store, payment_attempt, stime)
+                Some(stime) => super::add_process_sync_task(&*state.store, payment_attempt, stime)
                     .await
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError),
@@ -248,7 +247,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_id: &str,
@@ -305,7 +304,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_id: &str,
@@ -352,7 +351,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_id: &str,

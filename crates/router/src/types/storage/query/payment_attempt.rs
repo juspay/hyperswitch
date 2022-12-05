@@ -23,7 +23,7 @@ use crate::{
 impl PaymentAttemptNew {
     #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
-    pub async fn insert(
+    pub async fn insert_diesel(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -32,7 +32,7 @@ impl PaymentAttemptNew {
 
     #[cfg(feature = "kv_store")]
     #[instrument(skip(conn))]
-    pub async fn insert(
+    pub async fn insert_diesel(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<RawSqlQuery, errors::StorageError> {

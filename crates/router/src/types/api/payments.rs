@@ -1,4 +1,3 @@
-use common_utils::custom_serde;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -10,6 +9,7 @@ use crate::{
     pii,
     services::api,
     types::{self, api as api_types, enums, storage},
+    utils::custom_serde,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub enum PaymentOp {
 pub struct PaymentsRequest {
     #[serde(
         default,
-        deserialize_with = "crate::utils::custom_serde::payment_id_type::deserialize_option"
+        deserialize_with = "custom_serde::payment_id_type::deserialize_option"
     )]
     pub payment_id: Option<PaymentIdType>,
     pub merchant_id: Option<String>,
@@ -32,7 +32,7 @@ pub struct PaymentsRequest {
     pub currency: Option<String>,
     pub capture_method: Option<enums::CaptureMethod>,
     pub amount_to_capture: Option<i32>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
@@ -50,13 +50,13 @@ pub struct PaymentsRequest {
     pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
-    pub browser_info: Option<types::BrowserInformation>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub client_secret: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
 }
 
 impl PaymentsRequest {
@@ -93,7 +93,7 @@ pub struct MandateData {
 #[serde(deny_unknown_fields)]
 pub struct CustomerAcceptance {
     pub acceptance_type: AcceptanceType,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     pub online: Option<OnlineMandate>,
 }
@@ -312,7 +312,7 @@ pub struct PaymentsResponse {
     pub amount_capturable: Option<i32>,
     pub amount_received: Option<i32>,
     pub client_secret: Option<Secret<String>>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
     pub currency: String,
     pub customer_id: Option<String>,
@@ -322,7 +322,7 @@ pub struct PaymentsResponse {
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub capture_method: Option<enums::CaptureMethod>,
     #[auth_based]
@@ -354,18 +354,18 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
     pub limit: i64,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lt")]
     pub created_lt: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gt")]
     pub created_gt: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lte")]
     pub created_lte: Option<PrimitiveDateTime>,
-    #[serde(default, with = "custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gte")]
     pub created_gte: Option<PrimitiveDateTime>,
 }

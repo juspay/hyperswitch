@@ -10,7 +10,6 @@ use crate::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, helpers},
     },
-    db::Db,
     routes::AppState,
     services::{self, RedirectForm},
     types::{
@@ -41,7 +40,7 @@ where
     //TODO: everytime parsing the json may have impact?
 
     let (merchant_connector_account, payment_method, router_data);
-    let db = &state.store as &dyn Db;
+    let db = &*state.store;
     merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,

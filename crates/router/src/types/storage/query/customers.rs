@@ -11,7 +11,10 @@ use crate::{
 
 impl CustomerNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Customer, errors::StorageError> {
+    pub async fn insert_diesel(
+        self,
+        conn: &PgPooledConn,
+    ) -> CustomResult<Customer, errors::StorageError> {
         generics::generic_insert::<_, _, Customer, _>(conn, self, ExecuteQuery::new()).await
     }
 }

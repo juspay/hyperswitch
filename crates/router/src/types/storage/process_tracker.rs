@@ -1,20 +1,21 @@
-#![allow(dead_code)]
-
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{core::errors, db, scheduler::metrics, schema::process_tracker, types::storage::enums};
+use crate::{
+    core::errors, db::StorageInterface, scheduler::metrics, schema::process_tracker,
+    types::storage::enums,
+};
 
 #[derive(
     Clone,
     Debug,
     Eq,
     PartialEq,
+    Deserialize,
     Identifiable,
     Queryable,
-    Deserialize,
     Serialize,
     router_derive::DebugAsDisplay,
 )]
@@ -72,7 +73,7 @@ impl ProcessTracker {
 
     pub async fn retry(
         self,
-        db: &dyn db::Db,
+        db: &dyn StorageInterface,
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), errors::ProcessTrackerError> {
         metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
@@ -90,7 +91,7 @@ impl ProcessTracker {
 
     pub async fn finish_with_status(
         self,
-        db: &dyn db::Db,
+        db: &dyn StorageInterface,
         status: String,
     ) -> Result<(), errors::ProcessTrackerError> {
         db.update_process(
@@ -218,6 +219,7 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
 // TODO: Move this to a utility module?
 pub struct Milliseconds(i32);
 
+#[allow(dead_code)]
 pub struct SchedulerOptions {
     looper_interval: Milliseconds,
     db_name: String,
@@ -231,6 +233,7 @@ pub struct SchedulerOptions {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ProcessData {
     db_name: String,
     cache_name: String,

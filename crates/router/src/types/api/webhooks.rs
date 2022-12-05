@@ -5,8 +5,8 @@ use time::PrimitiveDateTime;
 
 use super::ConnectorCommon;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     services,
     types::{api, storage::enums},
     utils::crypto,
@@ -67,8 +67,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_body_decoding_merchant_secret(
         &self,
+        _db: &dyn StorageInterface,
         _merchant_id: &str,
-        _redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -83,10 +83,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn decode_webhook_body(
         &self,
+        db: &dyn StorageInterface,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let algorithm = self.get_webhook_body_decoding_algorithm(headers, body)?;
 
@@ -94,7 +94,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_body_decoding_message(headers, body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let secret = self
-            .get_webhook_body_decoding_merchant_secret(merchant_id, redis_conn)
+            .get_webhook_body_decoding_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
@@ -113,8 +113,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
+        _db: &dyn StorageInterface,
         _merchant_id: &str,
-        _redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -137,10 +137,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source(
         &self,
+        db: &dyn StorageInterface,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(headers, body)
@@ -153,7 +153,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_message(headers, body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(merchant_id, redis_conn)
+            .get_webhook_source_verification_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 

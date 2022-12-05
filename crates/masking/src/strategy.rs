@@ -33,6 +33,6 @@ where
     T: fmt::Display,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&format!("{}", val))
+        fmt::Display::fmt(val, f)
     }
 }

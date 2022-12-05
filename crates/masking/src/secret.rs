@@ -9,7 +9,7 @@ use crate::{strategy::Strategy, PeekInterface};
 ///
 /// Secret thing.
 ///
-/// To get access to value use method `expose()` of trait [`ExposeInterface`].
+/// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
 ///
 /// ## Masking
 /// Use the [`crate::strategy::Strategy`] trait to implement a masking strategy on a unit struct
