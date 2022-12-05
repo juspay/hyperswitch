@@ -127,6 +127,8 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         previous_transaction_id -> Nullable<Varchar>,
         created_at -> Timestamp,
+        single_use_amount -> Nullable<Int4>,
+        single_use_currency -> Nullable<Currency>,
     }
 }
 

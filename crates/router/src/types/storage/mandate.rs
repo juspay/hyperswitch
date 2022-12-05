@@ -24,6 +24,8 @@ pub struct Mandate {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: PrimitiveDateTime,
+    pub single_use_amount: Option<i32>,
+    pub single_use_currency: Option<enums::Currency>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,6 +43,8 @@ pub struct MandateNew {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
+    pub single_use_amount: Option<i32>,
+    pub single_use_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug)]
@@ -48,6 +52,12 @@ pub enum MandateUpdate {
     StatusUpdate {
         mandate_status: enums::MandateStatus,
     },
+}
+
+#[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct SingleUseMandate {
+    pub amount: i32,
+    pub currency: enums::Currency,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]

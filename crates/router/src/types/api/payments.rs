@@ -8,7 +8,10 @@ use crate::{
     core::errors,
     pii,
     services::api,
-    types::{self, api as api_types, enums, storage},
+    types::{
+        self, api as api_types, enums,
+        storage::{self, SingleUseMandate},
+    },
     utils::custom_serde,
 };
 
@@ -125,6 +128,14 @@ pub enum MandateTxnType {
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
+    pub mandate_type: MandateType,
+}
+
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateType {
+    SingleUse(SingleUseMandate),
+    #[default]
+    MultiUse,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
