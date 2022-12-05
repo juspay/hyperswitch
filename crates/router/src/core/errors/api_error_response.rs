@@ -119,6 +119,18 @@ pub enum ApiErrorResponse {
 
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // FIXME(kos): `serde_json::to_string(self)` here makes a redundant
+        // allocation, which may be omitted by writing into the
+        // formatter directly via `serde_json::to_writer()`:
+        // ```rust
+        // write!(f, r#"{{"error":"#)?;
+        // serde_json::to_writer(f, self)
+        //     .map(|_| fmt::Error::default())?;
+        // write!(f, "}")
+        // ```
+        // FIXME(kos): `.unwrap_or_else()` logic here is just incorrect.
+        // Better map the error and return it as in the example
+        // above.
         write!(
             f,
             r#"{{"error":{}}}"#,
@@ -131,6 +143,10 @@ impl actix_web::ResponseError for ApiErrorResponse {
     fn status_code(&self) -> reqwest::StatusCode {
         use reqwest::StatusCode;
 
+        // FIXME(kos): Use `Self::Unauthorized` syntax here (and in similar
+        // places), as more ergonomic.
+        // `#![warn(clippy::use_self)]` on crate level should help
+        // with this.
         match self {
             ApiErrorResponse::Unauthorized | ApiErrorResponse::BadCredentials => {
                 StatusCode::UNAUTHORIZED

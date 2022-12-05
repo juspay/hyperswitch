@@ -85,6 +85,8 @@ pub async fn consumer_operations(
     settings: &settings::SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
+    // FIXME(kos): Why `String` when `consumer_group_create()` accepts
+    // `&str`?
     let group_name = settings.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
 

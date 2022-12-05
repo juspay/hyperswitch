@@ -19,6 +19,14 @@ pub(crate) fn debug_as_display_inner(ast: &DeriveInput) -> syn::Result<TokenStre
 
     Ok(quote! {
         impl #impl_generics ::core::fmt::Display for #name #ty_generics #where_clause {
+                // FIXME(kos): Redundant allocation on heap.
+                // This code produces the redundant `String`
+                // allocation as the result of `format!()` macro
+                // call. Omit it by writing into the formatter
+                // directly with `write!()` macro:
+                // ```rust
+                // ::core::write!(f, "{:?}", self)
+                // ```
             fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::result::Result<(), ::core::fmt::Error> {
                 f.write_str(&format!("{:?}", self))
             }

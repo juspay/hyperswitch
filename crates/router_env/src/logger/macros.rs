@@ -1,3 +1,5 @@
+// FIXME(kos): We can remove the file now.
+
 //!
 //! Macros.
 //!

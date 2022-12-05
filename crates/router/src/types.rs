@@ -200,6 +200,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
+    // FIXME(kos): Shouldn't these keys be `Secret`?
     HeaderKey { api_key: String },
     BodyKey { api_key: String, key1: String },
 }

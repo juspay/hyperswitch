@@ -40,6 +40,19 @@ impl api::ConnectorCommon for Checkout {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        // FIXME(kos): Just every implementation of this `get_auth_header()`
+        // method in this codebase uses a statically predefined
+        // value for the first element of the returned tuple. So,
+        // why do redundant allocations with `.to_string()` then?
+        // Why not just return `&'static str` or, if we do really
+        // want to allow dynamic values, at least
+        // `Cow<'static, str>`?
+        // The same is valid for
+        // `ConnectorIntegration::get_headers()` (and similar ones)
+        // too.
+        // Or even use framework's header:
+        // https://docs.rs/http/0.2.8/http/header/struct.HeaderName.html
+
         let auth: checkout::CheckoutAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;

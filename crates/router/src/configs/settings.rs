@@ -85,7 +85,22 @@ pub struct Server {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
+    // TODO(kos): Consider using `Box<str>` here (and in similar places), as we
+    // don't need any `String` mutation capabilities for this field
+    // (after parsing it will only be read, but never mutated).
     pub username: String,
+    // FIXME(kos): Any kind of secrets, we control, should be wrapped into
+    // Secret, which will:
+    // 1. Protect any accidental secrets leaks to logs, traces or
+    //     any other `Debug` prints.
+    // 2. Correctly zeroize the memory of secrets on `Drop` to avoid
+    //     accidental secrets leaks when process is crashed and core
+    //     dumped (by accessing the core dump file), process memory
+    //     is swapped, etc.
+    // There is a similar, extended, but custom made functionality
+    // in the `masking` crate. So, the team is aware of the problem.
+    // But why then the `masking::Secret` is not used here and in
+    // similar places?
     pub password: String,
     pub host: String,
     pub port: u16,
@@ -154,6 +169,12 @@ impl Settings {
                 include_str!("defaults.toml"),
                 FileFormat::Toml,
             ))
+            // FIXME(kos): `.required(true)` seems to be unnecessarily strict
+            // here. It's totally common scenario to run a process
+            // and provide it with environment variables only,
+            // without any config files. So, requiring a config file
+            // always to exist will be only a stumble factor for
+            // users.
             .add_source(File::from(config_path).required(true))
             .add_source(
                 Environment::with_prefix("ROUTER")
@@ -165,6 +186,16 @@ impl Settings {
             .build()?;
 
         config.try_deserialize().map_err(|e| {
+            // FIXME(kos): We can improve it.
+            // Usually, the logging system is initialized after the
+            // config parsing is done, as the config itself would
+            // likely have settings for logging setup. That's why
+            // doing logging here before the parsed config is
+            // returned is kinda strange thing.
+            // We can simply return the error.
+            // Let the caller decide what to do with this
+            // error. Hardcoded printing side effects here may be
+            // undesired by the caller.
             logger::error!("Unable to source config file");
             eprintln!("Unable to source config file");
             BachError::from(e)

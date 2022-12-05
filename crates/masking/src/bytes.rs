@@ -77,6 +77,27 @@ impl<'de> Deserialize<'de> for SecretBytesMut {
             where
                 V: de::SeqAccess<'de>,
             {
+                // FIXME(kos): Should be improved. Current logic:
+                // 1. If there is some `size_hint`, then we
+                //     pre-allocate 4096 at max, and later, when
+                //     filling the bytes will re-allocate the memory
+                //     if `size_hint` > 4096.
+                // 2. If there is no `size_hint`, then we
+                //     pre-allocate 0 bytes, and re-allocate normally
+                //     when filling the bytes.
+                // So, what's no benefits of these moves?
+                // It seems more feasible to have:
+                // ```rust
+                // let len = seq.size_hint().unwrap_or(0);
+                // ```
+                // This way:
+                // 1. If there is some `size_hint`, then we
+                //     pre-allocate the exact size and fill it with
+                //     the bytes without re-allocations.
+                // 2. If there is no `size_hint`, then we
+                //     pre-allocate 4096 bytes, and re-allocate only
+                //     if the real size is bigger than 4096 bytes.
+
                 // 4096 is cargo culted from upstream
                 let len = core::cmp::min(seq.size_hint().unwrap_or(0), 4096);
                 let mut bytes = BytesMut::with_capacity(len);

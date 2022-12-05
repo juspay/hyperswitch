@@ -158,6 +158,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let method_ident = syn::Ident::new(&method_name, name.span());
         let ty = &f.ty;
         if check_if_auth_based_attr_is_present(f, "auth_based") {
+            // FIXME(kos) : `is_merchant_flow` seems to be too use-case specific, maybe `is_authenticated`?
             quote::quote! {
                 pub fn #method_ident(&mut self, val:#ty, is_merchant_flow: bool)->&mut Self{
                     if is_merchant_flow {

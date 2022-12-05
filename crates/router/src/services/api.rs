@@ -357,6 +357,10 @@ pub enum ApiAuthentication<'a> {
     Connector(ConnectorAuthentication<'a>),
 }
 
+// FIXME(kos) : Is it correct to call this MerchantAuthentication, considering
+// there's AdminApiKey as a variant?
+// The name implies that authentication is only performed for Merchants,
+// however, AdminApiKey implies it's an admin user.
 #[derive(Clone, Debug)]
 pub enum MerchantAuthentication<'a> {
     ApiKey,
@@ -531,6 +535,10 @@ pub async fn authenticate_merchant<'a>(
         }
 
         MerchantAuthentication::AdminApiKey => {
+            // FIXME(kos) : It looks like admin credentials are hard-coded below.
+            // It is a securiry problem to store credentials in the code.
+            // e.g. if request.password != "hunter2" { return Err(...) }
+
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
             if admin_api_key != "test_admin" {

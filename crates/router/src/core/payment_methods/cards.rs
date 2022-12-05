@@ -641,9 +641,18 @@ pub async fn delete_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
 
+    // FIXME!(kos): What if the application process would be killed after
+    // successful execution of
+    // `delete_payment_method_by_merchant_id_payment_method_id()`,
+    // but before executing `delete_card()`?
+    // Would be the card ever deleted?
+    // Seems like the system has weak consistency guarantees.
+    // https://docs.diesel.rs/diesel/connection/trait.Connection.html#method.transaction
     if pm.payment_method == enums::PaymentMethodType::Card {
         let response = delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
         if response.status == "success" {
+            // FIXME(kos): Why writing to STDOUT in blocking and unstructured
+            // manner? Use `log::info!()` instead.
             print!("Card From locker deleted Successfully")
         } else {
             print!("Error: Deleting Card From Locker")

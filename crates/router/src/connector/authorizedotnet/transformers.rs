@@ -41,6 +41,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
+    // FIXME(kos): Why this is not a `Secret` as in other places?
     card_number: String,
     expiration_date: String,
     card_code: String,
@@ -134,6 +135,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_details = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
+                // FIXME(kos): The secrets here (and in similar places below)
+                // are cloned into the unprotected memory, and,
+                // thus, not properly zeroized on `Drop`.
+                // Furthermore, `.clone()` produces a redundant
+                // allocation here. It shouldn't be used, as
+                // the `format!()` macro bellow may easily accept a
+                // reference.
                 let expiry_month = ccard.card_exp_month.peek().clone();
                 let expiry_year = ccard.card_exp_year.peek().clone();
 
@@ -194,6 +202,20 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuthorizedotnetPaymentStatus {
+    // FIXME(kos): Instead of such renaming, it would be more properly to use
+    // `#[repr(u8)]` here:
+    // ```rust
+    // #[derive(Serialize_repr, Deserialize_repr)]
+    // #[repr(u8)]
+    // pub enum AuthorizedotnetPaymentStatus {
+    //     Approved = 1,
+    //     Declined = 2,
+    //     Error = 3,
+    //     #[default]
+    //     HeldForReview = 4,
+    // }
+    // ```
+    // https://serde.rs/enum-number.html
     #[serde(rename = "1")]
     Approved,
     #[serde(rename = "2")]
@@ -287,6 +309,21 @@ impl<F, T>
             .transaction_response
             .errors
             .and_then(|errors| {
+                // FIXME(kos): Two redundant allocations here are introduced due
+                // to `.clone()` usage.
+                // We do own `errors` vector here, not borrow it, so
+                // we may directly consume its first element and its
+                // values without any cloning:
+                // ```rust
+                // errors
+                //     .into_iter()
+                //     .next()
+                //     .map(|err| types::ErrorResponse {
+                //         code: err.error_code,
+                //         message: err.error_text,
+                //         reason: None,
+                //     })
+                // ```
                 errors.first().map(|error| types::ErrorResponse {
                     code: error.error_code.clone(),
                     message: error.error_text.clone(),

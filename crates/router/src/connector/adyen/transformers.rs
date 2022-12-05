@@ -151,6 +151,7 @@ pub struct AdyenCard {
     number: Option<Secret<String>>,
     expiry_month: Option<Secret<String>>,
     expiry_year: Option<Secret<String>>,
+    // FIXME(kos): CVC is a secret too!
     cvc: Option<String>,
 }
 
@@ -293,6 +294,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     expiry_year: ccard.map(|x| x.card_exp_year.peek().clone().into()),
                     // TODO: CVV/CVC shouldn't be saved in our db
                     // Will need to implement tokenization that allows us to make payments without cvv
+                    // FIXME(kos): And this could be easily prevented if it was
+                    // represented as a newtype for value object which doesn't implement
+                    // `ToSql`.
                     cvc: ccard.map(|x| x.card_cvc.peek().into()),
                 };
 

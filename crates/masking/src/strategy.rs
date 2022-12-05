@@ -3,6 +3,8 @@ use core::fmt;
 /// Debugging trait which is specialized for handling secret values
 pub trait Strategy<T> {
     /// Format information about the secret's type.
+    // FIXME(kos): Just `fmt::Result` is okay.
+    // Same for the implementations below.
     fn fmt(value: &T, fmt: &mut fmt::Formatter<'_>) -> std::fmt::Result;
 }
 

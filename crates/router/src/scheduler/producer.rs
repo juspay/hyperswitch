@@ -49,7 +49,16 @@ pub async fn start_producer(
         options.looper_interval.milliseconds,
     ));
 
+    // TODO(kos): The loop is not panic safe. It won't be automatically restored
+    // if a panic happens. So the external machinery should take care
+    // to restart the process if this happens.
+    // Either catch panic with catch_unwind or restart process externally.
+    // https://docs.rs/futures/0.3.25/futures/future/trait.FutureExt.html#method.catch_unwind
     loop {
+        // FIXME(kos) : If the scheduler is going to sleep for some time,
+        // then process events, the time between start of event processing
+        // will be off by the time taken to process events.
+        // Is it necessary to have precise interval between event processing?
         interval.tick().await;
 
         let is_ready = options.readiness.is_ready;

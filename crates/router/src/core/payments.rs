@@ -345,6 +345,10 @@ where
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
+    // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
+    // first, there are situations where 2**31 would overflow.
+    // second, payment shouldn't have negative amounts.
+    // third, decimal place may be not shared.
     pub amount: i32,
     pub currency: enums::Currency,
     pub mandate_id: Option<String>,

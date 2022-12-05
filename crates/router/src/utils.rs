@@ -31,6 +31,14 @@ pub mod error_parser {
     // Display is a requirement defined by the actix crate for implementing ResponseError trait
     impl Display for CustomJsonError {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            // FIXME(kos): This code contains redundant heap allocation `.to_string()`
+            // allocations, because we can write directly into the
+            // formatter:
+            // ```rust
+            // write!(f, "{}", serde_json::json!({
+            //     "error": &self.err
+            // }))
+            // ```
             f.write_str(
                 serde_json::to_string(&serde_json::json!({
                     "error": self.err.to_string()

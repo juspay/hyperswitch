@@ -211,6 +211,8 @@ impl<T> ValueExt<T> for serde_json::Value {
     where
         T: serde::de::DeserializeOwned,
     {
+        // FIXME(kos): The syntax `{self:?}` could be used here without any
+        // impact on semantics.
         let debug = format!(
             "Unable to parse {type_name} from serde_json::Value: {:?}",
             &self

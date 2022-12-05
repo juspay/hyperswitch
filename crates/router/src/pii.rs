@@ -50,12 +50,32 @@ where
 
 pub struct Email;
 
+// FIXME(kos): Here should be not generic T, but newtype Email.
 impl<T> Strategy<T> for Email
 where
     T: AsRef<str>,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
+        // FIXME(kos): We should assume constructed value object is already validated.
+        // Email validation is quite a heavy operation. Doing it on
+        // each formatting is quite a subtle performance penalty,
+        // while being... unnecessary?
+        // Another problem, that validation here is
+        // violation of the "Separation of concerns" design
+        // principle. Formatting is not a validation in any way.
+        // https://en.wikipedia.org/wiki/Separation_of_concerns
+        // Consider to provide a newtype for email strings.
+        // https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html
+        // This way you do the validation only once, when creating a
+        // value of the type, and then you may fearlessly reuse it
+        // as the type system protects you.
+        // https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate
+        // Thus, as the result, you will be able to remove any
+        // validation code from the formatting, as the compiler will
+        // guarantee that you would have valid values here.
+        // The same is true for other formatting strategies in this
+        // module too, as they're effectively validators too.
         let is_valid = validate_email(val_str);
 
         if is_valid.is_err() {
@@ -72,11 +92,14 @@ where
 
 pub struct IpAddress;
 
+// FIXME(kos): Here should be not generic T, but std::net::IpAddr.
 impl<T> Strategy<T> for IpAddress
 where
     T: AsRef<str>,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO(kos): Consider to not use `String`s for IP addresses.
+        // There is a `std::net::IpAddr` for that.
         let val_str: &str = val.as_ref();
         let segments: Vec<&str> = val_str.split('.').collect();
 

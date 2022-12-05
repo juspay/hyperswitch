@@ -64,6 +64,9 @@ pub mod iso8601 {
         where
             S: Serializer,
         {
+            // FIXME(kos): There is no need to repeat the whole
+            // serialization/deserialization logic here. Just reuse
+            // it from the module above.
             date_time
                 .map(|date_time| date_time.assume_utc().format(&Iso8601::<FORMAT_CONFIG>))
                 .transpose()

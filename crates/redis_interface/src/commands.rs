@@ -77,6 +77,8 @@ impl super::RedisConnectionPool {
         type_name: &str,
     ) -> CustomResult<T, errors::RedisError>
     where
+        // FIXME(kos): Just `Send` and `Sync` should be enough. No need in full path
+        // naming.
         T: serde::de::DeserializeOwned,
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;

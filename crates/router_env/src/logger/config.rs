@@ -48,6 +48,25 @@ pub struct LogFile {
     // pub rotation: u16,
 }
 
+// FIXME(kos): It could be done in a better way. As far as
+// `serde` provides `#[serde(deserialize_with = ...)]` attribute:
+// ```rust
+// #[derive(Debug, Deserialize, Clone)]
+// pub struct LogFile {
+//     // ...
+//     /// What gets into log files.
+//     `#[serde(deserialize_with = "deserialize_level")]`
+//     pub level: tracing::Level,
+//     // ...
+// }
+// fn deserialize_level<'de, D: Deserializer<'de>>(
+//     d: D,
+// ) -> Result<tracing::Level, D::Error> {
+//     tracing::Level::from_str(&*<Cow<'_, str>>::deserialize(d)?)
+//         .map_err(D::Error::custom)
+// }
+// ```
+// See more: https://serde.rs/field-attrs.html#deserialize_with
 /// Describes the level of verbosity of a span or event.
 #[derive(Debug, Clone)]
 pub struct Level(tracing::Level);
@@ -96,6 +115,9 @@ pub struct LogTelemetry {
 #[derive(Default, Debug, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
+    // FIXME(kos): `Default` is quite a generic naming here, giving no idea about
+    // what the format is. Better name it either `Pretty`, or
+    // `Compact` (the terminology used by `slog` crate).
     /// Default pretty log format
     Default,
     /// JSON based structured logging

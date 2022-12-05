@@ -111,6 +111,9 @@ pub enum RecordType {
 impl fmt::Display for RecordType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = match self {
+            // FIXME(kos): Use `Self::EnterSpan` syntax here.
+            // `#![warn(clippy::use_self)]` on crate level should
+            // help with this.
             RecordType::EnterSpan => "START",
             RecordType::ExitSpan => "END",
             RecordType::Event => "EVENT",
@@ -204,6 +207,10 @@ where
         map_serializer.serialize_entry(ENV, &self.env)?;
         map_serializer.serialize_entry(VERSION, &self.version)?;
         map_serializer.serialize_entry(BUILD, &self.build)?;
+        // FIXME(kos): Use here, below, and in similar places, the
+        // `format_args!()` macro instead, to omit redundant
+        // allocations produced by the `format!()` macro (as it
+        // returns a new `String`).
         map_serializer.serialize_entry(LEVEL, &format!("{}", metadata.level()))?;
         map_serializer.serialize_entry(TARGET, metadata.target())?;
         map_serializer.serialize_entry(SERVICE, &self.service)?;

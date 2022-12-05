@@ -222,6 +222,12 @@ pub(super) fn check_missing_attributes(
 /// Get all the fields not used in the error message.
 pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> syn::Result<Vec<Field>> {
     let fields = match fields {
+        // FIXME(kos): Restructure it as:
+        // ```rust
+        // Fields::Unit | Fields::Unnamed(_) => vec![],
+        // ```
+        // `#![warn(clippy::match_same_arms)]` on crate level should
+        // help with this.
         syn::Fields::Unit => Vec::new(),
         syn::Fields::Unnamed(_) => Vec::new(),
         syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),

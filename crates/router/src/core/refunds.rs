@@ -284,7 +284,10 @@ pub async fn refund_update_core(
 }
 
 // ********************************************** VALIDATIONS **********************************************
-
+// FIXME(kos) : this function doesn't follow ACID principle, since the validation
+// and the update is performed using multiple queries not in a single transaction.
+// For example, two concurrent requests can pass validation on refund amount,
+// and bypass maximum refund amount limitation. Thus, atomicity and consistency is broken.
 #[instrument(skip_all)]
 pub async fn validate_and_create_refund(
     state: &AppState,
@@ -318,6 +321,8 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request")),
     )?;
 
+    // FIXME(kos) : There's a race condition here. it's possible for two clients to check that
+    // refund doesn't exist and try to create one at the same time.
     let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
         db,
         &payment_intent.payment_id,

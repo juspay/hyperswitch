@@ -83,6 +83,10 @@ impl From<String> for Conversion {
             "update_tracker" => Self::UpdateTracker,
             "post_tracker" => Self::PostUpdateTracker,
             "all" => Self::All,
+            // FIXME(kos) : proc macro should not panic.  When proc macro panics,
+            // it will be the only error message returned by the rust compiler.
+            // Instead, in case of errors, proc macro should emit compile_error!()
+            // to communicate error to the user. This will allow other errors to be displayed.
             _ => panic!("Invalid conversion identifier {}", s),
         }
     }
@@ -148,6 +152,7 @@ impl Conversion {
         }
     }
 
+    // FIXME(kos) : why is it necessary to have a separate impl for this
     fn to_ref_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
         match self {

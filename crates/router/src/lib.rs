@@ -1,5 +1,19 @@
+// FIXME(kos): Here and in any other crate roots it's better to declare
+// `#![forbid(unsafe_code)]` as we do in `batch_pii` crate.
+// This will ease a life of readers and auditors a lot, and will
+// require quite a reasoning for those who will intend to contribute
+// any `unsafe` code.
+
+// TODO(kos): Consider always adding `#![forbid(non_ascii_idents)]` to crate
+// roots, unless there is a real need in some exotic or math notation
+// in the code. This prevents any fuckups with accidental unicode
+// characters similarity.
+
 // FIXME: I strongly advise to add this worning.
 // #![warn(missing_docs)]
+
+// FIXME(kos): Codebase has many such problems. Use it.
+// #![warn(clippy::use_self)]
 
 // FIXME: I recommend to add these wornings too, although there is no harm if these wanrings will stay disabled.
 // #![warn(rust_2018_idioms)]

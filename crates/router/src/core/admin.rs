@@ -16,7 +16,18 @@ use crate::{
 
 #[inline]
 fn create_merchant_api_key() -> String {
+    // FIXME(kos): Why duplicate `&Uuid::new_v4().simple().to_string()` line
+    // three times? Better DRY it out into a separate value and
+    // reuse:
+    // ```rust
+    // let id = Uuid::new_v4().simple();
+    // ```
     match env::which() {
+        // FIXME(kos): Using `.to_string()` here just does a redundant
+        // allocation without giving any benefit.
+        // Just use `Uuid::new_v4().simple()` directly, which
+        // implements `Display` anyway, so can be written directly
+        // into the formatter without intermediate allocations.
         Env::Development => format!("dev_{}", &Uuid::new_v4().simple().to_string()),
         Env::Production => format!("prd_{}", &Uuid::new_v4().simple().to_string()),
         Env::Sandbox => format!("snd_{}", &Uuid::new_v4().simple().to_string()),
@@ -58,6 +69,8 @@ pub async fn create_merchant_account(
         routing_algorithm: req.routing_algorithm,
         custom_routing_rules: Some(custom_routing_rules),
         sub_merchants_enabled: req.sub_merchants_enabled,
+        // FIXME(kos) : possible race condition here. what if a concurrent user updates
+        // parent merchant between this operation and the following?
         parent_merchant_id: get_parent_merchant(
             db,
             &req.sub_merchants_enabled,
@@ -130,6 +143,8 @@ pub async fn merchant_account_update(
     merchant_id: &String,
     req: api::CreateMerchantAccount,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    // FIXME(kos) : possible race condition here. what if a concurrent user updates
+    // merchant account between this read and the last write?
     let merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -185,6 +200,8 @@ pub async fn merchant_account_update(
         sub_merchants_enabled: req
             .sub_merchants_enabled
             .or(merchant_account.sub_merchants_enabled),
+        // FIXME(kos) : possible race condition here. what if a concurrent user updates
+        // parent merchant between this operation and the following?
         parent_merchant_id: get_parent_merchant(
             db,
             &req.sub_merchants_enabled

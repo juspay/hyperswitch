@@ -10,6 +10,7 @@ use crate::{
     logger,
 };
 
+// FIXME(kos) : Why not use reqwest::RequestBuilder + make an extension?
 pub(crate) type Headers = Vec<(String, String)>;
 
 #[derive(

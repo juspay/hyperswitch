@@ -17,8 +17,12 @@ pub struct Refund {
     pub pg_refund_id: Option<String>,
     pub external_reference_id: Option<String>,
     pub refund_type: enums::RefundType,
+    // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
+    // same as PaymentData::amount
     pub total_amount: i32,
     pub currency: enums::Currency,
+    // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
+    // same as PaymentData::amount
     pub refund_amount: i32,
     pub refund_status: enums::RefundStatus,
     pub sent_to_gateway: bool,
@@ -42,8 +46,12 @@ pub struct RefundNew {
     pub connector: String,
     pub pg_refund_id: Option<String>,
     pub refund_type: enums::RefundType,
+    // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
+    // same as PaymentData::amount
     pub total_amount: i32,
     pub currency: enums::Currency,
+    // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
+    // same as PaymentData::amount
     pub refund_amount: i32,
     pub refund_status: enums::RefundStatus,
     pub sent_to_gateway: bool,

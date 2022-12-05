@@ -49,6 +49,19 @@ impl ProcessTrackerBatch {
     pub fn from_redis_stream_entry(
         entry: HashMap<String, Option<String>>,
     ) -> CustomResult<Self, errors::ProcessTrackerError> {
+        // FIXME(kos) : the MissingRequiredField could include the missing field name.
+        //   .change_context(errors::ProcessTrackerError::MissingRequiredField("id"))?;
+        // FIXME(kos) : the code is quite repetitive, is there a way to make it shorter, like with a macro?
+        // macro_rules! get_field {
+        //     ($entry:expr, $field:expr) => {
+        //         $entry
+        //             .get($field)
+        //             .get_required_value($field)
+        //             .change_context(errors::ProcessTrackerError::MissingRequiredField($field))?
+        //     }
+        // }
+        // let id = get_field!(entry, "id");
+
         let mut entry = entry;
         let id = entry
             .remove("id")

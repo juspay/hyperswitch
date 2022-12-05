@@ -173,6 +173,8 @@ fn implement_serialize(
 
         let error_type_enum = type_properties.error_type_enum.as_ref().unwrap();
         let response_definition = if msg_unused_fields.is_empty() {
+            // FIXME(kos): Redundant structure.
+            // It's possible to drop it and get better peformance and simpler code.
             quote! {
                 #[derive(Clone, Debug, serde::Serialize)]
                 struct ErrorResponse {
