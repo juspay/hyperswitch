@@ -46,6 +46,8 @@ pub enum ApiErrorResponse {
     InvalidRequestData { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Refund amount exceeds the payment amount.")]
     RefundAmountExceedsPaymentAmount,
+    /// Typically used when a field has invalid value, or deserialization of the value contained in
+    /// a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}.")]
     InvalidDataValue { field_name: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Reached maximum refund attempts")]
@@ -57,6 +59,8 @@ pub enum ApiErrorResponse {
         current_value: String,
         states: String,
     },
+    /// Typically used when information involving multiple fields or previously provided
+    /// information doesn't satisfy a condition.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "{message}")]
     PreconditionFailed { message: String },
 
@@ -64,7 +68,7 @@ pub enum ApiErrorResponse {
     ClientSecretInvalid,
 
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed while processing with connector. Retry payment.")]
-    PaymentAuthorizationFailed { data: Option<serde_json::Value> }, //
+    PaymentAuthorizationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_02", message = "Payment failed while processing with connector. Retry payment.")]
     PaymentAuthenticationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_03", message = "Capture attempt failed while processing with connector.")]
@@ -170,8 +174,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::DuplicatePaymentMethod
             | ApiErrorResponse::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
             ApiErrorResponse::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,  // 503
-            ApiErrorResponse::PaymentNotSucceeded => StatusCode::BAD_REQUEST,
-            ApiErrorResponse::NotImplemented => StatusCode::NOT_IMPLEMENTED,
+            ApiErrorResponse::PaymentNotSucceeded => StatusCode::BAD_REQUEST,           // 400
+            ApiErrorResponse::NotImplemented => StatusCode::NOT_IMPLEMENTED,            // 501
         }
     }
 
