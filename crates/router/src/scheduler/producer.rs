@@ -8,12 +8,31 @@ use super::metrics;
 use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
-    db::Db,
+    db::StorageInterface,
     logger::{debug, error, info, warn},
     routes::AppState,
     scheduler::{utils::*, SchedulerFlow, SchedulerOptions},
     types::storage::{self, enums::ProcessTrackerStatus},
 };
+
+//TODO: move to env
+pub fn fetch_upper_limit() -> i64 {
+    0
+}
+
+pub fn fetch_lower_limit() -> i64 {
+    1800
+}
+
+pub fn producer_lock_key() -> &'static str {
+    "PRODUCER_LOCKING_KEY"
+}
+
+pub fn producer_lock_ttl() -> i64 {
+    // ttl_offset = config.scheduler_lock_offset.or_else(60);
+    // (scheduler_looper_interval / 100) + (ttl_offset)
+    160 //seconds
+}
 
 #[instrument(skip_all)]
 pub async fn start_producer(
@@ -61,18 +80,22 @@ pub async fn run_producer_flow(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let tag = "PRODUCER_LOCK";
-    let lock_key = &settings.producer.lock_key;
+    let lock_key = producer_lock_key();
     let lock_val = "LOCKED";
     let ttl = settings.producer.lock_ttl;
 
     // TODO: Pass callback function to acquire_pt_lock() to run after acquiring lock
-    if acquire_pt_lock(state, tag, lock_key, lock_val, ttl).await {
-        let tasks = fetch_producer_tasks(&state.store, op, settings).await?;
+    if state
+        .store
+        .acquire_pt_lock(tag, lock_key, lock_val, ttl)
+        .await
+    {
+        let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
         debug!("Producer count of tasks {}", tasks.len());
         //TODO based on pt.name decide which pt goes to which stream
         // (LIVE_TRAFFIC_STRM,SCHEDULER_STREAM); array of [(stream,Vec<ProcessTracker>)]
         divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
-        release_pt_lock(&state.store.redis_conn, tag, lock_key).await;
+        state.store.release_pt_lock(tag, lock_key).await;
     }
 
     Ok(())
@@ -80,7 +103,7 @@ pub async fn run_producer_flow(
 
 #[instrument(skip_all)]
 pub async fn fetch_producer_tasks(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     _options: &SchedulerOptions,
     conf: &SchedulerSettings,
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {

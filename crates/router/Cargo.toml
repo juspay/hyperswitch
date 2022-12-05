@@ -7,10 +7,9 @@ default-run = "router"
 rust-version = "1.63"
 readme = "README.md"
 license = "Apache-2.0"
-build = "src/build.rs"
 
 [features]
-default = []
+default = ["kv_store"]
 kms = ["aws-config", "aws-sdk-kms"]
 basilisk = []
 stripe = ["dep:serde_qs"]
@@ -26,7 +25,7 @@ actix-cors = "0.6.3"
 actix-rt = "2.7.0"
 actix-web = "4.2.1"
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "412663e16802dbc58a1b98bfcbe78fa0090311eb" }
-async-trait = { version = "0.1.57" }
+async-trait = "0.1.57"
 aws-config = { version = "0.49.0", optional = true }
 aws-sdk-kms = { version = "0.19.0", optional = true }
 base64 = "0.13.0"
@@ -63,6 +62,7 @@ time = { version = "0.3.14", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["serde", "v4"] }
+futures-locks = "0.6"
 futures = "0.3"
 
 # First party crates
@@ -72,14 +72,19 @@ redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
+[build-dependencies]
+router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
+
 [dev-dependencies]
 awc = { version = "3.0.1", features = ["rustls"] }
 time = { version = "0.3.14", features = ["macros"] }
 tokio = "1.21.2"
 toml = "0.5.9"
-
-[build-dependencies]
-router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
+derive_deref = "1.1.1"
+actix-http = "3.2.2"
+proptest = "1.0"
+fake = "2.5"
+rand = "0.8"
 
 [[bin]]
 name = "router"

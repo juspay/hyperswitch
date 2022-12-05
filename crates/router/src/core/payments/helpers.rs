@@ -16,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::cards,
     },
-    db::{mandate::IMandate, payment_method::IPaymentMethod, temp_card::ITempCard, Db},
+    db::StorageInterface,
     routes::AppState,
     services,
     types::{
@@ -31,7 +31,7 @@ use crate::{
 };
 
 pub async fn get_address_for_payment_request(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
@@ -82,7 +82,7 @@ pub async fn get_address_for_payment_request(
 }
 
 pub async fn get_address_by_id(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     address_id: Option<String>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
     match address_id {
@@ -131,7 +131,7 @@ pub async fn get_token_for_recurring_mandate(
     req: &api::PaymentsRequest,
     merchant_id: &str,
 ) -> RouterResult<(Option<String>, Option<enums::PaymentMethodType>)> {
-    let db = &state.store;
+    let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
     let mandate = db
@@ -502,7 +502,7 @@ pub(crate) fn client_secret_auth(
 }
 
 pub async fn get_customer_from_details(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
 ) -> CustomResult<Option<api::CustomerResponse>, errors::StorageError> {
@@ -518,7 +518,7 @@ pub async fn get_customer_from_details(
 #[instrument(skip_all)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
@@ -616,7 +616,7 @@ impl Vault {
         state: &AppState,
         lookup_key: &str,
     ) -> RouterResult<Option<api::PaymentMethod>> {
-        let resp = cards::mock_get_card(&state.store, lookup_key)
+        let resp = cards::mock_get_card(&*state.store, lookup_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let card = resp.card;
@@ -655,7 +655,7 @@ impl Vault {
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: Some(card.card_holder_name.clone()),
         };
-        let db = &state.store;
+        let db = &*state.store;
         cards::mock_add_card(db, txn_id, &card_detail)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -813,7 +813,7 @@ where
 }
 
 pub(super) async fn filter_by_constraints(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
 ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {

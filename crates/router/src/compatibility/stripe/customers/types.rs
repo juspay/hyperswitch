@@ -130,7 +130,7 @@ impl From<customers::CustomerDeleteResponse> for CustomerDeleteResponse {
     fn from(cust: customers::CustomerDeleteResponse) -> Self {
         Self {
             id: cust.customer_id,
-            deleted: cust.deleted,
+            deleted: cust.customer_deleted,
         }
     }
 }

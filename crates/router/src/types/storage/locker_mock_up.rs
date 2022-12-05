@@ -2,7 +2,7 @@ use diesel::{Identifiable, Insertable, Queryable};
 
 use crate::schema::locker_mock_up;
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
+#[derive(Clone, Debug, Eq, Identifiable, Queryable, PartialEq)]
 #[diesel(table_name = locker_mock_up)]
 pub struct LockerMockUp {
     pub id: i32,

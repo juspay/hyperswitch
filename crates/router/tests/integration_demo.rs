@@ -1,366 +1,249 @@
-use http::StatusCode;
-use reqwest::Client;
-use router::{configs::settings::Settings, services::Store, types::storage::AddressNew};
-use serde_json::Value;
-
 mod utils;
-struct TestApp {
-    store: Store,
+
+#[allow(dead_code)]
+mod auth {
+    include!("connectors/connector_auth.rs");
 }
 
-impl TestApp {
-    pub async fn init() -> (Client, TestApp) {
-        utils::setup().await;
+use auth::ConnectorAuthentication;
+use utils::{mk_service, ApiKey, AppClient, LegacyAppClient, MerchantId, PaymentId, Status};
 
-        let client = Client::new();
-        let conf = Settings::new().unwrap();
-        let store = Store::new(&conf).await;
-        let app = TestApp { store };
+/// Example of unit test
+/// 1) Create Merchant account
+#[actix_web::test]
+async fn create_merchant_account() {
+    let server = mk_service().await;
+    let client = AppClient::guest();
+    let admin_client = client.admin("test_admin");
 
-        (client, app)
-    }
+    let expected = "merchant_12345";
+    let hlist_pat![merchant_id, _api_key]: HList![MerchantId, ApiKey] = admin_client
+        .create_merchant_account(&server, expected.to_owned())
+        .await;
+
+    assert_eq!(expected, *merchant_id);
 }
 
-fn mk_merchant_account() -> serde_json::Value {
-    let timestamp = common_utils::date_time::now();
+/// Example of unit test
+/// ```pseudocode
+/// mk_service =
+///   app_state <- AppState(StorageImpl::Mock) // Instantiate a mock database to simulate real world SQL database.
+///   actix_web::test::init_service(<..>) // Initialize service from application builder instance .
+/// ```
+/// ### Tests with mocks are typically structured like so:
+/// 1) create mock objects and specify what values they return
+/// 2) run code under test, passing mock objects to it
+/// 3) assert mocks were called the expected number of times, with the expected arguments
+/// ```
+/// fn show_users(get_users: impl FnOnce() -> Vec<&'static str>) -> String {
+///   get_users().join(", ")
+/// }
+/// // GIVEN[1]:
+/// let get_users = || vec!["Andrey", "Alisa"];
+/// // WHEN[2]:
+/// let list_users = show_users(get_users);
+/// // THEN[3]:
+/// assert_eq!(list_users, "Andrey, Alisa");
+/// ```
+/// ### Test case
+/// 1) Create Merchant account (Get the API key)
+/// 2) Create a connector
+/// 3) Create a payment for 100 USD
+/// 4) Confirm a payment (let it get processed through Stripe)
+/// 5) Refund for 50USD success
+/// 6) Another refund for 50USD success
+///
+/// ### Useful resources
+/// * <https://blog.ploeh.dk/2016/03/18/functional-architecture-is-ports-and-adapters>
+/// * <https://www.parsonsmatt.org/2017/07/27/inverted_mocking.html>
+/// * <https://www.parsonsmatt.org/2018/03/22/three_layer_haskell_cake.html>
+#[actix_web::test]
+async fn partial_refund() {
+    let authentication = ConnectorAuthentication::new();
+    let server = mk_service().await;
 
-    serde_json::json!({
-      "merchant_id": format!("merchant_{timestamp}"),
-      "merchant_name": "NewAge Retailer",
-      "merchant_details": {
-        "primary_contact_person": "John Test",
-        "primary_email": "JohnTest@test.com",
-        "primary_phone": "sunt laborum",
-        "secondary_contact_person": "John Test2",
-        "secondary_email": "JohnTest2@test.com",
-        "secondary_phone": "cillum do dolor id",
-        "website": "www.example.com",
-        "about_business": "Online Retail with a wide selection of organic products for North America",
-        "address": {
-          "line1": "Juspay Router",
-          "line2": "Koramangala",
-          "line3": "Stallion",
-          "city": "Bangalore",
-          "state": "Karnataka",
-          "zip": "560095",
-          "country": "IN"
-        }
-      },
-      "return_url": "www.example.com/success",
-      "webhook_details": {
-        "webhook_version": "1.0.1",
-        "webhook_username": "ekart_retail",
-        "webhook_password": "password_ekart@123",
-        "payment_created_enabled": true,
-        "payment_succeeded_enabled": true,
-        "payment_failed_enabled": true
-      },
-      "routing_algorithm": "custom",
-      "custom_routing_rules": [
-        {
-          "payment_methods_incl": [
-            "card",
-            "card"
-          ],
-          "payment_methods_excl": [
-            "card",
-            "card"
-          ],
-          "payment_method_types_incl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_types_excl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_issuers_incl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "payment_method_issuers_excl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "countries_incl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "countries_excl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "currencies_incl": [
-            "USD",
-            "EUR"
-          ],
-          "currencies_excl": [
-            "AED",
-            "SGD"
-          ],
-          "metadata_filters_keys": [
-            "payments.udf1",
-            "payments.udf2"
-          ],
-          "metadata_filters_values": [
-            "android",
-            "Category_Electronics"
-          ],
-          "connectors_pecking_order": [
+    let client = AppClient::guest();
+    let admin_client = client.admin("test_admin");
+
+    let hlist_pat![merchant_id, api_key]: HList![MerchantId, ApiKey] =
+        admin_client.create_merchant_account(&server, None).await;
+
+    let _connector: serde_json::Value = admin_client
+        .create_connector(
+            &server,
+            &merchant_id,
             "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_key": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_value": [
-            50,
-            30,
-            20
-          ]
-        },
-        {
-          "payment_methods_incl": [
-            "card",
-            "card"
-          ],
-          "payment_methods_excl": [
-            "card",
-            "card"
-          ],
-          "payment_method_types_incl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_types_excl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_issuers_incl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "payment_method_issuers_excl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "countries_incl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "countries_excl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "currencies_incl": [
-            "USD",
-            "EUR"
-          ],
-          "currencies_excl": [
-            "AED",
-            "SGD"
-          ],
-          "metadata_filters_keys": [
-            "payments.udf1",
-            "payments.udf2"
-          ],
-          "metadata_filters_values": [
-            "android",
-            "Category_Electronics"
-          ],
-          "connectors_pecking_order": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_key": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_value": [
-            50,
-            30,
-            20
-          ]
-        }
-      ],
-      "sub_merchants_enabled": false,
-      "metadata": {
-        "city": "NY",
-        "unit": "245"
-      }
-    })
+            &authentication.checkout.unwrap().api_key,
+        )
+        .await;
+
+    let user_client = client.user(&api_key);
+    let hlist_pat![payment_id]: HList![PaymentId] =
+        user_client.create_payment(&server, 100, 100).await;
+
+    let hlist_pat![status]: HList![Status] =
+        user_client.create_refund(&server, &payment_id, 50).await;
+    assert_eq!(&*status, "pending");
+
+    let hlist_pat![status]: HList![Status] =
+        user_client.create_refund(&server, &payment_id, 50).await;
+    assert_eq!(&*status, "pending");
 }
 
-fn mk_payment() -> serde_json::Value {
-    serde_json::json!({
-      "amount": 6540,
-      "currency": "USD",
-      "confirm": true,
-      "capture_method": "automatic",
-      "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 6540,
-      "customer_id": "cus_udst2tfldj6upmye2reztkmm4i",
-      "email": "guest@example.com",
-      "name": "John Doe",
-      "phone": "999999999",
-      "phone_country_code": "+65",
-      "description": "Its my first payment request",
-      "authentication_type": "no_three_ds",
-      "payment_method": "card",
-      "payment_method_data": {
-        "card": {
-          "card_number": "4242424242424242",
-          "card_exp_month": "10",
-          "card_exp_year": "35",
-          "card_holder_name": "John Doe",
-          "card_cvc": "123"
-        }
-      },
-      "statement_descriptor_name": "Juspay",
-      "statement_descriptor_suffix": "Router",
-      "metadata": {
-        "udf1": "value1",
-        "new_customer": "true",
-        "login_date": "2019-09-10T10:11:12Z"
-      }
-    })
-}
+/// Example of unit test
+/// ```pseudocode
+/// mk_service =
+///   app_state <- AppState(StorageImpl::Mock) // Instantiate a mock database to simulate real world SQL database.
+///   actix_web::test::init_service(<..>) // Initialize service from application builder instance .
+/// ```
+/// ### Tests with mocks are typically structured like so:
+/// 1) create mock objects and specify what values they return
+/// 2) run code under test, passing mock objects to it
+/// 3) assert mocks were called the expected number of times, with the expected arguments
+/// ```
+/// fn show_users(get_users: impl FnOnce() -> Vec<&'static str>) -> String {
+///   get_users().join(", ")
+/// }
+/// // GIVEN[1]:
+/// let get_users = || vec!["Andrey", "Alisa"];
+/// // WHEN[2]:
+/// let list_users = show_users(get_users);
+/// // THEN[3]:
+/// assert_eq!(list_users, "Andrey, Alisa");
+/// ```
+/// Test case
+/// 1) Create a payment for 100 USD
+/// 2) Confirm a payment (let it get processed through Stripe)
+/// 3) Refund for 50USD successfully
+/// 4) Try another refund for 100USD
+/// 5) Get an error for second refund
+///
+/// ### Useful resources
+/// * <https://blog.ploeh.dk/2016/03/18/functional-architecture-is-ports-and-adapters>
+/// * <https://www.parsonsmatt.org/2017/07/27/inverted_mocking.html>
+/// * <https://www.parsonsmatt.org/2018/03/22/three_layer_haskell_cake.html>
+#[actix_web::test]
+async fn exceed_refund() {
+    let authentication = ConnectorAuthentication::new();
+    let server = mk_service().await;
 
-fn mk_connector() -> serde_json::Value {
-    serde_json::json!({
-      "merchant_id": "y3oqhf46pyzuxjbcn2giaqnb44",
-      "connector_type": "payment_processor",
-      "connector_name": "stripe",
-      "connector_account_details": {
-        "api_key": "Basic MyVerySecretApiKey"
-      },
-      "test_mode": false,
-      "disabled": false,
-      "payment_methods_enabled": [
-        {
-          "payment_method": "card",
-          "payment_method_types": [
-            "credit_card"
-          ],
-          "payment_method_issuers": [
-            [
-              "HDFC"
-            ]
-          ],
-          "payment_schemes": [
-            "VISA"
-          ],
-          "accepted_currencies": [
-            "USD"
-          ],
-          "accepted_countries": [
-            "US"
-          ],
-          "minimum_amount": 1,
-          "maximum_amount": null,
-          "recurring_enabled": true,
-          "installment_payment_enabled": true,
-          "payment_experience": [
-            "redirect_to_url"
-          ]
-        }
-      ],
-      "metadata": {
-        "city": "NY",
-        "unit": "245"
-      }
-    })
+    let client = AppClient::guest();
+    let admin_client = client.admin("test_admin");
+
+    let hlist_pat![merchant_id, api_key]: HList![MerchantId, ApiKey] =
+        admin_client.create_merchant_account(&server, None).await;
+
+    let _connector: serde_json::Value = admin_client
+        .create_connector(
+            &server,
+            &merchant_id,
+            "stripe",
+            &authentication.checkout.unwrap().api_key,
+        )
+        .await;
+
+    let user_client = client.user(&api_key);
+
+    let hlist_pat![payment_id]: HList![PaymentId] =
+        user_client.create_payment(&server, 100, 100).await;
+
+    let hlist_pat![status]: HList![Status] =
+        user_client.create_refund(&server, &payment_id, 50).await;
+    assert_eq!(&*status, "pending");
+
+    let message: serde_json::Value = user_client.create_refund(&server, &payment_id, 100).await;
+    assert_eq!(
+        message["error"]["message"],
+        "Refund amount exceeds the payment amount."
+    );
 }
 
 #[actix_web::test]
-async fn create_payment() {
-    let (client, _) = TestApp::init().await;
+#[ignore]
+async fn legacy_partial_refund() {
+    legacy_setup().await;
 
-    let merchant_account = client
-        .post("http://localhost:8080/accounts")
-        .header("api-key", "test_admin")
-        .json(&mk_merchant_account())
-        .send()
-        .await
-        .unwrap()
-        .json::<serde_json::Value>()
-        .await
-        .unwrap();
+    let authentication = ConnectorAuthentication::new();
+    let dummy_client = LegacyAppClient::dummy();
+    let admin_client = dummy_client.admin("test_admin");
 
-    println!("{:?}", merchant_account);
+    let hlist_pat![merchant_id, api_key] = admin_client
+        .create_merchant_account::<HList![MerchantId, ApiKey]>(None)
+        .await;
 
-    let merchant_id = merchant_account
-        .get("merchant_id")
-        .and_then(Value::as_str)
-        .unwrap();
+    let _connector = admin_client
+        .create_connector::<serde_json::Value>(
+            &merchant_id,
+            "stripe",
+            &authentication.checkout.unwrap().api_key,
+        )
+        .await;
 
-    let api_key = merchant_account
-        .get("api_key")
-        .and_then(Value::as_str)
-        .unwrap();
+    let user_client = dummy_client.user(&api_key);
+    let hlist_pat![payment_id] = user_client
+        .create_payment::<HList![PaymentId]>(100, 100)
+        .await;
 
-    let _connector = client
-        .post(format!(
-            "http://localhost:8080/account/{merchant_id}/connectors"
-        ))
-        .json(&mk_connector())
-        .send()
-        .await
-        .unwrap()
-        .json::<serde_json::Value>();
+    let hlist_pat![status] = user_client
+        .create_refund::<HList![Status]>(&payment_id, 50)
+        .await;
+    assert_eq!(&*status, "succeeded");
 
-    let payment = client
-        .post("http://localhost:8080/payments")
-        .header("api-key", api_key)
-        .json(&mk_payment())
-        .send()
-        .await
-        .unwrap()
-        .json::<serde_json::Value>()
-        .await
-        .unwrap();
+    let hlist_pat![status] = user_client
+        .create_refund::<HList![Status]>(&payment_id, 50)
+        .await;
+    assert_eq!(&*status, "succeeded");
+}
 
-    println!("{payment}");
+async fn legacy_setup() {
+    utils::setup().await;
 }
 
 #[actix_web::test]
-async fn address() {
-    use router::db::address::IAddress;
+#[ignore]
+async fn legacy_exceed_refund() {
+    legacy_setup().await;
 
-    let (_, app) = TestApp::init().await;
-    let store = app.store;
+    let authentication = ConnectorAuthentication::new();
+    let dummy_client = LegacyAppClient::dummy();
+    let admin_client = dummy_client.admin("test_admin");
 
-    let address = store
-        .insert_address(AddressNew {
-            city: "City!".to_owned().into(),
-            ..AddressNew::default()
-        })
-        .await
-        .unwrap();
+    let hlist_pat![merchant_id, api_key] = admin_client
+        .create_merchant_account::<HList![MerchantId, ApiKey]>(None)
+        .await;
 
-    let address = store.find_address(&address.address_id).await.unwrap();
+    let _connector = admin_client
+        .create_connector::<serde_json::Value>(
+            &merchant_id,
+            "stripe",
+            &authentication.checkout.unwrap().api_key,
+        )
+        .await;
 
-    assert_eq!(address.city, Some("City!".to_owned()));
+    let user_client = dummy_client.user(&api_key);
+    let hlist_pat![payment_id] = user_client
+        .create_payment::<HList![PaymentId]>(100, 100)
+        .await;
+
+    let hlist_pat![status] = user_client
+        .create_refund::<HList![Status]>(&payment_id, 50)
+        .await;
+    assert_eq!(&*status, "succeeded");
+
+    let message = user_client
+        .create_refund::<serde_json::Value>(&payment_id, 100)
+        .await;
+    assert_eq!(
+        message["error"]["message"],
+        "Refund amount exceeds the payment amount."
+    );
 }
 
 #[actix_web::test]
-async fn health() {
-    let (client, _) = TestApp::init().await;
+#[ignore]
+async fn legacy_health_check() {
+    legacy_setup().await;
 
-    let n = client
-        .get("http://localhost:8080/health")
-        .send()
-        .await
-        .unwrap();
-
-    assert_eq!(n.status(), StatusCode::OK);
+    let dummy_client = LegacyAppClient::dummy();
+    assert_eq!(dummy_client.health().await, "health is good");
 }

@@ -1,4 +1,4 @@
-pub use common_utils::ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -173,7 +173,26 @@ pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), Validat
 
 #[cfg(test)]
 mod tests {
+    use fake::{faker::internet::en::SafeEmail, Fake};
+    use proptest::{
+        prop_assert,
+        strategy::{Just, NewTree, Strategy},
+        test_runner::TestRunner,
+    };
+
     use super::*;
+
+    #[derive(Debug)]
+    struct ValidEmail;
+
+    impl Strategy for ValidEmail {
+        type Tree = Just<String>;
+        type Value = String;
+
+        fn new_tree(&self, _runner: &mut TestRunner) -> NewTree<Self> {
+            Ok(Just(SafeEmail().fake()))
+        }
+    }
 
     #[test]
     fn test_validate_email() {
@@ -185,5 +204,26 @@ mod tests {
 
         let result = validate_email("");
         assert!(result.is_err());
+    }
+
+    proptest::proptest! {
+        /// Example of unit test
+        #[test]
+        fn proptest_valid_fake_email(email in ValidEmail) {
+            prop_assert!(validate_email(&email).is_ok());
+        }
+
+        /// Example of unit test
+        #[test]
+        fn proptest_invalid_data_email(email in "\\PC*") {
+            prop_assert!(validate_email(&email).is_err());
+        }
+
+        // TODO: make maybe unit test working
+        // minimal failing input: email = "+@a"
+        // #[test]
+        // fn proptest_invalid_email(email in "[.+]@(.+)") {
+        //     prop_assert!(validate_email(&email).is_err());
+        // }
     }
 }

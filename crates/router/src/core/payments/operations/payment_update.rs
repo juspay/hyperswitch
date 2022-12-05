@@ -12,7 +12,7 @@ use crate::{
         payments::{self, helpers, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
-    db::{payment_attempt::IPaymentAttempt, payment_intent::IPaymentIntent, Db},
+    db::StorageInterface,
     routes::AppState,
     types::{
         api,
@@ -52,7 +52,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let db = &state.store;
+        let db = &*state.store;
         let (token, payment_method_type, setup_mandate) =
             helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
                 .await?;
@@ -108,7 +108,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
-        let db = db as &dyn Db;
+        let db = db as &dyn StorageInterface;
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(
                 &payment_intent.payment_id,
@@ -171,7 +171,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         customer: Option<storage::Customer>,
@@ -181,7 +181,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     {
         let is_payment_method_unavailable =
             payment_data.payment_attempt.payment_method_id.is_none()
-                && payment_data.payment_method_data.is_none()
                 && payment_data.payment_intent.status == enums::IntentStatus::RequiresPaymentMethod;
 
         let payment_method = payment_data.payment_attempt.payment_method;

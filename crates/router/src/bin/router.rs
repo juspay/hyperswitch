@@ -20,10 +20,7 @@ async fn main() -> BachResult<()> {
 
     let _ = server.await;
 
-    std::sync::Arc::get_mut(&mut state.store.redis_conn)
-        .expect("Redis connection pool cannot be closed")
-        .close_connections()
-        .await;
+    state.store.close().await;
 
     Err(BachError::from(std::io::Error::new(
         std::io::ErrorKind::Other,

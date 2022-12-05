@@ -6,10 +6,7 @@ use crate::{
         errors::{self, RouterResponse, StorageErrorExt},
         payment_methods::cards,
     },
-    db::{
-        address::IAddress, customers::ICustomer, payment_intent::IPaymentIntent,
-        payment_method::IPaymentMethod, Db,
-    },
+    db::StorageInterface,
     routes::AppState,
     services,
     types::{api::customers, storage},
@@ -17,7 +14,7 @@ use crate::{
 
 #[instrument(skip(db))]
 pub async fn create_customer(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     customer_data: customers::CreateCustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
@@ -41,7 +38,7 @@ pub async fn create_customer(
 
 #[instrument(skip(db))]
 pub async fn retrieve_customer(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
@@ -105,7 +102,7 @@ pub async fn delete_customer(
 
 #[instrument(skip(db))]
 pub async fn update_customer(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
     update_customer: customers::CustomerUpdateRequest,
 ) -> RouterResponse<customers::CustomerResponse> {

@@ -92,7 +92,7 @@ pub(crate) async fn refund_update(
         &req,
         create_refund_update_req,
         |state, merchant_account, req| {
-            refunds::refund_update_core(&state.store, merchant_account, &refund_id, req)
+            refunds::refund_update_core(&*state.store, merchant_account, &refund_id, req)
         },
         api::MerchantAuthentication::ApiKey,
     )
