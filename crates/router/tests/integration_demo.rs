@@ -26,7 +26,7 @@ async fn create_merchant_account() {
 }
 
 /// Example of unit test
-/// Kind of test: output-based testing, communication-based testing
+/// Kind of test: communication-based testing
 /// ```pseudocode
 /// mk_service =
 ///   app_state <- AppState(StorageImpl::Mock) // Instantiate a mock database to simulate real world SQL database.
@@ -93,7 +93,7 @@ async fn partial_refund() {
 }
 
 /// Example of unit test
-/// Kind of test: output-based testing, communication-based testing
+/// Kind of test: communication-based testing
 /// ```pseudocode
 /// mk_service =
 ///   app_state <- AppState(StorageImpl::Mock) // Instantiate a mock database to simulate real world SQL database.

@@ -268,6 +268,8 @@ mod tests {
     }
 
     #[actix_rt::test]
+    /// Example of unit test
+    /// Kind of test: state-based testing
     async fn test_find_payment_attempt() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
@@ -303,6 +305,8 @@ mod tests {
     }
 
     #[actix_rt::test]
+    /// Example of unit test
+    /// Kind of test: state-based testing
     async fn test_payment_attempt_mandate_field() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
