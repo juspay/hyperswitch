@@ -897,11 +897,16 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "error-stack",
+ "fake",
  "masking",
+ "once_cell",
+ "proptest",
+ "regex",
  "router_env",
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "thiserror",
  "time",
 ]
 
@@ -2636,7 +2641,6 @@ dependencies = [
  "dyn-clone",
  "encoding_rs",
  "error-stack",
- "fake",
  "fred",
  "futures",
  "futures-locks",
@@ -2649,7 +2653,6 @@ dependencies = [
  "mime",
  "nanoid",
  "once_cell",
- "proptest",
  "rand",
  "redis_interface",
  "regex",
