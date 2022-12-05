@@ -30,6 +30,11 @@ pub trait IPaymentIntent {
         merchant_id: &str,
         pc: &api::PaymentListConstraints,
     ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
+
+    async fn filter_payment_intent_by_customer_id(
+        &self,
+        customer_id: &str,
+    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -203,6 +208,14 @@ mod storage {
             //TODO: Implement this
             Err(errors::StorageError::KVError.into())
         }
+
+        async fn filter_payment_intent_by_customer_id(
+            &self,
+            customer_id: &str,
+        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            //TODO: Implement this
+            Err(errors::StorageError::KVError.into())
+        }
     }
 }
 
@@ -251,6 +264,14 @@ mod storage {
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             let conn = pg_connection(&self.master_pool.conn).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
+        }
+
+        async fn filter_payment_intent_by_customer_id(
+            &self,
+            customer_id: &str,
+        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            let conn = pg_connection(&self.master_pool.conn).await;
+            PaymentIntent::find_by_customer_id(&conn, customer_id).await
         }
     }
 }

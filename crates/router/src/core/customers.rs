@@ -6,7 +6,10 @@ use crate::{
         errors::{self, RouterResponse, StorageErrorExt},
         payment_methods::cards,
     },
-    db::{customers::ICustomer, payment_method::IPaymentMethod, Db},
+    db::{
+        address::IAddress, customers::ICustomer, payment_intent::IPaymentIntent,
+        payment_method::IPaymentMethod, Db,
+    },
     routes::AppState,
     services,
     types::{api::customers, storage},
@@ -57,7 +60,7 @@ pub async fn delete_customer(
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
-    //check if there are any existing mandates/subscriptions that exist for the current customer
+    //TODO check if there are any existing mandates/subscriptions that exist for the current customer
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
@@ -71,13 +74,29 @@ pub async fn delete_customer(
         cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id).await?;
     }
     //delete address from address table
+    let payment_intent = db
+        .filter_payment_intent_by_customer_id(&req.customer_id)
+        .await
+        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+    for pi in payment_intent.into_iter() {
+        if let Some(address_id) = pi.billing_address_id {
+            db.delete_address_by_address_id(&address_id)
+                .await
+                .change_context(errors::ApiErrorResponse::AddressNotFound)?; //DeleteAddressFailed ?
+        }
+        if let Some(address_id) = pi.shipping_address_id {
+            db.delete_address_by_address_id(&address_id)
+                .await
+                .change_context(errors::ApiErrorResponse::AddressNotFound)?; //DeleteAddressFailed ?
+        }
+    }
     let response = db
         .delete_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
         .await
         .map(|response| customers::CustomerDeleteResponse {
             customer_id: req.customer_id,
             customer_deleted: response,
-            address_deleted: false,
+            address_deleted: true,
             payment_methods_deleted: true,
         })
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;

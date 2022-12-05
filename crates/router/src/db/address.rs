@@ -17,6 +17,11 @@ pub trait IAddress {
         address: AddressNew,
     ) -> CustomResult<Address, errors::StorageError>;
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError>;
+
+    async fn delete_address_by_address_id(
+        &self,
+        address_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -41,5 +46,13 @@ impl IAddress for Store {
     ) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool.conn).await;
         address.insert(&conn).await
+    }
+
+    async fn delete_address_by_address_id(
+        &self,
+        address_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool.conn).await;
+        Address::delete_by_address_id(&conn, address_id).await
     }
 }
