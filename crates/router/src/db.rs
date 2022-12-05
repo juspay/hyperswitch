@@ -17,7 +17,7 @@ pub mod temp_card;
 
 use std::sync::Arc;
 
-use futures_locks::Mutex;
+use futures::lock::Mutex;
 
 use crate::{
     services::Store,
