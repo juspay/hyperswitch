@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::{
-    core::errors::{self, ApiErrorResponse, CustomResult, RouterResult, ValidateError},
+    core::errors::{self, ApiErrorResponse, CustomResult, RouterResult},
     logger,
     types::api::AddressDetails,
     utils::when,
@@ -111,20 +111,20 @@ pub(crate) fn merge_json_values(a: &mut serde_json::Value, b: &serde_json::Value
 
 // TODO: change Name
 pub trait ValidateVar {
-    fn validate(self) -> CustomResult<Self, ValidateError>
+    fn validate(self) -> CustomResult<Self, errors::ValidationError>
     where
         Self: std::marker::Sized;
 }
 
 pub trait ValidateCall<T, F> {
-    fn validate_opt(self, func: F) -> CustomResult<(), ValidateError>;
+    fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError>;
 }
 
 impl<T, F> ValidateCall<T, F> for Option<&T>
 where
-    F: Fn(&T) -> CustomResult<(), ValidateError>,
+    F: Fn(&T) -> CustomResult<(), errors::ValidationError>,
 {
-    fn validate_opt(self, func: F) -> CustomResult<(), ValidateError> {
+    fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError> {
         match self {
             Some(val) => func(val),
             None => Ok(()),
@@ -132,7 +132,7 @@ where
     }
 }
 
-pub fn validate_email(email: &str) -> CustomResult<(), ValidateError> {
+pub fn validate_email(email: &str) -> CustomResult<(), errors::ValidationError> {
     #[deny(clippy::invalid_regex)]
     static EMAIL_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
         match Regex::new(
@@ -147,26 +147,32 @@ pub fn validate_email(email: &str) -> CustomResult<(), ValidateError> {
     });
     let email_regex = match EMAIL_REGEX.as_ref() {
         Some(regex) => Ok(regex),
-        None => Err(report!(ValidateError).attach_printable("Invalid regex expression")),
+        None => Err(report!(errors::ValidationError::InvalidValue {
+            message: "Invalid regex expression".into()
+        })),
     }?;
 
     const EMAIL_MAX_LENGTH: usize = 319;
     if email.is_empty() || email.chars().count() > EMAIL_MAX_LENGTH {
-        return Err(report!(ValidateError).attach_printable("Invalid email address length"));
+        return Err(report!(errors::ValidationError::InvalidValue {
+            message: "Email address is either empty or exceeds maximum allowed length".into()
+        }));
     }
 
     if !email_regex.is_match(email) {
-        return Err(report!(ValidateError).attach_printable("Invalid email format"));
+        return Err(report!(errors::ValidationError::InvalidValue {
+            message: "Invalid email address format".into()
+        }));
     }
 
     Ok(())
 }
 
-pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), ValidateError> {
+pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), errors::ValidationError> {
     if let Err(err) = serde_json::from_value::<AddressDetails>(address.clone()) {
-        return Err(
-            report!(ValidateError).attach_printable(format!("Address is invalid {:?}", err))
-        );
+        return Err(report!(errors::ValidationError::InvalidValue {
+            message: format!("Invalid address: {err}")
+        }));
     }
     Ok(())
 }
