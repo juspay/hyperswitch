@@ -20,9 +20,9 @@ pub struct StrongSecret<Secret: ZeroizableSecret, MaskingStrategy = crate::WithT
     pub(crate) masking_strategy: PhantomData<MaskingStrategy>,
 }
 
-impl<S: ZeroizableSecret, I> StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy> StrongSecret<Secret, MaskingStrategy> {
     /// Take ownership of a secret value
-    pub fn new(secret: S) -> Self {
+    pub fn new(secret: Secret) -> Self {
         Self {
             inner_secret: secret,
             masking_strategy: PhantomData,
@@ -30,19 +30,25 @@ impl<S: ZeroizableSecret, I> StrongSecret<S, I> {
     }
 }
 
-impl<S: ZeroizableSecret, I> PeekInterface<S> for StrongSecret<S, I> {
-    fn peek(&self) -> &S {
+impl<Secret: ZeroizableSecret, MaskingStrategy> PeekInterface<Secret>
+    for StrongSecret<Secret, MaskingStrategy>
+{
+    fn peek(&self) -> &Secret {
         &self.inner_secret
     }
 }
 
-impl<S: ZeroizableSecret, I> From<S> for StrongSecret<S, I> {
-    fn from(secret: S) -> StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy> From<Secret>
+    for StrongSecret<Secret, MaskingStrategy>
+{
+    fn from(secret: Secret) -> StrongSecret<Secret, MaskingStrategy> {
         Self::new(secret)
     }
 }
 
-impl<S: Clone + ZeroizableSecret, I> Clone for StrongSecret<S, I> {
+impl<Secret: Clone + ZeroizableSecret, MaskingStrategy> Clone
+    for StrongSecret<Secret, MaskingStrategy>
+{
     fn clone(&self) -> Self {
         StrongSecret {
             inner_secret: self.inner_secret.clone(),
@@ -51,45 +57,49 @@ impl<S: Clone + ZeroizableSecret, I> Clone for StrongSecret<S, I> {
     }
 }
 
-impl<S: ZeroizableSecret, I> PartialEq for StrongSecret<S, I>
+impl<Secret: ZeroizableSecret, MaskingStrategy> PartialEq for StrongSecret<Secret, MaskingStrategy>
 where
-    Self: PeekInterface<S>,
-    S: StrongEq,
+    Self: PeekInterface<Secret>,
+    Secret: StrongEq,
 {
     fn eq(&self, other: &Self) -> bool {
         StrongEq::eq(self.peek(), other.peek())
     }
 }
 
-impl<S: ZeroizableSecret, I> Eq for StrongSecret<S, I>
+impl<Secret: ZeroizableSecret, MaskingStrategy> Eq for StrongSecret<Secret, MaskingStrategy>
 where
-    Self: PeekInterface<S>,
-    S: StrongEq,
+    Self: PeekInterface<Secret>,
+    Secret: StrongEq,
 {
 }
 
-impl<S: ZeroizableSecret, I: Strategy<S>> fmt::Debug for StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy: Strategy<Secret>> fmt::Debug
+    for StrongSecret<Secret, MaskingStrategy>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        I::fmt(&self.inner_secret, f)
+        MaskingStrategy::fmt(&self.inner_secret, f)
     }
 }
 
-impl<S: ZeroizableSecret, I: Strategy<S>> fmt::Display for StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy: Strategy<Secret>> fmt::Display
+    for StrongSecret<Secret, MaskingStrategy>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        I::fmt(&self.inner_secret, f)
+        MaskingStrategy::fmt(&self.inner_secret, f)
     }
 }
 
-impl<S: ZeroizableSecret, I> Default for StrongSecret<S, I>
+impl<Secret: ZeroizableSecret, MaskingStrategy> Default for StrongSecret<Secret, MaskingStrategy>
 where
-    S: ZeroizableSecret + Default,
+    Secret: ZeroizableSecret + Default,
 {
     fn default() -> Self {
-        S::default().into()
+        Secret::default().into()
     }
 }
 
-impl<T: ZeroizableSecret, S> Drop for StrongSecret<T, S> {
+impl<Secret: ZeroizableSecret, MaskingStrategy> Drop for StrongSecret<Secret, MaskingStrategy> {
     fn drop(&mut self) {
         self.inner_secret.zeroize();
     }

@@ -42,93 +42,94 @@ use crate::{strategy::Strategy, PeekInterface};
 /// assert_eq!("hello", &format!("{:?}", my_secret));
 /// ```
 ///
-pub struct Secret<S, I = crate::WithType>
+pub struct Secret<Secret, MaskingStrategy = crate::WithType>
 where
-    I: Strategy<S>,
+    MaskingStrategy: Strategy<Secret>,
 {
     /// Inner secret value
-    pub(crate) inner_secret: S,
-    pub(crate) marker: PhantomData<I>,
+    pub(crate) inner_secret: Secret,
+    pub(crate) masking_strategy: PhantomData<MaskingStrategy>,
 }
 
-impl<S, I> Secret<S, I>
+impl<SecretValue, MaskingStrategy> Secret<SecretValue, MaskingStrategy>
 where
-    I: Strategy<S>,
+    MaskingStrategy: Strategy<SecretValue>,
 {
     /// Take ownership of a secret value
-    pub fn new(secret: S) -> Self {
+    pub fn new(secret: SecretValue) -> Self {
         Self {
             inner_secret: secret,
-            marker: PhantomData,
+            masking_strategy: PhantomData,
         }
     }
 }
 
-impl<S, I> PeekInterface<S> for Secret<S, I>
+impl<SecretValue, MaskingStrategy> PeekInterface<SecretValue>
+    for Secret<SecretValue, MaskingStrategy>
 where
-    I: Strategy<S>,
+    MaskingStrategy: Strategy<SecretValue>,
 {
-    fn peek(&self) -> &S {
+    fn peek(&self) -> &SecretValue {
         &self.inner_secret
     }
 }
 
-impl<S, I> From<S> for Secret<S, I>
+impl<SecretValue, MaskingStrategy> From<SecretValue> for Secret<SecretValue, MaskingStrategy>
 where
-    I: Strategy<S>,
+    MaskingStrategy: Strategy<SecretValue>,
 {
-    fn from(secret: S) -> Secret<S, I> {
+    fn from(secret: SecretValue) -> Secret<SecretValue, MaskingStrategy> {
         Self::new(secret)
     }
 }
 
-impl<S, I> Clone for Secret<S, I>
+impl<SecretValue, MaskingStrategy> Clone for Secret<SecretValue, MaskingStrategy>
 where
-    S: Clone,
-    I: Strategy<S>,
+    SecretValue: Clone,
+    MaskingStrategy: Strategy<SecretValue>,
 {
     fn clone(&self) -> Self {
         Secret {
             inner_secret: self.inner_secret.clone(),
-            marker: PhantomData,
+            masking_strategy: PhantomData,
         }
     }
 }
 
-impl<S, I> PartialEq for Secret<S, I>
+impl<SecretValue, MaskingStrategy> PartialEq for Secret<SecretValue, MaskingStrategy>
 where
-    Self: PeekInterface<S>,
-    S: PartialEq,
-    I: Strategy<S>,
+    Self: PeekInterface<SecretValue>,
+    SecretValue: PartialEq,
+    MaskingStrategy: Strategy<SecretValue>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.peek().eq(other.peek())
     }
 }
 
-impl<S, I> Eq for Secret<S, I>
+impl<SecretValue, MaskingStrategy> Eq for Secret<SecretValue, MaskingStrategy>
 where
-    Self: PeekInterface<S>,
-    S: Eq,
-    I: Strategy<S>,
+    Self: PeekInterface<SecretValue>,
+    SecretValue: Eq,
+    MaskingStrategy: Strategy<SecretValue>,
 {
 }
 
-impl<S, I> fmt::Debug for Secret<S, I>
+impl<SecretValue, MaskingStrategy> fmt::Debug for Secret<SecretValue, MaskingStrategy>
 where
-    I: Strategy<S>,
+    MaskingStrategy: Strategy<SecretValue>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        I::fmt(&self.inner_secret, f)
+        MaskingStrategy::fmt(&self.inner_secret, f)
     }
 }
 
-impl<S, I> Default for Secret<S, I>
+impl<SecretValue, MaskingStrategy> Default for Secret<SecretValue, MaskingStrategy>
 where
-    S: Default,
-    I: Strategy<S>,
+    SecretValue: Default,
+    MaskingStrategy: Strategy<SecretValue>,
 {
     fn default() -> Self {
-        S::default().into()
+        SecretValue::default().into()
     }
 }
