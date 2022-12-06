@@ -162,7 +162,7 @@ pub enum PaymentMethod {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct WalletData {
     pub issuer_name: enums::WalletIssuer,
-    pub token: String,
+    pub token: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]

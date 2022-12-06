@@ -307,10 +307,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     let gpay_data = AdyenGPay {
                         payment_type,
                         google_pay_token: wallet_data
-                            .get_required_value("token")
+                            .get_required_value("wallet_data")
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?
                             .token
-                            .to_string(),
+                            .to_owned()
+                            .get_required_value("token")
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     };
                     Ok(AdyenPaymentMethod::Gpay(gpay_data))
                 }

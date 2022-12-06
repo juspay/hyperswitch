@@ -150,3 +150,22 @@ impl ConnectorData {
         }
     }
 }
+
+pub fn should_call_pm_connector(pm_connector_name: String) -> bool {
+    //TODO : add payment methods which requires calling server
+    matches!(pm_connector_name.as_str(), "applepay")
+}
+
+pub fn convert_pm_connector(
+    pm_connector_name: String,
+) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+    //TODO : change it to Apple-pay after adding Apple-pay as a connector
+    match pm_connector_name.as_str() {
+        "applepay" => Ok(api::ConnectorData {
+            connector: Box::new(&crate::connector::Stripe),
+            connector_name: types::Connector::Stripe,
+        }),
+        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable("invalid pm connector name"),
+    }
+}
