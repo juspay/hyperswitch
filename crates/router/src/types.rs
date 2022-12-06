@@ -134,11 +134,21 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsResponseData {
+pub struct PaymentsTransactionResponse {
     pub resource_id: ResponseId,
-    // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsSessionResponse {
+    pub session_token: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum PaymentsResponseData {
+    TransactionResponse(PaymentsTransactionResponse),
+    SessionResponse(PaymentsSessionResponse),
 }
 
 #[derive(Debug, Clone, Default)]
