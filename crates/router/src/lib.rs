@@ -57,6 +57,8 @@ pub mod headers {
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const X_ROUTER: &str = "X-router";
     pub const AUTHORIZATION: &str = "Authorization";
+    pub const ACCEPT: &str = "Accept";
+    pub const X_API_VERSION: &str = "X-ApiVersion";
 }
 
 pub fn mk_app(
