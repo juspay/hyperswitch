@@ -1,4 +1,4 @@
-version: "3"
+version: "2"
 
 networks:
   loadtest_net:
@@ -33,8 +33,10 @@ services:
     build:
       context: ..
       dockerfile: ./loadtest/Dockerfile
+    cpuset: "0"
     volumes:
       - ./config:/config
+      - ./logs.tmp:/app/logs
     command:
       - /bin/bash
       - -c
