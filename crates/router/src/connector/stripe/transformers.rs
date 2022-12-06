@@ -18,14 +18,14 @@ pub struct StripeAuthType {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
                 api_key: api_key.to_string(),
             })
         } else {
-            Err(errors::ValidateError.into())
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
     }
 }
