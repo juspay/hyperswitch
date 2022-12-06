@@ -274,7 +274,6 @@ impl
     }
 }
 
-#[allow(dead_code)]
 impl
     services::ConnectorIntegration<
         api::Void,
