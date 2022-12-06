@@ -62,7 +62,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     transaction: braintree_payment_request,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("payment_method".to_string()).into()),
+            _ => Err(errors::ConnectorError::RequestEncodingFailed.into()),
         }
     }
 }
