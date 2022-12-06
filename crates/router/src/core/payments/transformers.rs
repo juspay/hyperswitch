@@ -103,6 +103,7 @@ where
     Ok((payment_data, router_data))
 }
 
+//TODO: make construct_payment_router_data generic for response and use that method instead of this
 #[instrument(skip_all)]
 pub async fn construct_payment_session_router_data<'a, F, T>(
     state: &'a AppState,
@@ -121,10 +122,8 @@ where
         std::convert::From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
     //TODO: everytime parsing the json may have impact?
-
-    let (merchant_connector_account, payment_method, router_data);
     let db = &state.store;
-    merchant_connector_account = db
+    let merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,
             connector_id,
@@ -139,7 +138,7 @@ where
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    payment_method = payment_data
+    let payment_method = payment_data
         .payment_attempt
         .payment_method
         .or(payment_data.payment_attempt.payment_method)
@@ -147,7 +146,7 @@ where
 
     let response = types::PaymentsSessionResponseData { client_token: None };
 
-    router_data = types::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
