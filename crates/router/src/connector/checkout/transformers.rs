@@ -56,7 +56,7 @@ pub struct CheckoutThreeDS {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
@@ -64,12 +64,12 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
                 processing_channel_id: key1.to_string(),
             })
         } else {
-            Err(errors::ValidateError.into())
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
     }
 }
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
@@ -261,7 +261,7 @@ impl From<&PaymentVoidResponse> for enums::AttemptStatus {
 impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
     for types::PaymentsCancelRouterData
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::PaymentsCancelResponseRouterData<PaymentVoidResponse>,
     ) -> Result<Self, Self::Error> {
@@ -294,7 +294,7 @@ pub struct RefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let reference = item.request.refund_id.clone();
@@ -330,7 +330,7 @@ impl From<&CheckoutRefundResponse> for enums::RefundStatus {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, CheckoutRefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, CheckoutRefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -348,7 +348,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CheckoutRefundRespon
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -421,7 +421,7 @@ pub struct CheckoutRedirectResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, &ActionResponse>,
     ) -> Result<Self, Self::Error> {
@@ -439,7 +439,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, &ActionResponse>,
     ) -> Result<Self, Self::Error> {

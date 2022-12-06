@@ -1,11 +1,8 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use once_cell::sync::Lazy;
-use regex::Regex;
 
 use crate::{
-    core::errors::{self, ApiErrorResponse, CustomResult, RouterResult, ValidateError},
-    logger,
+    core::errors::{self, ApiErrorResponse, CustomResult, RouterResult},
     types::api::AddressDetails,
     utils::when,
 };
@@ -111,20 +108,20 @@ pub(crate) fn merge_json_values(a: &mut serde_json::Value, b: &serde_json::Value
 
 // TODO: change Name
 pub trait ValidateVar {
-    fn validate(self) -> CustomResult<Self, ValidateError>
+    fn validate(self) -> CustomResult<Self, errors::ValidationError>
     where
         Self: std::marker::Sized;
 }
 
 pub trait ValidateCall<T, F> {
-    fn validate_opt(self, func: F) -> CustomResult<(), ValidateError>;
+    fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError>;
 }
 
 impl<T, F> ValidateCall<T, F> for Option<&T>
 where
-    F: Fn(&T) -> CustomResult<(), ValidateError>,
+    F: Fn(&T) -> CustomResult<(), errors::ValidationError>,
 {
-    fn validate_opt(self, func: F) -> CustomResult<(), ValidateError> {
+    fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError> {
         match self {
             Some(val) => func(val),
             None => Ok(()),
@@ -132,98 +129,11 @@ where
     }
 }
 
-pub fn validate_email(email: &str) -> CustomResult<(), ValidateError> {
-    #[deny(clippy::invalid_regex)]
-    static EMAIL_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
-        match Regex::new(
-            r"^(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$",
-        ) {
-            Ok(regex) => Some(regex),
-            Err(error) => {
-                logger::error!(?error);
-                None
-            }
-        }
-    });
-    let email_regex = match EMAIL_REGEX.as_ref() {
-        Some(regex) => Ok(regex),
-        None => Err(report!(ValidateError).attach_printable("Invalid regex expression")),
-    }?;
-
-    const EMAIL_MAX_LENGTH: usize = 319;
-    if email.is_empty() || email.chars().count() > EMAIL_MAX_LENGTH {
-        return Err(report!(ValidateError).attach_printable("Invalid email address length"));
-    }
-
-    if !email_regex.is_match(email) {
-        return Err(report!(ValidateError).attach_printable("Invalid email format"));
-    }
-
-    Ok(())
-}
-
-pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), ValidateError> {
+pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), errors::ValidationError> {
     if let Err(err) = serde_json::from_value::<AddressDetails>(address.clone()) {
-        return Err(
-            report!(ValidateError).attach_printable(format!("Address is invalid {:?}", err))
-        );
+        return Err(report!(errors::ValidationError::InvalidValue {
+            message: format!("Invalid address: {err}")
+        }));
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use fake::{faker::internet::en::SafeEmail, Fake};
-    use proptest::{
-        prop_assert,
-        strategy::{Just, NewTree, Strategy},
-        test_runner::TestRunner,
-    };
-
-    use super::*;
-
-    #[derive(Debug)]
-    struct ValidEmail;
-
-    impl Strategy for ValidEmail {
-        type Tree = Just<String>;
-        type Value = String;
-
-        fn new_tree(&self, _runner: &mut TestRunner) -> NewTree<Self> {
-            Ok(Just(SafeEmail().fake()))
-        }
-    }
-
-    #[test]
-    fn test_validate_email() {
-        let result = validate_email("abc@example.com");
-        assert!(result.is_ok());
-
-        let result = validate_email("abc+123@example.com");
-        assert!(result.is_ok());
-
-        let result = validate_email("");
-        assert!(result.is_err());
-    }
-
-    proptest::proptest! {
-        /// Example of unit test
-        #[test]
-        fn proptest_valid_fake_email(email in ValidEmail) {
-            prop_assert!(validate_email(&email).is_ok());
-        }
-
-        /// Example of unit test
-        #[test]
-        fn proptest_invalid_data_email(email in "\\PC*") {
-            prop_assert!(validate_email(&email).is_err());
-        }
-
-        // TODO: make maybe unit test working
-        // minimal failing input: email = "+@a"
-        // #[test]
-        // fn proptest_invalid_email(email in "[.+]@(.+)") {
-        //     prop_assert!(validate_email(&email).is_err());
-        // }
-    }
 }

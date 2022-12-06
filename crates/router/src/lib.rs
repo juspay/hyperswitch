@@ -41,7 +41,6 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
-pub mod pii;
 pub mod routes;
 pub mod scheduler;
 
@@ -71,6 +70,16 @@ pub mod headers {
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const X_ROUTER: &str = "X-router";
     pub const AUTHORIZATION: &str = "Authorization";
+    pub const ACCEPT: &str = "Accept";
+    pub const X_API_VERSION: &str = "X-ApiVersion";
+}
+
+pub mod pii {
+    //! Personal Identifiable Information protection.
+
+    pub(crate) use common_utils::pii::{CardNumber, Email, IpAddress};
+    #[doc(inline)]
+    pub use masking::*;
 }
 
 pub fn mk_app(

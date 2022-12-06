@@ -35,7 +35,7 @@ pub async fn get_address_for_payment_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
-    // TODO: Refactoring this function for more redability (TryFrom)
+    // TODO: Refactor this function for more readability (TryFrom)
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -143,20 +143,14 @@ pub async fn get_token_for_recurring_mandate(
 
     let payment_method_id = {
         if mandate.customer_id != customer {
-            Err(report!(errors::ValidateError)
-                .attach_printable("Invalid Mandate ID")
-                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "customer_id".to_string(),
-                    expected_format: "customer_id must match mandate customer_id".to_string(),
-                }))?
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "customer_id must match mandate customer_id".into()
+            }))?
         }
         if mandate.mandate_status != enums::MandateStatus::Active {
-            Err(report!(errors::ValidateError)
-                .attach_printable("Mandate is not active")
-                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "mandate_id".to_string(),
-                    expected_format: "mandate_id of an active mandate".to_string(),
-                }))?
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "mandate is not active".into()
+            }))?
         };
         mandate.payment_method_id
     };
@@ -174,12 +168,11 @@ pub async fn get_token_for_recurring_mandate(
 
     if let Some(payment_method_from_request) = req.payment_method {
         if payment_method_from_request != payment_method.payment_method {
-            Err(report!(errors::ValidateError)
-                .attach_printable("Invalid Mandate ID")
-                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "payment_method".to_string(),
-                    expected_format: "valid payment method information".to_string(),
-                }))?
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "payment method in request does not match previously provided payment \
+                          method information"
+                    .into()
+            }))?
         }
     };
 
@@ -192,7 +185,7 @@ pub async fn get_token_for_recurring_mandate(
 pub fn validate_merchant_id(
     merchant_id: &str,
     request_merchant_id: Option<&str>,
-) -> CustomResult<(), errors::ValidateError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     // Get Merchant Id from the merchant
     // or get from merchant account
 
@@ -200,9 +193,11 @@ pub fn validate_merchant_id(
 
     utils::when(
         merchant_id.ne(request_merchant_id),
-        Err(report!(errors::ValidateError).attach_printable(format!(
-            "Invalid merchant_id: {request_merchant_id} not found in merchant account"
-        ))),
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "Invalid `merchant_id`: {request_merchant_id} not found in merchant account"
+            )
+        })),
     )
 }
 
@@ -210,7 +205,7 @@ pub fn validate_merchant_id(
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<i32>,
     op_amount_to_capture: Option<i32>,
-) -> CustomResult<(), errors::ValidateError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     // If both amount and amount to capture is present
     // then amount to be capture should be less than or equal to request amount
 
@@ -222,10 +217,12 @@ pub fn validate_request_amount_and_amount_to_capture(
 
     utils::when(
         !is_capture_amount_valid,
-        Err(report!(errors::ValidateError).attach_printable(format!(
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
             "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
             op_amount_to_capture, op_amount
-        ))),
+        )
+        })),
     )
 }
 
@@ -247,12 +244,9 @@ fn validate_new_mandate_request(req: &api::PaymentsRequest) -> RouterResult<()> 
     let confirm = req.confirm.get_required_value("confirm")?;
 
     if !confirm {
-        Err(report!(errors::ValidateError)
-            .attach_printable("Confirm should be true for mandates")
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "confirm".to_string(),
-                expected_format: "confirm must be true for mandates".to_string(),
-            }))?
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`confirm` must be `true` for mandates".into()
+        }))?
     }
 
     let _ = req.customer_id.as_ref().get_required_value("customer_id")?;
@@ -267,20 +261,19 @@ fn validate_new_mandate_request(req: &api::PaymentsRequest) -> RouterResult<()> 
             .setup_future_usage
             .get_required_value("setup_future_usage")?
     {
-        Err(report!(errors::ValidateError)
-            .attach_printable("Key 'setup_future_usage' should be 'off_session' for mandates")
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "setup_future_usage".to_string(),
-                expected_format: "setup_future_usage must be off_session for mandates".to_string(),
-            }))?
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`setup_future_usage` must be `off_session` for mandates".into()
+        }))?
     };
 
     if (mandate_data.customer_acceptance.acceptance_type == api::AcceptanceType::Online)
         && mandate_data.customer_acceptance.online.is_none()
     {
-        Err(report!(errors::ValidateError)
-        .attach_printable("Key 'mandate_data.customer_acceptance.online' is required when 'mandate_data.customer_acceptance.acceptance_type' is 'online'")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "mandate_data.customer_acceptance.online".to_string() }))?
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`mandate_data.customer_acceptance.online` is required when \
+                      `mandate_data.customer_acceptance.acceptance_type` is `online`"
+                .into()
+        }))?
     }
 
     Ok(())
@@ -309,6 +302,7 @@ pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAt
         payment_attempt.connector
     )
 }
+
 fn validate_recurring_mandate(req: &api::PaymentsRequest) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
@@ -316,22 +310,16 @@ fn validate_recurring_mandate(req: &api::PaymentsRequest) -> RouterResult<()> {
 
     let confirm = req.confirm.get_required_value("confirm")?;
     if !confirm {
-        Err(report!(errors::ValidateError)
-            .attach_printable("Confirm should be true for mandates")
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "confirm".to_string(),
-                expected_format: "confirm must be true for mandates".to_string(),
-            }))?
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`confirm` must be `true` for mandates".into()
+        }))?
     }
 
     let off_session = req.off_session.get_required_value("off_session")?;
     if !off_session {
-        Err(report!(errors::ValidateError)
-            .attach_printable("off_session should be true for mandates")
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "off_session".to_string(),
-                expected_format: "off_session must be true for mandates".to_string(),
-            }))?
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`off_session` should be `true` for mandates".into()
+        }))?
     }
 
     Ok(())

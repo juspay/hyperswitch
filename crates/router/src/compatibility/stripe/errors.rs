@@ -4,21 +4,24 @@ use crate::core::errors::ApiErrorResponse;
 #[derive(Debug, router_derive::ApiError)]
 #[error(error_type_enum = StripeErrorType)]
 pub(crate) enum ErrorCode {
+    /*
+    "error": {
+        "message": "Invalid API Key provided: sk_jkjgs****nlgs",
+        "type": "invalid_request_error"
+    }
+    */
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "IR_01",
         message = "Invalid API Key provided"
     )]
     Unauthorized,
-    /*
-    "error": {
-        "message": "Invalid API Key provided: sk_jkjgs****nlgs",
-        "type": "invalid_request_error"
-    } */
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_02", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Missing required param: {field_name}.")]
     ParameterMissing { field_name: String, param: String },
+
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "parameter_unknown",
         message = "{field_name} contains invalid data. Expected format is {expected_format}."
@@ -81,8 +84,10 @@ pub(crate) enum ErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant_connector_account")]
     DuplicateMerchantConnectorAccount,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
     DuplicatePaymentMethod,
 
@@ -96,10 +101,16 @@ pub(crate) enum ErrorCode {
     PaymentIntentInvalidParameter { param: String },
 
     #[error(
-        error_type = StripeErrorType::InvalidRequestError, code = "IR-05",
+        error_type = StripeErrorType::InvalidRequestError, code = "IR_05",
         message = "{message}"
     )]
     InvalidRequestData { message: String },
+
+    #[error(
+        error_type = StripeErrorType::InvalidRequestError, code = "IR_10",
+        message = "{message}"
+    )]
+    PreconditionFailed { message: String },
 
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "",
@@ -205,17 +216,13 @@ pub(crate) enum ErrorCode {
     // ParameterInvalidInteger,
     // ParameterInvalidStringBlank,
     // ParameterInvalidStringEmpty,
-
     // ParametersExclusive,
-
     // PaymentIntentActionRequired,
-
     // PaymentIntentIncompatiblePaymentMethod,
     // PaymentIntentInvalidParameter,
     // PaymentIntentKonbiniRejectedConfirmationNumber,
     // PaymentIntentMandateInvalid,
     // PaymentIntentPaymentAttemptExpired,
-
     // PaymentIntentUnexpectedState,
     // PaymentMethodBankAccountAlreadyVerified,
     // PaymentMethodBankAccountBlocked,
@@ -263,7 +270,6 @@ pub(crate) enum ErrorCode {
     // TerminalLocationCountryUnsupported,
     // TestmodeChargesOnly,
     // TlsVersionUnsupported,
-    // ,
     // TokenInUse,
     // TransferSourceBalanceParametersMismatch,
     // TransfersNotAllowed,
@@ -299,7 +305,7 @@ impl From<ApiErrorResponse> for ErrorCode {
                 field_name: field_name.to_owned(),
                 param: field_name,
             },
-            // parameter unknown, invalid request error // actually if we type worng values in addrees we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
+            // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
             ApiErrorResponse::InvalidDataFormat {
                 field_name,
                 expected_format,
@@ -319,7 +325,7 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::PaymentCaptureFailed { data } => {
                 ErrorCode::PaymentIntentPaymentAttemptFailed { data }
             }
-            ApiErrorResponse::InvalidCardData { data } => ErrorCode::InvalidCardType, // Maybe it is better to de generalise this router error
+            ApiErrorResponse::InvalidCardData { data } => ErrorCode::InvalidCardType, // Maybe it is better to de generalize this router error
             ApiErrorResponse::CardExpired { data } => ErrorCode::ExpiredCard,
             ApiErrorResponse::RefundFailed { data } => ErrorCode::RefundFailed, // Nothing at stripe to map
 
@@ -347,12 +353,15 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::InvalidRequestData { message } => {
                 ErrorCode::InvalidRequestData { message }
             }
+            ApiErrorResponse::PreconditionFailed { message } => {
+                ErrorCode::PreconditionFailed { message }
+            }
             ApiErrorResponse::BadCredentials => ErrorCode::Unauthorized,
             ApiErrorResponse::InvalidDataValue { field_name } => ErrorCode::ParameterMissing {
                 field_name: field_name.to_owned(),
                 param: field_name.to_owned(),
             },
-            ApiErrorResponse::MaxiumumRefundCount => ErrorCode::MaximumRefundCount,
+            ApiErrorResponse::MaximumRefundCount => ErrorCode::MaximumRefundCount,
             ApiErrorResponse::PaymentNotSucceeded => ErrorCode::PaymentFailed,
             ApiErrorResponse::DuplicateMandate => ErrorCode::DuplicateMandate,
             ApiErrorResponse::SuccessfulPaymentNotFound => ErrorCode::SuccessfulPaymentNotFound,
@@ -403,6 +412,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::PaymentIntentInvalidParameter { .. }
             | ErrorCode::SerdeQsError { .. }
             | ErrorCode::InvalidRequestData { .. }
+            | ErrorCode::PreconditionFailed { .. }
             | ErrorCode::DuplicateMandate
             | ErrorCode::SuccessfulPaymentNotFound
             | ErrorCode::AddressNotFound

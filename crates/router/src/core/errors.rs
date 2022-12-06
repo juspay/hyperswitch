@@ -5,7 +5,7 @@ pub(crate) mod utils;
 use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
-pub use common_utils::errors::{CustomResult, ParsingError};
+pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
 use error_stack;
 pub use redis_interface::errors::RedisError;
@@ -99,7 +99,6 @@ impl_error_type!(AuthenticationError, "Authentication error");
 impl_error_type!(AuthorisationError, "Authorisation error");
 impl_error_type!(EncryptionError, "Encryption error");
 impl_error_type!(UnexpectedError, "Unexpected error");
-impl_error_type!(ValidateError, "validation failed");
 
 #[derive(Debug, thiserror::Error)]
 pub enum BachError {
@@ -123,9 +122,6 @@ pub enum BachError {
     #[error("Environment configuration error: {0}")]
     ConfigurationError(ConfigError),
 
-    #[error("{{ error_description: Error while validating, error_message: {0} }}")]
-    EValidationError(error_stack::Report<ValidateError>), // Parsing error actually
-
     #[error("{{ error_description: Database operation failed, error_message: {0} }}")]
     EDatabaseError(error_stack::Report<DatabaseError>),
 
@@ -139,10 +135,6 @@ pub enum BachError {
     EIo(std::io::Error),
 }
 
-router_error_error_stack_specific!(
-    error_stack::Report<ValidateError>,
-    BachError::EValidationError(error_stack::Report<ValidateError>)
-);
 router_error_error_stack_specific!(
     error_stack::Report<DatabaseError>,
     BachError::EDatabaseError(error_stack::Report<DatabaseError>)
@@ -202,8 +194,7 @@ impl ResponseError for BachError {
         match self {
             BachError::EParsingError(_)
             | BachError::EAuthenticationError(_)
-            | BachError::EAuthorisationError(_)
-            | BachError::EValidationError(_) => StatusCode::BAD_REQUEST,
+            | BachError::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
 
             BachError::EDatabaseError(_)
             | BachError::NotImplementedByConnector(_)
@@ -417,14 +408,6 @@ error_to_process_tracker_error!(
     error_stack::Report<ValidationError>,
     ProcessTrackerError::EValidationError(error_stack::Report<ValidationError>)
 );
-
-#[derive(Debug, thiserror::Error)]
-pub enum ValidationError {
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: String },
-    #[error("Incorrect value provided for field: {field_name}")]
-    IncorrectValueProvided { field_name: &'static str },
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebhooksFlowError {
