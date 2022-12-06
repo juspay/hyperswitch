@@ -525,7 +525,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                     db.insert_customer(api::CreateCustomerRequest {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
-                        name: req.name.peek_cloning(),
+                        name: req.name.expose_option(),
                         email: req.email.clone(),
                         phone: req.phone.clone(),
                         phone_country_code: req.phone_country_code.clone(),
@@ -610,17 +610,17 @@ impl Vault {
         let card = resp.card;
         let card_number = card
             .card_number
-            .peek_cloning()
+            .expose_option()
             .get_required_value("card_number")?;
         let card_exp_month = card
             .card_exp_month
-            .peek_cloning()
+            .expose_option()
             .get_required_value("expiry_month")?;
         let card_exp_year = card
             .card_exp_year
-            .peek_cloning()
+            .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card.name_on_card.peek_cloning().unwrap_or_default();
+        let card_holder_name = card.name_on_card.expose_option().unwrap_or_default();
         let card = api::PaymentMethod::Card(api::CCard {
             card_number: card_number.into(),
             card_exp_month: card_exp_month.into(),

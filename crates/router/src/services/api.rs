@@ -219,7 +219,7 @@ async fn send_request(
                     client.body(url_encoded_payload).send()
                 }
                 None => client
-                    .body(request.payload.peek_cloning().unwrap_or_default())
+                    .body(request.payload.expose_option().unwrap_or_default())
                     .send(),
             }
             .await

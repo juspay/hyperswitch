@@ -13,7 +13,7 @@ pub trait PeekInterface<S> {
 /// Interface to expose a clone of secret
 pub trait PeekOptionInterface<S> {
     /// Expose option.
-    fn peek_cloning(&self) -> S;
+    fn expose_option(self) -> S;
 }
 
 /// Interface that consumes a secret and returns the inner value.
@@ -27,18 +27,8 @@ where
     S: Clone,
     I: crate::Strategy<S>,
 {
-    fn peek_cloning(&self) -> Option<S> {
-        self.as_ref().map(|val| val.peek().clone())
-    }
-}
-
-impl<S, I> PeekOptionInterface<S> for Secret<S, I>
-where
-    S: Clone,
-    I: crate::Strategy<S>,
-{
-    fn peek_cloning(&self) -> S {
-        self.peek().clone()
+    fn expose_option(self) -> Option<S> {
+        self.map(ExposeInterface::expose)
     }
 }
 
