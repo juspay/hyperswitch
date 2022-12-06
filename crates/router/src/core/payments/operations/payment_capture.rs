@@ -10,10 +10,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers},
     },
-    db::{
-        connector_response::IConnectorResponse, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, Db,
-    },
+    db::StorageInterface,
     routes::AppState,
     types::{api, api::PaymentsCaptureRequest, storage, Connector},
     utils::OptionExt,
@@ -41,7 +38,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         payments::PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
-        let db = &state.store;
+        let db = &*state.store;
         let (payment_intent, mut payment_attempt, currency, amount);
 
         let payment_id = payment_id
@@ -139,7 +136,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn Db,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: payments::PaymentData<F>,
         _customer: Option<storage::Customer>,

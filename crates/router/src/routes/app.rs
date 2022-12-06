@@ -1,16 +1,65 @@
+use std::sync::Arc;
+
 use actix_web::{web, Scope};
 
 use super::{
     admin::*, customers::*, health::*, mandates::*, payment_methods::*, payments::*, payouts::*,
     refunds::*, webhooks::*,
 };
-use crate::{configs::settings::Settings, services::Store};
+use crate::{
+    configs::settings::Settings,
+    connection,
+    db::{MockDb, SqlDb, StorageImpl, StorageInterface},
+    services::Store,
+};
 
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub store: Store,
+    pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+}
+
+impl AppState {
+    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> AppState {
+        let testable = storage_impl == StorageImpl::DieselPostgresqlTest;
+        let store: Box<dyn StorageInterface> = match storage_impl {
+            StorageImpl::DieselPostgresql | StorageImpl::DieselPostgresqlTest => Box::new(Store {
+                master_pool: if testable {
+                    SqlDb::test(&conf.master_database).await
+                } else {
+                    SqlDb::new(&conf.master_database).await
+                },
+                #[cfg(feature = "olap")]
+                replica_pool: if testable {
+                    SqlDb::test(&conf.replica_database).await
+                } else {
+                    SqlDb::new(&conf.replica_database).await
+                },
+                // FIXME: from my understanding, this creates a single connection
+                // for the entire lifetime of the server. This doesn't survive disconnects
+                // from redis. Consider using connection pool.
+                redis_conn: Arc::new(connection::redis_connection(&conf).await),
+                #[cfg(feature = "kv_store")]
+                config: crate::services::StoreConfig {
+                    drainer_stream_name: conf.drainer.stream_name.clone(),
+                    drainer_num_partitions: conf.drainer.num_partitions,
+                },
+            }),
+            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+        };
+
+        AppState {
+            flow_name: String::from("default"),
+            store,
+            conf,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub async fn new(conf: Settings) -> AppState {
+        AppState::with_storage(conf, StorageImpl::DieselPostgresql).await
+    }
 }
 
 pub struct Health;

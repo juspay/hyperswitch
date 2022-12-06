@@ -5,14 +5,14 @@ use router::{
     configs::settings::Settings,
     connector::Authorizedotnet,
     core::payments,
-    routes::AppState,
-    services,
+    db::StorageImpl,
+    routes, services,
     types::{self, storage::enums, PaymentAddress},
 };
 
 use crate::connector_auth::ConnectorAuthentication;
 
-fn construct_payment_router_data() -> types::PaymentsRouterData {
+fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
         .authorizedotnet
         .expect("Missing Authorize.net connector authentication configuration");
@@ -23,15 +23,15 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 100,
         orca_return_url: None,
-        currency: enums::Currency::USD,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
         auth_type: enums::AuthenticationType::NoThreeDs,
         description: Some("This is a test".to_string()),
         return_url: None,
-        request: types::PaymentsRequestData {
+        request: types::PaymentsAuthorizeData {
+            amount: 100,
+            currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
                 card_number: Secret::new("5424000000000015".to_string()),
                 card_exp_month: Secret::new("10".to_string()),
@@ -46,10 +46,10 @@ fn construct_payment_router_data() -> types::PaymentsRouterData {
             off_session: None,
             setup_mandate_details: None,
             capture_method: None,
+            browser_info: None,
         },
         payment_method_id: None,
-        response: None,
-        error_response: None,
+        response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
     }
 }
@@ -65,15 +65,15 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        amount: 100,
         orca_return_url: None,
-        currency: enums::Currency::USD,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
-        request: router::types::RefundsRequestData {
+        request: router::types::RefundsData {
+            amount: 100,
+            currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
                 card_number: Secret::new("5424000000000015".to_string()),
@@ -85,9 +85,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_transaction_id: String::new(),
             refund_amount: 1,
         },
-        response: None,
+        response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
-        error_response: None,
         address: PaymentAddress::default(),
     }
 }
@@ -96,11 +95,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 #[ignore]
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
     static CV: Authorizedotnet = Authorizedotnet;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -108,7 +103,7 @@ async fn payments_create_success() {
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
     let request = construct_payment_router_data();
@@ -131,6 +126,7 @@ async fn payments_create_success() {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn payments_create_failure() {
     {
         let conf = Settings::new().unwrap();
@@ -139,14 +135,10 @@ async fn payments_create_failure() {
             connector: Box::new(&CV),
             connector_name: types::Connector::Authorizedotnet,
         };
-        let state = AppState {
-            flow_name: String::from("default"),
-            store: services::Store::new(&conf).await,
-            conf,
-        };
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
         let connector_integration: services::BoxedConnectorIntegration<
             types::api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let mut request = construct_payment_router_data();
@@ -186,14 +178,10 @@ async fn refunds_create_success() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
     };
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Execute,
-        types::RefundsRequestData,
+        types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
 
@@ -225,14 +213,10 @@ async fn refunds_create_failure() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
     };
-    let state = AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Execute,
-        types::RefundsRequestData,
+        types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
 

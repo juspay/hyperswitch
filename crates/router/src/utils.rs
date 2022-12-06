@@ -5,25 +5,14 @@ mod fp_utils;
 #[cfg(feature = "kv_store")]
 pub(crate) mod storage_partitioning;
 
+pub(crate) use common_utils::ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt};
 use nanoid::nanoid;
 
 pub(crate) use self::{
-    ext_traits::{
-        validate_address, validate_email, ByteSliceExt, BytesExt, Encode, OptionExt, StringExt,
-        ValidateCall, ValueExt,
-    },
+    ext_traits::{validate_address, validate_email, OptionExt, ValidateCall},
     fp_utils::when,
 };
 use crate::consts;
-
-pub mod date_time {
-    use time::{OffsetDateTime, PrimitiveDateTime};
-
-    pub fn now() -> PrimitiveDateTime {
-        let utc_date_time = OffsetDateTime::now_utc();
-        PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
-    }
-}
 
 pub mod error_parser {
     use std::fmt::Display;

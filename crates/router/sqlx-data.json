@@ -1,0 +1,400 @@
+{
+  "db": "PostgreSQL",
+  "81517ed4dc151e2b267f997f62aff37bb86b3e22f6b0446e9d9c835a3b20439c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "customer_id",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "merchant_id",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "name",
+          "ordinal": 3,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "email: _",
+          "ordinal": 4,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "phone: _",
+          "ordinal": 5,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "phone_country_code",
+          "ordinal": 6,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "description",
+          "ordinal": 7,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "address: _",
+          "ordinal": 8,
+          "type_info": "Json"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 9,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "metadata",
+          "ordinal": 10,
+          "type_info": "Json"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n      SELECT\n        \"customers\".\"id\",\n        \"customers\".\"customer_id\",\n        \"customers\".\"merchant_id\",\n        \"customers\".\"name\",\n        \"customers\".\"email\" as \"email: _\",\n        \"customers\".\"phone\" as \"phone: _\",\n        \"customers\".\"phone_country_code\",\n        \"customers\".\"description\",\n        \"customers\".\"address\" as \"address: _\",\n        \"customers\".\"created_at\",\n        \"customers\".\"metadata\"\n      FROM\n        \"customers\"\n      WHERE\n        (\n          (\"customers\".\"customer_id\" = $1)\n          AND (\"customers\".\"merchant_id\" = $2)\n        )"
+  },
+  "d184fdec6428364a6e4e2517a4d36af85141d973085d7ab78137d43d3c97364a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "merchant_id",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "connector_name",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "connector_account_details",
+          "ordinal": 3,
+          "type_info": "Json"
+        },
+        {
+          "name": "test_mode",
+          "ordinal": 4,
+          "type_info": "Bool"
+        },
+        {
+          "name": "disabled",
+          "ordinal": 5,
+          "type_info": "Bool"
+        },
+        {
+          "name": "merchant_connector_id",
+          "ordinal": 6,
+          "type_info": "Int4"
+        },
+        {
+          "name": "payment_methods_enabled",
+          "ordinal": 7,
+          "type_info": "JsonArray"
+        },
+        {
+          "name": "connector_type: _",
+          "ordinal": 8,
+          "type_info": {
+            "Custom": {
+              "kind": {
+                "Enum": [
+                  "payment_processor",
+                  "payment_vas",
+                  "fin_operations",
+                  "fiz_operations",
+                  "networks",
+                  "banking_entities",
+                  "non_banking_finance"
+                ]
+              },
+              "name": "ConnectorType"
+            }
+          }
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n          SELECT\n            \"merchant_connector_account\".\"id\",\n            \"merchant_connector_account\".\"merchant_id\",\n            \"merchant_connector_account\".\"connector_name\",\n            \"merchant_connector_account\".\"connector_account_details\",\n            \"merchant_connector_account\".\"test_mode\",\n            \"merchant_connector_account\".\"disabled\",\n            \"merchant_connector_account\".\"merchant_connector_id\",\n            \"merchant_connector_account\".\"payment_methods_enabled\",\n            \"merchant_connector_account\".\"connector_type\" \"connector_type: _\"\n          FROM\n            \"merchant_connector_account\"\n          WHERE\n            (\n              (\n                \"merchant_connector_account\".\"merchant_id\" = $1\n              )\n              AND (\n                \"merchant_connector_account\".\"connector_name\" = $2\n              )\n            )"
+  },
+  "fbef5d3470d67da1a07a2189c80ecc711d3d4fcd4887cc7ceb8944b93843da16": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "merchant_id",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "api_key: _",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "return_url",
+          "ordinal": 3,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "enable_payment_response_hash",
+          "ordinal": 4,
+          "type_info": "Bool"
+        },
+        {
+          "name": "payment_response_hash_key",
+          "ordinal": 5,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "redirect_to_merchant_with_http_post",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "merchant_name",
+          "ordinal": 7,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "merchant_details",
+          "ordinal": 8,
+          "type_info": "Json"
+        },
+        {
+          "name": "webhook_details",
+          "ordinal": 9,
+          "type_info": "Json"
+        },
+        {
+          "name": "routing_algorithm: _",
+          "ordinal": 10,
+          "type_info": {
+            "Custom": {
+              "kind": {
+                "Enum": [
+                  "round_robin",
+                  "max_conversion",
+                  "min_cost",
+                  "custom"
+                ]
+              },
+              "name": "RoutingAlgorithm"
+            }
+          }
+        },
+        {
+          "name": "custom_routing_rules",
+          "ordinal": 11,
+          "type_info": "Json"
+        },
+        {
+          "name": "sub_merchants_enabled",
+          "ordinal": 12,
+          "type_info": "Bool"
+        },
+        {
+          "name": "parent_merchant_id",
+          "ordinal": 13,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "publishable_key",
+          "ordinal": 14,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        false,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n      SELECT\n        \"merchant_account\".\"id\",\n        \"merchant_account\".\"merchant_id\",\n        \"merchant_account\".\"api_key\" as \"api_key: _\",\n        \"merchant_account\".\"return_url\",\n        \"merchant_account\".\"enable_payment_response_hash\",\n        \"merchant_account\".\"payment_response_hash_key\",\n        \"merchant_account\".\"redirect_to_merchant_with_http_post\",\n        \"merchant_account\".\"merchant_name\",\n        \"merchant_account\".\"merchant_details\",\n        \"merchant_account\".\"webhook_details\",\n        \"merchant_account\".\"routing_algorithm\" as \"routing_algorithm: _\",\n        \"merchant_account\".\"custom_routing_rules\",\n        \"merchant_account\".\"sub_merchants_enabled\",\n        \"merchant_account\".\"parent_merchant_id\",\n        \"merchant_account\".\"publishable_key\"\n      FROM\n        \"merchant_account\"\n      WHERE\n        (\n          \"merchant_account\".\"merchant_id\" = $1\n        )\n      "
+  },
+  "fd48a272a849cfb042c961467adb38e929da5552ca008a878ca84cb4f4f75121": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "merchant_id",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "api_key: _",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "return_url",
+          "ordinal": 3,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "enable_payment_response_hash",
+          "ordinal": 4,
+          "type_info": "Bool"
+        },
+        {
+          "name": "payment_response_hash_key",
+          "ordinal": 5,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "redirect_to_merchant_with_http_post",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "merchant_name",
+          "ordinal": 7,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "merchant_details",
+          "ordinal": 8,
+          "type_info": "Json"
+        },
+        {
+          "name": "webhook_details",
+          "ordinal": 9,
+          "type_info": "Json"
+        },
+        {
+          "name": "routing_algorithm: _",
+          "ordinal": 10,
+          "type_info": {
+            "Custom": {
+              "kind": {
+                "Enum": [
+                  "round_robin",
+                  "max_conversion",
+                  "min_cost",
+                  "custom"
+                ]
+              },
+              "name": "RoutingAlgorithm"
+            }
+          }
+        },
+        {
+          "name": "custom_routing_rules",
+          "ordinal": 11,
+          "type_info": "Json"
+        },
+        {
+          "name": "sub_merchants_enabled",
+          "ordinal": 12,
+          "type_info": "Bool"
+        },
+        {
+          "name": "parent_merchant_id",
+          "ordinal": 13,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "publishable_key",
+          "ordinal": 14,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        false,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n          SELECT\n            \"merchant_account\".\"id\",\n            \"merchant_account\".\"merchant_id\",\n            \"merchant_account\".\"api_key\" as \"api_key: _\",\n            \"merchant_account\".\"return_url\",\n            \"merchant_account\".\"enable_payment_response_hash\",\n            \"merchant_account\".\"payment_response_hash_key\",\n            \"merchant_account\".\"redirect_to_merchant_with_http_post\",\n            \"merchant_account\".\"merchant_name\",\n            \"merchant_account\".\"merchant_details\",\n            \"merchant_account\".\"webhook_details\",\n            \"merchant_account\".\"routing_algorithm\" as \"routing_algorithm: _\",\n            \"merchant_account\".\"custom_routing_rules\",\n            \"merchant_account\".\"sub_merchants_enabled\",\n            \"merchant_account\".\"parent_merchant_id\",\n            \"merchant_account\".\"publishable_key\"\n          FROM\n            \"merchant_account\"\n          WHERE\n            (\n              \"merchant_account\".\"api_key\" = $1\n            )\n            "
+  }
+}

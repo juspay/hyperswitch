@@ -19,8 +19,9 @@ pub struct ConnectorResponseNew {
     pub encoded_data: Option<String>,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
 #[diesel(table_name = connector_response)]
+
 pub struct ConnectorResponse {
     #[serde(skip_serializing)]
     pub id: i32,
@@ -35,7 +36,7 @@ pub struct ConnectorResponse {
     pub encoded_data: Option<String>,
 }
 
-#[derive(Clone, Debug, AsChangeset, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, AsChangeset, Serialize)]
 #[diesel(table_name = connector_response)]
 pub struct ConnectorResponseUpdateInternal {
     pub connector_transaction_id: Option<String>,
@@ -77,7 +78,7 @@ impl From<ConnectorResponseUpdate> for ConnectorResponseUpdateInternal {
                 connector_transaction_id,
                 authentication_data,
                 encoded_data,
-                modified_at: crate::utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
             },
         }
     }

@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_attempt, types::enums, utils::date_time};
+use crate::{schema::payment_attempt, types::enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
@@ -35,6 +35,7 @@ pub struct PaymentAttempt {
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
     pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -68,9 +69,10 @@ pub struct PaymentAttemptNew {
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i32>,
     pub mandate_id: Option<String>,
+    pub browser_info: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum PaymentAttemptUpdate {
     Update {
         amount: i32,
@@ -85,6 +87,7 @@ pub enum PaymentAttemptUpdate {
     ConfirmUpdate {
         status: enums::AttemptStatus,
         payment_method: Option<enums::PaymentMethodType>,
+        browser_info: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: enums::AttemptStatus,
@@ -122,6 +125,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     modified_at: Option<PrimitiveDateTime>,
     redirect: Option<bool>,
     mandate_id: Option<String>,
+    browser_info: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -140,7 +144,8 @@ impl PaymentAttemptUpdate {
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
-            modified_at: date_time::now(),
+            browser_info: pa_update.browser_info,
+            modified_at: common_utils::date_time::now(),
             ..source
         }
     }
@@ -163,23 +168,25 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 // connector_transaction_id,
                 authentication_type,
                 payment_method,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
             } => Self {
                 authentication_type: Some(authentication_type),
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 status,
                 payment_method,
+                browser_info,
             } => Self {
                 status: Some(status),
                 payment_method,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
+                browser_info,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -202,7 +209,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 redirect,
                 mandate_id,
                 ..Default::default()
@@ -213,7 +220,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 error_message,
-                modified_at: Some(crate::utils::date_time::now()),
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status } => Self {
@@ -227,27 +234,23 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
+
+    use uuid::Uuid;
+
     use super::*;
-    use crate::{
-        configs::settings::Settings, db::payment_attempt::IPaymentAttempt, routes, services::Store,
-        types,
-    };
+    use crate::{configs::settings::Settings, db::StorageImpl, routes, types};
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
 
-        let state = routes::AppState {
-            flow_name: String::from("default"),
-            store: Store::new(&conf).await,
-            conf,
-        };
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
-        // let conn = config.conn.get();
-
-        let current_time = crate::utils::date_time::now();
+        let payment_id = Uuid::new_v4().to_string();
+        let current_time = common_utils::date_time::now();
         let payment_attempt = PaymentAttemptNew {
-            payment_id: "1".to_string(),
+            payment_id: payment_id.clone(),
             connector: types::Connector::Dummy.to_string(),
             created_at: current_time.into(),
             modified_at: current_time.into(),
@@ -261,24 +264,22 @@ mod tests {
             .unwrap();
         eprintln!("{:?}", response);
 
-        assert_eq!(response.payment_id, "1");
+        assert_eq!(response.payment_id, payment_id.clone());
     }
 
     #[actix_rt::test]
     async fn test_find_payment_attempt() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
-        let state = routes::AppState {
-            flow_name: String::from("default"),
-            store: Store::new(&conf).await,
-            conf,
-        };
-        let current_time = crate::utils::date_time::now();
+        let current_time = common_utils::date_time::now();
+        let payment_id = Uuid::new_v4().to_string();
+        let merchant_id = Uuid::new_v4().to_string();
 
         let payment_attempt = PaymentAttemptNew {
-            payment_id: "1".to_string(),
-            merchant_id: "1".to_string(),
+            payment_id: payment_id.clone(),
+            merchant_id: merchant_id.clone(),
             connector: types::Connector::Dummy.to_string(),
             created_at: current_time.into(),
             modified_at: current_time.into(),
@@ -292,13 +293,13 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id("1", "1")
+            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, &merchant_id)
             .await
             .unwrap();
 
         eprintln!("{:?}", response);
 
-        assert_eq!(response.payment_id, "1");
+        assert_eq!(response.payment_id, payment_id);
     }
 
     #[actix_rt::test]
@@ -306,12 +307,8 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let uuid = uuid::Uuid::new_v4().to_string();
-        let state = routes::AppState {
-            flow_name: String::from("default"),
-            store: Store::new(&conf).await,
-            conf,
-        };
-        let current_time = crate::utils::date_time::now();
+        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+        let current_time = common_utils::date_time::now();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),

@@ -14,10 +14,7 @@ use crate::{
         payments::{self, helpers, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
-    db::{
-        connector_response::IConnectorResponse, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, Db,
-    },
+    db::StorageInterface,
     routes::AppState,
     types::{
         self, api,
@@ -48,7 +45,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        let db = &state.store;
+        let db = &*state.store;
 
         let (payment_intent, payment_attempt, connector_response);
 
@@ -70,6 +67,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let billing_address =
             helpers::get_address_for_payment_request(db, request.billing.as_ref(), None).await?;
 
+        let browser_info = request
+            .browser_info
+            .clone()
+            .map(|x| {
+                common_utils::ext_traits::Encode::<types::BrowserInformation>::encode_to_value(&x)
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         payment_attempt = match db
             .insert_payment_attempt(Self::make_payment_attempt(
                 &payment_id,
@@ -78,6 +86,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 money,
                 payment_method_type,
                 request,
+                browser_info,
             ))
             .await
         {
@@ -144,6 +153,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.status,
             self,
         );
+
         Ok((
             operation,
             PaymentData {
@@ -181,7 +191,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
@@ -287,8 +297,9 @@ impl PaymentCreate {
         money: (i32, enums::Currency),
         payment_method: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
+        browser_info: Option<serde_json::Value>,
     ) -> storage::PaymentAttemptNew {
-        let created_at @ modified_at @ last_synced = Some(crate::utils::date_time::now());
+        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
@@ -308,6 +319,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             authentication_type: request.authentication_type,
+            browser_info,
             ..storage::PaymentAttemptNew::default()
         }
     }
@@ -322,7 +334,7 @@ impl PaymentCreate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
     ) -> storage::PaymentIntentNew {
-        let created_at @ modified_at @ last_synced = Some(crate::utils::date_time::now());
+        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
         let client_secret =

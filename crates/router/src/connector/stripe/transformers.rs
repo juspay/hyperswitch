@@ -142,9 +142,9 @@ pub enum StripePaymentMethodData {
     Paypal,
 }
 
-impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string(); //Fetch autogenrated txn_uuid from Database.
@@ -176,7 +176,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
                     billing_country: klarna_data.country.clone(),
                 })
             }
-            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
             api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
         };
         let shipping_address = match item.address.shipping.clone() {
@@ -208,8 +208,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
         };
 
         Ok(PaymentIntentRequest {
-            amount: item.amount,                 //hopefully we don't loose some cents here
-            currency: item.currency.to_string(), //we need to copy the value and not transfer ownership
+            amount: item.request.amount, //hopefully we don't loose some cents here
+            currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             metadata_order_id,
             metadata_txn_id,
@@ -365,12 +365,11 @@ impl<F, T>
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+            response: Ok(types::PaymentsResponseData {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -403,12 +402,11 @@ impl<F, T>
 
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+            response: Ok(types::PaymentsResponseData {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -525,11 +523,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -543,11 +540,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -601,9 +597,9 @@ pub struct CancelRequest {
     cancellation_reason: Option<CancellationReason>,
 }
 
-impl TryFrom<&types::PaymentRouterCancelData> for CancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let cancellation_reason = match &item.request.cancellation_reason {
             Some(c) => Some(
                 CancellationReason::from_str(c)
@@ -630,6 +626,22 @@ pub enum CancellationReason {
     Fraudulent,
     RequestedByCustomer,
     Abandoned,
+}
+
+/// Represents the capture request body for stripe connector.
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct CaptureRequest {
+    /// If amount_to_capture is None stripe captures the amount in the payment intent.
+    amount_to_capture: Option<i32>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount_to_capture: item.request.amount_to_capture,
+        })
+    }
 }
 
 // #[cfg(test)]
@@ -727,7 +739,7 @@ impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMeth
                     billing_country: klarna_data.country.clone(),
                 })
             }
-            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
             api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
         }
     }

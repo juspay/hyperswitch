@@ -8,24 +8,24 @@ Secret-keeping library inspired by `secrecy`.
 
 To convert non-secret variable into secret use `new()`. Sample:
 
-```rust
+```rust,ignore
 expiry_year: ccard.map(|x| Secret::new(x.card_exp_year.to_string())),
 // output: "expiry_year: *** alloc::string::String ***"
 ```
 
 To get value from secret use `expose()`. Sample:
 
-```rust ignore
-last4_digits: Some(card_number.peek().clone())
+```rust,ignore
+last4_digits: Some(card_number.expose())
 ```
 
 Most fields are under `Option`. To simplify dealing with `Option`, use `expose_cloning()`. Sample:
 
-```rust
+```rust,ignore
     card_info.push_str(
         &card_detail
             .card_holder_name
-            .peek_cloning()
+            .expose_cloning()
             .unwrap_or_default(),
     );
 ```

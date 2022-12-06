@@ -10,11 +10,11 @@ use router_env::{tracing, tracing::instrument};
 use self::transformers as adyen;
 use crate::{
     configs::settings::Connectors,
-    connection,
     core::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers, logger, services,
     types::{
         self,
@@ -65,46 +65,28 @@ impl
     // TODO: Critical implement
 }
 
-#[allow(dead_code)]
-type PCapture = dyn services::ConnectorIntegration<
-    api::PCapture,
-    types::PaymentsRequestCaptureData,
-    types::PaymentsResponseData,
->;
 impl
     services::ConnectorIntegration<
-        api::PCapture,
-        types::PaymentsRequestCaptureData,
+        api::Capture,
+        types::PaymentsCaptureData,
         types::PaymentsResponseData,
     > for Adyen
 {
     // Not Implemented (R)
 }
 
-type PSync = dyn services::ConnectorIntegration<
-    api::PSync,
-    types::PaymentsRequestSyncData,
-    types::PaymentsResponseData,
->;
 impl
-    services::ConnectorIntegration<
-        api::PSync,
-        types::PaymentsRequestSyncData,
-        types::PaymentsResponseData,
-    > for Adyen
+    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                PSync::get_content_type(self).to_string(),
+                types::PaymentsSyncType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -115,11 +97,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let encoded_data = req
             .request
@@ -165,11 +143,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -181,33 +155,25 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&PSync::get_url(self, req, connectors)?)
-                .headers(PSync::get_headers(self, req)?)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsSyncType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(PSync::get_request_body(self, req)?)
+                .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: adyen::AdyenPaymentResponse = res
             .response
@@ -237,33 +203,28 @@ impl
     }
 }
 
-type Authorize = dyn services::ConnectorIntegration<
-    api::Authorize,
-    types::PaymentsRequestData,
-    types::PaymentsResponseData,
->;
 impl
     services::ConnectorIntegration<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError>
     where
         Self: services::ConnectorIntegration<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -274,7 +235,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
@@ -282,7 +243,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -293,7 +254,7 @@ impl
         &self,
         req: &types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: Connectors,
@@ -301,38 +262,26 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
-                .url(&Authorize::get_url(self, req, connectors)?)
-                .headers(Authorize::get_headers(self, req)?)
+                .url(&types::PaymentsAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(Authorize::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
-        let response = match data.payment_method {
-            types::storage::enums::PaymentMethodType::Wallet => {
-                let response: adyen::AdyenWalletResponse = res
-                    .response
-                    .parse_struct("AdyenWalletResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenPaymentResponse = res
+            .response
+            .parse_struct("AdyenPaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                adyen::AdyenPaymentResponse::AdyenWalletResponse(response)
-            }
-            _ => {
-                let response: adyen::AdyenResponse = res
-                    .response
-                    .parse_struct("AdyenResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                adyen::AdyenPaymentResponse::AdyenResponse(response)
-            }
-        };
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -356,27 +305,21 @@ impl
     }
 }
 
-type Void = dyn services::ConnectorIntegration<
-    api::Void,
-    types::PaymentRequestCancelData,
-    types::PaymentsResponseData,
->;
-
 impl
     services::ConnectorIntegration<
         api::Void,
-        types::PaymentRequestCancelData,
+        types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -387,7 +330,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/cancel"))
@@ -395,7 +338,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let adyen_req = utils::Encode::<adyen::AdyenCancelRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -403,26 +346,26 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
-                .url(&Void::get_url(self, req, connectors)?)
-                .headers(Void::get_headers(self, req)?)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(Void::get_request_body(self, req)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentRouterCancelData,
+        data: &types::PaymentsCancelRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: adyen::AdyenCancelResponse = res
             .response
             .parse_struct("AdyenCancelResponse")
@@ -455,17 +398,8 @@ impl api::Refund for Adyen {}
 impl api::RefundExecute for Adyen {}
 impl api::RefundSync for Adyen {}
 
-type Execute = dyn services::ConnectorIntegration<
-    api::Execute,
-    types::RefundsRequestData,
-    types::RefundsResponseData,
->;
-impl
-    services::ConnectorIntegration<
-        api::Execute,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Adyen
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Adyen
 {
     fn get_headers(
         &self,
@@ -474,7 +408,7 @@ impl
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Execute::get_content_type(self).to_string(),
+                types::RefundExecuteType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -513,9 +447,9 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&Execute::get_url(self, req, connectors)?)
-                .headers(Execute::get_headers(self, req)?)
-                .body(Execute::get_request_body(self, req)?)
+                .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+                .headers(types::RefundExecuteType::get_headers(self, req)?)
+                .body(types::RefundExecuteType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -555,12 +489,8 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::RSync,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Adyen
+impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Adyen
 {
 }
 
@@ -631,12 +561,12 @@ impl api::IncomingWebhook for Adyen {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
+        db: &dyn StorageInterface,
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = redis_conn
-            .get_key::<Vec<u8>>(&key)
+        let secret = db
+            .get_key(&key)
             .await
             .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
 

@@ -7,7 +7,6 @@ use super::payments::{helpers, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
-    db::{merchant_connector_account::IMerchantConnectorAccount, temp_card::ITempCard},
     routes::AppState,
     types::{
         self, api,
@@ -28,7 +27,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let db = &state.store;
+    let db = &*state.store;
     //TODO: everytime parsing the json may have impact?
     let merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
@@ -52,16 +51,9 @@ pub async fn construct_refund_router_data<'a, F>(
         .get_required_value("payment_method_type")?;
     let payment_method_data = match payment_method_data.cloned() {
         Some(v) => v,
-        None => {
-            let temp_card = db
-                .find_tempcard_by_transaction_id(&payment_attempt.txn_id)
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
-                .ok_or(errors::ApiErrorResponse::InvalidCardData { data: None })?;
-            helpers::payment_method_data_from_temp_card(&state.conf.keys, temp_card)
-                .await?
-                .get_required_value("payment_method_data")?
-        }
+        None => helpers::Vault::get_payment_method_data_from_locker(state, &payment_attempt.txn_id)
+            .await?
+            .get_required_value("payment_method_data")?,
     };
 
     let router_data = types::RouterData {
@@ -70,8 +62,6 @@ pub async fn construct_refund_router_data<'a, F>(
         connector: merchant_connector_account.connector_name,
         payment_id: payment_attempt.payment_id.clone(),
         status,
-        amount,
-        currency,
         payment_method: payment_method_type,
         connector_auth_type: auth_type,
         description: None,
@@ -82,19 +72,19 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
 
-        request: types::RefundsRequestData {
+        request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             payment_method_data,
             connector_transaction_id: refund.transaction_id.clone(),
             refund_amount: refund.refund_amount,
+            currency,
+            amount,
         },
 
-        response: Some(types::RefundsResponseData {
+        response: Ok(types::RefundsResponseData {
             connector_refund_id: refund.pg_refund_id.clone().unwrap_or_default(),
             refund_status: refund.refund_status,
         }),
-
-        error_response: None,
     };
 
     Ok(router_data)

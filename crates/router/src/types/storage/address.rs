@@ -1,14 +1,11 @@
+use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use crate::{
-    consts,
-    schema::address,
-    types::api,
-    utils::{custom_serde, generate_id},
-};
+use crate::{consts, schema::address, types::api, utils::generate_id};
+
 #[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]
 #[serde(deny_unknown_fields)]
@@ -27,7 +24,7 @@ pub struct AddressNew {
     pub country_code: Option<String>,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
 #[diesel(table_name = address)]
 pub struct Address {
     #[serde(skip_serializing)]

@@ -11,7 +11,7 @@ use crate::{
         errors::{self, ApiErrorResponse, RouterResult, StorageErrorExt},
         payments::{helpers, CustomerDetails, PaymentAddress, PaymentData},
     },
-    db::Db,
+    db::StorageInterface,
     routes::AppState,
     types::{api, storage, Connector},
     utils::{self, OptionExt},
@@ -47,7 +47,7 @@ impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for &PaymentStatus {
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentStatus {
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn Db,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
@@ -63,7 +63,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> for PaymentStatus {
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn Db,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
@@ -96,7 +96,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        get_tracker_for_sync(payment_id, merchant_id, &state.store, request, self).await
+        get_tracker_for_sync(payment_id, merchant_id, &*state.store, request, self).await
     }
 }
 
@@ -107,7 +107,7 @@ async fn get_tracker_for_sync<
 >(
     payment_id: &api::PaymentIdType,
     merchant_id: &str,
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
 ) -> RouterResult<(

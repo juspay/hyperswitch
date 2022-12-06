@@ -100,6 +100,6 @@ mod test {
     fn test_redis_error() {
         let x = errors::RedisError::ConsumerGroupClaimFailed.to_string();
 
-        assert_eq!(x, "Failed to set redis stream message owner".to_string())
+        assert_eq!(x, "Failed to set Redis stream message owner".to_string())
     }
 }

@@ -1,10 +1,10 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
+use crate::schema::mandate;
 // use serde::{Deserialize, Serialize};
 use crate::{
     pii::{self, Secret},
-    schema::mandate,
     types::enums,
 };
 
@@ -26,7 +26,7 @@ pub struct Mandate {
     pub created_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Insertable, Default, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = mandate)]
 pub struct MandateNew {
     pub mandate_id: String,

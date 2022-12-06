@@ -5,7 +5,6 @@ use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
     logger, routes, scheduler,
-    services::Store,
 };
 use structopt::StructOpt;
 
@@ -17,11 +16,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
 
     let cmd_line = CmdLineConf::from_args();
     let conf = Settings::with_config_path(cmd_line.config_path).unwrap();
-    let mut state = routes::AppState {
-        flow_name: String::from("default"),
-        store: Store::new(&conf).await,
-        conf,
-    };
+    let mut state = routes::AppState::new(conf).await;
     let _guard =
         logger::setup(&state.conf.log).map_err(|_| errors::ProcessTrackerError::UnexpectedFlow)?;
 
@@ -29,10 +24,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
 
     start_scheduler(&state).await?;
 
-    std::sync::Arc::get_mut(&mut state.store.redis_conn)
-        .expect("Redis connection pool cannot be closed")
-        .close_connections()
-        .await;
+    state.store.close().await;
 
     eprintln!("Scheduler shut down");
     Ok(())

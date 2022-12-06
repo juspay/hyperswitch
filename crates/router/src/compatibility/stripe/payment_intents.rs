@@ -10,7 +10,7 @@ use crate::{
     routes::AppState,
     services::api,
     types::api::{
-        self as api_types, payments::PaymentsCaptureRequest, Authorize, PCapture, PSync,
+        self as api_types, payments::PaymentsCaptureRequest, Authorize, Capture, PSync,
         PaymentListConstraints, PaymentsCancelRequest, PaymentsRequest, PaymentsRetrieveRequest,
         Void,
     },
@@ -251,7 +251,7 @@ pub async fn payment_intents_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<PCapture, _, _, _>(
+            payments::payments_core::<Capture, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -341,7 +341,9 @@ pub async fn payment_intent_list(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| payments::list_payments(&state.store, merchant_account, req),
+        |state, merchant_account, req| {
+            payments::list_payments(&*state.store, merchant_account, req)
+        },
         api::MerchantAuthentication::ApiKey,
     )
     .await

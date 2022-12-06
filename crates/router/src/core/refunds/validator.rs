@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
-    db::Db,
+    db::StorageInterface,
     logger,
     types::storage::{self, enums},
     utils,
@@ -70,7 +70,7 @@ pub fn validate_refund_amount(
 pub fn validate_payment_order_age(
     created_at: &PrimitiveDateTime,
 ) -> CustomResult<(), RefundValidationError> {
-    let current_time = utils::date_time::now();
+    let current_time = common_utils::date_time::now();
 
     utils::when(
         (current_time - *created_at).whole_days() > REFUND_MAX_AGE,
@@ -91,7 +91,7 @@ pub fn validate_maximum_refund_against_payment_attempt(
 
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     payment_id: &str,
     merchant_id: &str,
     refund_id: &str,

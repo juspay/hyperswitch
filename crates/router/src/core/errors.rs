@@ -25,10 +25,11 @@ macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
         impl std::fmt::Display for $st {
             fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                fmt.write_str(&format!(
+                write!(
+                    fmt,
                     "{{ error_type: {:?}, error_description: {} }}",
                     self, $arg
-                ))
+                )
             }
         }
     };
