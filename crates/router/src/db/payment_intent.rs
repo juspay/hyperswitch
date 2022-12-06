@@ -39,7 +39,6 @@ mod storage {
 
     use super::PaymentIntentInterface;
     use crate::{
-        connection::pg_connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::{api, storage::payment_intent::*},
@@ -92,7 +91,7 @@ mod storage {
                 )))
                 .into_report(),
                 Ok(1) => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = crate::connection::pg_connection(&self.master_pool).await;
                     let query = new
                         .insert(&conn)
                         .await
@@ -145,7 +144,7 @@ mod storage {
                 .into_report()
                 .change_context(errors::StorageError::KVError)?;
 
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = crate::connection::pg_connection(&self.master_pool).await;
             let query = this
                 .update(&conn, payment_intent)
                 .await
@@ -208,7 +207,6 @@ mod storage {
 mod storage {
     use super::PaymentIntentInterface;
     use crate::{
-        connection::pg_connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::{api, storage::payment_intent::*},
@@ -220,7 +218,7 @@ mod storage {
             &self,
             new: PaymentIntentNew,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = crate::connection::pg_connection(&self.master_pool).await;
             new.insert(&conn).await
         }
 
@@ -229,7 +227,7 @@ mod storage {
             this: PaymentIntent,
             payment_intent: PaymentIntentUpdate,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = crate::connection::pg_connection(&self.master_pool).await;
             this.update(&conn, payment_intent).await
         }
 
@@ -238,7 +236,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = crate::connection::pg_connection(&self.master_pool).await;
             PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
         }
 
@@ -247,7 +245,7 @@ mod storage {
             merchant_id: &str,
             pc: &api::PaymentListConstraints,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = crate::connection::pg_connection(&self.master_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
         }
     }

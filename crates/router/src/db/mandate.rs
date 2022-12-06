@@ -1,6 +1,5 @@
 use super::MockDb;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -39,7 +38,7 @@ impl MandateInterface for super::Store {
         merchant_id: &str,
         mandate_id: &str,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id).await
     }
 
@@ -48,7 +47,7 @@ impl MandateInterface for super::Store {
         merchant_id: &str,
         customer_id: &str,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id).await
     }
 
@@ -58,7 +57,7 @@ impl MandateInterface for super::Store {
         mandate_id: &str,
         mandate: storage::MandateUpdate,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
             .await
     }
@@ -67,7 +66,7 @@ impl MandateInterface for super::Store {
         &self,
         mandate: storage::MandateNew,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         mandate.insert(&conn).await
     }
 }

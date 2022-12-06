@@ -2,7 +2,6 @@ use masking::ExposeInterface;
 
 use super::MockDb;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -51,7 +50,7 @@ impl MerchantConnectorAccountInterface for super::Store {
         merchant_id: &str,
         connector: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
@@ -65,7 +64,7 @@ impl MerchantConnectorAccountInterface for super::Store {
         merchant_id: &str,
         merchant_connector_id: &i32,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,
@@ -78,7 +77,7 @@ impl MerchantConnectorAccountInterface for super::Store {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         t.insert(&conn).await
     }
 
@@ -86,7 +85,7 @@ impl MerchantConnectorAccountInterface for super::Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id).await
     }
 
@@ -95,7 +94,7 @@ impl MerchantConnectorAccountInterface for super::Store {
         this: storage::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         this.update(&conn, merchant_connector_account).await
     }
 
@@ -104,7 +103,7 @@ impl MerchantConnectorAccountInterface for super::Store {
         merchant_id: &str,
         merchant_connector_id: &i32,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,

@@ -3,7 +3,6 @@ use masking::PeekInterface;
 
 use super::MockDb;
 use crate::{
-    connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
     types::storage as types,
 };
@@ -48,7 +47,7 @@ impl MerchantAccountInterface for super::Store {
         &self,
         merchant_account: types::MerchantAccountNew,
     ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         merchant_account.insert(&conn).await
     }
 
@@ -56,7 +55,7 @@ impl MerchantAccountInterface for super::Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         types::MerchantAccount::find_by_merchant_id(&conn, merchant_id).await
     }
 
@@ -65,7 +64,7 @@ impl MerchantAccountInterface for super::Store {
         this: types::MerchantAccount,
         merchant_account: types::MerchantAccountUpdate,
     ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         this.update(&conn, merchant_account).await
     }
 
@@ -73,7 +72,7 @@ impl MerchantAccountInterface for super::Store {
         &self,
         api_key: &str,
     ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         types::MerchantAccount::find_by_api_key(&conn, api_key).await
     }
 
@@ -81,7 +80,7 @@ impl MerchantAccountInterface for super::Store {
         &self,
         publishable_key: &str,
     ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         types::MerchantAccount::find_by_publishable_key(&conn, publishable_key).await
     }
 
@@ -89,7 +88,7 @@ impl MerchantAccountInterface for super::Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = crate::connection::pg_connection(&self.master_pool).await;
         types::MerchantAccount::delete_by_merchant_id(&conn, merchant_id).await
     }
 }
