@@ -75,7 +75,6 @@ mod storage {
             payment_attempt: PaymentAttemptUpdate,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            let conn = pg_connection(&self.master_pool).await;
             this.update(&conn, payment_attempt).await
         }
 
@@ -84,7 +83,6 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
             let conn = pg_connection(&self.master_pool).await;
             PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
         }

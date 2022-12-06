@@ -230,7 +230,6 @@ mod storage {
             payment_intent: PaymentIntentUpdate,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            let conn = pg_connection(&self.master_pool).await;
             this.update(&conn, payment_intent).await
         }
 
