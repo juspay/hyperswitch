@@ -105,6 +105,9 @@ base_url = "https://api.sandbox.checkout.com/"
 [connectors.stripe]
 base_url = "https://api.stripe.com/"
 
+[connectors.braintree]
+base_url = "https://api.sandbox.braintreegateway.com/"
+
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
 # It defines the the streams/queues name and configuration as well as event selection variables
 [scheduler]

@@ -100,6 +100,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub checkout: ConnectorParams,
     pub stripe: ConnectorParams,
+    pub braintree: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]

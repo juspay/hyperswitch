@@ -110,6 +110,17 @@ pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct VerifyRequestData {
+    pub payment_method_data: payments::PaymentMethod,
+    pub confirm: bool,
+    pub statement_descriptor_suffix: Option<String>,
+    pub mandate_id: Option<String>,
+    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub off_session: Option<bool>,
+    pub setup_mandate_details: Option<payments::MandateData>,
+}
 #[derive(Debug, Clone)]
 pub struct PaymentsResponseData {
     pub resource_id: ResponseId,
