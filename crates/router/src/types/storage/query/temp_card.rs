@@ -11,10 +11,7 @@ use crate::{
 
 impl TempCardNew {
     #[instrument(skip(conn))]
-    pub async fn insert_diesel(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<TempCard, errors::StorageError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<TempCard, errors::StorageError> {
         generics::generic_insert::<_, _, TempCard, _>(conn, self, ExecuteQuery::new()).await
     }
 }

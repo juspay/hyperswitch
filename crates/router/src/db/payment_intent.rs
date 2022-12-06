@@ -1,36 +1,33 @@
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
-    types::{
-        api,
-        storage::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
-    },
+    types::{api, storage as types},
 };
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
         &self,
-        this: PaymentIntent,
-        payment_intent: PaymentIntentUpdate,
-    ) -> CustomResult<PaymentIntent, errors::StorageError>;
+        this: types::PaymentIntent,
+        payment_intent: types::PaymentIntentUpdate,
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
-    ) -> CustomResult<PaymentIntent, errors::StorageError>;
+        new: types::PaymentIntentNew,
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<PaymentIntent, errors::StorageError>;
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
         pc: &api::PaymentListConstraints,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -95,9 +92,9 @@ mod storage {
                 )))
                 .into_report(),
                 Ok(1) => {
-                    let conn = pg_connection(&self.master_pool.conn).await;
+                    let conn = pg_connection(&self.master_pool).await;
                     let query = new
-                        .insert_diesel(&conn)
+                        .insert(&conn)
                         .await
                         .change_context(errors::StorageError::KVError)?;
                     let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
@@ -148,7 +145,7 @@ mod storage {
                 .into_report()
                 .change_context(errors::StorageError::KVError)?;
 
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             let query = this
                 .update(&conn, payment_intent)
                 .await
@@ -223,8 +220,8 @@ mod storage {
             &self,
             new: PaymentIntentNew,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
-            new.insert_diesel(&conn).await
+            let conn = pg_connection(&self.master_pool).await;
+            new.insert(&conn).await
         }
 
         async fn update_payment_intent(
@@ -232,7 +229,8 @@ mod storage {
             this: PaymentIntent,
             payment_intent: PaymentIntentUpdate,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await;
             this.update(&conn, payment_intent).await
         }
 
@@ -241,7 +239,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
         }
 
@@ -250,7 +248,7 @@ mod storage {
             merchant_id: &str,
             pc: &api::PaymentListConstraints,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
         }
     }
@@ -262,18 +260,18 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _pc: &api::PaymentListConstraints,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         todo!()
     }
 
     #[allow(clippy::panic)]
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
+        new: types::PaymentIntentNew,
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
-        let payment_intent = PaymentIntent {
+        let payment_intent = types::PaymentIntent {
             id: payment_intents.len() as i32,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
@@ -303,9 +301,9 @@ impl PaymentIntentInterface for MockDb {
 
     async fn update_payment_intent(
         &self,
-        this: PaymentIntent,
-        update: PaymentIntentUpdate,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
+        this: types::PaymentIntent,
+        update: types::PaymentIntentUpdate,
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter_mut()
@@ -319,7 +317,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
         let payment_intents = self.payment_intents.lock().await;
 
         Ok(payment_intents

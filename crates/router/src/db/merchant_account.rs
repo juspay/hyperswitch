@@ -5,36 +5,36 @@ use super::MockDb;
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
-    types::storage::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdate},
+    types::storage as types,
 };
 
 #[async_trait::async_trait]
 pub trait MerchantAccountInterface {
     async fn insert_merchant(
         &self,
-        merchant_account: MerchantAccountNew,
-    ) -> CustomResult<MerchantAccount, errors::StorageError>;
+        merchant_account: types::MerchantAccountNew,
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError>;
 
     async fn update_merchant(
         &self,
-        this: MerchantAccount,
-        merchant_account: MerchantAccountUpdate,
-    ) -> CustomResult<MerchantAccount, errors::StorageError>;
+        this: types::MerchantAccount,
+        merchant_account: types::MerchantAccountUpdate,
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_api_key(
         &self,
         api_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
@@ -46,51 +46,51 @@ pub trait MerchantAccountInterface {
 impl MerchantAccountInterface for super::Store {
     async fn insert_merchant(
         &self,
-        merchant_account: MerchantAccountNew,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
-        merchant_account.insert_diesel(&conn).await
+        merchant_account: types::MerchantAccountNew,
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        merchant_account.insert(&conn).await
     }
 
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
-        MerchantAccount::find_by_merchant_id(&conn, merchant_id).await
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        types::MerchantAccount::find_by_merchant_id(&conn, merchant_id).await
     }
 
     async fn update_merchant(
         &self,
-        this: MerchantAccount,
-        merchant_account: MerchantAccountUpdate,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        this: types::MerchantAccount,
+        merchant_account: types::MerchantAccountUpdate,
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, merchant_account).await
     }
 
     async fn find_merchant_account_by_api_key(
         &self,
         api_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
-        MerchantAccount::find_by_api_key(&conn, api_key).await
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        types::MerchantAccount::find_by_api_key(&conn, api_key).await
     }
 
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
-        MerchantAccount::find_by_publishable_key(&conn, publishable_key).await
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        types::MerchantAccount::find_by_publishable_key(&conn, publishable_key).await
     }
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
-        MerchantAccount::delete_by_merchant_id(&conn, merchant_id).await
+        let conn = pg_connection(&self.master_pool).await;
+        types::MerchantAccount::delete_by_merchant_id(&conn, merchant_id).await
     }
 }
 
@@ -99,10 +99,10 @@ impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_merchant(
         &self,
-        merchant_account: MerchantAccountNew,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
+        merchant_account: types::MerchantAccountNew,
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
-        let account = MerchantAccount {
+        let account = types::MerchantAccount {
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
             api_key: merchant_account.api_key,
@@ -131,7 +131,7 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
         let account = accounts
             .iter()
@@ -145,9 +145,9 @@ impl MerchantAccountInterface for MockDb {
 
     async fn update_merchant(
         &self,
-        _this: MerchantAccount,
-        _merchant_account: MerchantAccountUpdate,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
+        _this: types::MerchantAccount,
+        _merchant_account: types::MerchantAccountUpdate,
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
         todo!()
     }
 
@@ -155,7 +155,7 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_api_key(
         &self,
         api_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
 
         accounts
@@ -168,7 +168,7 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_publishable_key(
         &self,
         _publishable_key: &str,
-    ) -> CustomResult<MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<types::MerchantAccount, errors::StorageError> {
         todo!()
     }
 

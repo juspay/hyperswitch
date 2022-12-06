@@ -4,7 +4,7 @@ use router_env::logger;
 use super::MockDb;
 use crate::{
     core::errors::{CustomResult, ProcessTrackerError},
-    types::storage::ProcessTracker,
+    types::storage,
 };
 
 #[async_trait::async_trait]
@@ -14,7 +14,7 @@ pub trait QueueInterface {
         stream_name: &str,
         group_name: &str,
         consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError>;
+    ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError>;
 
     async fn consumer_group_create(
         &self,
@@ -44,7 +44,7 @@ impl QueueInterface for super::Store {
         stream_name: &str,
         group_name: &str,
         consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
+    ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         crate::scheduler::consumer::fetch_consumer_tasks(
             self,
             &self.redis_conn.clone(),
@@ -125,7 +125,7 @@ impl QueueInterface for MockDb {
         _stream_name: &str,
         _group_name: &str,
         _consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
+    ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         todo!()
     }
 
