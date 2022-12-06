@@ -829,7 +829,7 @@ pub fn get_handle_response_url(
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
-    let payments_return_url = &response.return_url;
+    let payments_return_url = response.return_url.as_ref();
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
     let return_url = make_merchant_url_with_response(
@@ -845,16 +845,12 @@ pub fn get_handle_response_url(
 pub fn make_merchant_url_with_response(
     merchant_account: &storage::MerchantAccount,
     redirection_response: PgRedirectResponse,
-    return_url: &Option<String>,
+    request_return_url: Option<&String>,
 ) -> RouterResult<String> {
-    let merchant_return_url = merchant_account
-        .return_url
-        .as_ref()
+    // take return url if provided in the request else use merchant return url
+    let url = request_return_url
+        .or(merchant_account.return_url.as_ref())
         .get_required_value("return_url")?;
-
-    let url = return_url
-        .to_owned()
-        .unwrap_or_else(|| merchant_return_url.to_string());
 
     let status_check = redirection_response.status;
 
@@ -862,7 +858,7 @@ pub fn make_merchant_url_with_response(
 
     let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
-            &url,
+            url,
             &[
                 ("status", status_check.to_string()),
                 ("order_id", payment_intent_id),
@@ -874,7 +870,7 @@ pub fn make_merchant_url_with_response(
     } else {
         let amount = redirection_response.amount.get_required_value("amount")?;
         url::Url::parse_with_params(
-            &url,
+            url,
             &[
                 ("status", status_check.to_string()),
                 ("order_id", payment_intent_id),
