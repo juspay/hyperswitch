@@ -40,7 +40,7 @@ pub struct Card {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
@@ -62,7 +62,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     transaction: braintree_payment_request,
                 })
             }
-            _ => Err(errors::ValidateError.into()),
+            _ => Err(errors::ConnectorError::RequestEncodingFailed.into()),
         }
     }
 }

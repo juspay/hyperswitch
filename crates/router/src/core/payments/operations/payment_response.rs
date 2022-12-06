@@ -135,7 +135,7 @@ async fn payment_response_ut<F: Clone, T>(
                     mandate_id: payment_data.mandate_id.clone(),
                 }
             }
-            types::PaymentsResponseData::SessionResponse(session_response) => {
+            types::PaymentsResponseData::SessionResponse(_session_response) => {
                 todo!()
             }
         },
