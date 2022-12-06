@@ -4,6 +4,7 @@
 
 use std::{fmt, marker::PhantomData};
 
+use subtle::ConstantTimeEq;
 use zeroize::{self, Zeroize as ZeroizableSecret};
 
 use crate::{strategy::Strategy, PeekInterface};
@@ -53,17 +54,17 @@ impl<S: Clone + ZeroizableSecret, I> Clone for StrongSecret<S, I> {
 impl<S: ZeroizableSecret, I> PartialEq for StrongSecret<S, I>
 where
     Self: PeekInterface<S>,
-    S: PartialEq,
+    S: StrongEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.peek().eq(other.peek())
+        StrongEq::eq(self.peek(), other.peek())
     }
 }
 
 impl<S: ZeroizableSecret, I> Eq for StrongSecret<S, I>
 where
     Self: PeekInterface<S>,
-    S: Eq,
+    S: StrongEq,
 {
 }
 
@@ -91,5 +92,18 @@ where
 impl<T: ZeroizableSecret, S> Drop for StrongSecret<T, S> {
     fn drop(&mut self) {
         self.inner_secret.zeroize();
+    }
+}
+
+trait StrongEq {
+    fn eq(&self, other: &Self) -> bool;
+}
+
+impl StrongEq for String {
+    fn eq(&self, other: &Self) -> bool {
+        let lhs_bytes = self.as_bytes();
+        let rhs_bytes = other.as_bytes();
+
+        bool::from(lhs_bytes.ct_eq(rhs_bytes))
     }
 }
