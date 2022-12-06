@@ -44,7 +44,6 @@ Most fields are under `Option`. To simplify dealing with `Option`, use `expose_c
 <!-- ```text
 
 ├── src                        : source code
-│   ├── bachstd                : utilities
 └── tests                      : unit and integration tests
 
 ``` -->
