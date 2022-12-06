@@ -13,11 +13,10 @@ use crate::{strategy::Strategy, PeekInterface};
 ///
 /// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
 ///
-
-pub struct StrongSecret<S: ZeroizableSecret, I = crate::WithType> {
+pub struct StrongSecret<Secret: ZeroizableSecret, MaskingStrategy = crate::WithType> {
     /// Inner secret value
-    pub(crate) inner_secret: S,
-    pub(crate) marker: PhantomData<I>,
+    pub(crate) inner_secret: Secret,
+    pub(crate) masking_strategy: PhantomData<MaskingStrategy>,
 }
 
 impl<S: ZeroizableSecret, I> StrongSecret<S, I> {
@@ -25,7 +24,7 @@ impl<S: ZeroizableSecret, I> StrongSecret<S, I> {
     pub fn new(secret: S) -> Self {
         StrongSecret {
             inner_secret: secret,
-            marker: PhantomData,
+            masking_strategy: PhantomData,
         }
     }
 }
@@ -46,7 +45,7 @@ impl<S: Clone + ZeroizableSecret, I> Clone for StrongSecret<S, I> {
     fn clone(&self) -> Self {
         StrongSecret {
             inner_secret: self.inner_secret.clone(),
-            marker: PhantomData,
+            masking_strategy: PhantomData,
         }
     }
 }
