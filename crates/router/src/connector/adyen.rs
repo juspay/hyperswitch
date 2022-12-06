@@ -60,7 +60,7 @@ impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
-        types::PaymentsSessionResponseData,
+        types::PaymentsResponseData,
     > for Adyen
 {
     // Not Implemented (R)

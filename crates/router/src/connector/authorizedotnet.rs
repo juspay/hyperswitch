@@ -49,7 +49,7 @@ impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
-        types::PaymentsSessionResponseData,
+        types::PaymentsResponseData,
     > for Authorizedotnet
 {
     // Not Implemented (R)

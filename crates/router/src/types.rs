@@ -26,7 +26,7 @@ pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
-    RouterData<api::Session, PaymentsSessionData, PaymentsSessionResponseData>;
+    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
 pub type PaymentsResponseRouterData<R> =

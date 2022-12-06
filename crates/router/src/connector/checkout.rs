@@ -63,7 +63,7 @@ impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
-        types::PaymentsSessionResponseData,
+        types::PaymentsResponseData,
     > for Checkout
 {
     // Not Implemented (R)

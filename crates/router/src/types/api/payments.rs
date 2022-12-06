@@ -654,7 +654,7 @@ pub trait PaymentCapture:
 }
 
 pub trait PaymentSession:
-    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsSessionResponseData>
+    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
 {
 }
 

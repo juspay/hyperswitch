@@ -13,11 +13,8 @@ use crate::{
 
 #[async_trait]
 impl
-    ConstructFlowSpecificData<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsSessionResponseData,
-    > for PaymentData<api::Session>
+    ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for PaymentData<api::Session>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -25,7 +22,7 @@ impl
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        let output = transformers::construct_payment_session_router_data::<
+        let output = transformers::construct_payment_router_data::<
             api::Session,
             types::PaymentsSessionData,
         >(state, self.clone(), connector_id, merchant_account)
@@ -71,13 +68,13 @@ impl types::PaymentsSessionRouterData {
         dyn api::Connector + Sync: services::ConnectorIntegration<
             api::Session,
             types::PaymentsSessionData,
-            types::PaymentsSessionResponseData,
+            types::PaymentsResponseData,
         >,
     {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Session,
             types::PaymentsSessionData,
-            types::PaymentsSessionResponseData,
+            types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(
             state,

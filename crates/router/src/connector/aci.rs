@@ -59,7 +59,7 @@ impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
-        types::PaymentsSessionResponseData,
+        types::PaymentsResponseData,
     > for Aci
 {
     // Not Implemented (R)
