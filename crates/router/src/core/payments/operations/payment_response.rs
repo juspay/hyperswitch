@@ -118,23 +118,27 @@ async fn payment_response_ut<F: Clone, T>(
             status: storage::enums::AttemptStatus::Failure,
             error_message: Some(err.message),
         },
-        Ok(response) => {
-            connector_response_data = Some(response.clone());
-
-            storage::PaymentAttemptUpdate::ResponseUpdate {
-                status: router_data.status,
-                connector_transaction_id: Some(
-                    response
-                        .resource_id
-                        .get_connector_transaction_id()
-                        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
-                ),
-                authentication_type: None,
-                payment_method_id: Some(router_data.payment_method_id),
-                redirect: Some(response.redirect),
-                mandate_id: payment_data.mandate_id.clone(),
+        Ok(payments_response) => match payments_response {
+            types::PaymentsResponseData::TransactionResponse(transaction_response) => {
+                connector_response_data = Some(transaction_response.clone());
+                storage::PaymentAttemptUpdate::ResponseUpdate {
+                    status: router_data.status,
+                    connector_transaction_id: Some(
+                        transaction_response
+                            .resource_id
+                            .get_connector_transaction_id()
+                            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
+                    ),
+                    authentication_type: None,
+                    payment_method_id: Some(router_data.payment_method_id),
+                    redirect: Some(transaction_response.redirect),
+                    mandate_id: payment_data.mandate_id.clone(),
+                }
             }
-        }
+            types::PaymentsResponseData::SessionResponse(session_response) => {
+                todo!()
+            }
+        },
     };
 
     payment_data.payment_attempt = db

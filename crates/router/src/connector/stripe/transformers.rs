@@ -313,11 +313,13 @@ impl<F, T>
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
-            response: Ok(types::PaymentsResponseData {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
-                redirection_data,
-            }),
+            response: Ok(types::PaymentsResponseData::TransactionResponse(
+                types::PaymentsTransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    redirect: redirection_data.is_some(),
+                    redirection_data,
+                },
+            )),
             ..item.data
         })
     }

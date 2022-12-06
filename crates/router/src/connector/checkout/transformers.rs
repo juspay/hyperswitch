@@ -207,11 +207,13 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.response.status,
                 item.data.request.capture_method,
             )),
-            response: Ok(types::PaymentsResponseData {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
-                redirection_data,
-            }),
+            response: Ok(types::PaymentsResponseData::TransactionResponse(
+                types::PaymentsTransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    redirect: redirection_data.is_some(),
+                    redirection_data,
+                },
+            )),
             ..item.data
         })
     }
@@ -226,12 +228,14 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
             status: enums::AttemptStatus::from((item.response.status, None)),
-            response: Ok(types::PaymentsResponseData {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                //TODO: Add redirection details here
-                redirection_data: None,
-                redirect: false,
-            }),
+            response: Ok(types::PaymentsResponseData::TransactionResponse(
+                types::PaymentsTransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    //TODO: Add redirection details here
+                    redirection_data: None,
+                    redirect: false,
+                },
+            )),
             ..item.data
         })
     }
@@ -267,11 +271,15 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         Ok(types::RouterData {
-            response: Ok(types::PaymentsResponseData {
-                resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
-                redirect: false,
-                redirection_data: None,
-            }),
+            response: Ok(types::PaymentsResponseData::TransactionResponse(
+                types::PaymentsTransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.action_id.clone(),
+                    ),
+                    redirect: false,
+                    redirection_data: None,
+                },
+            )),
             status: response.into(),
             ..item.data
         })

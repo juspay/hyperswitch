@@ -62,15 +62,17 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
+    //FIXME: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
         .as_ref()
-        .map(|id| types::PaymentsResponseData {
-            resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-            //TODO: Add redirection details here
-            redirection_data: None,
-            redirect: false,
+        .map(|id| {
+            types::PaymentsResponseData::TransactionResponse(types::PaymentsTransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
+                redirection_data: None,
+                redirect: false,
+            })
         });
 
     let orca_return_url = Some(helpers::create_redirect_url(
