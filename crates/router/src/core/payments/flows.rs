@@ -16,7 +16,7 @@ use crate::{
 
 #[async_trait]
 pub trait ConstructFlowSpecificData<F, Req, Res> {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,

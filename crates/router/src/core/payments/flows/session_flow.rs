@@ -8,7 +8,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, PaymentsSessionData, PaymentsSessionResponseData},
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -19,7 +19,7 @@ impl
         types::PaymentsSessionResponseData,
     > for PaymentData<api::Session>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
@@ -63,21 +63,21 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        _customer: &Option<api::CustomerResponse>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<types::PaymentsSessionRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
             api::Session,
-            PaymentsSessionData,
-            PaymentsSessionResponseData,
+            types::PaymentsSessionData,
+            types::PaymentsSessionResponseData,
         >,
     {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Session,
-            PaymentsSessionData,
-            PaymentsSessionResponseData,
+            types::PaymentsSessionData,
+            types::PaymentsSessionResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(
             state,
