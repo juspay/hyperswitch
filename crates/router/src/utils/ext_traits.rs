@@ -208,12 +208,14 @@ mod tests {
 
     proptest::proptest! {
         /// Example of unit test
+        /// Kind of test: output-based testing
         #[test]
         fn proptest_valid_fake_email(email in ValidEmail) {
             prop_assert!(validate_email(&email).is_ok());
         }
 
         /// Example of unit test
+        /// Kind of test: output-based testing
         #[test]
         fn proptest_invalid_data_email(email in "\\PC*") {
             prop_assert!(validate_email(&email).is_err());
