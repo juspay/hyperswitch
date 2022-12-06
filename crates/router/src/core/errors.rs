@@ -5,7 +5,7 @@ pub(crate) mod utils;
 use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
-pub use common_utils::errors::{CustomResult, ParsingError};
+pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
 use error_stack;
 pub use redis_interface::errors::RedisError;
@@ -408,16 +408,6 @@ error_to_process_tracker_error!(
     error_stack::Report<ValidationError>,
     ProcessTrackerError::EValidationError(error_stack::Report<ValidationError>)
 );
-
-#[derive(Debug, thiserror::Error)]
-pub enum ValidationError {
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: String },
-    #[error("Incorrect value provided for field: {field_name}")]
-    IncorrectValueProvided { field_name: &'static str },
-    #[error("{message}")]
-    InvalidValue { message: String },
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebhooksFlowError {
