@@ -1,14 +1,13 @@
-//!
 //! Personal Identifiable Information protection.
-//!
 
 use std::{convert::AsRef, fmt};
 
-#[doc(inline)]
-pub use masking::*;
+use masking::{Strategy, WithType};
 
-use crate::utils::validate_email;
+use crate::validation::validate_email;
 
+/// Card number
+#[derive(Debug)]
 pub struct CardNumber;
 
 impl<T> Strategy<T> for CardNumber
@@ -30,28 +29,34 @@ where
     }
 }
 
-//pub struct PhoneNumber;
+/*
+/// Phone number
+#[derive(Debug)]
+pub struct PhoneNumber;
 
-//impl<T> Strategy<T> for PhoneNumber
-//where
-//T: AsRef<str>,
-//{
-//fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//let val_str: &str = val.as_ref();
+impl<T> Strategy<T> for PhoneNumber
+where
+    T: AsRef<str>,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val_str: &str = val.as_ref();
 
-//if val_str.len() < 10 || val_str.len() > 12 {
-//return WithType::fmt(val, f);
-//}
+        if val_str.len() < 10 || val_str.len() > 12 {
+            return WithType::fmt(val, f);
+        }
 
-//f.write_str(&format!(
-//"{}{}{}",
-//&val_str[..2],
-//"*".repeat(val_str.len() - 5),
-//&val_str[(val_str.len() - 3)..]
-//))
-//}
-//}
+        f.write_str(&format!(
+            "{}{}{}",
+            &val_str[..2],
+            "*".repeat(val_str.len() - 5),
+            &val_str[(val_str.len() - 3)..]
+        ))
+    }
+}
+*/
 
+/// Email address
+#[derive(Debug)]
 pub struct Email;
 
 impl<T> Strategy<T> for Email
@@ -75,6 +80,8 @@ where
     }
 }
 
+/// IP address
+#[derive(Debug)]
 pub struct IpAddress;
 
 impl<T> Strategy<T> for IpAddress
@@ -101,7 +108,9 @@ where
 
 #[cfg(test)]
 mod pii_masking_strategy_tests {
-    use super::{CardNumber, Email, IpAddress, Secret};
+    use masking::Secret;
+
+    use super::{CardNumber, Email, IpAddress};
 
     #[test]
     fn test_valid_card_number_masking() {
@@ -115,7 +124,8 @@ mod pii_masking_strategy_tests {
         assert_eq!("123456****", &format!("{:?}", secret));
     }
 
-    /* #[test]
+    /*
+    #[test]
     fn test_valid_phone_number_masking() {
         let secret: Secret<String, PhoneNumber> = Secret::new("9922992299".to_string());
         assert_eq!("99*****299", &format!("{}", secret));
@@ -128,7 +138,8 @@ mod pii_masking_strategy_tests {
 
         let secret: Secret<String, PhoneNumber> = Secret::new("9922992299229922".to_string());
         assert_eq!("*** alloc::string::String ***", &format!("{}", secret));
-    } */
+    }
+    */
 
     #[test]
     fn test_valid_email_masking() {

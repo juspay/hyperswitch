@@ -3,13 +3,10 @@ use uuid::Uuid;
 
 use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-    db::{
-        merchant_account::IMerchantAccount, merchant_connector_account::IMerchantConnectorAccount,
-        Db,
-    },
+    db::StorageInterface,
     env::{self, Env},
     pii::Secret,
-    services::{api as service_api, Store},
+    services::api as service_api,
     types::{
         self, api,
         storage::{self, MerchantAccount},
@@ -27,7 +24,7 @@ fn create_merchant_api_key() -> String {
 }
 
 pub async fn create_merchant_account(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     req: api::CreateMerchantAccount,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let publishable_key = &format!("pk_{}", create_merchant_api_key());
@@ -82,7 +79,7 @@ pub async fn create_merchant_account(
 }
 
 pub async fn get_merchant_account(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     req: api::MerchantId,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let merchant_account = db
@@ -129,7 +126,7 @@ pub async fn get_merchant_account(
 }
 
 pub async fn merchant_account_update(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_id: &String,
     req: api::CreateMerchantAccount,
 ) -> RouterResponse<api::MerchantAccountResponse> {
@@ -213,7 +210,7 @@ pub async fn merchant_account_update(
 }
 
 pub async fn merchant_account_delete(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_id: String,
 ) -> RouterResponse<api::DeleteResponse> {
     let is_deleted = db
@@ -230,7 +227,7 @@ pub async fn merchant_account_delete(
 }
 
 async fn get_parent_merchant(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     sub_merchants_enabled: &Option<bool>,
     parent_merchant: Option<String>,
 ) -> RouterResult<Option<String>> {
@@ -260,7 +257,7 @@ async fn get_parent_merchant(
 }
 
 async fn validate_merchant_id<S: Into<String>>(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_id: S,
 ) -> RouterResult<MerchantAccount> {
     db.find_merchant_account_by_merchant_id(&merchant_id.into())
@@ -273,7 +270,7 @@ async fn validate_merchant_id<S: Into<String>>(
 //                          with unique merchant_connector_id for Create Operation
 
 pub async fn create_payment_connector(
-    store: &Store,
+    store: &dyn StorageInterface,
     req: api::PaymentConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
@@ -331,7 +328,7 @@ pub async fn create_payment_connector(
 }
 
 pub async fn retrieve_payment_connector(
-    store: &Store,
+    store: &dyn StorageInterface,
     merchant_id: String,
     merchant_connector_id: i32,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
@@ -364,7 +361,7 @@ pub async fn retrieve_payment_connector(
 }
 
 pub async fn update_payment_connector(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_id: &str,
     merchant_connector_id: i32,
     req: api::PaymentConnectorCreate,
@@ -429,7 +426,7 @@ pub async fn update_payment_connector(
 }
 
 pub async fn delete_payment_connector(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     merchant_id: String,
     merchant_connector_id: i32,
 ) -> RouterResponse<api::DeleteMcaResponse> {

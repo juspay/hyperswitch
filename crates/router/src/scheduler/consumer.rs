@@ -7,6 +7,7 @@ use std::{
 
 use error_stack::ResultExt;
 use futures::future;
+use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{tracing, tracing::instrument};
 use time::PrimitiveDateTime;
 use uuid::Uuid;
@@ -18,7 +19,7 @@ use super::{
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    db::Db,
+    db::StorageInterface,
     logger::{error, info},
     routes::AppState,
     scheduler::utils as pt_utils,
@@ -89,26 +90,16 @@ pub async fn consumer_operations(
 
     let group_created = &mut state
         .store
-        .redis_conn
-        .clone()
-        .consumer_group_create(
-            &stream_name,
-            &group_name,
-            &redis_interface::RedisEntryId::AfterLastID,
-        )
+        .consumer_group_create(&stream_name, &group_name, &RedisEntryId::AfterLastID)
         .await;
     if group_created.is_err() {
         info!("Consumer group already exists");
     }
 
-    let mut tasks = fetch_consumer_tasks(
-        &state.store,
-        &state.store.redis_conn,
-        &stream_name,
-        &group_name,
-        &consumer_name,
-    )
-    .await?;
+    let mut tasks = state
+        .store
+        .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
+        .await?;
 
     let mut handler = vec![];
 
@@ -133,8 +124,8 @@ pub async fn consumer_operations(
 
 #[instrument(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
-    db: &dyn Db,
-    redis_conn: &redis_interface::RedisConnectionPool,
+    db: &dyn StorageInterface,
+    redis_conn: &RedisConnectionPool,
     stream_name: &str,
     group_name: &str,
     consumer_name: &str,
@@ -196,7 +187,7 @@ pub async fn run_executor<'a>(
                 error!("Failed while handling error");
                 error!(%error);
                 let status = process
-                    .finish_with_status(&state.store, "GLOBAL_FAILURE".to_string())
+                    .finish_with_status(&*state.store, "GLOBAL_FAILURE".to_string())
                     .await;
                 if let Err(err) = status {
                     error!("Failed while performing database operation: GLOBAL_FAILURE");
@@ -222,7 +213,7 @@ pub async fn some_error_handler<E: fmt::Display>(
         "Some error occurred"
     );
 
-    let db: &dyn Db = &state.store;
+    let db: &dyn StorageInterface = &*state.store;
     db.process_tracker_update_process_status_by_ids(
         vec![process.id],
         storage::ProcessTrackerUpdate::StatusUpdate {
@@ -236,7 +227,7 @@ pub async fn some_error_handler<E: fmt::Display>(
 }
 
 pub async fn create_task(
-    db: &dyn Db,
+    db: &dyn StorageInterface,
     process_tracker_entry: storage::ProcessTrackerNew,
 ) -> CustomResult<(), errors::StorageError> {
     db.insert_process(process_tracker_entry).await?;

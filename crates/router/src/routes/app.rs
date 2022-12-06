@@ -4,13 +4,40 @@ use super::{
     admin::*, customers::*, health::*, mandates::*, payment_methods::*, payments::*, payouts::*,
     refunds::*, webhooks::*,
 };
-use crate::{configs::settings::Settings, services::Store};
+use crate::{
+    configs::settings::Settings,
+    db::{MockDb, StorageImpl, StorageInterface},
+    services::Store,
+};
 
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub store: Store,
+    pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+}
+
+impl AppState {
+    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> AppState {
+        let testable = storage_impl == StorageImpl::DieselPostgresqlTest;
+        let store: Box<dyn StorageInterface> = match storage_impl {
+            StorageImpl::DieselPostgresql | StorageImpl::DieselPostgresqlTest => {
+                Box::new(Store::new(&conf, testable).await)
+            }
+            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+        };
+
+        AppState {
+            flow_name: String::from("default"),
+            store,
+            conf,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub async fn new(conf: Settings) -> AppState {
+        AppState::with_storage(conf, StorageImpl::DieselPostgresql).await
+    }
 }
 
 pub struct Health;

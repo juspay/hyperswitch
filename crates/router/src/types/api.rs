@@ -143,6 +143,7 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
+            "braintree" => Ok(Box::new(&connector::Braintree)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ConnectorError::InvalidConnectorName)

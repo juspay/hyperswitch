@@ -14,10 +14,7 @@ use crate::{
         payments::{self, helpers, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
-    db::{
-        connector_response::IConnectorResponse, payment_attempt::IPaymentAttempt,
-        payment_intent::IPaymentIntent, Db,
-    },
+    db::StorageInterface,
     routes::AppState,
     types::{
         self, api,
@@ -26,7 +23,7 @@ use crate::{
             enums::{self, IntentStatus},
         },
     },
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
@@ -48,7 +45,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        let db = &state.store;
+        let db = &*state.store;
 
         let (payment_intent, payment_attempt, connector_response);
 
@@ -73,7 +70,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let browser_info = request
             .browser_info
             .clone()
-            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .map(|x| {
+                common_utils::ext_traits::Encode::<types::BrowserInformation>::encode_to_value(&x)
+            })
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -154,6 +153,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.status,
             self,
         );
+
         Ok((
             operation,
             PaymentData {
@@ -191,7 +191,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,

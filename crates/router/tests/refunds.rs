@@ -1,3 +1,5 @@
+use utils::{mk_service, AppClient};
+
 mod utils;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid
@@ -7,61 +9,29 @@ mod utils;
 #[actix_web::test]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn refund_create_fail_stripe() {
-    utils::setup().await;
+    let app = mk_service().await;
+    let client = AppClient::guest();
+
+    let user_client = client.user("321");
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
-    let api_key = ("API-KEY", "MySecretApiKey");
+    let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
-    let refund_req = serde_json::json!({
-            "amount" : 10.00,
-            "currency" : "USD",
-            "refund_id" : "refund_123",
-            "payment_id" : payment_id,
-            "merchant_id" : "jarnura",
-    });
-
-    let client = awc::Client::default();
-
-    let mut refund_response = client
-        .post("http://127.0.0.1:8080/refunds/create")
-        .insert_header(api_key)
-        .send_json(&refund_req)
-        .await
-        .unwrap();
-
-    let refund_response_body = refund_response.body().await;
-    println!("{:?} =:= {:?}", refund_response, refund_response_body);
-    assert_eq!(refund_response.status(), awc::http::StatusCode::BAD_REQUEST);
+    assert_eq!(refund["error"]["message"], "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
 }
 
 #[actix_web::test]
 // verify the API-KEY/merchant id has adyen as first choice
 async fn refund_create_fail_adyen() {
-    utils::setup().await;
+    let app = mk_service().await;
+    let client = AppClient::guest();
+
+    let user_client = client.user("321");
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
-    let api_key = ("API-KEY", "321");
+    let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
-    let refund_req = serde_json::json!({
-            "amount" : 10.00,
-            "currency" : "USD",
-            "refund_id" : "refund_123",
-            "payment_id" : payment_id,
-            "merchant_id" : "jarnura",
-    });
-
-    let client = awc::Client::default();
-
-    let mut refund_response = client
-        .post("http://127.0.0.1:8080/refunds/create")
-        .insert_header(api_key)
-        .send_json(&refund_req)
-        .await
-        .unwrap();
-
-    let refund_response_body = refund_response.body().await;
-    println!("{:?} =:= {:?}", refund_response, refund_response_body);
-    assert_eq!(refund_response.status(), awc::http::StatusCode::BAD_REQUEST);
+    assert_eq!(refund["error"]["message"], "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
 }
 
 #[actix_web::test]

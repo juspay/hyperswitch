@@ -11,7 +11,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, CustomerDetails, PaymentAddress, PaymentData},
     },
-    db::Db,
+    db::StorageInterface,
     routes::AppState,
     types::{
         api,
@@ -42,7 +42,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         Option<CustomerDetails>,
     )> {
         let (mut payment_intent, payment_attempt, currency, amount);
-        let db = &state.store as &dyn Db;
+        let db = &*state.store;
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -105,9 +105,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
-                Err(report!(errors::ValidateError)
-                    .attach_printable("You cannot confirm this Payment because it has already succeeded after being previously confirmed.")
-                    .change_context(errors::ApiErrorResponse::InvalidDataFormat { field_name: "payment_id".to_string(), expected_format: "payment_id of pending payment".to_string() }))
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "You cannot confirm this Payment because it has already succeeded \
+                              after being previously confirmed."
+                        .into()
+                }))
             }
             _ => Ok((
                 Box::new(self),
@@ -125,12 +127,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                         billing: billing_address.as_ref().map(|a| a.into()),
                     },
                     confirm: Some(payment_attempt.confirm),
-                     payment_attempt,
+                    payment_attempt,
                     payment_method_data: None,
                     force_sync: None,
-                    refunds: vec![]
+                    refunds: vec![],
                 },
-                Some(customer_details)
+                Some(customer_details),
             )),
         }
     }
@@ -141,7 +143,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn Db,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<Customer>,
@@ -195,7 +197,7 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn Db,
+        db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,

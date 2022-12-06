@@ -5,6 +5,7 @@ mod utils;
 use router::{
     configs,
     core::payments,
+    db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums},
 };
@@ -155,6 +156,7 @@ async fn payments_create_adyen() {
 
 #[actix_web::test]
 // verify the API-KEY/merchant id has stripe as first choice
+#[ignore]
 async fn payments_create_fail() {
     utils::setup().await;
 
@@ -269,13 +271,9 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
-    let mut merchant_account = services::authenticate_by_api_key(&state.store, "MySecretApiKey")
+    let mut merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
         .await
         .unwrap();
     merchant_account.custom_routing_rules = Some(serde_json::json!([
@@ -426,17 +424,13 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
-    let mut merchant_account = services::authenticate_by_api_key(&state.store, "321")
+    let mut merchant_account = services::authenticate_by_api_key(&*state.store, "321")
         .await
         .unwrap();
     merchant_account.custom_routing_rules = Some(serde_json::json!([

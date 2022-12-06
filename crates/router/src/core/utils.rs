@@ -7,7 +7,6 @@ use super::payments::{helpers, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
-    db::merchant_connector_account::IMerchantConnectorAccount,
     routes::AppState,
     types::{
         self, api,
@@ -28,7 +27,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let db = &state.store;
+    let db = &*state.store;
     //TODO: everytime parsing the json may have impact?
     let merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(

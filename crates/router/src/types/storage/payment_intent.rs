@@ -57,7 +57,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: enums::IntentStatus,
@@ -94,20 +94,21 @@ pub enum PaymentIntentUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]
-pub(super) struct PaymentIntentUpdateInternal {
-    amount: Option<i32>,
-    currency: Option<enums::Currency>,
-    status: Option<enums::IntentStatus>,
-    amount_captured: Option<i32>,
-    customer_id: Option<String>,
-    return_url: Option<String>,
-    setup_future_usage: Option<enums::FutureUsage>,
-    off_session: Option<bool>,
-    metadata: Option<serde_json::Value>,
-    client_secret: Option<Option<String>>,
-    billing_address_id: Option<String>,
-    shipping_address_id: Option<String>,
-    modified_at: Option<PrimitiveDateTime>,
+
+pub struct PaymentIntentUpdateInternal {
+    pub amount: Option<i32>,
+    pub currency: Option<enums::Currency>,
+    pub status: Option<enums::IntentStatus>,
+    pub amount_captured: Option<i32>,
+    pub customer_id: Option<String>,
+    pub return_url: Option<String>,
+    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub off_session: Option<bool>,
+    pub metadata: Option<serde_json::Value>,
+    pub client_secret: Option<Option<String>>,
+    pub billing_address_id: Option<String>,
+    pub shipping_address_id: Option<String>,
+    pub modified_at: Option<PrimitiveDateTime>,
 }
 
 impl PaymentIntentUpdate {

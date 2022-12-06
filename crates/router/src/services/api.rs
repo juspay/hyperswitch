@@ -23,10 +23,9 @@ use crate::{
         },
         payments,
     },
-    db::merchant_account::IMerchantAccount,
+    db::StorageInterface,
     logger, routes,
     routes::AppState,
-    services::Store,
     types::{self, api, storage, ErrorResponse, Response},
     utils::OptionExt,
 };
@@ -129,6 +128,7 @@ where
                 response: res.into(),
                 status_code: 200,
             };
+
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
@@ -420,10 +420,10 @@ where
 {
     let merchant_account = match api_authentication {
         ApiAuthentication::Merchant(merchant_auth) => {
-            authenticate_merchant(request, &state.store, merchant_auth).await?
+            authenticate_merchant(request, &*state.store, merchant_auth).await?
         }
         ApiAuthentication::Connector(connector_auth) => {
-            authenticate_connector(request, &state.store, connector_auth).await?
+            authenticate_connector(request, &*state.store, connector_auth).await?
         }
     };
     logger::debug!(request=?payload);
@@ -509,7 +509,7 @@ where
 
 pub async fn authenticate_merchant<'a>(
     request: &HttpRequest,
-    store: &Store,
+    store: &dyn StorageInterface,
     merchant_authentication: MerchantAuthentication<'a>,
 ) -> RouterResult<storage::MerchantAccount> {
     match merchant_authentication {
@@ -534,11 +534,10 @@ pub async fn authenticate_merchant<'a>(
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
             if admin_api_key != "test_admin" {
-                Err(report!(errors::ValidateError)
-                    .attach_printable("Admin Authentication Failure")
-                    // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
-                    // https://juspay.atlassian.net/browse/ORCA-366
-                    .change_context(errors::ApiErrorResponse::BadCredentials))?;
+                // TODO: The BadCredentials error is too specific for api keys, and inappropriate
+                // for AdminApiKey/MerchantID
+                Err(report!(errors::ApiErrorResponse::BadCredentials)
+                    .attach_printable("Admin Authentication Failure"))?;
             }
 
             Ok(storage::MerchantAccount {
@@ -570,7 +569,7 @@ pub async fn authenticate_merchant<'a>(
 
 pub async fn authenticate_connector<'a>(
     _request: &HttpRequest,
-    store: &Store,
+    store: &dyn StorageInterface,
     connector_authentication: ConnectorAuthentication<'a>,
 ) -> RouterResult<storage::MerchantAccount> {
     match connector_authentication {
@@ -603,7 +602,7 @@ fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {
 }
 
 pub async fn authenticate_by_api_key(
-    store: &Store,
+    store: &dyn StorageInterface,
     api_key: &str,
 ) -> RouterResult<storage::MerchantAccount> {
     store
@@ -614,7 +613,7 @@ pub async fn authenticate_by_api_key(
 }
 
 async fn authenticate_by_publishable_key(
-    store: &Store,
+    store: &dyn StorageInterface,
     publishable_key: &str,
 ) -> RouterResult<storage::MerchantAccount> {
     store

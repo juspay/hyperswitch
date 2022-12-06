@@ -4,6 +4,7 @@ mod utils;
 
 use router::{
     core::payments,
+    db::StorageImpl,
     types::{api, storage::enums},
     *,
 };
@@ -34,13 +35,9 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
-    let mut merchant_account = services::authenticate_by_api_key(&state.store, "MySecretApiKey")
+    let mut merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
         .await
         .unwrap();
     merchant_account.custom_routing_rules = Some(serde_json::json!([
@@ -83,15 +80,7 @@ async fn payments_create_core() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
-        payment_token: None,
-        phone: None,
-        phone_country_code: None,
-        metadata: None,
-        mandate_data: None,
-        mandate_id: None,
-        off_session: None,
-        client_secret: None,
-        browser_info: None,
+        ..<_>::default()
     };
 
     let expected_response = api::PaymentsResponse {
@@ -145,18 +134,18 @@ async fn payments_create_core() {
 //         ..api::CreateCustomerRequest::default()
 //     };
 //
-//     let _customer = customer_data.insert(&state.store).await.unwrap();
+//     let _customer = customer_data.insert(&*state.store).await.unwrap();
 //
 //     let merchant_account = services::authenticate(&state, "123").await.unwrap();
 //     let payment_attempt = storage::PaymentAttempt::find_by_payment_id_merchant_id(
-//         &state.store,
+//         &*state.store,
 //         &payment_id,
 //         &merchant_id,
 //     )
 //     .await
 //     .unwrap();
 //     let payment_intent = storage::PaymentIntent::find_by_payment_id_merchant_id(
-//         &state.store,
+//         &*state.store,
 //         &payment_id,
 //         &merchant_id,
 //     )
@@ -167,7 +156,7 @@ async fn payments_create_core() {
 //         status: None,
 //     };
 //     payment_intent
-//         .update(&state.store, payment_intent_update)
+//         .update(&*state.store, payment_intent_update)
 //         .await
 //         .unwrap();
 //
@@ -197,17 +186,13 @@ async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
-    let merchant_account = services::authenticate_by_api_key(&state.store, "321")
+    let merchant_account = services::authenticate_by_api_key(&*state.store, "321")
         .await
         .unwrap();
 
