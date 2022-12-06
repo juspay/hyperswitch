@@ -23,7 +23,7 @@ pub struct StrongSecret<Secret: ZeroizableSecret, MaskingStrategy = crate::WithT
 impl<S: ZeroizableSecret, I> StrongSecret<S, I> {
     /// Take ownership of a secret value
     pub fn new(secret: S) -> Self {
-        StrongSecret {
+        Self {
             inner_secret: secret,
             masking_strategy: PhantomData,
         }

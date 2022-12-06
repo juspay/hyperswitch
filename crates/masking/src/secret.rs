@@ -57,7 +57,7 @@ where
 {
     /// Take ownership of a secret value
     pub fn new(secret: S) -> Self {
-        Secret {
+        Self {
             inner_secret: secret,
             marker: PhantomData,
         }
