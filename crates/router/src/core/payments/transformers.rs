@@ -331,6 +331,14 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
     }
 }
 
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
+    type Error = errors::ApiErrorResponse;
+
+    fn try_from(_payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
 impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

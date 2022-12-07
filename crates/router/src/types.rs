@@ -125,6 +125,7 @@ pub struct PaymentsSessionResponseData {
     pub client_token: Option<String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct VerifyRequestData {
     pub payment_method_data: payments::PaymentMethod,
     pub confirm: bool,
