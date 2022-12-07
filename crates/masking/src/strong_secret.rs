@@ -57,20 +57,20 @@ impl<Secret: Clone + ZeroizableSecret, MaskingStrategy> Clone
     }
 }
 
-impl<Secret: ZeroizableSecret, MaskingStrategy> PartialEq for StrongSecret<Secret, MaskingStrategy>
+impl<Secret, MaskingStrategy> PartialEq for StrongSecret<Secret, MaskingStrategy>
 where
     Self: PeekInterface<Secret>,
-    Secret: StrongEq,
+    Secret: ZeroizableSecret + StrongEq,
 {
     fn eq(&self, other: &Self) -> bool {
         StrongEq::strong_eq(self.peek(), other.peek())
     }
 }
 
-impl<Secret: ZeroizableSecret, MaskingStrategy> Eq for StrongSecret<Secret, MaskingStrategy>
+impl<Secret, MaskingStrategy> Eq for StrongSecret<Secret, MaskingStrategy>
 where
     Self: PeekInterface<Secret>,
-    Secret: StrongEq,
+    Secret: ZeroizableSecret + StrongEq,
 {
 }
 
