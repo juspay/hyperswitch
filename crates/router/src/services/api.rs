@@ -592,6 +592,29 @@ pub(crate) fn get_auth_type_and_check_client_secret(
     ))
 }
 
+pub(crate) async fn authenticate_eph_key<'a>(
+    req: &'a actix_web::HttpRequest,
+    store: &dyn StorageInterface,
+    customer_id: String,
+) -> RouterResult<MerchantAuthentication<'a>> {
+    let api_key = get_api_key(req)?;
+    if api_key.starts_with("epk") {
+        let ek = store
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::BadCredentials)?;
+        utils::when(
+            ek.customer_id.ne(&customer_id),
+            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey)),
+        )?;
+        Ok(MerchantAuthentication::MerchantId(Cow::Owned(
+            ek.merchant_id,
+        )))
+    } else {
+        Ok(MerchantAuthentication::ApiKey)
+    }
+}
+
 fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {
     req.headers()
         .get("api-key")

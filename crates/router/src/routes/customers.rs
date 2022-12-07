@@ -5,7 +5,11 @@ use router_env::{
 };
 
 use super::app::AppState;
-use crate::{core::customers::*, services::api, types::api::customers};
+use crate::{
+    core::customers::*,
+    services::{self, api},
+    types::api::customers,
+};
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 // #[post("")]
@@ -35,12 +39,22 @@ pub async fn customers_retrieve(
         customer_id: path.into_inner(),
     })
     .into_inner();
+    let auth_type = match services::authenticate_eph_key(
+        &req,
+        &*state.store,
+        payload.customer_id.clone(),
+    )
+    .await
+    {
+        Ok(auth_type) => auth_type,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     api::server_wrap(
         &state,
         &req,
         payload,
         |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
-        api::MerchantAuthentication::ApiKey,
+        auth_type,
     )
     .await
 }
