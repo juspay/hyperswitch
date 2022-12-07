@@ -65,6 +65,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::PreVerify for Aci {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Aci
+{
+    // TODO: Critical Implement
+}
+
 impl
     services::ConnectorIntegration<
         api::Capture,

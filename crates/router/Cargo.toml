@@ -75,15 +75,13 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
 
 [dev-dependencies]
+actix-http = "3.2.2"
 awc = { version = "3.0.1", features = ["rustls"] }
+derive_deref = "1.1.1"
+rand = "0.8.5"
 time = { version = "0.3.14", features = ["macros"] }
 tokio = "1.21.2"
 toml = "0.5.9"
-derive_deref = "1.1.1"
-actix-http = "3.2.2"
-proptest = "1.0"
-fake = "2.5"
-rand = "0.8"
 
 [[bin]]
 name = "router"

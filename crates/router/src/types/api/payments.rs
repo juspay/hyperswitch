@@ -78,10 +78,10 @@ pub struct PaymentsRedirectRequest {
     pub param: String,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
-    pub merchant_id: Option<String>,
+    pub merchant_id: String,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
     pub name: Option<Secret<String>>,
@@ -248,6 +248,9 @@ pub struct Void;
 
 #[derive(Debug, Clone)]
 pub struct Session;
+
+#[derive(Debug, Clone)]
+pub struct Verify;
 
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
 //#[serde(untagged)]
@@ -653,13 +656,20 @@ pub trait PaymentCapture:
 {
 }
 
+
 pub trait PaymentSession:
     api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
 {
 }
 
+pub trait PreVerify:
+    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+
+{
+}
+
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PaymentSession
+    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PreVerify + PaymentSession
 {
 }
 

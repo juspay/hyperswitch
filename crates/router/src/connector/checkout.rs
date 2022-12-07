@@ -56,7 +56,7 @@ impl api::Payment for Checkout {}
 impl api::PaymentAuthorize for Checkout {}
 impl api::PaymentSync for Checkout {}
 impl api::PaymentVoid for Checkout {}
-impl api::PaymentCapture for Checkout {}
+
 impl api::PaymentSession for Checkout {}
 
 impl
@@ -67,6 +67,18 @@ impl
     > for Checkout
 {
     // Not Implemented (R)
+}
+
+impl api::PreVerify for Checkout {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Checkout
+{
+    // TODO: Critical Implement
 }
 
 impl

@@ -55,6 +55,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::PreVerify for Authorizedotnet {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // TODO: Critical Implement
+}
+
 impl
     services::ConnectorIntegration<
         api::Capture,
