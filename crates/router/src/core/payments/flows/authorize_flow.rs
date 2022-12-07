@@ -56,9 +56,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
+    ) -> RouterResult<Self>
     where
         dyn api::Connector: services::ConnectorIntegration<
             api::Authorize,
@@ -78,7 +77,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        (resp, payment_data)
+        resp
     }
 }
 

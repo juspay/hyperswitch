@@ -297,15 +297,11 @@ where
     let router_data = payment_data
         .construct_router_data(state, connector.connector.id(), merchant_account)
         .await?;
-    let (res, payment_data) = router_data
-        .decide_flows(
-            state,
-            connector,
-            customer,
-            payment_data,
-            call_connector_action,
-        )
+
+    let res = router_data
+        .decide_flows(state, connector, customer, call_connector_action)
         .await;
+
     let response = helpers::amap(res, |response| async {
         let operation = helpers::response_operation::<F, Req>();
         let payment_data = operation

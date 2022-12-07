@@ -7,7 +7,6 @@ mod verfiy_flow;
 
 use async_trait::async_trait;
 
-use super::PaymentData;
 use crate::{
     core::{errors::RouterResult, payments},
     routes::AppState,
@@ -32,9 +31,8 @@ pub trait Feature<F, T> {
         state: &AppState,
         connector: api::ConnectorData,
         maybe_customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<F>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<F>)
+    ) -> RouterResult<Self>
     where
         Self: std::marker::Sized,
         F: Clone,

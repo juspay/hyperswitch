@@ -41,9 +41,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::PSync>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::PSync>)
+    ) -> RouterResult<Self>
     where
         dyn api::Connector: services::ConnectorIntegration<
             api::PSync,
@@ -61,7 +60,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             )
             .await;
 
-        (resp, payment_data)
+        resp
     }
 }
 

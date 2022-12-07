@@ -38,9 +38,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::Session>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::Session>) {
+    ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
                 state,
@@ -51,7 +50,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             )
             .await;
 
-        (resp, payment_data)
+        resp
     }
 }
 
