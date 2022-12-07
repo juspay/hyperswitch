@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -33,7 +33,7 @@ pub trait MandateInterface {
 }
 
 #[async_trait::async_trait]
-impl MandateInterface for super::Store {
+impl MandateInterface for Store {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,

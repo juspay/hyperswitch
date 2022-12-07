@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -23,7 +23,7 @@ pub trait AddressInterface {
 }
 
 #[async_trait::async_trait]
-impl AddressInterface for super::Store {
+impl AddressInterface for Store {
     async fn find_address(
         &self,
         address_id: &str,

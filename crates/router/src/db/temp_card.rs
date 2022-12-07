@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -29,7 +29,7 @@ pub trait TempCardInterface {
 }
 
 #[async_trait::async_trait]
-impl TempCardInterface for super::Store {
+impl TempCardInterface for Store {
     async fn insert_temp_card(
         &self,
         address: storage::TempCardNew,

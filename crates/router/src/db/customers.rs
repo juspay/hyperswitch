@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -39,7 +39,7 @@ pub trait CustomerInterface {
 }
 
 #[async_trait::async_trait]
-impl CustomerInterface for super::Store {
+impl CustomerInterface for Store {
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         customer_id: &str,

@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -31,7 +31,7 @@ pub trait PaymentMethodInterface {
 }
 
 #[async_trait::async_trait]
-impl PaymentMethodInterface for super::Store {
+impl PaymentMethodInterface for Store {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,

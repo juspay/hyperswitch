@@ -1,7 +1,7 @@
 use error_stack::Report;
 use masking::PeekInterface;
 
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
@@ -43,7 +43,7 @@ pub trait MerchantAccountInterface {
 }
 
 #[async_trait::async_trait]
-impl MerchantAccountInterface for super::Store {
+impl MerchantAccountInterface for Store {
     async fn insert_merchant(
         &self,
         merchant_account: storage::MerchantAccountNew,

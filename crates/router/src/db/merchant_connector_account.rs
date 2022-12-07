@@ -1,6 +1,6 @@
 use masking::ExposeInterface;
 
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -45,7 +45,7 @@ pub trait MerchantConnectorAccountInterface {
 }
 
 #[async_trait::async_trait]
-impl MerchantConnectorAccountInterface for super::Store {
+impl MerchantConnectorAccountInterface for Store {
     async fn find_merchant_connector_account_by_merchant_id_connector(
         &self,
         merchant_id: &str,

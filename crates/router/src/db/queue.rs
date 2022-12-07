@@ -1,7 +1,7 @@
 use redis_interface::{errors::RedisError, RedisEntryId, SetNXReply};
 use router_env::logger;
 
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     core::errors::{CustomResult, ProcessTrackerError},
     types::storage,
@@ -38,7 +38,7 @@ pub trait QueueInterface {
 }
 
 #[async_trait::async_trait]
-impl QueueInterface for super::Store {
+impl QueueInterface for Store {
     async fn fetch_consumer_tasks(
         &self,
         stream_name: &str,

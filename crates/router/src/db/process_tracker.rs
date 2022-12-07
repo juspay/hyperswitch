@@ -1,6 +1,6 @@
 use time::PrimitiveDateTime;
 
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -52,7 +52,7 @@ pub trait ProcessTrackerInterface {
 }
 
 #[async_trait::async_trait]
-impl ProcessTrackerInterface for super::Store {
+impl ProcessTrackerInterface for Store {
     async fn find_process_by_id(
         &self,
         id: &str,

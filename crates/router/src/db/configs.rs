@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -23,7 +23,7 @@ pub trait ConfigInterface {
 }
 
 #[async_trait::async_trait]
-impl ConfigInterface for super::Store {
+impl ConfigInterface for Store {
     async fn insert_config(
         &self,
         config: storage::ConfigNew,

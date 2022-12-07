@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -14,7 +14,7 @@ pub trait EventInterface {
 }
 
 #[async_trait::async_trait]
-impl EventInterface for super::Store {
+impl EventInterface for Store {
     async fn insert_event(
         &self,
         event: storage::EventNew,

@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -25,7 +25,7 @@ pub trait ConnectorResponseInterface {
 }
 
 #[async_trait::async_trait]
-impl ConnectorResponseInterface for super::Store {
+impl ConnectorResponseInterface for Store {
     async fn insert_connector_response(
         &self,
         connector_response: storage::ConnectorResponseNew,

@@ -1,4 +1,4 @@
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -19,7 +19,7 @@ pub trait LockerMockUpInterface {
 }
 
 #[async_trait::async_trait]
-impl LockerMockUpInterface for super::Store {
+impl LockerMockUpInterface for Store {
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,
