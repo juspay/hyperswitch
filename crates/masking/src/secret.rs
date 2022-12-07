@@ -57,6 +57,9 @@ where
 {
     /// Take ownership of a secret value
     pub fn new(secret: SecretValue) -> Self {
+        // FIXED(kos): Use `Self` syntax here.
+        // `#![warn(clippy::use_self)]` on crate level should help
+        // with this.
         Self {
             inner_secret: secret,
             masking_strategy: PhantomData,
