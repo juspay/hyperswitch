@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -18,7 +19,7 @@ impl EventInterface for super::Store {
         &self,
         event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         event.insert(&conn).await
     }
 }

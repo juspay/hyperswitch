@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -29,7 +30,7 @@ impl ConnectorResponseInterface for super::Store {
         &self,
         connector_response: storage::ConnectorResponseNew,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         connector_response.insert(&conn).await
     }
 
@@ -39,7 +40,7 @@ impl ConnectorResponseInterface for super::Store {
         merchant_id: &str,
         txn_id: &str,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::ConnectorResponse::find_by_payment_id_and_merchant_id_transaction_id(
             &conn,
             payment_id,
@@ -54,7 +55,7 @@ impl ConnectorResponseInterface for super::Store {
         this: storage::ConnectorResponse,
         connector_response_update: storage::ConnectorResponseUpdate,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, connector_response_update).await
     }
 }

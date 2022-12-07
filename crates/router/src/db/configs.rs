@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -27,7 +28,7 @@ impl ConfigInterface for super::Store {
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         config.insert(&conn).await
     }
 
@@ -35,7 +36,7 @@ impl ConfigInterface for super::Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Config::find_by_key(&conn, key).await
     }
 
@@ -44,7 +45,7 @@ impl ConfigInterface for super::Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Config::update_by_key(&conn, key, config_update).await
     }
 }

@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -33,7 +34,7 @@ impl TempCardInterface for super::Store {
         &self,
         address: storage::TempCardNew,
     ) -> CustomResult<storage::TempCard, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         address.insert(&conn).await
     }
 
@@ -41,7 +42,7 @@ impl TempCardInterface for super::Store {
         &self,
         transaction_id: &str,
     ) -> CustomResult<Option<storage::TempCard>, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::TempCard::find_by_transaction_id(&conn, transaction_id).await
     }
 
@@ -49,7 +50,7 @@ impl TempCardInterface for super::Store {
         &self,
         card: storage::TempCard,
     ) -> CustomResult<storage::TempCard, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::TempCard::insert_with_token(card, &conn).await
     }
 
@@ -57,7 +58,7 @@ impl TempCardInterface for super::Store {
         &self,
         token: &i32,
     ) -> CustomResult<storage::TempCard, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::TempCard::find_by_token(&conn, token).await
     }
 }

@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -27,7 +28,7 @@ impl AddressInterface for super::Store {
         &self,
         address_id: &str,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Address::find_by_address_id(&conn, address_id).await
     }
 
@@ -36,7 +37,7 @@ impl AddressInterface for super::Store {
         address_id: String,
         address: storage::AddressUpdate,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Address::update_by_address_id(&conn, address_id, address).await
     }
 
@@ -44,7 +45,7 @@ impl AddressInterface for super::Store {
         &self,
         address: storage::AddressNew,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         address.insert(&conn).await
     }
 }

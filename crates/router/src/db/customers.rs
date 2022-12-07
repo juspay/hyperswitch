@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::{api, storage},
 };
@@ -44,7 +45,7 @@ impl CustomerInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
     }
@@ -55,7 +56,7 @@ impl CustomerInterface for super::Store {
         merchant_id: String,
         customer: storage::CustomerUpdate,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Customer::update_by_customer_id_merchant_id(
             &conn,
             customer_id,
@@ -70,7 +71,7 @@ impl CustomerInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 
@@ -78,7 +79,7 @@ impl CustomerInterface for super::Store {
         &self,
         customer_data: storage::CustomerNew,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         customer_data.insert(&conn).await
     }
 
@@ -87,7 +88,7 @@ impl CustomerInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 }

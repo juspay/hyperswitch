@@ -2,6 +2,7 @@ use error_stack::Report;
 
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
     types::storage,
 };
@@ -58,7 +59,7 @@ impl RefundInterface for super::Store {
         internal_reference_id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::Refund, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Refund::find_by_internal_reference_id_merchant_id(
             &conn,
             internal_reference_id,
@@ -71,7 +72,7 @@ impl RefundInterface for super::Store {
         &self,
         new: storage::RefundNew,
     ) -> CustomResult<storage::Refund, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         new.insert(&conn).await
     }
     async fn find_refund_by_merchant_id_transaction_id(
@@ -79,7 +80,7 @@ impl RefundInterface for super::Store {
         merchant_id: &str,
         txn_id: &str,
     ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Refund::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id).await
     }
 
@@ -88,7 +89,7 @@ impl RefundInterface for super::Store {
         this: storage::Refund,
         refund: storage::RefundUpdate,
     ) -> CustomResult<storage::Refund, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, refund).await
     }
 
@@ -97,7 +98,7 @@ impl RefundInterface for super::Store {
         merchant_id: &str,
         refund_id: &str,
     ) -> CustomResult<storage::Refund, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id).await
     }
 
@@ -107,7 +108,7 @@ impl RefundInterface for super::Store {
     //     merchant_id: &str,
     //     refund_id: &str,
     // ) -> CustomResult<Refund, errors::StorageError> {
-    //     let conn = crate::connection::pg_connection(&self.master_pool).await;
+    //     let conn = pg_connection(&self.master_pool).await;
     //     Refund::find_by_payment_id_merchant_id_refund_id(&conn, payment_id, merchant_id, refund_id)
     //         .await
     // }
@@ -117,7 +118,7 @@ impl RefundInterface for super::Store {
         payment_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
     }
 }

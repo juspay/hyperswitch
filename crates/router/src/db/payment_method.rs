@@ -1,5 +1,6 @@
 use super::MockDb;
 use crate::{
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -35,7 +36,7 @@ impl PaymentMethodInterface for super::Store {
         &self,
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id).await
     }
 
@@ -43,7 +44,7 @@ impl PaymentMethodInterface for super::Store {
         &self,
         m: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         m.insert(&conn).await
     }
 
@@ -52,7 +53,7 @@ impl PaymentMethodInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::PaymentMethod::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
     }
@@ -62,7 +63,7 @@ impl PaymentMethodInterface for super::Store {
         merchant_id: &str,
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        let conn = crate::connection::pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await;
         storage::PaymentMethod::delete_by_merchant_id_payment_method_id(
             &conn,
             merchant_id,
