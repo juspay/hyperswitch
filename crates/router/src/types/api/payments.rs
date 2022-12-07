@@ -711,7 +711,6 @@ pub trait PreVerify:
 }
 
 pub trait Payment:
-    ConnectorCommon
     api_types::ConnectorCommon
     + PaymentAuthorize
     + PaymentSync
