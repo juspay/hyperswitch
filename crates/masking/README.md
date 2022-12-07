@@ -25,13 +25,13 @@ To get value from secret use `expose()`. Sample:
 last4_digits: Some(card_number.expose())
 ```
 
-Most fields are under `Option`. To simplify dealing with `Option`, use `expose_cloning()`. Sample:
+Most fields are under `Option`. To simplify dealing with `Option`, use `expose_option()`. Sample:
 
 ```rust,ignore
     card_info.push_str(
         &card_detail
             .card_holder_name
-            .expose_cloning()
+            .expose_option()
             .unwrap_or_default(),
     );
 ```
