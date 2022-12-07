@@ -165,10 +165,10 @@ impl Settings {
             )
             .build()?;
 
-        config.try_deserialize().map_err(|e| {
-            logger::error!("Unable to source config file");
-            eprintln!("Unable to source config file");
-            BachError::from(e)
+        serde_path_to_error::deserialize(config).map_err(|error| {
+            logger::error!(%error, "Unable to deserialize application configuration");
+            eprintln!("Unable to deserialize application configuration: {error}");
+            BachError::from(error.into_inner())
         })
     }
 }
