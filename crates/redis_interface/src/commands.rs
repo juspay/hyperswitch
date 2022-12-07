@@ -71,6 +71,18 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn exists<V>(&self, key: &str) -> CustomResult<bool, errors::RedisError>
+    where
+        V: Into<MultipleKeys> + Unpin + Send + 'static,
+    {
+        self.pool
+            .exists(key)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &str,
@@ -149,6 +161,18 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetExpiryFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn set_expire_at(
+        &self,
+        key: &str,
+        timestamp: i64,
+    ) -> CustomResult<(), errors::RedisError> {
+        self.pool
+            .expire_at(key, timestamp)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetExpiryFailed)
+    }
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_append_entry<F>(
         &self,
