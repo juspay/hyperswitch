@@ -328,3 +328,31 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
         })
     }
 }
+
+impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            confirm: true,
+            payment_method_data: {
+                let payment_method_type = payment_data
+                    .payment_attempt
+                    .payment_method
+                    .get_required_value("payment_method_type")?;
+
+                match payment_method_type {
+                    enums::PaymentMethodType::Paypal => api::PaymentMethod::Paypal,
+                    _ => payment_data
+                        .payment_method_data
+                        .get_required_value("payment_method_data")?,
+                }
+            },
+            statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            mandate_id: payment_data.mandate_id.clone(),
+            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            setup_mandate_details: payment_data.setup_mandate,
+        })
+    }
+}

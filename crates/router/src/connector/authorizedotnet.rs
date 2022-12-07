@@ -43,6 +43,17 @@ impl api::PaymentAuthorize for Authorizedotnet {}
 impl api::PaymentSync for Authorizedotnet {}
 impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
+impl api::PreVerify for Authorizedotnet {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // TODO: Critical Implement
+}
 
 impl
     services::ConnectorIntegration<

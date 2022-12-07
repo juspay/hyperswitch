@@ -78,6 +78,24 @@ pub struct PaymentsRedirectRequest {
     pub param: String,
 }
 
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct VerifyRequest {
+    pub merchant_id: String,
+    pub customer_id: Option<String>,
+    pub email: Option<Secret<String, pii::Email>>,
+    pub name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub payment_method: Option<enums::PaymentMethodType>,
+    pub payment_method_data: Option<PaymentMethod>,
+    pub payment_token: Option<i32>,
+    pub mandate_data: Option<MandateData>,
+    pub setup_future_usage: Option<super::FutureUsage>,
+    pub off_session: Option<bool>,
+    pub client_secret: Option<String>,
+}
+
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,
@@ -228,6 +246,9 @@ pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
 
+#[derive(Debug, Clone)]
+pub struct Verify;
+
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
 //#[serde(untagged)]
 //pub enum enums::CaptureMethod {
@@ -374,6 +395,26 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     pub size: usize,
     pub data: Vec<PaymentsResponse>,
+}
+
+#[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct VerifyResponse {
+    pub verify_id: Option<String>,
+    pub merchant_id: Option<String>,
+    // pub status: enums::VerifyStatus,
+    pub client_secret: Option<Secret<String>>,
+    pub customer_id: Option<String>,
+    pub email: Option<Secret<String, pii::Email>>,
+    pub name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub mandate_id: Option<String>,
+    #[auth_based]
+    pub payment_method: Option<enums::PaymentMethodType>,
+    #[auth_based]
+    pub payment_method_data: Option<PaymentMethodDataResponse>,
+    pub payment_token: Option<i32>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 fn default_limit() -> i64 {
@@ -612,8 +653,13 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PreVerify:
+    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+{
+}
+
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid
+    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PreVerify
 {
 }
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
