@@ -17,7 +17,7 @@ use crate::{PeekInterface, Secret, Strategy, StrongSecret, ZeroizableSecret};
 /// via `serde` serialization.
 ///
 
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
+#[cfg_attr(docsrs, cfg(feature = "serde"))]
 pub trait SerializableSecret: Serialize {}
 // #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 // pub trait NonSerializableSecret: Serialize {}
