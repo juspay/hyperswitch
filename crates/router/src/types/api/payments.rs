@@ -3,7 +3,6 @@ use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 
-use super::{ConnectorCommon, FutureUsage, RefundResponse};
 use crate::{
     core::errors,
     pii,
@@ -94,7 +93,7 @@ pub struct VerifyRequest {
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_token: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<FutureUsage>,
+    pub setup_future_usage: Option<api_types::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
@@ -369,7 +368,7 @@ pub struct PaymentsResponse {
     pub currency: String,
     pub customer_id: Option<String>,
     pub description: Option<String>,
-    pub refunds: Option<Vec<RefundResponse>>,
+    pub refunds: Option<Vec<api_types::RefundResponse>>,
     pub mandate_id: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<enums::FutureUsage>,
@@ -462,7 +461,7 @@ pub struct MandateValidationFields {
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<FutureUsage>,
+    pub setup_future_usage: Option<api_types::FutureUsage>,
     pub off_session: Option<bool>,
 }
 
@@ -753,7 +752,12 @@ pub trait PreVerify:
 }
 
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PreVerify
+    api_types::ConnectorCommon
+    + PaymentAuthorize
+    + PaymentSync
+    + PaymentCapture
+    + PaymentVoid
+    + PreVerify
 {
 }
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

@@ -16,6 +16,8 @@
 pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
+pub mod pii;
+pub mod validation;
 
 /// Date-time utilities.
 pub mod date_time {

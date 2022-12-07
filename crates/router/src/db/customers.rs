@@ -48,7 +48,7 @@ impl CustomerInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Option<Customer>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 
@@ -58,7 +58,7 @@ impl CustomerInterface for super::Store {
         merchant_id: String,
         customer: CustomerUpdate,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Customer::update_by_customer_id_merchant_id(&conn, customer_id, merchant_id, customer).await
     }
 
@@ -67,7 +67,7 @@ impl CustomerInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 
@@ -75,7 +75,7 @@ impl CustomerInterface for super::Store {
         &self,
         customer_data: CustomerNew,
     ) -> CustomResult<Customer, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         customer_data.insert_diesel(&conn).await
     }
 
@@ -84,7 +84,7 @@ impl CustomerInterface for super::Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
     }
 }

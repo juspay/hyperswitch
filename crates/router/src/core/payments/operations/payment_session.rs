@@ -209,16 +209,16 @@ where
     }
 
     #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        _state: &'a AppState,
+    async fn make_pm_data<'b>(
+        &'b self,
+        _state: &'b AppState,
         _payment_method: Option<enums::PaymentMethodType>,
         _txn_id: &str,
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
     )> {
         //No payment method data for this operation

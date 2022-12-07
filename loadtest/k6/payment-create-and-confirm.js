@@ -7,7 +7,7 @@ import { readBaseline, storeResult } from "./helper/compare-result.js";
 
 export const requests = new Counter("http_reqs");
 
-const baseline = readBaseline("payment-confirm");
+const baseline = readBaseline("payment-create-and-confirm");
 
 export const options = {
     stages: [
@@ -24,24 +24,37 @@ export function setup() {
     return setup_merchant_apikey();
 }
 
-export default function (data) {
-    let payload = {
+export default function(data) {
+    const create_payment_payload = {
         "amount": 6540,
         "currency": "USD",
-        "confirm": true,
+        "confirm": false,
         "capture_method": "automatic",
         "capture_on": "2022-09-10T10:11:12Z",
         "amount_to_capture": 6540,
         "customer_id": random_string(),
-        "email": "guest@example.com",
-        "name": "John Doe",
-        "phone": "999999999",
-        "phone_country_code": "+65",
         "description": "Its my first payment request",
-        "authentication_type": "no_three_ds",
-        "return_url": "https://google.com",
+        "return_url": "http://example.com/payments",
+        "authentication_type": "three_ds",
         "payment_method": "card",
-        "setup_future_usage": "on_session",
+        "statement_descriptor_name": "Juspay",
+        "statement_descriptor_suffix": "Router"
+    };
+    let create_payment_res = http.post("http://router-server:8080/payments", JSON.stringify(create_payment_payload), {
+        "headers": {
+            "Content-Type": "application/json",
+            "api-key" : data.api_key
+        },
+    });
+    check(create_payment_res, {
+        "create payment status 200": (r) => r.status === 200,
+    });
+    const payment_id = create_payment_res.json().payment_id;
+    const confirm_payment_payload = {
+        "return_url": "http://example.com/payments",
+        "setup_future_usage": "off_session",
+        "authentication_type": "no_three_ds",
+        "payment_method": "card",
         "payment_method_data": {
             "card": {
                 "card_number": "4242424242424242",
@@ -50,26 +63,19 @@ export default function (data) {
                 "card_holder_name": "John Doe",
                 "card_cvc": "123"
             }
-        },
-        "statement_descriptor_name": "Juspay",
-        "statement_descriptor_suffix": "Router",
-        "metadata": {
-            "udf1": "value1",
-            "new_customer": "true",
-            "login_date": "2019-09-10T10:11:12Z"
         }
     };
-    let res = http.post("http://router-server:8080/payments", JSON.stringify(payload), {
+    let confirm_payment_res = http.post(`http://router-server:8080/payments/${payment_id}/confirm`, JSON.stringify(confirm_payment_payload), {
         "headers": {
             "Content-Type": "application/json",
             "api-key" : data.api_key
         },
     });
-    check(res, {
+    check(confirm_payment_res, {
         "confirm payment status 200": (r) => r.status === 200,
     });
-}
+};
 
 export function handleSummary(data) {
-    return storeResult("payment-confirm", baseline, data)
+    return storeResult("payment-create-and-confirm", baseline, data)
 }
