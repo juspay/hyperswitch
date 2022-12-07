@@ -17,11 +17,9 @@ pub mod temp_card;
 
 use std::sync::Arc;
 
-use futures_locks::Mutex;
+use futures::lock::Mutex;
 
 use crate::{
-    configs::settings::Database,
-    connection::{diesel_make_pg_pool, PgPool as PgPoolDiesel},
     services::Store,
     types::storage::{
         ConnectorResponse, Customer, MerchantAccount, MerchantConnectorAccount, PaymentAttempt,
@@ -60,32 +58,6 @@ pub trait StorageInterface:
     + 'static
 {
     async fn close(&mut self) {}
-}
-
-#[derive(Clone)]
-pub struct SqlDb {
-    pub conn: PgPoolDiesel,
-}
-
-impl SqlDb {
-    pub async fn new(database: &Database) -> Self {
-        Self {
-            conn: diesel_make_pg_pool(database, false).await,
-        }
-    }
-
-    pub async fn test(database: &Database) -> Self {
-        Self {
-            conn: diesel_make_pg_pool(
-                &Database {
-                    dbname: String::from("test_db"),
-                    ..database.clone()
-                },
-                true,
-            )
-            .await,
-        }
-    }
 }
 
 #[async_trait::async_trait]

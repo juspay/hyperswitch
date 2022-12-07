@@ -65,7 +65,7 @@ mod storage {
             &self,
             payment_attempt: PaymentAttemptNew,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             payment_attempt.insert_diesel(&conn).await
         }
 
@@ -74,7 +74,7 @@ mod storage {
             this: PaymentAttempt,
             payment_attempt: PaymentAttemptUpdate,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             this.update(&conn, payment_attempt).await
         }
 
@@ -83,7 +83,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
         }
 
@@ -93,7 +93,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentAttempt::find_by_transaction_id_payment_id_merchant_id(
                 &conn,
                 transaction_id,
@@ -108,7 +108,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentAttempt::find_last_successful_attempt_by_payment_id_merchant_id(
                 &conn,
                 payment_id,
@@ -122,7 +122,7 @@ mod storage {
             merchant_id: &str,
             connector_txn_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             // TODO: update logic to lookup all payment attempts for an intent
             // and apply filter logic on top of them to get the desired one.
             PaymentAttempt::find_by_merchant_id_connector_txn_id(
@@ -138,7 +138,7 @@ mod storage {
             merchant_id: &str,
             txn_id: &str,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
 
             PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id).await
         }
@@ -334,7 +334,7 @@ mod storage {
                 )))
                 .into_report(),
                 Ok(1) => {
-                    let conn = pg_connection(&self.master_pool.conn).await;
+                    let conn = pg_connection(&self.master_pool).await;
                     let query = payment_attempt
                         .insert_diesel(&conn)
                         .await
@@ -387,7 +387,7 @@ mod storage {
                 .into_report()
                 .change_context(errors::StorageError::KVError)?;
 
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             let query = this
                 .update(&conn, payment_attempt)
                 .await
