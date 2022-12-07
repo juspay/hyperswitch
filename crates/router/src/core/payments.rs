@@ -319,6 +319,69 @@ where
     Ok(response)
 }
 
+#[allow(dead_code)]
+async fn call_multiple_connectors_service<F, Op, Req>(
+    state: &AppState,
+    merchant_account: &storage::MerchantAccount,
+    connectors: Vec<api::ConnectorData>,
+    _operation: &Op,
+    mut payment_data: PaymentData<F>,
+    customer: &Option<api::CustomerResponse>,
+) -> RouterResult<PaymentData<F>>
+where
+    Op: Debug,
+    F: Send + Clone,
+
+    // To create connector flow specific interface data
+    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+
+    // To construct connector flow specific api
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, Req>,
+{
+    let stime_connector = Instant::now();
+    let mut router_data_list = vec![];
+
+    for connector in connectors {
+        let connector_id = connector.connector.id();
+        let router_data = payment_data
+            .construct_router_data(state, connector_id, merchant_account)
+            .await?;
+
+        router_data_list.push((connector, router_data));
+    }
+
+    for (connector, router_data) in router_data_list {
+        let connector_name = connector.connector_name.to_owned().to_string();
+        let res = router_data
+            .decide_flows(state, connector, customer, CallConnectorAction::Trigger)
+            .await?;
+
+        let session_token = match res.response.unwrap() {
+            types::PaymentsResponseData::SessionResponse(session_response) => {
+                Ok(session_response.session_token)
+            }
+            _ => Err(errors::ApiErrorResponse::InternalServerError), //FIXME: raise appropriate error because sessions token not found,
+        }?;
+
+        payment_data
+            .sessions_token
+            .push(types::ConnectorSessionToken {
+                connector_name,
+                session_token,
+            })
+    }
+
+    let etime_connector = Instant::now();
+    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
+    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+
+    Ok(payment_data)
+}
+
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -351,6 +414,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
+    pub sessions_token: Vec<types::ConnectorSessionToken>,
 }
 
 #[derive(Debug)]

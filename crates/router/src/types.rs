@@ -121,8 +121,9 @@ pub struct PaymentsSessionData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsSessionResponseData {
-    pub client_token: Option<String>,
+pub struct ConnectorSessionToken {
+    pub connector_name: String,
+    pub session_token: String,
 }
 
 #[derive(Debug, Clone)]
