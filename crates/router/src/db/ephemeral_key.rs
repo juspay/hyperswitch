@@ -22,7 +22,8 @@ pub trait EphemeralKeyInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use crate::{
-        core::errors,
+        core::errors::{self, CustomResult},
+        services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     };
 
