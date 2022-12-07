@@ -291,7 +291,8 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
                         PaymentsStartRequest,
-                        PaymentsSessionRequest
+                        PaymentsSessionRequest,
+                        VerifyRequest
                     }
                 };
                 #trait_derive
