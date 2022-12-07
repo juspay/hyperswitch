@@ -88,6 +88,22 @@ pub struct PaymentIntentRequest {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct SetupIntentRequest {
+    pub statement_descriptor_suffix: Option<String>,
+    #[serde(rename = "metadata[order_id]")]
+    pub metadata_order_id: String,
+    #[serde(rename = "metadata[txn_id]")]
+    pub metadata_txn_id: String,
+    #[serde(rename = "metadata[txn_uuid]")]
+    pub metadata_txn_uuid: String,
+    pub confirm: bool,
+    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub off_session: Option<bool>,
+    #[serde(flatten)]
+    pub payment_data: StripePaymentMethodData,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardData {
     #[serde(rename = "payment_method_types[]")]
     pub payment_method_types: String,
@@ -214,6 +230,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     }
 }
 
+impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+        let metadata_order_id = item.payment_id.to_string();
+        let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
+        let metadata_txn_uuid = Uuid::new_v4().to_string();
+
+        let payment_data: StripePaymentMethodData =
+            (item.request.payment_method_data.clone(), item.auth_type).into();
+
+        Ok(Self {
+            confirm: true,
+            metadata_order_id,
+            metadata_txn_id,
+            metadata_txn_uuid,
+            payment_data,
+            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
+            off_session: item.request.off_session,
+            setup_future_usage: item.request.setup_future_usage,
+        })
+    }
+}
+
 // PaymentIntentResponse
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -281,6 +320,19 @@ pub struct PaymentIntentResponse {
     pub next_action: Option<StripeNextActionResponse>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct SetupIntentResponse {
+    pub id: String,
+    pub object: String,
+    pub status: StripePaymentStatus, // Change to SetupStatus
+    pub client_secret: Secret<String>,
+    pub customer: Option<String>,
+    pub statement_descriptor: Option<String>,
+    pub statement_descriptor_suffix: Option<String>,
+    pub metadata: StripeMetadata,
+    pub next_action: Option<StripeNextActionResponse>,
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -313,6 +365,43 @@ impl<F, T>
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
+            response: Ok(types::PaymentsResponseData {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirect: redirection_data.is_some(),
+                redirection_data,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item.response.next_action.as_ref().map(
+            |StripeNextActionResponse::RedirectToUrl(response)| {
+                let mut base_url = response.url.clone();
+                base_url.set_query(None);
+                services::RedirectForm {
+                    url: base_url.to_string(),
+                    method: services::Method::Get,
+                    form_fields: std::collections::HashMap::from_iter(
+                        response
+                            .url
+                            .query_pairs()
+                            .map(|(k, v)| (k.to_string(), v.to_string())),
+                    ),
+                }
+            },
+        );
+
+        Ok(types::RouterData {
+            status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
@@ -621,4 +710,37 @@ pub struct StripeWebhookObjectEventType {
 #[derive(Debug, Deserialize)]
 pub struct StripeWebhookObjectId {
     pub data: StripeWebhookDataId,
+}
+
+impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
+    fn from((pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType)) -> Self {
+        match pm_data {
+            api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
+                let payment_method_auth_type = match auth_type {
+                    enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+                    enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+                };
+                StripeCardData {
+                    payment_method_types: "card".to_string(),
+                    payment_method_data_type: "card".to_string(),
+                    payment_method_data_card_number: ccard.card_number.clone(),
+                    payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
+                    payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
+                    payment_method_data_card_cvc: ccard.card_cvc.clone(),
+                    payment_method_auth_type,
+                }
+            }),
+            api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
+            api::PaymentMethod::PayLater(ref klarna_data) => {
+                StripePaymentMethodData::Klarna(StripeKlarnaData {
+                    payment_method_types: "klarna".to_string(),
+                    payment_method_data_type: "klarna".to_string(),
+                    billing_email: klarna_data.billing_email.clone(),
+                    billing_country: klarna_data.country.clone(),
+                })
+            }
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
+        }
+    }
 }
