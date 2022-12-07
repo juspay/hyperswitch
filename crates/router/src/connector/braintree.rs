@@ -76,15 +76,6 @@ impl
 }
 
 impl
-    services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Braintree
-{
-    // Not Implemented (R)
-}
-impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Braintree
 {
