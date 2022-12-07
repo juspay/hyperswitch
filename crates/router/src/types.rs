@@ -49,6 +49,8 @@ pub type RefundExecuteType =
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
+pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
+
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
