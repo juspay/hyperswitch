@@ -53,6 +53,17 @@ impl api::PaymentAuthorize for Adyen {}
 impl api::PaymentSync for Adyen {}
 impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
+impl api::PreVerify for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Adyen
+{
+    // TODO: Critical implement
+}
 
 impl
     services::ConnectorIntegration<

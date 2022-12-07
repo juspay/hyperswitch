@@ -2,6 +2,7 @@ mod authorize_flow;
 mod cancel_flow;
 mod capture_flow;
 mod psync_flow;
+mod verfiy_flow;
 
 use async_trait::async_trait;
 

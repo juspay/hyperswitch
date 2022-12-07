@@ -51,6 +51,16 @@ impl api::PaymentAuthorize for Braintree {}
 impl api::PaymentSync for Braintree {}
 impl api::PaymentVoid for Braintree {}
 impl api::PaymentCapture for Braintree {}
+impl api::PreVerify for Braintree {}
+
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Braintree
+{
+}
 
 #[allow(dead_code)]
 impl
@@ -264,7 +274,6 @@ impl
     }
 }
 
-#[allow(dead_code)]
 impl
     services::ConnectorIntegration<
         api::Void,
