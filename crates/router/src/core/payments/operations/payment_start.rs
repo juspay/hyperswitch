@@ -105,9 +105,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
-                Err(report!(errors::ValidateError)
-                    .attach_printable("You cannot confirm this Payment because it has already succeeded after being previously confirmed.")
-                    .change_context(errors::ApiErrorResponse::InvalidDataFormat { field_name: "payment_id".to_string(), expected_format: "payment_id of pending payment".to_string() }))
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "You cannot confirm this Payment because it has already succeeded \
+                              after being previously confirmed."
+                        .into()
+                }))
             }
             _ => Ok((
                 Box::new(self),
@@ -125,12 +127,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                         billing: billing_address.as_ref().map(|a| a.into()),
                     },
                     confirm: Some(payment_attempt.confirm),
-                     payment_attempt,
+                    payment_attempt,
                     payment_method_data: None,
                     force_sync: None,
-                    refunds: vec![]
+                    refunds: vec![],
                 },
-                Some(customer_details)
+                Some(customer_details),
             )),
         }
     }

@@ -6,9 +6,10 @@ mod auth {
 }
 
 use auth::ConnectorAuthentication;
-use utils::{mk_service, ApiKey, AppClient, LegacyAppClient, MerchantId, PaymentId, Status};
+use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 
 /// Example of unit test
+/// Kind of test: output-based testing
 /// 1) Create Merchant account
 #[actix_web::test]
 async fn create_merchant_account() {
@@ -25,6 +26,7 @@ async fn create_merchant_account() {
 }
 
 /// Example of unit test
+/// Kind of test: communication-based testing
 /// ```pseudocode
 /// mk_service =
 ///   app_state <- AppState(StorageImpl::Mock) // Instantiate a mock database to simulate real world SQL database.
@@ -91,6 +93,7 @@ async fn partial_refund() {
 }
 
 /// Example of unit test
+/// Kind of test: communication-based testing
 /// ```pseudocode
 /// mk_service =
 ///   app_state <- AppState(StorageImpl::Mock) // Instantiate a mock database to simulate real world SQL database.
@@ -156,94 +159,4 @@ async fn exceed_refund() {
         message["error"]["message"],
         "Refund amount exceeds the payment amount."
     );
-}
-
-#[actix_web::test]
-#[ignore]
-async fn legacy_partial_refund() {
-    legacy_setup().await;
-
-    let authentication = ConnectorAuthentication::new();
-    let dummy_client = LegacyAppClient::dummy();
-    let admin_client = dummy_client.admin("test_admin");
-
-    let hlist_pat![merchant_id, api_key] = admin_client
-        .create_merchant_account::<HList![MerchantId, ApiKey]>(None)
-        .await;
-
-    let _connector = admin_client
-        .create_connector::<serde_json::Value>(
-            &merchant_id,
-            "stripe",
-            &authentication.checkout.unwrap().api_key,
-        )
-        .await;
-
-    let user_client = dummy_client.user(&api_key);
-    let hlist_pat![payment_id] = user_client
-        .create_payment::<HList![PaymentId]>(100, 100)
-        .await;
-
-    let hlist_pat![status] = user_client
-        .create_refund::<HList![Status]>(&payment_id, 50)
-        .await;
-    assert_eq!(&*status, "succeeded");
-
-    let hlist_pat![status] = user_client
-        .create_refund::<HList![Status]>(&payment_id, 50)
-        .await;
-    assert_eq!(&*status, "succeeded");
-}
-
-async fn legacy_setup() {
-    utils::setup().await;
-}
-
-#[actix_web::test]
-#[ignore]
-async fn legacy_exceed_refund() {
-    legacy_setup().await;
-
-    let authentication = ConnectorAuthentication::new();
-    let dummy_client = LegacyAppClient::dummy();
-    let admin_client = dummy_client.admin("test_admin");
-
-    let hlist_pat![merchant_id, api_key] = admin_client
-        .create_merchant_account::<HList![MerchantId, ApiKey]>(None)
-        .await;
-
-    let _connector = admin_client
-        .create_connector::<serde_json::Value>(
-            &merchant_id,
-            "stripe",
-            &authentication.checkout.unwrap().api_key,
-        )
-        .await;
-
-    let user_client = dummy_client.user(&api_key);
-    let hlist_pat![payment_id] = user_client
-        .create_payment::<HList![PaymentId]>(100, 100)
-        .await;
-
-    let hlist_pat![status] = user_client
-        .create_refund::<HList![Status]>(&payment_id, 50)
-        .await;
-    assert_eq!(&*status, "succeeded");
-
-    let message = user_client
-        .create_refund::<serde_json::Value>(&payment_id, 100)
-        .await;
-    assert_eq!(
-        message["error"]["message"],
-        "Refund amount exceeds the payment amount."
-    );
-}
-
-#[actix_web::test]
-#[ignore]
-async fn legacy_health_check() {
-    legacy_setup().await;
-
-    let dummy_client = LegacyAppClient::dummy();
-    assert_eq!(dummy_client.health().await, "health is good");
 }
