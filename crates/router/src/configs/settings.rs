@@ -186,7 +186,7 @@ impl Settings {
             )
             .build()?;
 
-        config.try_deserialize().map_err(|e| {
+        serde_path_to_error::deserialize(config).map_err(|error| {
             // FIXME(kos): We can improve it.
             // Usually, the logging system is initialized after the
             // config parsing is done, as the config itself would
@@ -197,9 +197,9 @@ impl Settings {
             // Let the caller decide what to do with this
             // error. Hardcoded printing side effects here may be
             // undesired by the caller.
-            logger::error!("Unable to source config file");
-            eprintln!("Unable to source config file");
-            BachError::from(e)
+            logger::error!(%error, "Unable to deserialize application configuration");
+            eprintln!("Unable to deserialize application configuration: {error}");
+            BachError::from(error.into_inner())
         })
     }
 }

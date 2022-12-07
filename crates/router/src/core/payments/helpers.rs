@@ -829,10 +829,15 @@ pub fn get_handle_response_url(
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
-    let redirection_response = make_pg_redirect_response(payment_id, response, connector);
+    let payments_return_url = response.return_url.as_ref();
+    let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
-    let return_url = make_merchant_url_with_response(merchant_account, redirection_response)
-        .attach_printable("Failed to make merchant url with response")?;
+    let return_url = make_merchant_url_with_response(
+        merchant_account,
+        redirection_response,
+        payments_return_url,
+    )
+    .attach_printable("Failed to make merchant url with response")?;
 
     make_url_with_signature(&return_url, merchant_account)
 }
@@ -840,10 +845,11 @@ pub fn get_handle_response_url(
 pub fn make_merchant_url_with_response(
     merchant_account: &storage::MerchantAccount,
     redirection_response: PgRedirectResponse,
+    request_return_url: Option<&String>,
 ) -> RouterResult<String> {
-    let url = merchant_account
-        .return_url
-        .as_ref()
+    // take return url if provided in the request else use merchant return url
+    let url = request_return_url
+        .or(merchant_account.return_url.as_ref())
         .get_required_value("return_url")?;
 
     let status_check = redirection_response.status;
@@ -881,7 +887,7 @@ pub fn make_merchant_url_with_response(
 
 pub fn make_pg_redirect_response(
     payment_id: String,
-    response: api::PaymentsResponse,
+    response: &api::PaymentsResponse,
     connector: String,
 ) -> PgRedirectResponse {
     PgRedirectResponse {

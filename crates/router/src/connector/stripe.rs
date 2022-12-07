@@ -55,6 +55,7 @@ impl api::PaymentAuthorize for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
+impl api::PreVerify for Stripe {}
 
 impl
     services::ConnectorIntegration<
@@ -468,6 +469,132 @@ impl
             reason: None,
         })
     }
+}
+
+#[allow(dead_code)]
+type Verify = dyn services::ConnectorIntegration<
+    api::Verify,
+    types::VerifyRequestData,
+    types::PaymentsResponseData,
+>;
+impl
+    services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                Verify::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RouterData<
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+        connectors: Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "v1/setup_intents"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let stripe_req = utils::Encode::<stripe::SetupIntentRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(stripe_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        connectors: Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&Verify::get_url(self, req, connectors)?)
+                .headers(Verify::get_headers(self, req)?)
+                .header(headers::X_ROUTER, "test")
+                .body(Verify::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+        res: Response,
+    ) -> CustomResult<
+        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::Verify: Clone,
+        types::VerifyRequestData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
+        let response: stripe::SetupIntentResponse = res
+            .response
+            .parse_struct("SetupIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(setup_intent_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
+    // TODO CRITICAL: Implement for POC
 }
 
 impl api::Refund for Stripe {}
