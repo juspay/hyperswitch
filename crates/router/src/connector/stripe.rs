@@ -69,7 +69,6 @@ impl
 
 impl api::PreVerify for Stripe {}
 
-
 impl
     services::ConnectorIntegration<
         api::Capture,

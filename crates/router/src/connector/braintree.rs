@@ -73,7 +73,6 @@ impl
         types::PaymentsResponseData,
     > for Braintree
 {
-
 }
 
 #[allow(dead_code)]

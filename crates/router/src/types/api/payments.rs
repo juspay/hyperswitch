@@ -656,7 +656,6 @@ pub trait PaymentCapture:
 {
 }
 
-
 pub trait PaymentSession:
     api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
 {
@@ -664,12 +663,17 @@ pub trait PaymentSession:
 
 pub trait PreVerify:
     api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
-
 {
 }
 
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PreVerify + PaymentSession
+    ConnectorCommon
+    + PaymentAuthorize
+    + PaymentSync
+    + PaymentCapture
+    + PaymentVoid
+    + PreVerify
+    + PaymentSession
 {
 }
 
