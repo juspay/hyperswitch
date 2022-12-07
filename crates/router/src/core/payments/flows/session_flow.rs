@@ -40,17 +40,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         customer: &Option<api::CustomerResponse>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        resp
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 

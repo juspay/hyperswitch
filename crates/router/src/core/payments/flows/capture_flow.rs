@@ -51,17 +51,14 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             types::PaymentsResponseData,
         >,
     {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        resp
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 

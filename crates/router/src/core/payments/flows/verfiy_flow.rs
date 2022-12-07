@@ -54,17 +54,14 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             types::PaymentsResponseData,
         >,
     {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        resp
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 
