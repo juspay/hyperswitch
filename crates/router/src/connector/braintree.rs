@@ -56,6 +56,17 @@ impl api::PreVerify for Braintree {}
 #[allow(dead_code)]
 impl
     services::ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for Braintree
+{
+    // Not Implemented (R)
+}
+
+#[allow(dead_code)]
+impl
+    services::ConnectorIntegration<
         api::Capture,
         types::PaymentsCaptureData,
         types::PaymentsResponseData,
@@ -274,7 +285,6 @@ impl
     }
 }
 
-#[allow(dead_code)]
 impl
     services::ConnectorIntegration<
         api::Void,
