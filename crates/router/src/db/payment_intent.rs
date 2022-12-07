@@ -100,7 +100,7 @@ mod storage {
                 )))
                 .into_report(),
                 Ok(1) => {
-                    let conn = pg_connection(&self.master_pool.conn).await;
+                    let conn = pg_connection(&self.master_pool).await;
                     let query = new
                         .insert_diesel(&conn)
                         .await
@@ -153,7 +153,7 @@ mod storage {
                 .into_report()
                 .change_context(errors::StorageError::KVError)?;
 
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             let query = this
                 .update(&conn, payment_intent)
                 .await
@@ -236,7 +236,7 @@ mod storage {
             &self,
             new: PaymentIntentNew,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             new.insert_diesel(&conn).await
         }
 
@@ -245,7 +245,7 @@ mod storage {
             this: PaymentIntent,
             payment_intent: PaymentIntentUpdate,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             this.update(&conn, payment_intent).await
         }
 
@@ -254,7 +254,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
         }
 
@@ -263,7 +263,7 @@ mod storage {
             merchant_id: &str,
             pc: &api::PaymentListConstraints,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
+            let conn = pg_connection(&self.master_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
         }
 

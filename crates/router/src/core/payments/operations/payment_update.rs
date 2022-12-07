@@ -124,14 +124,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
-                Err(report!(errors::ValidateError)
-                    .attach_printable(
-                        "You cannot update this Payment because it has already succeeded/failed.",
-                    )
-                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "payment_id".to_string(),
-                        expected_format: "payment_id of pending payment".to_string(),
-                    }))
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "You cannot update this Payment because it has already succeeded/failed."
+                            .into()
+                }))
             }
             _ => Ok((
                 Box::new(self),
