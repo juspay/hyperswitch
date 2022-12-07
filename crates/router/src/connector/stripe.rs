@@ -202,7 +202,8 @@ impl
             "{}{}/{}",
             self.base_url(connectors),
             "v1/payment_intents",
-            id
+            id.get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 
