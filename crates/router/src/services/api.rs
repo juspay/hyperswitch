@@ -27,7 +27,7 @@ use crate::{
     logger, routes,
     routes::AppState,
     types::{self, api, storage, ErrorResponse, Response},
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
