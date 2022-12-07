@@ -63,7 +63,7 @@ where
     Secret: StrongEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        StrongEq::eq(self.peek(), other.peek())
+        StrongEq::strong_eq(self.peek(), other.peek())
     }
 }
 
@@ -106,11 +106,11 @@ impl<Secret: ZeroizableSecret, MaskingStrategy> Drop for StrongSecret<Secret, Ma
 }
 
 trait StrongEq {
-    fn eq(&self, other: &Self) -> bool;
+    fn strong_eq(&self, other: &Self) -> bool;
 }
 
 impl StrongEq for String {
-    fn eq(&self, other: &Self) -> bool {
+    fn strong_eq(&self, other: &Self) -> bool {
         let lhs_bytes = self.as_bytes();
         let rhs_bytes = other.as_bytes();
 
