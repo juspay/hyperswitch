@@ -2,6 +2,7 @@ mod payment_cancel;
 mod payment_capture;
 mod payment_confirm;
 mod payment_create;
+mod payment_method_validate;
 mod payment_response;
 mod payment_session;
 mod payment_start;
