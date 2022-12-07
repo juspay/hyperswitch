@@ -19,8 +19,8 @@ pub struct SecretBytesMut(BytesMut);
 
 impl SecretBytesMut {
     /// Wrap bytes in `SecretBytesMut`
-    pub fn new(bytes: impl Into<BytesMut>) -> SecretBytesMut {
-        SecretBytesMut(bytes.into())
+    pub fn new(bytes: impl Into<BytesMut>) -> Self {
+        Self(bytes.into())
     }
 }
 
@@ -37,8 +37,8 @@ impl fmt::Debug for SecretBytesMut {
 }
 
 impl From<BytesMut> for SecretBytesMut {
-    fn from(bytes: BytesMut) -> SecretBytesMut {
-        SecretBytesMut::new(bytes)
+    fn from(bytes: BytesMut) -> Self {
+        Self::new(bytes)
     }
 }
 

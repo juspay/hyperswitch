@@ -33,7 +33,7 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(Secret::new)
+        T::deserialize(deserializer).map(Self::new)
     }
 }
 
@@ -59,7 +59,7 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(StrongSecret::new)
+        T::deserialize(deserializer).map(Self::new)
     }
 }
 

@@ -41,7 +41,7 @@ impl<Secret: ZeroizableSecret, MaskingStrategy> PeekInterface<Secret>
 impl<Secret: ZeroizableSecret, MaskingStrategy> From<Secret>
     for StrongSecret<Secret, MaskingStrategy>
 {
-    fn from(secret: Secret) -> StrongSecret<Secret, MaskingStrategy> {
+    fn from(secret: Secret) -> Self {
         Self::new(secret)
     }
 }
@@ -50,7 +50,7 @@ impl<Secret: Clone + ZeroizableSecret, MaskingStrategy> Clone
     for StrongSecret<Secret, MaskingStrategy>
 {
     fn clone(&self) -> Self {
-        StrongSecret {
+        Self {
             inner_secret: self.inner_secret.clone(),
             masking_strategy: PhantomData,
         }
