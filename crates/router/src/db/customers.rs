@@ -14,12 +14,14 @@ pub trait CustomerInterface {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        use_kv: bool,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
         merchant_id: &str,
+        use_kv: bool,
     ) -> CustomResult<Option<Customer>, errors::StorageError>;
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -27,17 +29,20 @@ pub trait CustomerInterface {
         customer_id: String,
         merchant_id: String,
         customer: CustomerUpdate,
+        use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError>;
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
         merchant_id: &str,
+        use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError>;
 
     async fn insert_customer(
         &self,
         customer_data: CreateCustomerRequest,
+        use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError>;
 }
 
@@ -47,6 +52,7 @@ impl CustomerInterface for super::Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        _use_kv: bool,
     ) -> CustomResult<Option<Customer>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
@@ -57,6 +63,7 @@ impl CustomerInterface for super::Store {
         customer_id: String,
         merchant_id: String,
         customer: CustomerUpdate,
+        _use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Customer::update_by_customer_id_merchant_id(&conn, customer_id, merchant_id, customer).await
@@ -66,6 +73,7 @@ impl CustomerInterface for super::Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        _use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
@@ -74,6 +82,7 @@ impl CustomerInterface for super::Store {
     async fn insert_customer(
         &self,
         customer_data: CustomerNew,
+        _use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         customer_data.insert_diesel(&conn).await
@@ -83,6 +92,7 @@ impl CustomerInterface for super::Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        _use_kv: bool,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
@@ -96,6 +106,7 @@ impl CustomerInterface for MockDb {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        _use_kv: bool,
     ) -> CustomResult<Option<Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
 
@@ -112,6 +123,7 @@ impl CustomerInterface for MockDb {
         _customer_id: String,
         _merchant_id: String,
         _customer: CustomerUpdate,
+        _use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError> {
         todo!()
     }
@@ -120,6 +132,7 @@ impl CustomerInterface for MockDb {
         &self,
         _customer_id: &str,
         _merchant_id: &str,
+        _use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError> {
         todo!()
     }
@@ -128,6 +141,7 @@ impl CustomerInterface for MockDb {
     async fn insert_customer(
         &self,
         customer_data: CustomerNew,
+        _use_kv: bool,
     ) -> CustomResult<Customer, errors::StorageError> {
         let mut customers = self.customers.lock().await;
         let customer = Customer {
@@ -151,6 +165,7 @@ impl CustomerInterface for MockDb {
         &self,
         _customer_id: &str,
         _merchant_id: &str,
+        _use_kv: bool,
     ) -> CustomResult<bool, errors::StorageError> {
         todo!()
     }

@@ -33,6 +33,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,
             connector_id,
+            merchant_account.use_kv,
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;

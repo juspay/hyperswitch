@@ -259,7 +259,10 @@ pub async fn list_payment_methods(
     mut req: api::ListPaymentMethodRequest,
 ) -> RouterResponse<Vec<api::ListPaymentMethodResponse>> {
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+        .find_merchant_connector_account_by_merchant_id_list(
+            &merchant_account.merchant_id,
+            merchant_account.use_kv,
+        )
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -386,7 +389,10 @@ pub async fn list_customer_payment_method(
 ) -> RouterResponse<api::ListCustomerPaymentMethodsResponse> {
     let db = &*state.store;
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+        .find_merchant_connector_account_by_merchant_id_list(
+            &merchant_account.merchant_id,
+            merchant_account.use_kv,
+        )
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)

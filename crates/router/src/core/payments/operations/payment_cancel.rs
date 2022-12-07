@@ -9,7 +9,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{CustomerDetails, PaymentAddress, PaymentData},
+        payments::{operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -36,6 +36,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         _connector: Connector,
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
+        use_kv: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -47,14 +48,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id)
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, use_kv)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
         let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id)
+            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id, use_kv)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -116,6 +117,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<Customer>,
+        use_kv: bool,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -131,6 +133,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
                     status: enums::AttemptStatus::VoidInitiated,
                     cancellation_reason,
                 },
+                use_kv,
             )
             .await
             .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
@@ -147,15 +150,16 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for Payment
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
+        operations::ValidateResult<'a>,
     )> {
         Ok((
             Box::new(self),
-            &merchant_account.merchant_id,
-            api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-            None,
+            operations::ValidateResult {
+                merchant_id: &merchant_account.merchant_id,
+                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
+                mandate_type: None,
+                use_kv: merchant_account.use_kv,
+            },
         ))
     }
 }

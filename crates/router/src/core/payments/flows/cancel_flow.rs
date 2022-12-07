@@ -41,6 +41,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         customer: &Option<api::CustomerResponse>,
         payment_data: PaymentData<api::Void>,
         call_connector_action: payments::CallConnectorAction,
+        _use_kv: bool,
     ) -> (RouterResult<Self>, PaymentData<api::Void>)
     where
         dyn api::Connector: services::ConnectorIntegration<

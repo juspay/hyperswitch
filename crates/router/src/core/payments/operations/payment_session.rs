@@ -9,7 +9,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, PaymentData},
+        payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -38,6 +38,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         _connector: Connector,
         request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
+        use_kv: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -50,14 +51,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let db = &*state.store;
 
         let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id)
+            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id, use_kv)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
         let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id)
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, use_kv)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -79,12 +80,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            use_kv,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            use_kv,
         )
         .await?;
 
@@ -140,6 +143,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
+        _use_kv: bool,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -159,9 +163,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
+        operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
         let given_payment_id = request
@@ -171,9 +173,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
 
         Ok((
             Box::new(self),
-            &merchant_account.merchant_id,
-            api::PaymentIdType::PaymentIntentId(given_payment_id),
-            None,
+            operations::ValidateResult {
+                merchant_id: &merchant_account.merchant_id,
+                payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
+                mandate_type: None,
+                use_kv: merchant_account.use_kv,
+            },
         ))
     }
 }
@@ -191,6 +196,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         merchant_id: &str,
+        use_kv: bool,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
@@ -204,6 +210,7 @@ where
             payment_data,
             request,
             merchant_id,
+            use_kv,
         )
         .await
     }
@@ -217,6 +224,7 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _use_kv: bool,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,

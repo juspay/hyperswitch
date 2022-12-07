@@ -259,7 +259,7 @@ mod tests {
 
         let response = state
             .store
-            .insert_payment_attempt(payment_attempt)
+            .insert_payment_attempt(payment_attempt, false)
             .await
             .unwrap();
         eprintln!("{:?}", response);
@@ -289,13 +289,13 @@ mod tests {
         };
         state
             .store
-            .insert_payment_attempt(payment_attempt)
+            .insert_payment_attempt(payment_attempt, false)
             .await
             .unwrap();
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, &merchant_id)
+            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, &merchant_id, false)
             .await
             .unwrap();
 
@@ -326,13 +326,13 @@ mod tests {
         };
         state
             .store
-            .insert_payment_attempt(payment_attempt)
+            .insert_payment_attempt(payment_attempt, false)
             .await
             .unwrap();
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(&uuid, "1")
+            .find_payment_attempt_by_payment_id_merchant_id(&uuid, "1", false)
             .await
             .unwrap();
         // checking it after fetch

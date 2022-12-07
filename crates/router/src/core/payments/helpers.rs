@@ -34,13 +34,14 @@ pub async fn get_address_for_payment_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
+    use_kv: bool,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
     // TODO: Refactor this function for more readability (TryFrom)
     Ok(match req_address {
         Some(address) => {
             match address_id {
                 Some(id) => Some(
-                    db.update_address(id.to_owned(), address.into())
+                    db.update_address(id.to_owned(), address.into(), use_kv)
                         .await
                         .map_err(|err| {
                             err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
@@ -49,23 +50,32 @@ pub async fn get_address_for_payment_request(
                 None => {
                     // generate a new address here
                     Some(
-                        db.insert_address(storage::AddressNew {
-                            city: address.address.as_ref().and_then(|a| a.city.clone()),
-                            country: address.address.as_ref().and_then(|a| a.country.clone()),
-                            line1: address.address.as_ref().and_then(|a| a.line1.clone()),
-                            line2: address.address.as_ref().and_then(|a| a.line2.clone()),
-                            line3: address.address.as_ref().and_then(|a| a.line3.clone()),
-                            state: address.address.as_ref().and_then(|a| a.state.clone()),
-                            zip: address.address.as_ref().and_then(|a| a.zip.clone()),
-                            first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                            last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
-                            phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
-                            country_code: address
-                                .phone
-                                .as_ref()
-                                .and_then(|a| a.country_code.clone()),
-                            ..storage::AddressNew::default()
-                        })
+                        db.insert_address(
+                            storage::AddressNew {
+                                city: address.address.as_ref().and_then(|a| a.city.clone()),
+                                country: address.address.as_ref().and_then(|a| a.country.clone()),
+                                line1: address.address.as_ref().and_then(|a| a.line1.clone()),
+                                line2: address.address.as_ref().and_then(|a| a.line2.clone()),
+                                line3: address.address.as_ref().and_then(|a| a.line3.clone()),
+                                state: address.address.as_ref().and_then(|a| a.state.clone()),
+                                zip: address.address.as_ref().and_then(|a| a.zip.clone()),
+                                first_name: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.first_name.clone()),
+                                last_name: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.last_name.clone()),
+                                phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
+                                country_code: address
+                                    .phone
+                                    .as_ref()
+                                    .and_then(|a| a.country_code.clone()),
+                                ..storage::AddressNew::default()
+                            },
+                            use_kv,
+                        )
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
                     )
@@ -73,9 +83,11 @@ pub async fn get_address_for_payment_request(
             }
         }
         None => match address_id {
-            Some(id) => Some(db.find_address(id).await).transpose().map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-            })?,
+            Some(id) => Some(db.find_address(id, use_kv).await)
+                .transpose()
+                .map_err(|err| {
+                    err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
+                })?,
             None => None,
         },
     })
@@ -84,10 +96,11 @@ pub async fn get_address_for_payment_request(
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
+    use_kv: bool,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
-        Some(address_id) => Ok(db.find_address(&address_id).await.ok()),
+        Some(address_id) => Ok(db.find_address(&address_id, use_kv).await.ok()),
     }
 }
 
@@ -96,6 +109,7 @@ pub async fn get_token_pm_type_mandate_details(
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTxnType>,
     merchant_id: &str,
+    use_kv: bool,
 ) -> RouterResult<(
     Option<String>,
     Option<enums::PaymentMethodType>,
@@ -115,7 +129,7 @@ pub async fn get_token_pm_type_mandate_details(
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
             let (token_, payment_method_type_) =
-                get_token_for_recurring_mandate(state, request, merchant_id).await?;
+                get_token_for_recurring_mandate(state, request, merchant_id, use_kv).await?;
             Ok((token_, payment_method_type_, None))
         }
         None => Ok((
@@ -130,12 +144,13 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_id: &str,
+    use_kv: bool,
 ) -> RouterResult<(Option<String>, Option<enums::PaymentMethodType>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
     let mandate = db
-        .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id.as_str())
+        .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id.as_str(), use_kv)
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
@@ -493,11 +508,12 @@ pub async fn get_customer_from_details(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
+    use_kv: bool,
 ) -> CustomResult<Option<api::CustomerResponse>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
-            db.find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
+            db.find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id, use_kv)
                 .await
         }
     }
@@ -510,6 +526,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
+    use_kv: bool,
 ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<api::CustomerResponse>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
@@ -517,20 +534,23 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     let optional_customer = match req.customer_id.as_ref() {
         Some(customer_id) => {
             let customer_data = db
-                .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
+                .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id, use_kv)
                 .await?;
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
-                    db.insert_customer(api::CreateCustomerRequest {
-                        customer_id: customer_id.to_string(),
-                        merchant_id: merchant_id.to_string(),
-                        name: req.name.peek_cloning(),
-                        email: req.email.clone(),
-                        phone: req.phone.clone(),
-                        phone_country_code: req.phone_country_code.clone(),
-                        ..api::CreateCustomerRequest::default()
-                    })
+                    db.insert_customer(
+                        api::CreateCustomerRequest {
+                            customer_id: customer_id.to_string(),
+                            merchant_id: merchant_id.to_string(),
+                            name: req.name.peek_cloning(),
+                            email: req.email.clone(),
+                            phone: req.phone.clone(),
+                            phone_country_code: req.phone_country_code.clone(),
+                            ..api::CreateCustomerRequest::default()
+                        },
+                        use_kv,
+                    )
                     .await
                 }
             })
@@ -538,7 +558,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
         None => match &payment_data.payment_intent.customer_id {
             None => None,
             Some(customer_id) => db
-                .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
+                .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id, use_kv)
                 .await?
                 .map(Ok),
         },
@@ -804,9 +824,10 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
+    use_kv: bool,
 ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
     let result = db
-        .filter_payment_intent_by_constraints(merchant_id, constraints)
+        .filter_payment_intent_by_constraints(merchant_id, constraints, use_kv)
         .await?;
     Ok(result)
 }

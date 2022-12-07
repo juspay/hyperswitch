@@ -44,6 +44,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         customer: &Option<api::CustomerResponse>,
         payment_data: PaymentData<api::Capture>,
         call_connector_action: payments::CallConnectorAction,
+        _use_kv: bool,
     ) -> (RouterResult<Self>, PaymentData<api::Capture>)
     where
         dyn api::Connector: services::ConnectorIntegration<

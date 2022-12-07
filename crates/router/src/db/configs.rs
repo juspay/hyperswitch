@@ -7,23 +7,40 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait ConfigInterface {
-    async fn insert_config(&self, config: ConfigNew) -> CustomResult<Config, errors::StorageError>;
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<Config, errors::StorageError>;
+    async fn insert_config(
+        &self,
+        config: ConfigNew,
+        use_kv: bool,
+    ) -> CustomResult<Config, errors::StorageError>;
+    async fn find_config_by_key(
+        &self,
+        key: &str,
+        use_kv: bool,
+    ) -> CustomResult<Config, errors::StorageError>;
     async fn update_config_by_key(
         &self,
         key: &str,
         config_update: ConfigUpdate,
+        use_kv: bool,
     ) -> CustomResult<Config, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
 impl ConfigInterface for super::Store {
-    async fn insert_config(&self, config: ConfigNew) -> CustomResult<Config, errors::StorageError> {
+    async fn insert_config(
+        &self,
+        config: ConfigNew,
+        _use_kv: bool,
+    ) -> CustomResult<Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         config.insert(&conn).await
     }
 
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<Config, errors::StorageError> {
+    async fn find_config_by_key(
+        &self,
+        key: &str,
+        _use_kv: bool,
+    ) -> CustomResult<Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Config::find_by_key(&conn, key).await
     }
@@ -32,6 +49,7 @@ impl ConfigInterface for super::Store {
         &self,
         key: &str,
         config_update: ConfigUpdate,
+        _use_kv: bool,
     ) -> CustomResult<Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Config::update_by_key(&conn, key, config_update).await
@@ -43,11 +61,16 @@ impl ConfigInterface for MockDb {
     async fn insert_config(
         &self,
         _config: ConfigNew,
+        _use_kv: bool,
     ) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }
 
-    async fn find_config_by_key(&self, _key: &str) -> CustomResult<Config, errors::StorageError> {
+    async fn find_config_by_key(
+        &self,
+        _key: &str,
+        _use_kv: bool,
+    ) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }
 
@@ -55,6 +78,7 @@ impl ConfigInterface for MockDb {
         &self,
         _key: &str,
         _config_update: ConfigUpdate,
+        _use_kv: bool,
     ) -> CustomResult<Config, errors::StorageError> {
         todo!()
     }

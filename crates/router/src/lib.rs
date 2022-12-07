@@ -122,6 +122,12 @@ pub fn mk_app(
 pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
 
+    if cfg!(feature = "kv_store") {
+        println!("KV Store enabled");
+    } else {
+        println!("KV Store disabled");
+    }
+
     let server = conf.server.clone();
     let state = routes::AppState::new(conf).await;
     // Cloning to close connections before shutdown

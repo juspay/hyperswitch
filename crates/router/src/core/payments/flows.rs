@@ -32,6 +32,7 @@ pub trait Feature<F, T> {
         maybe_customer: &Option<api::CustomerResponse>,
         payment_data: PaymentData<F>,
         call_connector_action: payments::CallConnectorAction,
+        use_kv: bool,
     ) -> (RouterResult<Self>, PaymentData<F>)
     where
         Self: std::marker::Sized,
