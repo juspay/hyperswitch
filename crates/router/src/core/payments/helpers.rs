@@ -20,7 +20,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api::{self, MandateValidationFields, PgRedirectResponse},
+        api,
         storage::{self, enums},
     },
     utils::{
@@ -227,9 +227,9 @@ pub fn validate_request_amount_and_amount_to_capture(
 }
 
 pub fn validate_mandate(
-    req: impl Into<MandateValidationFields>,
+    req: impl Into<api::MandateValidationFields>,
 ) -> RouterResult<Option<api::MandateTxnType>> {
-    let req: MandateValidationFields = req.into();
+    let req: api::MandateValidationFields = req.into();
     match req.is_mandate() {
         Some(api::MandateTxnType::NewMandateTxn) => {
             validate_new_mandate_request(req)?;
@@ -243,7 +243,7 @@ pub fn validate_mandate(
     }
 }
 
-fn validate_new_mandate_request(req: MandateValidationFields) -> RouterResult<()> {
+fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResult<()> {
     let confirm = req.confirm.get_required_value("confirm")?;
 
     if !confirm {
@@ -305,7 +305,7 @@ pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAt
         payment_attempt.connector
     )
 }
-fn validate_recurring_mandate(req: MandateValidationFields) -> RouterResult<()> {
+fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
     req.customer_id.check_value_present("customer_id")?;
@@ -831,21 +831,27 @@ pub fn get_handle_response_url(
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
-    let redirection_response = make_pg_redirect_response(payment_id, response, connector);
+    let payments_return_url = response.return_url.as_ref();
+    let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
-    let return_url = make_merchant_url_with_response(merchant_account, redirection_response)
-        .attach_printable("Failed to make merchant url with response")?;
+    let return_url = make_merchant_url_with_response(
+        merchant_account,
+        redirection_response,
+        payments_return_url,
+    )
+    .attach_printable("Failed to make merchant url with response")?;
 
     make_url_with_signature(&return_url, merchant_account)
 }
 
 pub fn make_merchant_url_with_response(
     merchant_account: &storage::MerchantAccount,
-    redirection_response: PgRedirectResponse,
+    redirection_response: api::PgRedirectResponse,
+    request_return_url: Option<&String>,
 ) -> RouterResult<String> {
-    let url = merchant_account
-        .return_url
-        .as_ref()
+    // take return url if provided in the request else use merchant return url
+    let url = request_return_url
+        .or(merchant_account.return_url.as_ref())
         .get_required_value("return_url")?;
 
     let status_check = redirection_response.status;
@@ -883,10 +889,10 @@ pub fn make_merchant_url_with_response(
 
 pub fn make_pg_redirect_response(
     payment_id: String,
-    response: api::PaymentsResponse,
+    response: &api::PaymentsResponse,
     connector: String,
-) -> PgRedirectResponse {
-    PgRedirectResponse {
+) -> api::PgRedirectResponse {
+    api::PgRedirectResponse {
         payment_id,
         status: response.status,
         gateway_id: connector,

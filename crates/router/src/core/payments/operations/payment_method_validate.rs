@@ -12,18 +12,14 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers, CustomerDetails, Operation, PaymentData},
+        payments::{self, helpers, Operation, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
     types::{
-        self,
-        api::{self, VerifyRequest},
-        storage::{
-            self,
-            enums::{self, IntentStatus},
-        },
+        self, api,
+        storage::{self, enums},
     },
     utils,
 };
@@ -32,7 +28,7 @@ use crate::{
 #[operation(ops = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
-impl<F: Send + Clone> ValidateRequest<F, VerifyRequest> for PaymentMethodValidate {
+impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -44,6 +40,7 @@ impl<F: Send + Clone> ValidateRequest<F, VerifyRequest> for PaymentMethodValidat
         api::PaymentIdType,
         Option<api::MandateTxnType>,
     )> {
+        // let request_merchant_id = Some(&request.merchant_id[..]);
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -57,8 +54,6 @@ impl<F: Send + Clone> ValidateRequest<F, VerifyRequest> for PaymentMethodValidat
             api::PaymentIdType::PaymentIntentId(validation_id),
             mandate_type,
         ))
-
-        // Err(errors::ApiErrorResponse::InternalServerError)?
     }
 }
 
@@ -76,7 +71,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
-        Option<CustomerDetails>,
+        Option<payments::CustomerDetails>,
     )> {
         let db = &state.store;
         let (payment_intent, payment_attempt, connector_response);
@@ -145,7 +140,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 force_sync: None,
                 refunds: vec![],
             },
-            Some(CustomerDetails {
+            Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
                 name: request.name.clone(),
                 email: request.email.clone(),
@@ -170,7 +165,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         F: 'b + Send,
     {
         // There is no fsm involved in this operation all the change of states must happen in a single request
-        let status = Some(IntentStatus::Processing);
+        let status = Some(enums::IntentStatus::Processing);
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
@@ -208,7 +203,7 @@ where
         &'a self,
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
-        request: Option<CustomerDetails>,
+        request: Option<payments::CustomerDetails>,
         merchant_id: &str,
     ) -> CustomResult<
         (
