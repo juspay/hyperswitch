@@ -111,9 +111,9 @@ trait StrongEq {
 
 impl StrongEq for String {
     fn strong_eq(&self, other: &Self) -> bool {
-        let lhs_bytes = self.as_bytes();
-        let rhs_bytes = other.as_bytes();
+        let lhs = self.as_bytes();
+        let rhs = other.as_bytes();
 
-        bool::from(lhs_bytes.ct_eq(rhs_bytes))
+        bool::from(lhs.ct_eq(rhs))
     }
 }
