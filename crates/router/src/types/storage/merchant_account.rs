@@ -20,7 +20,7 @@ pub struct MerchantAccount {
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
     pub publishable_key: Option<String>,
-    pub use_kv: bool,
+    pub storage_scheme: enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]

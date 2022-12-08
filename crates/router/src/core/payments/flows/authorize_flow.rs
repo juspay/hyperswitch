@@ -60,7 +60,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
         customer: &Option<api::CustomerResponse>,
         payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
-        use_kv: bool,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -76,7 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
                 customer,
                 Some(true),
                 call_connector_action,
-                use_kv,
+                storage_scheme,
             )
             .await;
 
@@ -94,7 +94,7 @@ impl PaymentsAuthorizeRouterData {
         maybe_customer: &Option<api::CustomerResponse>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        use_kv: bool,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentsAuthorizeRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
@@ -125,7 +125,6 @@ impl PaymentsAuthorizeRouterData {
                             .find_mandate_by_merchant_id_mandate_id(
                                 resp.merchant_id.as_ref(),
                                 mandate_id,
-                                use_kv,
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
@@ -148,15 +147,13 @@ impl PaymentsAuthorizeRouterData {
                                 self.generate_mandate(maybe_customer, payment_method_id)
                             {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
-                                state
-                                    .store
-                                    .insert_mandate(new_mandate_data, use_kv)
-                                    .await
-                                    .map_err(|err| {
+                                state.store.insert_mandate(new_mandate_data).await.map_err(
+                                    |err| {
                                         err.to_duplicate_response(
                                             errors::ApiErrorResponse::DuplicateRefundRequest,
                                         )
-                                    })?;
+                                    },
+                                )?;
                             };
                         }
                     }

@@ -40,7 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         connector: types::Connector,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        use_kv: bool,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -59,22 +59,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type,
-                merchant_id,
-                use_kv,
-            )
-            .await?;
+            helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
+                .await?;
 
         let shipping_address =
-            helpers::get_address_for_payment_request(db, request.shipping.as_ref(), None, use_kv)
-                .await?;
+            helpers::get_address_for_payment_request(db, request.shipping.as_ref(), None).await?;
 
         let billing_address =
-            helpers::get_address_for_payment_request(db, request.billing.as_ref(), None, use_kv)
-                .await?;
+            helpers::get_address_for_payment_request(db, request.billing.as_ref(), None).await?;
 
         let browser_info = request
             .browser_info
@@ -98,7 +90,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     request,
                     browser_info,
                 ),
-                use_kv,
+                storage_scheme,
             )
             .await
         {
@@ -110,7 +102,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     db.find_payment_attempt_by_payment_id_merchant_id(
                         &payment_id,
                         merchant_id,
-                        use_kv,
+                        storage_scheme,
                     )
                     .await
                     .map_err(|error| {
@@ -131,7 +123,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     shipping_address.clone().map(|x| x.address_id),
                     billing_address.clone().map(|x| x.address_id),
                 ),
-                use_kv,
+                storage_scheme,
             )
             .await
         {
@@ -143,7 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     db.find_payment_intent_by_payment_id_merchant_id(
                         &payment_id,
                         merchant_id,
-                        use_kv,
+                        storage_scheme,
                     )
                     .await
                     .map_err(|error| {
@@ -155,7 +147,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         }?;
 
         connector_response = match db
-            .insert_connector_response(Self::make_connector_response(&payment_attempt))
+            .insert_connector_response(
+                Self::make_connector_response(&payment_attempt),
+                storage_scheme,
+            )
             .await
         {
             Ok(connector_resp) => Ok(connector_resp),
@@ -218,7 +213,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        use_kv: bool,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -249,7 +244,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     shipping_address_id: None,
                     billing_address_id: None,
                 },
-                use_kv,
+                storage_scheme,
             )
             .await
             .map_err(|error| {
@@ -308,7 +303,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type,
-                use_kv: merchant_account.use_kv,
+                storage_scheme: merchant_account.storage_scheme,
             },
         ))
     }

@@ -47,7 +47,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         customer: &Option<api::CustomerResponse>,
         payment_data: PaymentData<api::Verify>,
         call_connector_action: payments::CallConnectorAction,
-        use_kv: bool,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Verify>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -63,7 +63,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
                 customer,
                 Some(true),
                 call_connector_action,
-                use_kv,
+                storage_scheme,
             )
             .await;
 
@@ -79,7 +79,7 @@ impl types::VerifyRouterData {
         maybe_customer: &Option<api::CustomerResponse>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        use_kv: bool,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
@@ -108,11 +108,7 @@ impl types::VerifyRouterData {
                     Some(mandate_id) => {
                         let mandate = state
                             .store
-                            .find_mandate_by_merchant_id_mandate_id(
-                                &resp.merchant_id,
-                                mandate_id,
-                                use_kv,
-                            )
+                            .find_mandate_by_merchant_id_mandate_id(&resp.merchant_id, mandate_id)
                             .await
                             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
                         resp.payment_method_id = Some(mandate.payment_method_id);
@@ -137,15 +133,13 @@ impl types::VerifyRouterData {
                                 payment_method_id,
                             ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
-                                state
-                                    .store
-                                    .insert_mandate(new_mandate_data, use_kv)
-                                    .await
-                                    .map_err(|err| {
+                                state.store.insert_mandate(new_mandate_data).await.map_err(
+                                    |err| {
                                         err.to_duplicate_response(
                                             errors::ApiErrorResponse::DuplicateMandate,
                                         )
-                                    })?;
+                                    },
+                                )?;
                             }
                         }
                     }

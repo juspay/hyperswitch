@@ -15,40 +15,34 @@ pub trait MerchantConnectorAccountInterface {
         &self,
         merchant_id: &str,
         connector: &str,
-        use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError>;
 
     async fn insert_merchant_connector_account(
         &self,
         t: MerchantConnectorAccountNew,
-        use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError>;
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
         merchant_connector_id: &i32,
-        use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError>;
 
     async fn find_merchant_connector_account_by_merchant_id_list(
         &self,
         merchant_id: &str,
-        use_kv: bool,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, errors::StorageError>;
 
     async fn update_merchant_connector_account(
         &self,
         this: MerchantConnectorAccount,
         merchant_connector_account: MerchantConnectorAccountUpdate,
-        use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError>;
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
         merchant_connector_id: &i32,
-        use_kv: bool,
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -58,7 +52,6 @@ impl MerchantConnectorAccountInterface for super::Store {
         &self,
         merchant_id: &str,
         connector: &str,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         MerchantConnectorAccount::find_by_merchant_id_connector(&conn, merchant_id, connector).await
@@ -68,7 +61,6 @@ impl MerchantConnectorAccountInterface for super::Store {
         &self,
         merchant_id: &str,
         merchant_connector_id: &i32,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
@@ -82,7 +74,6 @@ impl MerchantConnectorAccountInterface for super::Store {
     async fn insert_merchant_connector_account(
         &self,
         t: MerchantConnectorAccountNew,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         t.insert_diesel(&conn).await
@@ -91,7 +82,6 @@ impl MerchantConnectorAccountInterface for super::Store {
     async fn find_merchant_connector_account_by_merchant_id_list(
         &self,
         merchant_id: &str,
-        _use_kv: bool,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id).await
@@ -101,7 +91,6 @@ impl MerchantConnectorAccountInterface for super::Store {
         &self,
         this: MerchantConnectorAccount,
         merchant_connector_account: MerchantConnectorAccountUpdate,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, merchant_connector_account).await
@@ -111,7 +100,6 @@ impl MerchantConnectorAccountInterface for super::Store {
         &self,
         merchant_id: &str,
         merchant_connector_id: &i32,
-        _use_kv: bool,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
@@ -129,7 +117,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         merchant_id: &str,
         connector: &str,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let accounts = self.merchant_connector_accounts.lock().await;
         let account = accounts
@@ -146,7 +133,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         _merchant_id: &str,
         _merchant_connector_id: &i32,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         todo!()
     }
@@ -155,7 +141,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn insert_merchant_connector_account(
         &self,
         t: MerchantConnectorAccountNew,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = MerchantConnectorAccount {
@@ -178,7 +163,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_merchant_connector_account_by_merchant_id_list(
         &self,
         _merchant_id: &str,
-        _use_kv: bool,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, errors::StorageError> {
         todo!()
     }
@@ -187,7 +171,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         _this: MerchantConnectorAccount,
         _merchant_connector_account: MerchantConnectorAccountUpdate,
-        _use_kv: bool,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         todo!()
     }
@@ -196,7 +179,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         _merchant_id: &str,
         _merchant_connector_id: &i32,
-        _use_kv: bool,
     ) -> CustomResult<bool, errors::StorageError> {
         todo!()
     }

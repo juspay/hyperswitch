@@ -13,7 +13,11 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    types::{api, storage, Connector},
+    types::{
+        api,
+        storage::{self, enums},
+        Connector,
+    },
     utils::{self, OptionExt},
 };
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -51,7 +55,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        _use_kv: bool,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -68,7 +72,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        _use_kv: bool,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -93,7 +97,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         _connector: Connector,
         request: &api::PaymentsRetrieveRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        use_kv: bool,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -105,7 +109,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
             &*state.store,
             request,
             self,
-            use_kv,
+            storage_scheme,
         )
         .await
     }
@@ -121,7 +125,7 @@ async fn get_tracker_for_sync<
     db: &dyn StorageInterface,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
-    use_kv: bool,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<(
     BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
     PaymentData<F>,
@@ -131,13 +135,13 @@ async fn get_tracker_for_sync<
 
     payment_attempt = match payment_id {
         api::PaymentIdType::PaymentIntentId(ref id) => {
-            db.find_payment_attempt_by_payment_id_merchant_id(id, merchant_id, use_kv)
+            db.find_payment_attempt_by_payment_id_merchant_id(id, merchant_id, storage_scheme)
         }
         api::PaymentIdType::ConnectorTransactionId(ref id) => {
-            db.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, id, use_kv)
+            db.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, id, storage_scheme)
         }
         api::PaymentIdType::PaymentTxnId(ref id) => {
-            db.find_payment_attempt_by_merchant_id_txn_id(merchant_id, id, use_kv)
+            db.find_payment_attempt_by_merchant_id_txn_id(merchant_id, id, storage_scheme)
         }
     }
     .await
@@ -146,7 +150,7 @@ async fn get_tracker_for_sync<
     let payment_id_str = payment_attempt.payment_id.clone();
 
     payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(&payment_id_str, merchant_id, use_kv)
+        .find_payment_intent_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
@@ -155,6 +159,7 @@ async fn get_tracker_for_sync<
             &payment_intent.payment_id,
             &payment_intent.merchant_id,
             &payment_attempt.txn_id,
+            storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -165,9 +170,9 @@ async fn get_tracker_for_sync<
     amount = payment_attempt.amount;
 
     let shipping_address =
-        helpers::get_address_by_id(db, payment_intent.shipping_address_id.clone(), use_kv).await?;
+        helpers::get_address_by_id(db, payment_intent.shipping_address_id.clone()).await?;
     let billing_address =
-        helpers::get_address_by_id(db, payment_intent.billing_address_id.clone(), use_kv).await?;
+        helpers::get_address_by_id(db, payment_intent.billing_address_id.clone()).await?;
 
     utils::when(
         request.force_sync && !helpers::can_call_connector(payment_intent.status),
@@ -180,7 +185,7 @@ async fn get_tracker_for_sync<
     )?;
 
     let refunds = db
-        .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id)
+        .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -231,7 +236,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: request.resource_id.clone(),
                 mandate_type: None,
-                use_kv: merchant_account.use_kv,
+                storage_scheme: merchant_account.storage_scheme,
             },
         ))
     }

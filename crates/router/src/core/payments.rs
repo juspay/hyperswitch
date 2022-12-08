@@ -81,7 +81,7 @@ where
             connector.connector_name,
             &req,
             validate_result.mandate_type,
-            validate_result.use_kv,
+            validate_result.storage_scheme,
         )
         .await?;
 
@@ -92,7 +92,6 @@ where
             &mut payment_data,
             customer_details,
             validate_result.merchant_id,
-            validate_result.use_kv,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -106,7 +105,7 @@ where
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
             &payment_data.token,
-            validate_result.use_kv,
+            validate_result.storage_scheme,
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
@@ -118,7 +117,7 @@ where
             &validate_result.payment_id,
             payment_data,
             customer.clone(),
-            validate_result.use_kv,
+            validate_result.storage_scheme,
         )
         .await?;
 
@@ -313,7 +312,7 @@ where
             customer,
             payment_data,
             call_connector_action,
-            merchant_account.use_kv,
+            merchant_account.storage_scheme,
         )
         .await;
     let response = helpers::amap(res, |response| async {
@@ -325,7 +324,7 @@ where
                 payment_id,
                 payment_data,
                 Some(response),
-                merchant_account.use_kv,
+                merchant_account.storage_scheme,
             )
             .await?;
         Ok(payment_data)
@@ -476,9 +475,10 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let payment_intent = filter_by_constraints(db, &constraints, merchant_id, merchant.use_kv)
-        .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+    let payment_intent =
+        filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
+            .await
+            .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
     let data: Vec<api::PaymentsResponse> = payment_intent.into_iter().map(From::from).collect();
     utils::when(

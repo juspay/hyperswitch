@@ -17,7 +17,6 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
-    consts,
     core::{
         errors::{
             self, ApiClientErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
@@ -27,7 +26,11 @@ use crate::{
     db::StorageInterface,
     logger, routes,
     routes::AppState,
-    types::{self, api, storage, ErrorResponse, Response},
+    types::{
+        self, api,
+        storage::{self, enums},
+        ErrorResponse, Response,
+    },
     utils::OptionExt,
 };
 
@@ -557,7 +560,7 @@ pub async fn authenticate_merchant<'a>(
                 payment_response_hash_key: None,
                 redirect_to_merchant_with_http_post: false,
                 publishable_key: None,
-                use_kv: consts::DEFAULT_MERCHANT_USE_KV,
+                storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             })
         }
 

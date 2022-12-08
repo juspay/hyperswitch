@@ -19,18 +19,11 @@ pub async fn create_customer(
     let merchant_id = merchant_account.merchant_id.to_owned();
     customer_data.merchant_id = merchant_id.to_owned();
 
-    let customer = match db
-        .insert_customer(customer_data, merchant_account.use_kv)
-        .await
-    {
+    let customer = match db.insert_customer(customer_data).await {
         Ok(customer) => customer,
         Err(error) => match error.current_context() {
             errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => db
-                .find_customer_by_customer_id_merchant_id(
-                    &customer_id,
-                    &merchant_id,
-                    merchant_account.use_kv,
-                )
+                .find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             _ => Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?,
@@ -46,11 +39,7 @@ pub async fn retrieve_customer(
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
     let response = db
-        .find_customer_by_customer_id_merchant_id(
-            &req.customer_id,
-            &merchant_account.merchant_id,
-            merchant_account.use_kv,
-        )
+        .find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
@@ -64,11 +53,7 @@ pub async fn delete_customer(
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let response = db
-        .delete_customer_by_customer_id_merchant_id(
-            &req.customer_id,
-            &merchant_account.merchant_id,
-            merchant_account.use_kv,
-        )
+        .delete_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
         .await
         .map(|response| customers::CustomerDeleteResponse {
             customer_id: req.customer_id,
@@ -99,7 +84,6 @@ pub async fn update_customer(
                 metadata: update_customer.metadata,
                 description: update_customer.description,
             },
-            merchant_account.use_kv,
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;

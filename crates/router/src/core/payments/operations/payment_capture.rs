@@ -12,7 +12,12 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    types::{api, api::PaymentsCaptureRequest, storage, Connector},
+    types::{
+        api,
+        api::PaymentsCaptureRequest,
+        storage::{self, enums},
+        Connector,
+    },
     utils::OptionExt,
 };
 
@@ -33,7 +38,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         _connector: Connector,
         request: &PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        use_kv: bool,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -47,7 +52,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, use_kv)
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -58,7 +63,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id, use_kv)
+            .find_payment_attempt_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                storage_scheme,
+            )
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -83,6 +92,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
                 &payment_attempt.txn_id,
+                storage_scheme,
             )
             .await
             .map_err(|error| {
@@ -93,7 +103,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
-            use_kv,
         )
         .await?;
 
@@ -101,7 +110,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
-            use_kv,
         )
         .await?;
 
@@ -143,7 +151,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _payment_id: &api::PaymentIdType,
         payment_data: payments::PaymentData<F>,
         _customer: Option<storage::Customer>,
-        _use_kv: bool,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -176,7 +184,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id.to_owned()),
                 mandate_type: None,
-                use_kv: merchant_account.use_kv,
+                storage_scheme: merchant_account.storage_scheme,
             },
         ))
     }

@@ -20,11 +20,7 @@ pub async fn get_mandate(
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
         .store
-        .find_mandate_by_merchant_id_mandate_id(
-            &merchant_account.merchant_id,
-            &req.mandate_id,
-            merchant_account.use_kv,
-        )
+        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
     Ok(services::BachResponse::Json(
@@ -45,7 +41,6 @@ pub async fn revoke_mandate(
             storage::MandateUpdate::StatusUpdate {
                 mandate_status: storage::enums::MandateStatus::Revoked,
             },
-            merchant_account.use_kv,
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
@@ -66,11 +61,7 @@ pub async fn get_customer_mandates(
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
         .store
-        .find_mandate_by_merchant_id_customer_id(
-            &merchant_account.merchant_id,
-            &req.customer_id,
-            merchant_account.use_kv,
-        )
+        .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

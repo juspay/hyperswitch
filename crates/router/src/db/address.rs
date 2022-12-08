@@ -11,28 +11,18 @@ pub trait AddressInterface {
         &self,
         address_id: String,
         address: AddressUpdate,
-        use_kv: bool,
     ) -> CustomResult<Address, errors::StorageError>;
     async fn insert_address(
         &self,
         address: AddressNew,
-        use_kv: bool,
     ) -> CustomResult<Address, errors::StorageError>;
 
-    async fn find_address(
-        &self,
-        address_id: &str,
-        use_kv: bool,
-    ) -> CustomResult<Address, errors::StorageError>;
+    async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
 impl AddressInterface for super::Store {
-    async fn find_address(
-        &self,
-        address_id: &str,
-        _use_kv: bool,
-    ) -> CustomResult<Address, errors::StorageError> {
+    async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Address::find_by_address_id(&conn, address_id).await
     }
@@ -41,7 +31,6 @@ impl AddressInterface for super::Store {
         &self,
         address_id: String,
         address: AddressUpdate,
-        _use_kv: bool,
     ) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         Address::update_by_address_id(&conn, address_id, address).await
@@ -50,7 +39,6 @@ impl AddressInterface for super::Store {
     async fn insert_address(
         &self,
         address: AddressNew,
-        _use_kv: bool,
     ) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         address.insert(&conn).await
@@ -59,11 +47,7 @@ impl AddressInterface for super::Store {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
-    async fn find_address(
-        &self,
-        _address_id: &str,
-        _use_kv: bool,
-    ) -> CustomResult<Address, errors::StorageError> {
+    async fn find_address(&self, _address_id: &str) -> CustomResult<Address, errors::StorageError> {
         todo!()
     }
 
@@ -71,7 +55,6 @@ impl AddressInterface for MockDb {
         &self,
         _address_id: String,
         _address: AddressUpdate,
-        _use_kv: bool,
     ) -> CustomResult<Address, errors::StorageError> {
         todo!()
     }
@@ -79,7 +62,6 @@ impl AddressInterface for MockDb {
     async fn insert_address(
         &self,
         _address: AddressNew,
-        _use_kv: bool,
     ) -> CustomResult<Address, errors::StorageError> {
         todo!()
     }

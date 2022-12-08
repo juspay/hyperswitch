@@ -45,7 +45,6 @@ where
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,
             connector_id,
-            merchant_account.use_kv,
         )
         .await
         .map_err(|error| {
