@@ -44,7 +44,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
-        Ok(payment_response_ut(db, payment_id, payment_data, Some(router_data)).await?)
+        Ok(
+            payment_response_update_tracker(db, payment_id, payment_data, Some(router_data))
+                .await?,
+        )
     }
 }
 
@@ -62,7 +65,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_update_tracker(db, payment_id, payment_data, response).await?)
     }
 }
 
@@ -82,7 +85,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_update_tracker(db, payment_id, payment_data, response).await?)
     }
 }
 
@@ -100,11 +103,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_update_tracker(db, payment_id, payment_data, response).await?)
     }
 }
 
-async fn payment_response_ut<F: Clone, T>(
+async fn payment_response_update_tracker<F: Clone, T>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
