@@ -80,6 +80,8 @@ pub struct PaymentsRedirectRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
+    // The merchant_id is generated through api key
+    // and is later passed in the struct
     pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,

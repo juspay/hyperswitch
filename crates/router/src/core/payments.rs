@@ -17,14 +17,12 @@ use self::{
     flows::{ConstructFlowSpecificData, Feature},
     helpers::{filter_by_constraints, validate_payment_list_request},
     operations::{BoxedOperation, Operation},
-    payments_transformers::ToResponse,
 };
 use super::errors::StorageErrorExt;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments,
-        payments::transformers as payments_transformers,
     },
     db::StorageInterface,
     pii::Email,
@@ -149,7 +147,7 @@ where
     F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: ToResponse<Req, PaymentData<F>, Op> + From<Req>,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
