@@ -343,7 +343,7 @@ where
     PaymentResponse: Operation<F, Req>,
 {
     let stime_connector = Instant::now();
-    let mut router_data_list = vec![];
+    let mut router_data_list = Vec::with_capacity(connectors.len());
 
     for connector in connectors {
         let connector_id = connector.connector.id();
@@ -360,7 +360,15 @@ where
             .decide_flows(state, connector, customer, CallConnectorAction::Trigger)
             .await?;
 
-        let session_token = match res.response.unwrap() {
+        let connector_response =
+            res.response
+                .unwrap_or(types::PaymentsResponseData::SessionResponse(
+                    types::PaymentsSessionResponse {
+                        session_token: "".to_string(),
+                    },
+                ));
+
+        let session_token = match connector_response {
             types::PaymentsResponseData::SessionResponse(session_response) => {
                 Ok(session_response.session_token)
             }
