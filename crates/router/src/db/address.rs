@@ -22,7 +22,7 @@ pub trait AddressInterface {
 #[async_trait::async_trait]
 impl AddressInterface for super::Store {
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Address::find_by_address_id(&conn, address_id).await
     }
 
@@ -31,7 +31,7 @@ impl AddressInterface for super::Store {
         address_id: String,
         address: AddressUpdate,
     ) -> CustomResult<Address, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Address::update_by_address_id(&conn, address_id, address).await
     }
 
@@ -39,7 +39,7 @@ impl AddressInterface for super::Store {
         &self,
         address: AddressNew,
     ) -> CustomResult<Address, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         address.insert(&conn).await
     }
 }

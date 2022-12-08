@@ -364,7 +364,7 @@ impl PaymentCreate {
     }
 
     #[instrument(skip_all)]
-    fn make_connector_response(
+    pub fn make_connector_response(
         payment_attempt: &storage::PaymentAttempt,
     ) -> storage::ConnectorResponseNew {
         storage::ConnectorResponseNew {
