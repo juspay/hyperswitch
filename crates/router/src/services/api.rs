@@ -1,7 +1,7 @@
 mod client;
 pub(crate) mod request;
 
-use std::{collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
@@ -360,7 +360,7 @@ pub enum ApiAuthentication<'a> {
 #[derive(Clone, Debug)]
 pub enum MerchantAuthentication<'a> {
     ApiKey,
-    MerchantId(&'a str),
+    MerchantId(Cow<'a, str>),
     AdminApiKey,
     PublishableKey,
 }
@@ -521,7 +521,7 @@ pub async fn authenticate_merchant<'a>(
 
         MerchantAuthentication::MerchantId(merchant_id) => {
             store
-                .find_merchant_account_by_merchant_id(merchant_id)
+                .find_merchant_account_by_merchant_id(&merchant_id)
                 .await
                 .map_err(|error| {
                     // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
