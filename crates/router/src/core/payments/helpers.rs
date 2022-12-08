@@ -379,7 +379,7 @@ pub(crate) async fn call_payment_method(
     merchant_id: &str,
     payment_method: Option<&api::PaymentMethod>,
     payment_method_type: Option<enums::PaymentMethodType>,
-    maybe_customer: &Option<api::CustomerResponse>,
+    maybe_customer: &Option<storage::Customer>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -495,7 +495,7 @@ pub async fn get_customer_from_details(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
-) -> CustomResult<Option<api::CustomerResponse>, errors::StorageError> {
+) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
@@ -512,7 +512,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<api::CustomerResponse>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -524,16 +524,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
-                    db.insert_customer(api::CreateCustomerRequest {
+                    let new_customer = storage::CustomerNew {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
                         name: req.name.peek_cloning(),
                         email: req.email.clone(),
                         phone: req.phone.clone(),
                         phone_country_code: req.phone_country_code.clone(),
-                        ..api::CreateCustomerRequest::default()
-                    })
-                    .await
+                        ..storage::CustomerNew::default()
+                    };
+
+                    db.insert_customer(new_customer).await
                 }
             })
         }

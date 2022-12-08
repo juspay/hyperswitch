@@ -11,12 +11,7 @@ use std::{fmt::Debug, marker, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*,
-    customers::{CreateCustomerRequest, CustomerResponse, CustomerUpdateRequest},
-    payment_methods::*,
-    payments::*,
-    refunds::*,
-    types::enums::FutureUsage,
+    admin::*, customers::*, payment_methods::*, payments::*, refunds::*, types::enums::FutureUsage,
     webhooks::*,
 };
 use super::{storage, ConnectorsList};

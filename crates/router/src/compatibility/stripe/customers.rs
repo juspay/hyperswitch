@@ -27,7 +27,7 @@ pub async fn customer_create(
         }
     };
 
-    let create_cust_req: customer_types::CreateCustomerRequest = payload.into();
+    let create_cust_req: customer_types::CustomerRequest = payload.into();
 
     wrap::compatibility_api_wrap::<_, _, _, _, _, types::CreateCustomerResponse, stripe::ErrorCode>(
         &state,
@@ -81,7 +81,7 @@ pub async fn customer_update(
     };
 
     let customer_id = path.into_inner();
-    let mut cust_update_req: customer_types::CustomerUpdateRequest = payload.into();
+    let mut cust_update_req: customer_types::CustomerRequest = payload.into();
     cust_update_req.customer_id = customer_id;
 
     wrap::compatibility_api_wrap::<_, _, _, _, _, types::CustomerUpdateResponse, stripe::ErrorCode>(

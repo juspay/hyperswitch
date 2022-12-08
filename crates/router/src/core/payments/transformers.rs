@@ -111,7 +111,7 @@ where
     fn generate_response(
         req: Option<Req>,
         data: D,
-        customer: Option<api::CustomerResponse>,
+        customer: Option<storage::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -127,7 +127,7 @@ where
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
-        customer: Option<api::CustomerResponse>,
+        customer: Option<storage::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -158,7 +158,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         data: PaymentData<F>,
-        customer: Option<api::CustomerResponse>,
+        customer: Option<storage::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -200,7 +200,7 @@ pub fn payments_to_payments_response<R, Op>(
     refunds: Vec<storage::Refund>,
     mandate_id: Option<String>,
     payment_method_data: Option<api::PaymentMethod>,
-    customer: Option<api::CustomerResponse>,
+    customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,
