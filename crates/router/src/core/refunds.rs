@@ -9,16 +9,19 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments, utils as core_utils,
     },
-    db::{StorageInterface, get_and_deserialize_key},
+    db::{get_and_deserialize_key, StorageInterface},
     logger,
     routes::AppState,
+    scheduler::{
+        process_data, utils as process_tracker_utils, workflows::payment_sync::retry_sync_task,
+    },
     services,
     types::{
         self,
         api::{self, refunds},
         storage::{self, enums},
     },
-    utils::{self, OptionExt}, scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync::retry_sync_task},
+    utils::{self, OptionExt},
 };
 
 // ********************************************** REFUND EXECUTE **********************************************
@@ -600,7 +603,13 @@ pub async fn sync_refund_with_gateway_workflow(
         }
         _ => {
             // TODO: Retry Refund Sync Task
-            retry_sync_task(&*state.store, response.connector, response.merchant_id, refund_tracker.to_owned()).await?
+            retry_sync_task(
+                &*state.store,
+                response.connector,
+                response.merchant_id,
+                refund_tracker.to_owned(),
+            )
+            .await?
         }
     }
 
@@ -780,33 +789,41 @@ pub async fn get_refund_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
     merchant_id: &str,
-    retry_count: i32
+    retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> = get_and_deserialize_key(db, &format!("pt_mapping_refund_sync_{}", connector), "ConnectorPTMapping").await;
-    
+    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
+        get_and_deserialize_key(
+            db,
+            &format!("pt_mapping_refund_sync_{}", connector),
+            "ConnectorPTMapping",
+        )
+        .await;
+
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(_) => process_data::ConnectorPTMapping::default(),
     };
 
-    let time_delta = process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
-        
+    let time_delta =
+        process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+
     Ok(process_tracker_utils::get_time_from_delta(time_delta))
 }
-
 
 pub async fn retry_refund_sync_task(
     db: &dyn StorageInterface,
     connector: String,
     merchant_id: String,
-    pt: storage::ProcessTracker
+    pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
+    let schedule_time =
+        get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
         Some(s_time) => pt.retry(db, s_time).await,
         None => {
-            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string()).await
+            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+                .await
         }
     }
 }

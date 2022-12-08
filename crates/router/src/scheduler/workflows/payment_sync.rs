@@ -104,7 +104,6 @@ pub async fn get_sync_process_schedule_time(
     Ok(crate::scheduler::utils::get_time_from_delta(time_delta))
 }
 
-
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,

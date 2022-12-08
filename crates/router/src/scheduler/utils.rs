@@ -8,7 +8,7 @@ use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
 use uuid::Uuid;
 
-use super::{consumer, metrics, workflows, process_data};
+use super::{consumer, metrics, process_data, workflows};
 use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
@@ -266,7 +266,6 @@ pub fn add_histogram_metrics(
         );
     };
 }
-
 
 pub fn get_schedule_time(
     mapping: process_data::ConnectorPTMapping,
