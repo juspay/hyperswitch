@@ -360,13 +360,11 @@ where
             .decide_flows(state, connector, customer, CallConnectorAction::Trigger)
             .await?;
 
-        let connector_response =
-            res.response
-                .unwrap_or(types::PaymentsResponseData::SessionResponse(
-                    types::PaymentsSessionResponse {
-                        session_token: "".to_string(),
-                    },
-                ));
+        let connector_response = res.response.unwrap_or_else(|_| {
+            types::PaymentsResponseData::SessionResponse(types::PaymentsSessionResponse {
+                session_token: "".to_string(),
+            })
+        });
 
         let session_token = match connector_response {
             types::PaymentsResponseData::SessionResponse(session_response) => {
