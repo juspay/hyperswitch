@@ -1,5 +1,6 @@
 use crate::{
     core::errors::{self, CustomResult},
+    db::MockDb,
     types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
 };
 
@@ -8,6 +9,7 @@ pub trait EphemeralKeyInterface {
     async fn create_ephemeral_key(
         &self,
         _ek: EphemeralKeyNew,
+        _validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
     async fn get_ephemeral_key(
         &self,
@@ -19,48 +21,15 @@ pub trait EphemeralKeyInterface {
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
 }
 
-#[cfg(not(feature = "kv_store"))]
-mod storage {
-    use crate::{
-        core::errors::{self, CustomResult},
-        services::Store,
-        types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-    };
-
-    #[async_trait::async_trait]
-    impl super::EphemeralKeyInterface for Store {
-        async fn create_ephemeral_key(
-            &self,
-            _ek: EphemeralKeyNew,
-        ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            Err(errors::StorageError::KVError.into())
-        }
-        async fn get_ephemeral_key(
-            &self,
-            _key: &str,
-        ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            Err(errors::StorageError::KVError.into())
-        }
-        async fn delete_ephemeral_key(
-            &self,
-            _id: &str,
-        ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            Err(errors::StorageError::KVError.into())
-        }
-    }
-}
-
-#[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::{date_time, ext_traits::StringExt};
     use error_stack::{IntoReport, ResultExt};
-    use fred::prelude::{KeysInterface, RedisValue};
+    use redis_interface::RedisValue;
     use time::ext::NumericalDuration;
 
     use super::EphemeralKeyInterface;
     use crate::{
         core::errors::{self, CustomResult},
-        env::EPKEY_VALIDITY,
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
         utils,
@@ -71,18 +40,13 @@ mod storage {
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
+            validity: i64,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let secret_key = new.secret.to_string();
             let id_key = new.id.to_string();
 
-            let validity = std::env::var(EPKEY_VALIDITY)
-                .map(|v| {
-                    let v: i64 = v.parse().unwrap_or(1);
-                    v.hours()
-                })
-                .unwrap_or_else(|_| 1.hours());
             let created_at = date_time::now();
-            let expires = created_at.saturating_add(validity);
+            let expires = created_at.saturating_add(validity.hours());
             let created_ek = EphemeralKey {
                 id: new.id,
                 created_at,
@@ -101,8 +65,7 @@ mod storage {
             ];
             match self
                 .redis_conn
-                .pool
-                .msetnx::<u8, Vec<(&str, RedisValue)>>(redis_map)
+                .msetnx::<Vec<(&str, RedisValue)>>(redis_map)
                 .await
             {
                 Ok(1) => {
@@ -123,9 +86,7 @@ mod storage {
                 Ok(i) => Err(errors::StorageError::KVError)
                     .into_report()
                     .attach_printable_lazy(|| format!("Invalid response for HSETNX: {i}")),
-                Err(er) => Err(er)
-                    .into_report()
-                    .change_context(errors::StorageError::KVError),
+                Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
         async fn get_ephemeral_key(
@@ -163,10 +124,11 @@ mod storage {
 }
 
 #[async_trait::async_trait]
-impl EphemeralKeyInterface for crate::db::MockDb {
+impl EphemeralKeyInterface for MockDb {
     async fn create_ephemeral_key(
         &self,
         _ek: EphemeralKeyNew,
+        _validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         Err(errors::StorageError::KVError.into())
     }
