@@ -203,7 +203,7 @@ where
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {

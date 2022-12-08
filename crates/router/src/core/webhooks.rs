@@ -37,7 +37,7 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
 
-    let payments_response = payments::payments_core::<api::PSync, _, _, _>(
+    let payments_response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         &state,
         merchant_account.clone(),
         payments::operations::PaymentStatus,

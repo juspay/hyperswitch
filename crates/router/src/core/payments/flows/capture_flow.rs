@@ -43,7 +43,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Capture>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -75,7 +75,7 @@ impl PaymentsCaptureRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsCaptureRouterData>

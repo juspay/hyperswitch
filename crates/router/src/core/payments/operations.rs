@@ -2,6 +2,7 @@ mod payment_cancel;
 mod payment_capture;
 mod payment_confirm;
 mod payment_create;
+mod payment_method_validate;
 mod payment_response;
 mod payment_session;
 mod payment_start;
@@ -13,6 +14,7 @@ pub use payment_cancel::PaymentCancel;
 pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
 pub use payment_create::PaymentCreate;
+pub use payment_method_validate::PaymentMethodValidate;
 pub use payment_response::PaymentResponse;
 pub use payment_session::PaymentSession;
 pub use payment_start::PaymentStart;
@@ -106,7 +108,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,
-    ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<api::CustomerResponse>), errors::StorageError>;
+    ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
@@ -173,7 +175,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -261,7 +263,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -319,7 +321,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -367,7 +369,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {

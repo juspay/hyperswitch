@@ -13,7 +13,7 @@ use fred::{
     interfaces::{KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisValue, SetOptions, XReadResponse,
+        RedisMap, RedisValue, SetOptions, XReadResponse,
     },
 };
 use router_env::{tracing, tracing::instrument};
@@ -43,6 +43,18 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
+    pub async fn msetnx<V>(&self, value: V) -> CustomResult<u8, errors::RedisError>
+    where
+        V: TryInto<RedisMap> + Debug,
+        V::Error: Into<fred::error::RedisError>,
+    {
+        self.pool
+            .msetnx::<u8, V>(value)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetFailed)
+    }
+
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key<V>(
         &self,
@@ -65,6 +77,18 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .get(key)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn exists<V>(&self, key: &str) -> CustomResult<bool, errors::RedisError>
+    where
+        V: Into<MultipleKeys> + Unpin + Send + 'static,
+    {
+        self.pool
+            .exists(key)
             .await
             .into_report()
             .change_context(errors::RedisError::GetFailed)
@@ -149,6 +173,18 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetExpiryFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn set_expire_at(
+        &self,
+        key: &str,
+        timestamp: i64,
+    ) -> CustomResult<(), errors::RedisError> {
+        self.pool
+            .expire_at(key, timestamp)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetExpiryFailed)
+    }
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_append_entry<F>(
         &self,

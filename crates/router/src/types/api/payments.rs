@@ -3,7 +3,6 @@ use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 
-use super::{ConnectorCommon, RefundResponse};
 use crate::{
     core::errors,
     pii,
@@ -81,7 +80,9 @@ pub struct PaymentsRedirectRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
-    pub merchant_id: String,
+    // The merchant_id is generated through api key
+    // and is later passed in the struct
+    pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
     pub name: Option<Secret<String>>,
@@ -89,11 +90,31 @@ pub struct VerifyRequest {
     pub phone_country_code: Option<String>,
     pub payment_method: Option<enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethod>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<super::FutureUsage>,
+    pub setup_future_usage: Option<api_types::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+}
+
+impl From<PaymentsRequest> for VerifyRequest {
+    fn from(item: PaymentsRequest) -> Self {
+        Self {
+            client_secret: item.client_secret,
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            email: item.email,
+            name: item.name,
+            phone: item.phone,
+            phone_country_code: item.phone_country_code,
+            payment_method: item.payment_method,
+            payment_method_data: item.payment_method_data,
+            payment_token: item.payment_token,
+            mandate_data: item.mandate_data,
+            setup_future_usage: item.setup_future_usage,
+            off_session: item.off_session,
+        }
+    }
 }
 
 pub enum MandateTxnType {
@@ -338,7 +359,7 @@ pub struct PaymentsResponse {
     pub currency: String,
     pub customer_id: Option<String>,
     pub description: Option<String>,
-    pub refunds: Option<Vec<RefundResponse>>,
+    pub refunds: Option<Vec<api_types::RefundResponse>>,
     pub mandate_id: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<enums::FutureUsage>,
@@ -412,7 +433,7 @@ pub struct VerifyResponse {
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
@@ -424,6 +445,51 @@ fn default_limit() -> i64 {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsRedirectionResponse {
     pub redirect_url: String,
+}
+
+pub struct MandateValidationFields {
+    pub mandate_id: Option<String>,
+    pub confirm: Option<bool>,
+    pub customer_id: Option<String>,
+    pub mandate_data: Option<MandateData>,
+    pub setup_future_usage: Option<api_types::FutureUsage>,
+    pub off_session: Option<bool>,
+}
+
+impl MandateValidationFields {
+    pub fn is_mandate(&self) -> Option<MandateTxnType> {
+        match (&self.mandate_data, &self.mandate_id) {
+            (None, None) => None,
+            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
+            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+        }
+    }
+}
+
+impl From<&PaymentsRequest> for MandateValidationFields {
+    fn from(req: &PaymentsRequest) -> Self {
+        Self {
+            mandate_id: req.mandate_id.clone(),
+            confirm: req.confirm,
+            customer_id: req.customer_id.clone(),
+            mandate_data: req.mandate_data.clone(),
+            setup_future_usage: req.setup_future_usage,
+            off_session: req.off_session,
+        }
+    }
+}
+
+impl From<&VerifyRequest> for MandateValidationFields {
+    fn from(req: &VerifyRequest) -> Self {
+        Self {
+            mandate_id: None,
+            confirm: Some(true),
+            customer_id: req.customer_id.clone(),
+            mandate_data: req.mandate_data.clone(),
+            off_session: req.off_session,
+            setup_future_usage: req.setup_future_usage,
+        }
+    }
 }
 
 impl PaymentsRedirectionResponse {
@@ -464,6 +530,24 @@ impl From<PaymentsRequest> for PaymentsResponse {
             statement_descriptor_name: item.statement_descriptor_name,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             mandate_data: item.mandate_data,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<VerifyRequest> for VerifyResponse {
+    fn from(item: VerifyRequest) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            email: item.email,
+            name: item.name,
+            phone: item.phone,
+            payment_method: item.payment_method,
+            payment_method_data: item
+                .payment_method_data
+                .map(PaymentMethodDataResponse::from),
+            payment_token: item.payment_token,
             ..Default::default()
         }
     }
@@ -659,7 +743,12 @@ pub trait PreVerify:
 }
 
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid + PreVerify
+    api_types::ConnectorCommon
+    + PaymentAuthorize
+    + PaymentSync
+    + PaymentCapture
+    + PaymentVoid
+    + PreVerify
 {
 }
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
