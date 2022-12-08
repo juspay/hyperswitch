@@ -141,6 +141,7 @@ pub enum AdyenPaymentMethod {
     AdyenCard(AdyenCard),
     AdyenPaypal(AdyenPaypal),
     Gpay(AdyenGPay),
+    ApplePay(AdyenApplePay),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -183,6 +184,14 @@ pub struct AdyenGPay {
     payment_type: String,
     #[serde(rename = "googlePayToken")]
     google_pay_token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenApplePay {
+    #[serde(rename = "type")]
+    payment_type: String,
+    #[serde(rename = "applePayToken")]
+    apple_pay_token: String,
 }
 
 // Refunds Request and Response
@@ -314,9 +323,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     };
                     Ok(AdyenPaymentMethod::Gpay(gpay_data))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "ApplePay".to_string(),
-                )),
+                enums::WalletIssuer::ApplePay => {
+                    let apple_pay_data = AdyenApplePay {
+                        payment_type,
+                        apple_pay_token: wallet_data
+                            .get_required_value("token")
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                            .token
+                            .to_string(),
+                    };
+                    Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
+                }
             },
             enums::PaymentMethodType::Paypal => {
                 let wallet = AdyenPaypal { payment_type };
