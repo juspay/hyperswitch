@@ -2,6 +2,7 @@ mod authorize_flow;
 mod cancel_flow;
 mod capture_flow;
 mod psync_flow;
+mod verfiy_flow;
 
 use async_trait::async_trait;
 
@@ -29,7 +30,7 @@ pub trait Feature<F, T> {
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        maybe_customer: &Option<storage::Customer>,
         payment_data: PaymentData<F>,
         call_connector_action: payments::CallConnectorAction,
     ) -> (RouterResult<Self>, PaymentData<F>)

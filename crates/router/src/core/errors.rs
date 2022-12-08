@@ -119,7 +119,7 @@ pub enum BachError {
     #[error("{{ error_description: Error while parsing, error_message: {0} }}")]
     EParsingError(error_stack::Report<ParsingError>),
 
-    #[error("Environment configuration error: {0}")]
+    #[error("Application configuration error: {0}")]
     ConfigurationError(ConfigError),
 
     #[error("{{ error_description: Database operation failed, error_message: {0} }}")]

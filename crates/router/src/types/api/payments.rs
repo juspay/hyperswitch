@@ -3,7 +3,6 @@ use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 
-use super::{ConnectorCommon, RefundResponse};
 use crate::{
     core::errors,
     pii,
@@ -78,10 +77,10 @@ pub struct PaymentsRedirectRequest {
     pub param: String,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
-    pub merchant_id: Option<String>,
+    pub merchant_id: String,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
     pub name: Option<Secret<String>>,
@@ -89,9 +88,9 @@ pub struct VerifyRequest {
     pub phone_country_code: Option<String>,
     pub payment_method: Option<enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethod>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<super::FutureUsage>,
+    pub setup_future_usage: Option<api_types::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
@@ -246,6 +245,9 @@ pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
 
+#[derive(Debug, Clone)]
+pub struct Verify;
+
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
 //#[serde(untagged)]
 //pub enum enums::CaptureMethod {
@@ -335,7 +337,7 @@ pub struct PaymentsResponse {
     pub currency: String,
     pub customer_id: Option<String>,
     pub description: Option<String>,
-    pub refunds: Option<Vec<RefundResponse>>,
+    pub refunds: Option<Vec<api_types::RefundResponse>>,
     pub mandate_id: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<enums::FutureUsage>,
@@ -421,6 +423,51 @@ fn default_limit() -> i64 {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsRedirectionResponse {
     pub redirect_url: String,
+}
+
+pub struct MandateValidationFields {
+    pub mandate_id: Option<String>,
+    pub confirm: Option<bool>,
+    pub customer_id: Option<String>,
+    pub mandate_data: Option<MandateData>,
+    pub setup_future_usage: Option<api_types::FutureUsage>,
+    pub off_session: Option<bool>,
+}
+
+impl MandateValidationFields {
+    pub fn is_mandate(&self) -> Option<MandateTxnType> {
+        match (&self.mandate_data, &self.mandate_id) {
+            (None, None) => None,
+            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
+            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+        }
+    }
+}
+
+impl From<&PaymentsRequest> for MandateValidationFields {
+    fn from(req: &PaymentsRequest) -> Self {
+        Self {
+            mandate_id: req.mandate_id.clone(),
+            confirm: req.confirm,
+            customer_id: req.customer_id.clone(),
+            mandate_data: req.mandate_data.clone(),
+            setup_future_usage: req.setup_future_usage,
+            off_session: req.off_session,
+        }
+    }
+}
+
+impl From<&VerifyRequest> for MandateValidationFields {
+    fn from(req: &VerifyRequest) -> Self {
+        Self {
+            mandate_id: None,
+            confirm: Some(true),
+            customer_id: req.customer_id.clone(),
+            mandate_data: req.mandate_data.clone(),
+            off_session: req.off_session,
+            setup_future_usage: req.setup_future_usage,
+        }
+    }
 }
 
 impl PaymentsRedirectionResponse {
@@ -650,8 +697,18 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PreVerify:
+    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+{
+}
+
 pub trait Payment:
-    ConnectorCommon + PaymentAuthorize + PaymentSync + PaymentCapture + PaymentVoid
+    api_types::ConnectorCommon
+    + PaymentAuthorize
+    + PaymentSync
+    + PaymentCapture
+    + PaymentVoid
+    + PreVerify
 {
 }
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

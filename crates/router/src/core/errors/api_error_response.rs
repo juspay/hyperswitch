@@ -79,6 +79,8 @@ pub enum ApiErrorResponse {
     CardExpired { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_06", message = "Refund failed while processing with connector. Retry refund.")]
     RefundFailed { data: Option<serde_json::Value> },
+    #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Verification failed while processing with connector. Retry operation.")]
+    VerificationFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "RE_00", message = "Something went wrong.")]
     InternalServerError,
@@ -154,6 +156,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::InvalidCardData { .. }
             | ApiErrorResponse::CardExpired { .. }
             | ApiErrorResponse::RefundFailed { .. }
+            | ApiErrorResponse::VerificationFailed { .. }
             | ApiErrorResponse::PaymentUnexpectedState { .. } => StatusCode::BAD_REQUEST, // 400
 
             ApiErrorResponse::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
