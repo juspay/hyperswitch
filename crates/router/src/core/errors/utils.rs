@@ -1,74 +1,76 @@
 use super::DatabaseError;
-use crate::logger;
+use crate::{core::errors, logger};
 
 pub(crate) trait StorageErrorExt {
     fn to_not_found_response(
         self,
-        not_found_response: super::ApiErrorResponse,
-    ) -> error_stack::Report<super::ApiErrorResponse>;
+        not_found_response: errors::ApiErrorResponse,
+    ) -> error_stack::Report<errors::ApiErrorResponse>;
 
     fn to_duplicate_response(
         self,
-        duplicate_response: super::ApiErrorResponse,
-    ) -> error_stack::Report<super::ApiErrorResponse>;
+        duplicate_response: errors::ApiErrorResponse,
+    ) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
-impl StorageErrorExt for error_stack::Report<super::StorageError> {
+impl StorageErrorExt for error_stack::Report<errors::StorageError> {
     fn to_not_found_response(
         self,
-        not_found_response: super::ApiErrorResponse,
-    ) -> error_stack::Report<super::ApiErrorResponse> {
+        not_found_response: errors::ApiErrorResponse,
+    ) -> error_stack::Report<errors::ApiErrorResponse> {
         match self.current_context() {
-            super::StorageError::DatabaseError(DatabaseError::NotFound) => {
+            errors::StorageError::DatabaseError(DatabaseError::NotFound) => {
                 self.change_context(not_found_response)
             }
-            _ => self.change_context(super::ApiErrorResponse::InternalServerError),
+            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
 
     fn to_duplicate_response(
         self,
-        duplicate_response: super::ApiErrorResponse,
-    ) -> error_stack::Report<super::ApiErrorResponse> {
+        duplicate_response: errors::ApiErrorResponse,
+    ) -> error_stack::Report<errors::ApiErrorResponse> {
         match self.current_context() {
-            super::StorageError::DatabaseError(DatabaseError::UniqueViolation) => {
+            errors::StorageError::DatabaseError(DatabaseError::UniqueViolation) => {
                 self.change_context(duplicate_response)
             }
-            _ => self.change_context(super::ApiErrorResponse::InternalServerError),
+            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
 }
 
 pub(crate) trait ApiClientErrorExt {
-    fn to_unsuccessful_processing_step_response(self)
-        -> error_stack::Report<super::ConnectorError>;
-}
-
-impl ApiClientErrorExt for error_stack::Report<super::ApiClientError> {
     fn to_unsuccessful_processing_step_response(
         self,
-    ) -> error_stack::Report<super::ConnectorError> {
+    ) -> error_stack::Report<errors::ConnectorError>;
+}
+
+impl ApiClientErrorExt for error_stack::Report<errors::ApiClientError> {
+    fn to_unsuccessful_processing_step_response(
+        self,
+    ) -> error_stack::Report<errors::ConnectorError> {
         let data = match self.current_context() {
-            super::ApiClientError::BadRequestReceived(bytes)
-            | super::ApiClientError::UnauthorizedReceived(bytes)
-            | super::ApiClientError::NotFoundReceived(bytes)
-            | super::ApiClientError::UnprocessableEntityReceived(bytes) => Some(bytes.clone()),
+            errors::ApiClientError::BadRequestReceived(bytes)
+            | errors::ApiClientError::UnauthorizedReceived(bytes)
+            | errors::ApiClientError::NotFoundReceived(bytes)
+            | errors::ApiClientError::UnprocessableEntityReceived(bytes) => Some(bytes.clone()),
             _ => None,
         };
-        self.change_context(super::ConnectorError::ProcessingStepFailed(data))
+        self.change_context(errors::ConnectorError::ProcessingStepFailed(data))
     }
 }
 
 pub(crate) trait ConnectorErrorExt {
-    fn to_refund_failed_response(self) -> error_stack::Report<super::ApiErrorResponse>;
-    fn to_payment_failed_response(self) -> error_stack::Report<super::ApiErrorResponse>;
+    fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
 // FIXME: The implementation can be improved by handling BOM maybe?
-impl ConnectorErrorExt for error_stack::Report<super::ConnectorError> {
-    fn to_refund_failed_response(self) -> error_stack::Report<super::ApiErrorResponse> {
+impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
+    fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
         let data = match self.current_context() {
-            super::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
                 match response_str {
                     Ok(s) => serde_json::from_str(s)
@@ -84,12 +86,12 @@ impl ConnectorErrorExt for error_stack::Report<super::ConnectorError> {
             }
             _ => None,
         };
-        self.change_context(super::ApiErrorResponse::RefundFailed { data })
+        self.change_context(errors::ApiErrorResponse::RefundFailed { data })
     }
 
-    fn to_payment_failed_response(self) -> error_stack::Report<super::ApiErrorResponse> {
+    fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
         let data = match self.current_context() {
-            super::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
                 match response_str {
                     Ok(s) => serde_json::from_str(s)
@@ -105,6 +107,25 @@ impl ConnectorErrorExt for error_stack::Report<super::ConnectorError> {
             }
             _ => None,
         };
-        self.change_context(super::ApiErrorResponse::PaymentAuthorizationFailed { data })
+        self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
+    }
+
+    fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
+        let data = match self.current_context() {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                let response_str = std::str::from_utf8(bytes);
+                match response_str {
+                    Ok(s) => serde_json::from_str(s)
+                        .map_err(|err| logger::error!(%err, "Failed to convert response to JSON"))
+                        .ok(),
+                    Err(err) => {
+                        logger::error!(%err, "Failed to convert response to UTF8 string");
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+        self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
     }
 }

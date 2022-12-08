@@ -52,19 +52,22 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
+    use common_utils::{date_time, ext_traits::StringExt};
     use error_stack::{IntoReport, ResultExt};
     use fred::prelude::{KeysInterface, RedisValue};
     use time::ext::NumericalDuration;
 
+    use super::EphemeralKeyInterface;
     use crate::{
         core::errors::{self, CustomResult},
+        env::EPKEY_VALIDITY,
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+        utils,
     };
 
     #[async_trait::async_trait]
-    impl super::EphemeralKeyInterface for Store {
+    impl EphemeralKeyInterface for Store {
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
@@ -72,8 +75,14 @@ mod storage {
             let secret_key = new.secret.to_string();
             let id_key = new.id.to_string();
 
+            let validity = std::env::var(EPKEY_VALIDITY)
+                .map(|v| {
+                    let v: i64 = v.parse().unwrap_or(1);
+                    v.hours()
+                })
+                .unwrap_or_else(|_| 1.hours());
             let created_at = date_time::now();
-            let expires = created_at.saturating_add(1.hours());
+            let expires = created_at.saturating_add(validity);
             let created_ek = EphemeralKey {
                 id: new.id,
                 created_at,
@@ -82,9 +91,9 @@ mod storage {
                 merchant_id: new.merchant_id,
                 secret: new.secret,
             };
-            let redis_value = &serde_json::to_string(&created_ek)
-                .into_report()
-                .change_context(errors::StorageError::KVError)?;
+            let redis_value = &utils::Encode::<EphemeralKey>::encode_to_string_of_json(&created_ek)
+                .change_context(errors::StorageError::KVError)
+                .attach_printable("Unable to serialize ephemeral key")?;
 
             let redis_map: Vec<(&str, RedisValue)> = vec![
                 (&secret_key, redis_value.into()),
@@ -113,7 +122,7 @@ mod storage {
                 }
                 Ok(i) => Err(errors::StorageError::KVError)
                     .into_report()
-                    .attach_printable_lazy(|| format!("Invalid response for HSETNX: {}", i)),
+                    .attach_printable_lazy(|| format!("Invalid response for HSETNX: {i}")),
                 Err(er) => Err(er)
                     .into_report()
                     .change_context(errors::StorageError::KVError),
@@ -129,8 +138,8 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
-            serde_json::from_str(&value)
-                .into_report()
+            value
+                .parse_struct("EphemeralKey")
                 .change_context(errors::StorageError::KVError)
         }
         async fn delete_ephemeral_key(

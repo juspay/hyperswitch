@@ -1,5 +1,9 @@
 #[doc(inline)]
 pub use router_env::*;
+
+/// ENV variable to change the validity of Ephemeral Key in hours
+pub const EPKEY_VALIDITY: &str = "EPKEY_VALIDITY";
+
 pub mod logger {
     #[doc(inline)]
     pub use router_env::{log, logger::*};

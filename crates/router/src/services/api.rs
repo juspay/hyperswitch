@@ -534,11 +534,10 @@ pub async fn authenticate_merchant<'a>(
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
             if admin_api_key != "test_admin" {
-                Err(report!(errors::ValidateError)
-                    .attach_printable("Admin Authentication Failure")
-                    // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
-                    // https://juspay.atlassian.net/browse/ORCA-366
-                    .change_context(errors::ApiErrorResponse::BadCredentials))?;
+                // TODO: The BadCredentials error is too specific for api keys, and inappropriate
+                // for AdminApiKey/MerchantID
+                Err(report!(errors::ApiErrorResponse::BadCredentials)
+                    .attach_printable("Admin Authentication Failure"))?;
             }
 
             Ok(storage::MerchantAccount {

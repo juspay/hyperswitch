@@ -13,7 +13,7 @@ pub trait EventInterface {
 #[async_trait::async_trait]
 impl EventInterface for super::Store {
     async fn insert_event(&self, event: EventNew) -> CustomResult<Event, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         event.insert(&conn).await
     }
 }

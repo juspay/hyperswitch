@@ -1,9 +1,8 @@
-//!
-//! errors and error specific types for universal use
+//! Errors and error specific types for universal use
 
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
-/// error_stack::Report<E> specific extendability  
+/// error_stack::Report<E> specific extendability
 ///
 /// Effectively, equivalent to `Result<T, error_stack::Report<E>>`
 ///
@@ -38,3 +37,20 @@ macro_rules! impl_error_type {
 }
 
 impl_error_type!(ParsingError, "Parsing error");
+
+/// Validation errors.
+#[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
+#[derive(Debug, thiserror::Error)]
+pub enum ValidationError {
+    /// The provided input is missing a required field.
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: String },
+
+    /// An incorrect value was provided for the field specified by `field_name`.
+    #[error("Incorrect value provided for field: {field_name}")]
+    IncorrectValueProvided { field_name: &'static str },
+
+    /// An invalid input was provided.
+    #[error("{message}")]
+    InvalidValue { message: String },
+}
