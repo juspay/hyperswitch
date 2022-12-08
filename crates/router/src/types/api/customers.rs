@@ -3,6 +3,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    consts,
     core::errors::{self, RouterResult},
     pii::{self, PeekInterface, Secret},
     types::storage,
@@ -88,7 +89,7 @@ pub struct CustomerDeleteResponse {
 }
 
 pub fn generate_customer_id() -> String {
-    String::from("cus_") + &(uuid::Uuid::new_v4().to_string())
+    utils::generate_id(consts::ID_LENGTH, "cus")
 }
 
 fn unknown_merchant() -> String {
