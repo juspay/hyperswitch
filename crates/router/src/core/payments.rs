@@ -103,8 +103,9 @@ where
         .get_connector(&merchant_account, state)
         .await?;
 
-    if let api::ConnectorCallType::Single(connector) = connector_details {
-        payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
+    if let api::ConnectorCallType::Single(ref connector) = connector_details {
+        payment_data.payment_attempt.connector =
+            Some(connector.connector_name.to_owned().to_string());
     }
 
     let (operation, mut payment_data) = operation
@@ -118,11 +119,7 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
-        let connector = api::ConnectorData::construct(&merchant_account, state, &operation)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        payment_data = match connector {
+        payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 call_connector_service(
                     state,
