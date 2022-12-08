@@ -52,7 +52,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
+    use common_utils::{date_time, ext_traits::StringExt};
     use error_stack::{IntoReport, ResultExt};
     use fred::prelude::{KeysInterface, RedisValue};
     use time::ext::NumericalDuration;
@@ -62,6 +62,7 @@ mod storage {
         env::EPKEY_VALIDITY,
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+        utils,
     };
 
     #[async_trait::async_trait]
@@ -89,9 +90,9 @@ mod storage {
                 merchant_id: new.merchant_id,
                 secret: new.secret,
             };
-            let redis_value = &serde_json::to_string(&created_ek)
-                .into_report()
-                .change_context(errors::StorageError::KVError)?;
+            let redis_value = &utils::Encode::<EphemeralKey>::encode_to_string_of_json(&created_ek)
+                .change_context(errors::StorageError::KVError)
+                .attach_printable("Unable to serialize ephemeral key")?;
 
             let redis_map: Vec<(&str, RedisValue)> = vec![
                 (&secret_key, redis_value.into()),
@@ -136,8 +137,8 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
-            serde_json::from_str(&value)
-                .into_report()
+            value
+                .parse_struct("EphemeralKey")
                 .change_context(errors::StorageError::KVError)
         }
         async fn delete_ephemeral_key(
