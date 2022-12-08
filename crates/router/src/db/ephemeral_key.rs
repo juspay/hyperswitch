@@ -57,6 +57,7 @@ mod storage {
     use fred::prelude::{KeysInterface, RedisValue};
     use time::ext::NumericalDuration;
 
+    use super::EphemeralKeyInterface;
     use crate::{
         core::errors::{self, CustomResult},
         env::EPKEY_VALIDITY,
@@ -66,7 +67,7 @@ mod storage {
     };
 
     #[async_trait::async_trait]
-    impl super::EphemeralKeyInterface for Store {
+    impl EphemeralKeyInterface for Store {
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
