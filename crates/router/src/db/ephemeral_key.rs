@@ -9,6 +9,7 @@ pub trait EphemeralKeyInterface {
     async fn create_ephemeral_key(
         &self,
         _ek: EphemeralKeyNew,
+        _validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
     async fn get_ephemeral_key(
         &self,
@@ -39,12 +40,13 @@ mod storage {
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
+            validity: i64,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let secret_key = new.secret.to_string();
             let id_key = new.id.to_string();
 
             let created_at = date_time::now();
-            let expires = created_at.saturating_add(1.hours());
+            let expires = created_at.saturating_add(validity.hours());
             let created_ek = EphemeralKey {
                 id: new.id,
                 created_at,
@@ -126,6 +128,7 @@ impl EphemeralKeyInterface for MockDb {
     async fn create_ephemeral_key(
         &self,
         _ek: EphemeralKeyNew,
+        _validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         Err(errors::StorageError::KVError.into())
     }
