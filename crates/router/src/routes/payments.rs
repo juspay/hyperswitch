@@ -18,7 +18,8 @@ use crate::{
                 PaymentIdType, PaymentListConstraints, PaymentsCancelRequest,
                 PaymentsCaptureRequest, PaymentsRequest, PaymentsRetrieveRequest,
             },
-            Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsStartRequest, Void,
+            Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
+            Verify, VerifyRequest, VerifyResponse, Void,
         },
         storage::enums::CaptureMethod,
     }, // FIXME imports
@@ -36,24 +37,46 @@ pub async fn payments_create(
     if let Some(CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
-
-    api::server_wrap(
-        &state,
-        &req,
-        payload,
-        |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
-                state,
-                merchant_account,
-                payments::PaymentCreate,
-                req,
-                api::AuthFlow::Merchant,
-                payments::CallConnectorAction::Trigger,
+    match payload.amount {
+        Some(0) | None => {
+            api::server_wrap(
+                &state,
+                &req,
+                payload.into(),
+                |state, merchant_account, req| {
+                    payments::payments_core::<Verify, VerifyResponse, _, _, _>(
+                        state,
+                        merchant_account,
+                        payments::PaymentMethodValidate,
+                        req,
+                        api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                    )
+                },
+                api::MerchantAuthentication::ApiKey,
             )
-        },
-        api::MerchantAuthentication::ApiKey,
-    )
-    .await
+            .await
+        }
+        _ => {
+            api::server_wrap(
+                &state,
+                &req,
+                payload,
+                |state, merchant_account, req| {
+                    payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+                        state,
+                        merchant_account,
+                        payments::PaymentCreate,
+                        req,
+                        api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                    )
+                },
+                api::MerchantAuthentication::ApiKey,
+            )
+            .await
+        }
+    }
 }
 
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
@@ -73,7 +96,7 @@ pub async fn payments_start(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::operations::PaymentStart,
@@ -83,6 +106,33 @@ pub async fn payments_start(
             )
         },
         api::MerchantAuthentication::MerchantId(&merchant_id),
+    )
+    .await
+}
+
+#[allow(dead_code)]
+#[instrument(skip(state), fields(flow = ?Flow::ValidatePaymentMethod))]
+pub async fn validate_pm(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<VerifyRequest>,
+) -> HttpResponse {
+    let payload = json_payload.into_inner();
+    api::server_wrap(
+        &state,
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::payments_core::<Verify, VerifyResponse, _, _, _>(
+                state,
+                merchant_account,
+                payments::PaymentMethodValidate,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        api::MerchantAuthentication::ApiKey,
     )
     .await
 }
@@ -113,7 +163,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<PSync, _, _, _>(
+            payments::payments_core::<PSync, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -158,7 +208,7 @@ pub async fn payments_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -202,7 +252,7 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
@@ -234,7 +284,7 @@ pub(crate) async fn payments_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Capture, _, _, _>(
+            payments::payments_core::<Capture, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -293,7 +343,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Void, _, _, _>(
+            payments::payments_core::<Void, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,

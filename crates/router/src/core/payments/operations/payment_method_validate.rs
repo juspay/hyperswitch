@@ -40,7 +40,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         api::PaymentIdType,
         Option<api::MandateTxnType>,
     )> {
-        let request_merchant_id = Some(&request.merchant_id[..]);
+        let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

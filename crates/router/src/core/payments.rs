@@ -10,8 +10,8 @@ use router_env::{tracing, tracing::instrument};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentResponse, PaymentSession,
-    PaymentStatus, PaymentUpdate,
+    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
+    PaymentResponse, PaymentStatus, PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -23,7 +23,6 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments,
-        payments::transformers as payments_transformers,
     },
     db::StorageInterface,
     pii::Email,
@@ -136,18 +135,19 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn payments_core<F, Req, Op, FData>(
+pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
-) -> RouterResponse<api::PaymentsResponse>
+) -> RouterResponse<Res>
 where
     F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
@@ -159,9 +159,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-
     // To create merchant response
-    api::PaymentsResponse: From<Req>,
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -171,19 +169,12 @@ where
         call_connector_action,
     )
     .await?;
-
-    payments_transformers::payments_to_payments_response(
+    Res::generate_response(
         Some(req),
-        payment_data.payment_attempt,
-        payment_data.payment_intent,
-        payment_data.refunds,
-        payment_data.mandate_id,
-        payment_data.payment_method_data,
+        payment_data,
         customer,
         auth_flow,
-        payment_data.address,
         &state.conf.server,
-        payment_data.connector_response.authentication_data,
         operation,
     )
 }
@@ -253,7 +244,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
     req: PaymentsRetrieveRequest,
     flow_type: CallConnectorAction,
 ) -> RouterResponse<PaymentsResponse> {
-    payments_core::<api::PSync, _, _, _>(
+    payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         state,
         merchant_account,
         payments::PaymentStatus,
