@@ -6,6 +6,7 @@ pub enum Connector {
     Checkout,
     Aci,
     Authorizedotnet,
+    Braintree,
     #[default]
     Dummy,
 }

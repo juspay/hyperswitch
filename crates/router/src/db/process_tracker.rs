@@ -57,7 +57,7 @@ impl ProcessTrackerInterface for super::Store {
         &self,
         id: &str,
     ) -> CustomResult<Option<ProcessTracker>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         ProcessTracker::find_process_by_id(&conn, id).await
     }
 
@@ -66,7 +66,7 @@ impl ProcessTrackerInterface for super::Store {
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time).await
     }
 
@@ -77,7 +77,7 @@ impl ProcessTrackerInterface for super::Store {
         status: enums::ProcessTrackerStatus,
         limit: Option<i64>,
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         ProcessTracker::find_processes_by_time_status(
             &conn,
             time_lower_limit,
@@ -92,7 +92,7 @@ impl ProcessTrackerInterface for super::Store {
         &self,
         new: ProcessTrackerNew,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         new.insert_process(&conn).await
     }
 
@@ -101,7 +101,7 @@ impl ProcessTrackerInterface for super::Store {
         this: ProcessTracker,
         process: ProcessTrackerUpdate,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, process).await
     }
 
@@ -110,7 +110,7 @@ impl ProcessTrackerInterface for super::Store {
         this: ProcessTracker,
         process: ProcessTrackerUpdate,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, process).await
     }
 
@@ -119,7 +119,7 @@ impl ProcessTrackerInterface for super::Store {
         task_ids: Vec<String>,
         task_update: ProcessTrackerUpdate,
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update).await
     }
 }

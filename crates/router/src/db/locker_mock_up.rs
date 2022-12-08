@@ -24,7 +24,7 @@ impl LockerMockUpInterface for super::Store {
         &self,
         card_id: &str,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         LockerMockUp::find_by_card_id(&conn, card_id).await
     }
 
@@ -32,7 +32,7 @@ impl LockerMockUpInterface for super::Store {
         &self,
         new: LockerMockUpNew,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         new.insert(&conn).await
     }
 }
