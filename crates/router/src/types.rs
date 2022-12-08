@@ -150,8 +150,14 @@ pub struct PaymentsSessionResponse {
 
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
-    TransactionResponse(PaymentsTransactionResponse),
-    SessionResponse(PaymentsSessionResponse),
+    TransactionResponse {
+        resource_id: ResponseId,
+        redirection_data: Option<services::RedirectForm>,
+        redirect: bool,
+    },
+    SessionResponse {
+        session_token: String,
+    },
 }
 
 #[derive(Debug, Clone, Default)]

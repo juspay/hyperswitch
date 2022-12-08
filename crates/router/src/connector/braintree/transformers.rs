@@ -140,15 +140,13 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Ok(types::PaymentsResponseData::TransactionResponse(
-                types::PaymentsTransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transaction.id,
-                    ),
-                    redirection_data: None,
-                    redirect: false,
-                },
-            )),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction.id,
+                ),
+                redirection_data: None,
+                redirect: false,
+            }),
             ..item.data
         })
     }
