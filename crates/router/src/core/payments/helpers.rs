@@ -20,7 +20,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api::{self, PgRedirectResponse},
+        api,
         storage::{self, enums},
     },
     utils::{
@@ -226,7 +226,10 @@ pub fn validate_request_amount_and_amount_to_capture(
     )
 }
 
-pub fn validate_mandate(req: &api::PaymentsRequest) -> RouterResult<Option<api::MandateTxnType>> {
+pub fn validate_mandate(
+    req: impl Into<api::MandateValidationFields>,
+) -> RouterResult<Option<api::MandateTxnType>> {
+    let req: api::MandateValidationFields = req.into();
     match req.is_mandate() {
         Some(api::MandateTxnType::NewMandateTxn) => {
             validate_new_mandate_request(req)?;
@@ -240,7 +243,7 @@ pub fn validate_mandate(req: &api::PaymentsRequest) -> RouterResult<Option<api::
     }
 }
 
-fn validate_new_mandate_request(req: &api::PaymentsRequest) -> RouterResult<()> {
+fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResult<()> {
     let confirm = req.confirm.get_required_value("confirm")?;
 
     if !confirm {
@@ -302,8 +305,7 @@ pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAt
         payment_attempt.connector
     )
 }
-
-fn validate_recurring_mandate(req: &api::PaymentsRequest) -> RouterResult<()> {
+fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
     req.customer_id.check_value_present("customer_id")?;
@@ -377,7 +379,7 @@ pub(crate) async fn call_payment_method(
     merchant_id: &str,
     payment_method: Option<&api::PaymentMethod>,
     payment_method_type: Option<enums::PaymentMethodType>,
-    maybe_customer: &Option<api::CustomerResponse>,
+    maybe_customer: &Option<storage::Customer>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -493,7 +495,7 @@ pub async fn get_customer_from_details(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
-) -> CustomResult<Option<api::CustomerResponse>, errors::StorageError> {
+) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
@@ -510,7 +512,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<api::CustomerResponse>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -522,16 +524,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
-                    db.insert_customer(api::CreateCustomerRequest {
+                    let new_customer = storage::CustomerNew {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
                         name: req.name.peek_cloning(),
                         email: req.email.clone(),
                         phone: req.phone.clone(),
                         phone_country_code: req.phone_country_code.clone(),
-                        ..api::CreateCustomerRequest::default()
-                    })
-                    .await
+                        ..storage::CustomerNew::default()
+                    };
+
+                    db.insert_customer(new_customer).await
                 }
             })
         }
@@ -844,7 +847,7 @@ pub fn get_handle_response_url(
 
 pub fn make_merchant_url_with_response(
     merchant_account: &storage::MerchantAccount,
-    redirection_response: PgRedirectResponse,
+    redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
@@ -889,8 +892,8 @@ pub fn make_pg_redirect_response(
     payment_id: String,
     response: &api::PaymentsResponse,
     connector: String,
-) -> PgRedirectResponse {
-    PgRedirectResponse {
+) -> api::PgRedirectResponse {
+    api::PgRedirectResponse {
         payment_id,
         status: response.status,
         gateway_id: connector,

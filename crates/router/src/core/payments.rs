@@ -45,7 +45,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<(PaymentData<F>, Req, Option<api::CustomerResponse>)>
+) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
     F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync,
@@ -273,7 +273,7 @@ async fn call_connector_service<F, Op, Req>(
     connector: api::ConnectorData,
     _operation: &Op,
     payment_data: PaymentData<F>,
-    customer: &Option<api::CustomerResponse>,
+    customer: &Option<storage::Customer>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<PaymentData<F>>
 where
