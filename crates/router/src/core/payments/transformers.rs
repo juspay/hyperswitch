@@ -26,10 +26,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(
-    PaymentData<F>,
-    types::RouterData<F, T, types::PaymentsResponseData>,
-)>
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
@@ -102,7 +99,7 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
-    Ok((payment_data, router_data))
+    Ok(router_data)
 }
 
 #[instrument(skip_all)]

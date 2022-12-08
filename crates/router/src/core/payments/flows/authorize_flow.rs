@@ -40,12 +40,12 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        let output = transformers::construct_payment_router_data::<
+        let router_data = transformers::construct_payment_router_data::<
             api::Authorize,
             types::PaymentsAuthorizeData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
-        Ok(output.1)
+        Ok(router_data)
     }
 }
 

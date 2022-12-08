@@ -23,12 +23,12 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
-        let output = transformers::construct_payment_router_data::<
+        let router_data = transformers::construct_payment_router_data::<
             api::PSync,
             types::PaymentsSyncData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
-        Ok(output.1)
+        Ok(router_data)
     }
 }
 

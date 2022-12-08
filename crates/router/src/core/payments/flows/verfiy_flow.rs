@@ -28,7 +28,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::VerifyRouterData> {
-        let (_, router_data) = transformers::construct_payment_router_data::<
+        let router_data = transformers::construct_payment_router_data::<
             api::Verify,
             types::VerifyRequestData,
         >(state, self.clone(), connector_id, merchant_account)
