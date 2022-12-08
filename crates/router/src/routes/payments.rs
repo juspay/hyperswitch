@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
@@ -105,7 +107,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::MerchantId(&merchant_id),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -321,7 +323,7 @@ pub async fn payments_response(
         |state, merchant_account, req| {
             payments::handle_payments_redirect_response::<PSync>(state, merchant_account, req)
         },
-        api::MerchantAuthentication::MerchantId(&merchant_id),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
