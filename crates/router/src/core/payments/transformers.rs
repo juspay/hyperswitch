@@ -114,7 +114,7 @@ pub fn payments_to_payments_response<R, Op>(
     refunds: Vec<storage::Refund>,
     mandate_id: Option<String>,
     payment_method_data: Option<api::PaymentMethod>,
-    customer: Option<api::CustomerResponse>,
+    customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,
