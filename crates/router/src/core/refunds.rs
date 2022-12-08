@@ -150,12 +150,28 @@ pub async fn trigger_refund_to_gateway(
 
 // ********************************************** REFUND SYNC **********************************************
 
+pub async fn refund_response_wrapper<'a, F, Fut, T>(
+    state: &'a AppState,
+    merchant_account: storage::MerchantAccount,
+    refund_id: String,
+    f: F,
+) -> RouterResponse<refunds::RefundResponse>
+where
+    F: Fn(&'a AppState, storage::MerchantAccount, String) -> Fut,
+    Fut: futures::Future<Output = RouterResult<T>>,
+    refunds::RefundResponse: From<T>,
+{
+    Ok(services::BachResponse::Json(
+        f(state, merchant_account, refund_id).await?.into(),
+    ))
+}
+
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     refund_id: String,
-) -> RouterResponse<refunds::RefundResponse> {
+) -> RouterResult<storage::Refund> {
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 
@@ -190,7 +206,7 @@ pub async fn refund_retrieve_core(
     )
     .await?;
 
-    Ok(services::BachResponse::Json(response.into()))
+    Ok(response)
 }
 
 #[instrument(skip_all)]
@@ -535,9 +551,9 @@ pub async fn schedule_refund_execution(
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
-    db: &dyn StorageInterface,
+    state: &AppState,
     refund_tracker: &storage::ProcessTracker,
-) -> RouterResult<()> {
+) -> Result<(), errors::ProcessTrackerError> {
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
@@ -549,7 +565,8 @@ pub async fn sync_refund_with_gateway_workflow(
                 )
             })?;
     // FIXME we actually don't use this?
-    let _refund = db
+    let _refund = state
+        .store
         .find_refund_by_internal_reference_id_merchant_id(
             &refund_core.refund_internal_reference_id,
             &refund_core.merchant_id,
@@ -557,22 +574,47 @@ pub async fn sync_refund_with_gateway_workflow(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::RefundNotFound))?;
 
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&refund_core.merchant_id)
+        .await?;
+
+    let response = refund_retrieve_core(
+        state,
+        merchant_account,
+        refund_core.refund_internal_reference_id,
+    )
+    .await?;
+    let terminal_status = vec![
+        enums::RefundStatus::Success,
+        enums::RefundStatus::Failure,
+        enums::RefundStatus::TransactionFailure,
+    ];
+    match response.refund_status {
+        status if terminal_status.contains(&status) => {
+            let id = refund_tracker.id.clone();
+            refund_tracker
+                .clone()
+                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{}", id))
+                .await?
+        }
+        _ => {
+            // TODO: Retry Refund Sync Task
+        }
+    }
+
     Ok(())
-    // sync_refund_with_gateway(data, &refund).await.map(|_| ())
 }
 
 #[instrument(skip_all)]
 pub async fn start_refund_workflow(
     state: &AppState,
     refund_tracker: &storage::ProcessTracker,
-) -> RouterResult<()> {
+) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
         Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
-        Some("SYNC_REFUND") => {
-            sync_refund_with_gateway_workflow(&*state.store, refund_tracker).await
-        }
-        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Job name cannot be identified")),
+        Some("SYNC_REFUND") => sync_refund_with_gateway_workflow(state, refund_tracker).await,
+        _ => Err(errors::ProcessTrackerError::JobNotFound),
     }
 }
 
@@ -580,7 +622,7 @@ pub async fn start_refund_workflow(
 pub async fn trigger_refund_execute_workflow(
     state: &AppState,
     refund_tracker: &storage::ProcessTracker,
-) -> RouterResult<()> {
+) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
