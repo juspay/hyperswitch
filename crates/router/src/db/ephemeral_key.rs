@@ -29,7 +29,6 @@ mod storage {
     use super::EphemeralKeyInterface;
     use crate::{
         core::errors::{self, CustomResult},
-        env::EPKEY_VALIDITY,
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
         utils,
@@ -44,14 +43,8 @@ mod storage {
             let secret_key = new.secret.to_string();
             let id_key = new.id.to_string();
 
-            let validity = std::env::var(EPKEY_VALIDITY)
-                .map(|v| {
-                    let v: i64 = v.parse().unwrap_or(1);
-                    v.hours()
-                })
-                .unwrap_or_else(|_| 1.hours());
             let created_at = date_time::now();
-            let expires = created_at.saturating_add(validity);
+            let expires = created_at.saturating_add(1.hours());
             let created_ek = EphemeralKey {
                 id: new.id,
                 created_at,
