@@ -198,7 +198,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     payment_method_data: Option<api::PaymentMethod>,
-    customer: Option<api::CustomerResponse>,
+    customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,
