@@ -94,6 +94,11 @@ pub struct Database {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SupportedConnectors {
+    pub wallets: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
@@ -101,6 +106,7 @@ pub struct Connectors {
     pub checkout: ConnectorParams,
     pub stripe: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub supported: SupportedConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone)]

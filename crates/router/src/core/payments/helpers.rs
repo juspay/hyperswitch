@@ -293,13 +293,14 @@ pub fn create_startpay_url(
     )
 }
 
-pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAttempt) -> String {
+pub fn create_redirect_url(
+    server: &Server,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url,
-        payment_attempt.payment_id,
-        payment_attempt.merchant_id,
-        payment_attempt.connector
+        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
 

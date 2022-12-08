@@ -164,6 +164,7 @@ async fn payment_response_ut<F: Clone, T>(
                 ),
                 authentication_data,
                 encoded_data: payment_data.connector_response.encoded_data.clone(),
+                connector_name: payment_data.payment_attempt.connector.clone(),
             };
 
             db.update_connector_response(payment_data.connector_response, connector_response_update)

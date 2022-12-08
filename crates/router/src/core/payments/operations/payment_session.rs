@@ -16,7 +16,6 @@ use crate::{
     types::{
         api,
         storage::{self, enums},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -35,7 +34,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(

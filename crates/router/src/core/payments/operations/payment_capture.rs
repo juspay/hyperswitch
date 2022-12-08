@@ -12,7 +12,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    types::{api, api::PaymentsCaptureRequest, storage, Connector},
+    types::{api, api::PaymentsCaptureRequest, storage},
     utils::OptionExt,
 };
 
@@ -30,7 +30,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(

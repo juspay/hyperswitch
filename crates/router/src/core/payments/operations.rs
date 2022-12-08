@@ -88,7 +88,6 @@ pub trait GetTracker<F, D, R>: Send {
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        connector: types::Connector,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
@@ -215,9 +214,14 @@ where
         if helpers::check_if_operation_confirm(self) {
             metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
+            let connector_name = payment_attempt
+                .connector
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
             let schedule_time = payment_sync::get_sync_process_schedule_time(
                 &*state.store,
-                &payment_attempt.connector,
+                &connector_name,
                 &payment_attempt.merchant_id,
                 0,
             )

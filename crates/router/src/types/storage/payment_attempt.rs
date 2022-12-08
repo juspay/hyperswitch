@@ -15,7 +15,7 @@ pub struct PaymentAttempt {
     pub amount: i32,
     pub currency: Option<enums::Currency>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
@@ -49,7 +49,7 @@ pub struct PaymentAttemptNew {
     pub currency: Option<enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
@@ -251,7 +251,7 @@ mod tests {
         let current_time = common_utils::date_time::now();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -282,7 +282,7 @@ mod tests {
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -317,7 +317,7 @@ mod tests {
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
             merchant_id: "1".to_string(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             // Adding a mandate_id

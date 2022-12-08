@@ -61,9 +61,6 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let connector = api::ConnectorData::construct(&state.conf.connectors, &merchant_account)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
     let operation: BoxedOperation<F, Req> = Box::new(operation);
 
     let (operation, merchant_id, payment_id, mandate_type) = operation
@@ -74,14 +71,7 @@ where
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
-        .get_trackers(
-            state,
-            &payment_id,
-            merchant_id,
-            connector.connector_name,
-            &req,
-            mandate_type,
-        )
+        .get_trackers(state, &payment_id, merchant_id, &req, mandate_type)
         .await?;
 
     let (operation, customer) = operation
@@ -119,17 +109,36 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
-        payment_data = call_connector_service(
-            state,
-            &merchant_account,
-            &payment_id,
-            connector,
-            &operation,
-            payment_data,
-            &customer,
-            call_connector_action,
-        )
-        .await?;
+        let connector = api::ConnectorData::construct(&merchant_account, state, &operation)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        payment_data = match connector {
+            api::ConnectorCallType::Single(connector) => {
+                call_connector_service(
+                    state,
+                    &merchant_account,
+                    &payment_id,
+                    connector,
+                    &operation,
+                    payment_data,
+                    &customer,
+                    call_connector_action,
+                )
+                .await?
+            }
+            api::ConnectorCallType::Multiple(connectors) => {
+                call_multiple_connectors_service(
+                    state,
+                    &merchant_account,
+                    connectors,
+                    &operation,
+                    payment_data,
+                    &customer,
+                )
+                .await?
+            }
+        }
     }
     Ok((payment_data, req, customer))
 }

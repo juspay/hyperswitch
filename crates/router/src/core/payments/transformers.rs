@@ -78,6 +78,7 @@ where
     let orca_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
+        &merchant_connector_account.connector_name,
     ));
 
     router_data = types::RouterData {
