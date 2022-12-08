@@ -111,7 +111,7 @@ pub async fn payments_start(
 }
 
 #[allow(dead_code)]
-#[instrument(skip(state), fields(flow = ?Flow::ValidatePM))]
+#[instrument(skip(state), fields(flow = ?Flow::ValidatePaymentMethod))]
 pub async fn validate_pm(
     state: web::Data<AppState>,
     req: HttpRequest,

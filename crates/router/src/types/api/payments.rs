@@ -7,10 +7,7 @@ use crate::{
     core::errors,
     pii,
     services::api,
-    types::{
-        self, api as api_types, enums,
-        storage::{self, SingleUseMandate},
-    },
+    types::{self, api as api_types, enums, storage},
     utils::custom_serde,
 };
 
@@ -83,6 +80,8 @@ pub struct PaymentsRedirectRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
+    // The merchant_id is generated through api key
+    // and is later passed in the struct
     pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
@@ -132,7 +131,7 @@ pub struct MandateData {
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateType {
-    SingleUse(SingleUseMandate),
+    SingleUse(storage::SingleUseMandate),
     #[default]
     MultiUse,
 }
