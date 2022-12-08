@@ -132,7 +132,7 @@ where
             {
                 api::PaymentMethod::Wallet(wallet_data) => {
                     if api::should_call_pm_connector(wallet_data.issuer_name.to_string())
-                        && wallet_data.token.is_none()
+                        && wallet_data.token == api::TokenType::NoToken
                     {
                         Some(api::convert_pm_connector(
                             wallet_data.issuer_name.to_string(),

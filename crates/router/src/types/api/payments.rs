@@ -162,7 +162,28 @@ pub enum PaymentMethod {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct WalletData {
     pub issuer_name: enums::WalletIssuer,
-    pub token: Option<String>,
+    pub token: TokenType,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum TokenType {
+    TokenProvided(String),
+    #[default]
+    NoToken,
+}
+
+impl TokenType {
+    pub fn get_token(&self) -> errors::CustomResult<String, errors::ValidationError> {
+        match self {
+            Self::TokenProvided(token) => Ok(token.to_string()),
+            Self::NoToken => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "token",
+            })
+            .into_report()
+            .attach_printable("Failed to get token"),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]

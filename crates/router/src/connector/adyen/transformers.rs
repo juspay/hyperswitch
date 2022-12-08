@@ -310,8 +310,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                             .get_required_value("wallet_data")
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?
                             .token
-                            .to_owned()
-                            .get_required_value("token")
+                            .get_token()
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     };
                     Ok(AdyenPaymentMethod::Gpay(gpay_data))
