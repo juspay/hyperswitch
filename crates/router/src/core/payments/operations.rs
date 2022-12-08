@@ -122,6 +122,12 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
 }
 
 #[async_trait]
@@ -240,6 +246,14 @@ where
             Ok(())
         }
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
+    }
 }
 
 #[async_trait]
@@ -271,6 +285,14 @@ where
             )
             .await?,
         ))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 
     #[instrument(skip_all)]
@@ -344,6 +366,14 @@ where
     )> {
         Ok((Box::new(self), None))
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
+    }
 }
 
 #[async_trait]
@@ -391,5 +421,13 @@ where
         Option<api::PaymentMethod>,
     )> {
         Ok((Box::new(self), None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }

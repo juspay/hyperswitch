@@ -88,6 +88,7 @@ pub enum PaymentAttemptUpdate {
         status: enums::AttemptStatus,
         payment_method: Option<enums::PaymentMethodType>,
         browser_info: Option<serde_json::Value>,
+        connector: Option<String>,
     },
     VoidUpdate {
         status: enums::AttemptStatus,
@@ -117,6 +118,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     currency: Option<enums::Currency>,
     status: Option<enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
+    connector: Option<String>,
     authentication_type: Option<enums::AuthenticationType>,
     payment_method: Option<enums::PaymentMethodType>,
     error_message: Option<String>,
@@ -182,11 +184,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status,
                 payment_method,
                 browser_info,
+                connector,
             } => Self {
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 browser_info,
+                connector,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

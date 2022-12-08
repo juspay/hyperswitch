@@ -241,4 +241,12 @@ where
         )
         .await
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
+    }
 }

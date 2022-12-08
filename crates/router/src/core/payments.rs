@@ -98,6 +98,15 @@ where
         .await?;
     payment_data.payment_method_data = payment_method_data;
 
+    let connector_details = operation
+        .to_domain()?
+        .get_connector(&merchant_account, state)
+        .await?;
+
+    if let api::ConnectorCallType::Single(connector) = connector_details {
+        payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
+    }
+
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
         .update_trackers(&*state.store, &payment_id, payment_data, customer.clone())

@@ -223,4 +223,37 @@ where
         //No payment method data for this operation
         Ok((Box::new(self), None))
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> RouterResult<api::ConnectorCallType> {
+        let connectors = &state.conf.connectors;
+        let db = &state.store;
+
+        let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
+
+        //FIXME: Check if merchant has enabled wallet through the connector
+        let connector_names = db
+            .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?
+            .iter()
+            .filter(|connector_account| {
+                supported_connectors.contains(&connector_account.connector_name)
+            })
+            .map(|filtered_connector| filtered_connector.connector_name.clone())
+            .collect::<Vec<String>>();
+
+        let mut connectors_data = Vec::with_capacity(connector_names.len());
+
+        for connector_name in connector_names {
+            let connector_data =
+                api::ConnectorData::get_connector_by_name(connectors, &connector_name)?;
+            connectors_data.push(connector_data);
+        }
+
+        Ok(api::ConnectorCallType::Multiple(connectors_data))
+    }
 }
