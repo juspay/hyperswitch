@@ -889,10 +889,11 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    store: &dyn StorageInterface,
+    state: &AppState,
     customer_id: String,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
+    let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
     let ek = ephemeral_key::EphemeralKeyNew {
@@ -902,7 +903,7 @@ pub async fn make_ephemeral_key(
         secret,
     };
     let ek = store
-        .create_ephemeral_key(ek)
+        .create_ephemeral_key(ek, state.conf.eph_key.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
