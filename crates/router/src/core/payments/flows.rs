@@ -30,7 +30,7 @@ pub trait Feature<F, T> {
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        maybe_customer: &Option<storage::Customer>,
         payment_data: PaymentData<F>,
         call_connector_action: payments::CallConnectorAction,
     ) -> (RouterResult<Self>, PaymentData<F>)

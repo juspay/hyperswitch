@@ -4,10 +4,7 @@ use masking::{Secret, WithType};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{
-    pii::Email,
-    types::{api::customers, storage},
-};
+use crate::{pii::Email, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct CustomerAddress {
@@ -60,10 +57,10 @@ pub(crate) struct CustomerDeleteResponse {
     pub(crate) deleted: bool,
 }
 
-impl From<CreateCustomerRequest> for customers::CreateCustomerRequest {
+impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
-            customer_id: storage::generate_customer_id(),
+            customer_id: api::generate_customer_id(),
             name: req.name,
             phone: req.phone,
             email: req.email,
@@ -83,7 +80,7 @@ impl From<CreateCustomerRequest> for customers::CreateCustomerRequest {
     }
 }
 
-impl From<CustomerUpdateRequest> for customers::CustomerUpdateRequest {
+impl From<CustomerUpdateRequest> for api::CustomerRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
             name: req.name,
@@ -110,8 +107,8 @@ impl From<CustomerUpdateRequest> for customers::CustomerUpdateRequest {
     }
 }
 
-impl From<customers::CustomerResponse> for CreateCustomerResponse {
-    fn from(cust: customers::CustomerResponse) -> Self {
+impl From<api::CustomerResponse> for CreateCustomerResponse {
+    fn from(cust: api::CustomerResponse) -> Self {
         Self {
             id: cust.customer_id,
             object: "customer".to_owned(),
@@ -126,8 +123,8 @@ impl From<customers::CustomerResponse> for CreateCustomerResponse {
     }
 }
 
-impl From<customers::CustomerDeleteResponse> for CustomerDeleteResponse {
-    fn from(cust: customers::CustomerDeleteResponse) -> Self {
+impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
+    fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
             id: cust.customer_id,
             deleted: cust.deleted,

@@ -207,7 +207,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::VerifyRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
