@@ -126,38 +126,12 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
-        if payment_data
-            .payment_attempt
-            .payment_method
-            .get_required_value("payment_method")?
-            == enums::PaymentMethodType::Wallet
-        {
-            let pm_connector_data = match payment_data
-                .clone()
-                .payment_method_data
-                .get_required_value("payment_method_data")?
-            {
-                api::PaymentMethod::Wallet(wallet_data) => {
-                    if api::should_call_pm_connector(wallet_data.issuer_name.to_string())
-                        && wallet_data.token == api::TokenType::NoToken
-                    {
-                        Some(api::convert_pm_connector(
-                            wallet_data.issuer_name.to_string(),
-                        ))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            }
-            .transpose()?;
-
-            if pm_connector_data.is_some() {
-                connector = pm_connector_data
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("Failed to get PM connector data")?;
-            }
+        let pm_connector_data = check_call_pm_connector(&payment_data)?;
+        if pm_connector_data.is_some() {
+            connector = pm_connector_data
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("Failed to get PM connector data")?;
         }
 
         payment_data = call_connector_service(
@@ -445,6 +419,40 @@ where
     } else {
         Box::new(operation)
     }
+}
+
+pub fn check_call_pm_connector<F: Clone>(
+    payment_data: &PaymentData<F>,
+) -> RouterResult<Option<api::ConnectorData>> {
+    let connector_data = match payment_data
+        .payment_attempt
+        .payment_method
+        .get_required_value("payment_method")?
+    {
+        enums::PaymentMethodType::Wallet => {
+            match payment_data
+                .clone()
+                .payment_method_data
+                .get_required_value("payment_method_data")?
+            {
+                api::PaymentMethod::Wallet(wallet_data) => {
+                    if api::should_call_pm_connector(wallet_data.issuer_name.to_string())
+                        && wallet_data.token == api::TokenType::NoToken
+                    {
+                        Some(api::convert_pm_connector(
+                            wallet_data.issuer_name.to_string(),
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+    .transpose()?;
+    Ok(connector_data)
 }
 
 pub fn should_call_connector<Op: Debug, F: Clone>(
