@@ -94,7 +94,7 @@ pub(crate) mod amount {
             E: de::Error,
         {
             Ok(match v {
-                0 => api::Amount::Null,
+                0 => api::Amount::Zero,
                 amount => api::Amount::Value(amount),
             })
         }

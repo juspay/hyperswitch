@@ -77,7 +77,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = request
             .amount
-            .unwrap_or_else(|| api::Amount::from(payment_attempt.amount));
+            .unwrap_or_else(|| payment_attempt.amount.into());
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
