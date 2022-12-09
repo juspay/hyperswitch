@@ -28,7 +28,9 @@ pub struct Mandate {
     pub single_use_currency: Option<enums::Currency>,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    router_derive::Setter, Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay,
+)]
 #[diesel(table_name = mandate)]
 pub struct MandateNew {
     pub mandate_id: String,
