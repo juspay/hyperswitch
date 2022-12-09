@@ -143,6 +143,7 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
+            status: enums::AttemptStatus::from(item.response.transaction.status),
             response: Ok(types::PaymentsResponseData {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.id,
