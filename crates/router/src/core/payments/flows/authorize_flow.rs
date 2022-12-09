@@ -57,7 +57,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
     ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
@@ -89,7 +89,7 @@ impl PaymentsAuthorizeRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsAuthorizeRouterData>
@@ -164,7 +164,7 @@ impl PaymentsAuthorizeRouterData {
 
     fn generate_mandate(
         &self,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_method_id: String,
     ) -> Option<storage::MandateNew> {
         match (self.request.setup_mandate_details.clone(), customer) {

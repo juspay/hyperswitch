@@ -16,7 +16,7 @@ use crate::{
 pub async fn customers_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<customers::CreateCustomerRequest>,
+    json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     api::server_wrap(
         &state,
@@ -65,7 +65,7 @@ pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    mut json_payload: web::Json<customers::CustomerUpdateRequest>,
+    mut json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     let customer_id = path.into_inner();
     json_payload.customer_id = customer_id;
