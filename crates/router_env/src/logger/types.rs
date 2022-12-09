@@ -80,6 +80,10 @@ pub enum Flow {
     CustomersDelete,
     /// Customers get mandates flow.
     CustomersGetMandates,
+    /// Create an Ephemeral Key.
+    EphemeralKeyCreate,
+    /// Delete an Ephemeral Key.
+    EphemeralKeyDelete,
     /// Mandates retrieve flow.
     MandatesRetrieve,
     /// Mandates revoke flow.

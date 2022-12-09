@@ -14,6 +14,7 @@ use super::app::AppState;
 use crate::{
     core::{errors::http_not_implemented, payments},
     services::api,
+
     types::api::{
         enums as api_enums,
         payments::{
@@ -21,7 +22,7 @@ use crate::{
             PaymentsRequest, PaymentsRetrieveRequest,
         },
         Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
-        Verify, VerifyRequest, VerifyResponse, Void,
+        Verify, VerifyResponse, Void,
     }, // FIXME imports
 };
 
@@ -106,33 +107,6 @@ pub async fn payments_start(
             )
         },
         api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
-    )
-    .await
-}
-
-#[allow(dead_code)]
-#[instrument(skip(state), fields(flow = ?Flow::ValidatePaymentMethod))]
-pub async fn validate_pm(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<VerifyRequest>,
-) -> HttpResponse {
-    let payload = json_payload.into_inner();
-    api::server_wrap(
-        &state,
-        &req,
-        payload,
-        |state, merchant_account, req| {
-            payments::payments_core::<Verify, VerifyResponse, _, _, _>(
-                state,
-                merchant_account,
-                payments::PaymentMethodValidate,
-                req,
-                api::AuthFlow::Merchant,
-                payments::CallConnectorAction::Trigger,
-            )
-        },
-        api::MerchantAuthentication::ApiKey,
     )
     .await
 }
