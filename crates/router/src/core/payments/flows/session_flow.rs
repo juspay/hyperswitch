@@ -6,8 +6,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{self, transformers, PaymentData},
     },
-    routes::AppState,
-    services,
+    routes, services,
     types::{
         self, api,
         storage::{self, enums},
@@ -21,7 +20,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &routes::AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -39,7 +38,7 @@ impl
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &routes::AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Session>,
@@ -63,7 +62,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 impl types::PaymentsSessionRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a AppState,
+        state: &'a routes::AppState,
         connector: api::ConnectorData,
         _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
