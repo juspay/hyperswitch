@@ -1,6 +1,8 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::{pii::Secret, schema::merchant_connector_account, types::enums};
+use crate::{
+    pii::Secret, schema::merchant_connector_account, types::storage::enums as storage_enums,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
@@ -14,14 +16,14 @@ pub struct MerchantConnectorAccount {
     pub merchant_connector_id: i32,
     #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
-    pub connector_type: enums::ConnectorType,
+    pub connector_type: storage_enums::ConnectorType,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountNew {
     pub merchant_id: Option<String>,
-    pub connector_type: Option<enums::ConnectorType>,
+    pub connector_type: Option<storage_enums::ConnectorType>,
     pub connector_name: Option<String>,
     pub connector_account_details: Option<Secret<serde_json::Value>>,
     pub test_mode: Option<bool>,
@@ -34,7 +36,7 @@ pub struct MerchantConnectorAccountNew {
 pub enum MerchantConnectorAccountUpdate {
     Update {
         merchant_id: Option<String>,
-        connector_type: Option<enums::ConnectorType>,
+        connector_type: Option<storage_enums::ConnectorType>,
         connector_name: Option<String>,
         connector_account_details: Option<Secret<serde_json::Value>>,
         test_mode: Option<bool>,
@@ -47,7 +49,7 @@ pub enum MerchantConnectorAccountUpdate {
 #[diesel(table_name = merchant_connector_account)]
 pub(super) struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
-    connector_type: Option<enums::ConnectorType>,
+    connector_type: Option<storage_enums::ConnectorType>,
     connector_name: Option<String>,
     connector_account_details: Option<Secret<serde_json::Value>>,
     test_mode: Option<bool>,

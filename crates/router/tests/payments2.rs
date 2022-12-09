@@ -5,7 +5,7 @@ mod utils;
 use router::{
     core::payments,
     db::StorageImpl,
-    types::{api, storage::enums},
+    types::api::{self, enums as api_enums},
     *,
 };
 use time::macros::datetime;
@@ -51,7 +51,7 @@ async fn payments_create_core() {
         merchant_id: Some("jarnura".to_string()),
         amount: Some(6540),
         currency: Some("USD".to_string()),
-        capture_method: Some(enums::CaptureMethod::Automatic),
+        capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
@@ -61,7 +61,7 @@ async fn payments_create_core() {
         description: Some("Its my first payment request".to_string()),
         return_url: Some("http://example.com/payments".to_string()),
         setup_future_usage: None,
-        authentication_type: Some(enums::AuthenticationType::NoThreeDs),
+        authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethod::Card(api::CCard {
             card_number: "4242424242424242".to_string().into(),
             card_exp_month: "10".to_string().into(),
@@ -69,7 +69,7 @@ async fn payments_create_core() {
             card_holder_name: "Arun Raj".to_string().into(),
             card_cvc: "123".to_string().into(),
         })),
-        payment_method: Some(enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethodType::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -85,7 +85,7 @@ async fn payments_create_core() {
 
     let expected_response = api::PaymentsResponse {
         payment_id: Some("pay_mbabizu24mvu3mela5njyhpit10".to_string()),
-        status: enums::IntentStatus::Succeeded,
+        status: api_enums::IntentStatus::Succeeded,
         amount: 6540,
         amount_capturable: None,
         amount_received: None,
@@ -202,15 +202,15 @@ async fn payments_create_core_adyen_no_redirect() {
         merchant_id: Some(merchant_id.clone()),
         amount: Some(6540),
         currency: Some("USD".to_string()),
-        capture_method: Some(enums::CaptureMethod::Automatic),
+        capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
         customer_id: Some(customer_id),
         description: Some("Its my first payment request".to_string()),
         return_url: Some("http://example.com/payments".to_string()),
-        setup_future_usage: Some(api::FutureUsage::OffSession),
-        authentication_type: Some(enums::AuthenticationType::NoThreeDs),
+        setup_future_usage: Some(api_enums::FutureUsage::OffSession),
+        authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethod::Card(api::CCard {
             card_number: "5555 3412 4444 1115".to_string().into(),
             card_exp_month: "03".to_string().into(),
@@ -218,7 +218,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "737".to_string().into(),
         })),
-        payment_method: Some(enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethodType::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -244,7 +244,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let expected_response = services::BachResponse::Json(api::PaymentsResponse {
         payment_id: Some(payment_id.clone()),
-        status: enums::IntentStatus::Processing,
+        status: api_enums::IntentStatus::Processing,
         amount: 6540,
         amount_capturable: None,
         amount_received: None,

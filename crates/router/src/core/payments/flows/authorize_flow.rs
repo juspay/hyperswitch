@@ -14,7 +14,7 @@ use crate::{
     services,
     types::{
         self, api,
-        storage::{self, enums},
+        storage::{self, enums as storage_enums},
         PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
     utils,
@@ -60,7 +60,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
         customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -94,7 +94,7 @@ impl PaymentsAuthorizeRouterData {
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentsAuthorizeRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
@@ -129,18 +129,18 @@ impl PaymentsAuthorizeRouterData {
                             .await
                             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
                         let mandate = match mandate.mandate_type {
-                            enums::MandateType::SingleUse => state
+                            storage_enums::MandateType::SingleUse => state
                                 .store
                                 .update_mandate_by_merchant_id_mandate_id(
                                     &resp.merchant_id,
                                     mandate_id,
                                     storage::MandateUpdate::StatusUpdate {
-                                        mandate_status: enums::MandateStatus::Revoked,
+                                        mandate_status: storage_enums::MandateStatus::Revoked,
                                     },
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::MandateNotFound),
-                            enums::MandateType::MultiUse => Ok(mandate),
+                            storage_enums::MandateType::MultiUse => Ok(mandate),
                         }?;
 
                         resp.payment_method_id = Some(mandate.payment_method_id);
@@ -197,7 +197,7 @@ impl PaymentsAuthorizeRouterData {
                     .set_customer_id(cus.customer_id.clone())
                     .set_merchant_id(self.merchant_id.clone())
                     .set_payment_method_id(payment_method_id)
-                    .set_mandate_status(enums::MandateStatus::Active)
+                    .set_mandate_status(storage_enums::MandateStatus::Active)
                     .set_customer_ip_address(
                         data.customer_acceptance.get_ip_address().map(Secret::new),
                     )
@@ -208,11 +208,11 @@ impl PaymentsAuthorizeRouterData {
                     api::MandateType::SingleUse(data) => new_mandate
                         .set_single_use_amount(Some(data.amount))
                         .set_single_use_currency(Some(data.currency))
-                        .set_mandate_type(enums::MandateType::SingleUse)
+                        .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 
                     api::MandateType::MultiUse => new_mandate
-                        .set_mandate_type(enums::MandateType::MultiUse)
+                        .set_mandate_type(storage_enums::MandateType::MultiUse)
                         .to_owned(),
                 })
             }
