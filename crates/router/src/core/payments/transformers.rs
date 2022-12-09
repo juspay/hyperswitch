@@ -137,7 +137,6 @@ where
             payment_data.payment_attempt,
             payment_data.payment_intent,
             payment_data.refunds,
-            payment_data.mandate_id,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -198,7 +197,6 @@ pub fn payments_to_payments_response<R, Op>(
     payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
-    mandate_id: Option<String>,
     payment_method_data: Option<api::PaymentMethod>,
     customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
@@ -216,6 +214,7 @@ where
         .as_ref()
         .get_required_value("currency")?
         .to_string();
+    let mandate_id = payment_attempt.mandate_id.clone();
     let refunds_response = if refunds.is_empty() {
         None
     } else {
