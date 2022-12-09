@@ -33,6 +33,7 @@ pub struct Settings {
     pub keys: Keys, //remove this during refactoring
     pub locker: Locker,
     pub connectors: Connectors,
+    pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -53,6 +54,11 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct EphemeralConfig {
+    pub validity: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -100,6 +106,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub checkout: ConnectorParams,
     pub stripe: ConnectorParams,
+    pub braintree: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -164,10 +171,10 @@ impl Settings {
             )
             .build()?;
 
-        config.try_deserialize().map_err(|e| {
-            logger::error!("Unable to source config file");
-            eprintln!("Unable to source config file");
-            BachError::from(e)
+        serde_path_to_error::deserialize(config).map_err(|error| {
+            logger::error!(%error, "Unable to deserialize application configuration");
+            eprintln!("Unable to deserialize application configuration: {error}");
+            BachError::from(error.into_inner())
         })
     }
 }

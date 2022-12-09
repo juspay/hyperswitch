@@ -4,6 +4,7 @@ pub mod commands;
 pub mod errors;
 pub mod types;
 
+pub use fred::prelude::*;
 use router_env::logger;
 
 pub use self::{commands::*, types::*};

@@ -119,9 +119,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
-                Err(report!(errors::ValidateError)
-                    .attach_printable("You cannot confirm this Payment because it has already succeeded after being previously confirmed.")
-                    .change_context(errors::ApiErrorResponse::InvalidDataFormat { field_name: "payment_id".to_string(), expected_format: "payment_id of pending payment".to_string() }))
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "You cannot confirm this Payment because it has already succeeded \
+                              after being previously confirmed."
+                        .into()
+                }))
             }
             _ => Ok((
                 Box::new(self),
@@ -143,14 +145,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_method_data: request.payment_method_data.clone(),
                     force_sync: None,
                     refunds: vec![],
-                    },
+                },
                 Some(CustomerDetails {
                     customer_id: request.customer_id.clone(),
                     name: request.name.clone(),
                     email: request.email.clone(),
                     phone: request.phone.clone(),
                     phone_country_code: request.phone_country_code.clone(),
-                })
+                }),
             )),
         }
     }
