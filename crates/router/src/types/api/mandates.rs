@@ -10,7 +10,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, enums as api_enums},
-        storage::{self, enums as db_enums},
+        storage::{self, enums as storage_enums},
     },
 };
 
@@ -47,7 +47,7 @@ impl MandateResponse {
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
-        let card = if payment_method.payment_method == db_enums::PaymentMethodType::Card {
+        let card = if payment_method.payment_method == storage_enums::PaymentMethodType::Card {
             let get_card_resp = payment_methods::cards::get_card_from_legacy_locker(
                 state,
                 &payment_method.merchant_id,
