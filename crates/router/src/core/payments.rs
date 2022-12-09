@@ -26,6 +26,7 @@ use crate::{
         payments::transformers as payments_transformers,
     },
     db::StorageInterface,
+    logger,
     pii::Email,
     routes::AppState,
     scheduler::utils as pt_utils,
@@ -360,25 +361,27 @@ where
             .decide_flows(state, connector, customer, CallConnectorAction::Trigger)
             .await?;
 
-        let connector_response = res.response.unwrap_or_else(|_| {
-            types::PaymentsResponseData::SessionResponse(types::PaymentsSessionResponse {
-                session_token: "".to_string(),
-            })
-        });
-
-        let session_token = match connector_response {
-            types::PaymentsResponseData::SessionResponse(session_response) => {
-                Ok(session_response.session_token)
+        match res.response {
+            Ok(connector_response) => {
+                if let types::PaymentsResponseData::SessionResponse { session_token } =
+                    connector_response
+                {
+                    payment_data
+                        .sessions_token
+                        .push(types::ConnectorSessionToken {
+                            connector_name,
+                            session_token,
+                        });
+                }
             }
-            _ => Err(errors::ApiErrorResponse::InternalServerError), //FIXME: raise appropriate error because sessions token not found,
-        }?;
-
-        payment_data
-            .sessions_token
-            .push(types::ConnectorSessionToken {
-                connector_name,
-                session_token,
-            })
+            Err(connector_error) => {
+                logger::debug!(
+                    "sessions_connector_error {} {:?}",
+                    connector_name,
+                    connector_error
+                );
+            }
+        }
     }
 
     let call_connectors_end_time = Instant::now();
