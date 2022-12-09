@@ -1,11 +1,3 @@
-// FIXED(kos): Feature `doc_cfg` does require explicit attributes
-// `#[doc(cfg(feature = ...))]` for the badges to appear.
-// https://doc.rust-lang.org/stable/unstable-book/language-features/doc-cfg.html
-// Rather use `doc_auto_cfg` feature, which generates badges from
-// the `#[cfg(feature = ...)]` attributes directly:
-// https://doc.rust-lang.org/stable/unstable-book/language-features/doc-auto-cfg.html
-// https://github.com/rust-lang/rust/pull/90502
-
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(doc)))]
 #![forbid(unsafe_code)]

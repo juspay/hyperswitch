@@ -46,12 +46,6 @@ pub struct Secret<Secret, MaskingStrategy = crate::WithType>
 where
     MaskingStrategy: Strategy<Secret>,
 {
-    // FIXED(kos): `marker` is too generic naming here, being non-obvious about
-    // what kind of metadata it stores. We should name it directly after
-    // its purpose: `masking_strategy`.
-    // Also I. Not obvious.
-    // Also, consider renaming in similar places over the codebase.
-    /// Inner secret value
     pub(crate) inner_secret: Secret,
     pub(crate) masking_strategy: PhantomData<MaskingStrategy>,
 }
@@ -62,9 +56,6 @@ where
 {
     /// Take ownership of a secret value
     pub fn new(secret: SecretValue) -> Self {
-        // FIXED(kos): Use `Self` syntax here.
-        // `#![warn(clippy::use_self)]` on crate level should help
-        // with this.
         Self {
             inner_secret: secret,
             masking_strategy: PhantomData,

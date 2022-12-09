@@ -63,13 +63,6 @@ where
     Secret: ZeroizableSecret + StrongEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        // FIXED(kos): Usual comparison is not safe in cryptography as is lazy
-        // (fail-fast) and makes the code potentially vulnerable to
-        // timing attacks:
-        // https://www.chosenplaintext.ca/articles/beginners-guide-constant-time-cryptography.html
-        // Use crates like `subtle` for constant-time comparison of
-        // secret values:
-        // https://docs.rs/subtle
         StrongEq::strong_eq(self.peek(), other.peek())
     }
 }
