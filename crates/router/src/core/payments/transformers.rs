@@ -146,6 +146,26 @@ where
     }
 }
 
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        _req: Option<Req>,
+        payment_data: PaymentData<F>,
+        _customer: Option<storage::Customer>,
+        _auth_flow: services::AuthFlow,
+        _server: &Server,
+        _operation: Op,
+    ) -> RouterResponse<Self> {
+        Ok(services::BachResponse::Json(Self {
+            session_token: payment_data.sessions_token,
+        }))
+    }
+}
+
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
 where
     Self: From<Req>,
