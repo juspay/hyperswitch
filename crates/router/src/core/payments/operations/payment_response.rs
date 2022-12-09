@@ -186,7 +186,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
-                    connector_transaction_id: connector_transaction_id,
+                    connector_transaction_id,
                     authentication_data,
                     encoded_data,
                 };
