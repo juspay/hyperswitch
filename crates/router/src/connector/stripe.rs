@@ -472,7 +472,6 @@ impl
     }
 }
 
-#[allow(dead_code)]
 type Verify = dyn services::ConnectorIntegration<
     api::Verify,
     types::VerifyRequestData,

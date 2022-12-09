@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_intent, types::enums};
+use crate::{schema::payment_intent, types::storage::enums as storage_enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent)]
@@ -10,9 +10,9 @@ pub struct PaymentIntent {
     pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
-    pub status: enums::IntentStatus,
+    pub status: storage_enums::IntentStatus,
     pub amount: i32,
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i32>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
@@ -26,7 +26,7 @@ pub struct PaymentIntent {
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub last_synced: Option<PrimitiveDateTime>, // FIXME: this is optional
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
@@ -36,9 +36,9 @@ pub struct PaymentIntent {
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
-    pub status: enums::IntentStatus,
+    pub status: storage_enums::IntentStatus,
     pub amount: i32,
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i32>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
@@ -53,14 +53,14 @@ pub struct PaymentIntentNew {
     pub modified_at: Option<PrimitiveDateTime>,
     pub last_synced: Option<PrimitiveDateTime>,
     pub client_secret: Option<String>,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
-        status: enums::IntentStatus,
+        status: storage_enums::IntentStatus,
         amount_captured: Option<i32>,
         return_url: Option<String>,
     },
@@ -69,23 +69,23 @@ pub enum PaymentIntentUpdate {
     },
     ReturnUrlUpdate {
         return_url: Option<String>,
-        status: Option<enums::IntentStatus>,
+        status: Option<storage_enums::IntentStatus>,
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
     },
     MerchantStatusUpdate {
-        status: enums::IntentStatus,
+        status: storage_enums::IntentStatus,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
     },
     PGStatusUpdate {
-        status: enums::IntentStatus,
+        status: storage_enums::IntentStatus,
     },
     Update {
         amount: i32,
-        currency: enums::Currency,
-        status: enums::IntentStatus,
+        currency: storage_enums::Currency,
+        status: storage_enums::IntentStatus,
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
@@ -97,12 +97,12 @@ pub enum PaymentIntentUpdate {
 
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<i32>,
-    pub currency: Option<enums::Currency>,
-    pub status: Option<enums::IntentStatus>,
+    pub currency: Option<storage_enums::Currency>,
+    pub status: Option<storage_enums::IntentStatus>,
     pub amount_captured: Option<i32>,
     pub customer_id: Option<String>,
     pub return_url: Option<String>,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<serde_json::Value>,
     pub client_secret: Option<Option<String>>,
@@ -223,9 +223,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
 }
 
 fn make_client_secret_null_if_success(
-    status: Option<enums::IntentStatus>,
+    status: Option<storage_enums::IntentStatus>,
 ) -> Option<Option<String>> {
-    if status == Some(enums::IntentStatus::Succeeded) {
+    if status == Some(storage_enums::IntentStatus::Succeeded) {
         Option::<Option<String>>::Some(None)
     } else {
         None

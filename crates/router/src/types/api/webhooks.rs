@@ -8,7 +8,7 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     services,
-    types::{api, storage::enums},
+    types::{api, api::enums as api_enums},
     utils::crypto,
 };
 
@@ -43,7 +43,7 @@ pub struct IncomingWebhookDetails {
 pub struct OutgoingWebhook {
     pub merchant_id: String,
     pub event_id: String,
-    pub event_type: enums::EventType,
+    pub event_type: api_enums::EventType,
     pub content: OutgoingWebhookContent,
     #[serde(default, with = "custom_serde::iso8601")]
     pub timestamp: PrimitiveDateTime,
