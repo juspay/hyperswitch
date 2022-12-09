@@ -127,6 +127,11 @@ pub struct ConnectorSessionToken {
     pub session_token: String,
 }
 
+#[derive(serde::Serialize, Debug)]
+pub struct PaymentsSessionResponseData {
+    pub client_token: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct VerifyRequestData {
     pub payment_method_data: payments::PaymentMethod,
