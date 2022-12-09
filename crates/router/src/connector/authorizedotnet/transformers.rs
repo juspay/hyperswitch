@@ -470,11 +470,9 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
             .as_ref()
             .ok()
             .map(|payment_response_data| match payment_response_data {
-                types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data: _,
-                    redirect: _,
-                } => resource_id.get_connector_transaction_id(),
+                types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
+                    resource_id.get_connector_transaction_id()
+                }
                 _ => Err(error_stack::report!(
                     errors::ValidationError::MissingRequiredField {
                         field_name: "transaction_id".to_string()

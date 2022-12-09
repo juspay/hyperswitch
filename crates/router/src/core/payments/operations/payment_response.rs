@@ -161,7 +161,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 )
             }
 
-            types::PaymentsResponseData::SessionResponse { session_token: _ } => (None, None),
+            types::PaymentsResponseData::SessionResponse { .. } => (None, None),
         },
     };
 
