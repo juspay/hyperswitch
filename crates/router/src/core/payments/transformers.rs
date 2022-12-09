@@ -71,6 +71,7 @@ where
             //TODO: Add redirection details here
             redirection_data: None,
             redirect: false,
+            mandate_reference: None,
         });
 
     let orca_return_url = Some(helpers::create_redirect_url(

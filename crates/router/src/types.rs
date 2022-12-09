@@ -129,6 +129,7 @@ pub struct PaymentsResponseData {
     pub resource_id: ResponseId,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
     pub redirection_data: Option<services::RedirectForm>,
+    pub mandate_reference: Option<String>,
     pub redirect: bool,
 }
 

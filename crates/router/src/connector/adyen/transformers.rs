@@ -409,6 +409,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })
@@ -449,6 +451,8 @@ pub fn get_adyen_response(
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         redirect: false,
+        // TODO: Implement mandate fetch for other connectors
+        mandate_reference: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -513,6 +517,8 @@ pub fn get_redirection_response(
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
         redirect: true,
+        // TODO: Implement mandate fetch for other connectors
+        mandate_reference: None,
     };
     Ok((status, error, payments_response_data))
 }

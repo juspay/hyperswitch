@@ -306,6 +306,8 @@ impl<F, T>
                         //TODO: Add redirection details here
                         redirection_data: None,
                         redirect: false,
+                        // TODO: Implement mandate fetch for other connectors
+                        mandate_reference: None,
                     })
                 }
             },
@@ -586,6 +588,8 @@ impl<F, Req>
                 ),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             status: payment_status,
             ..item.data

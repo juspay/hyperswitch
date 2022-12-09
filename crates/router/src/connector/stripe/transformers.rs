@@ -318,6 +318,7 @@ pub struct PaymentIntentResponse {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -331,6 +332,7 @@ pub struct SetupIntentResponse {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 
 impl<F, T>
@@ -359,6 +361,15 @@ impl<F, T>
             },
         );
 
+        let mandate_reference =
+            item.response
+                .payment_method_options
+                .map(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        mandate_options, ..
+                    } => mandate_options.reference,
+                });
+
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
@@ -369,6 +380,7 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
+                mandate_reference,
             }),
             ..item.data
         })
@@ -400,12 +412,22 @@ impl<F, T>
             },
         );
 
+        let mandate_reference =
+            item.response
+                .payment_method_options
+                .map(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        mandate_options, ..
+                    } => mandate_options.reference,
+                });
+
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
+                mandate_reference,
             }),
             ..item.data
         })
@@ -628,6 +650,19 @@ pub enum CancellationReason {
     Abandoned,
 }
 
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum StripePaymentMethodOptions {
+    Card {
+        capture_method: String,
+        mandate_options: StripeMandateOptions,
+    },
+}
+
+#[derive(serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+pub struct StripeMandateOptions {
+    reference: String, // Extendable, But only important field to be captured
+}
 /// Represents the capture request body for stripe connector.
 #[derive(Debug, Serialize, Clone, Copy)]
 pub struct CaptureRequest {

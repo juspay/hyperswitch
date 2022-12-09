@@ -129,6 +129,10 @@ impl types::VerifyRouterData {
                                 self.request.setup_mandate_details.clone(),
                                 maybe_customer,
                                 payment_method_id,
+                                resp.response
+                                    .as_ref()
+                                    .ok()
+                                    .and_then(|response| response.mandate_reference.clone()),
                             ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
                                 state.store.insert_mandate(new_mandate_data).await.map_err(
