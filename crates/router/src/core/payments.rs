@@ -372,7 +372,7 @@ where
             .decide_flows(
                 state,
                 connector,
-                &customer,
+                customer,
                 CallConnectorAction::Trigger,
                 merchant_account.storage_scheme,
             )
