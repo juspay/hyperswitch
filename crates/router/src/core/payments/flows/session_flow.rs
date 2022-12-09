@@ -63,14 +63,7 @@ impl types::PaymentsSessionRouterData {
         _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<types::PaymentsSessionRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Session,
-            types::PaymentsSessionData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<types::PaymentsSessionRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Session,
             types::PaymentsSessionData,

@@ -69,14 +69,7 @@ impl types::VerifyRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<Self>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Verify,
-            types::VerifyRequestData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
