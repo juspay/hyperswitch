@@ -21,8 +21,8 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api,
-        storage::{self, enums, ephemeral_key},
+        api::{self, enums as api_enums},
+        storage::{self, enums as storage_enums, ephemeral_key},
     },
     utils::{
         self,
@@ -99,7 +99,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_id: &str,
 ) -> RouterResult<(
     Option<String>,
-    Option<enums::PaymentMethodType>,
+    Option<storage_enums::PaymentMethodType>,
     Option<api::MandateData>,
 )> {
     match mandate_type {
@@ -110,7 +110,7 @@ pub async fn get_token_pm_type_mandate_details(
                 .get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
-                request.payment_method,
+                request.payment_method.map(Into::into),
                 Some(setup_mandate),
             ))
         }
@@ -121,7 +121,7 @@ pub async fn get_token_pm_type_mandate_details(
         }
         None => Ok((
             request.payment_token.to_owned(),
-            request.payment_method,
+            request.payment_method.map(Into::into),
             request.mandate_data.clone(),
         )),
     }
@@ -131,7 +131,7 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_id: &str,
-) -> RouterResult<(Option<String>, Option<enums::PaymentMethodType>)> {
+) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethodType>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -148,7 +148,7 @@ pub async fn get_token_for_recurring_mandate(
                 message: "customer_id must match mandate customer_id".into()
             }))?
         }
-        if mandate.mandate_status != enums::MandateStatus::Active {
+        if mandate.mandate_status != storage_enums::MandateStatus::Active {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "mandate is not active".into()
             }))?
@@ -168,7 +168,8 @@ pub async fn get_token_for_recurring_mandate(
     let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
-        if payment_method_from_request != payment_method.payment_method {
+        let pm: storage_enums::PaymentMethodType = payment_method_from_request.into();
+        if pm != payment_method.payment_method {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "payment method in request does not match previously provided payment \
                           method information"
@@ -260,7 +261,7 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
         .clone()
         .get_required_value("mandate_data")?;
 
-    if enums::FutureUsage::OnSession
+    if api_enums::FutureUsage::OnSession
         == req
             .setup_future_usage
             .get_required_value("setup_future_usage")?
@@ -332,26 +333,26 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::PaymentMethod>,
     confirm: Option<bool>,
-) -> enums::AttemptStatus {
+) -> storage_enums::AttemptStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => enums::AttemptStatus::Pending,
-            _ => enums::AttemptStatus::ConfirmationAwaited,
+            Some(true) => storage_enums::AttemptStatus::Pending,
+            _ => storage_enums::AttemptStatus::ConfirmationAwaited,
         },
-        None => enums::AttemptStatus::PaymentMethodAwaited,
+        None => storage_enums::AttemptStatus::PaymentMethodAwaited,
     }
 }
 
 pub fn payment_intent_status_fsm(
     payment_method_data: &Option<api::PaymentMethod>,
     confirm: Option<bool>,
-) -> enums::IntentStatus {
+) -> storage_enums::IntentStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => enums::IntentStatus::RequiresCustomerAction,
-            _ => enums::IntentStatus::RequiresConfirmation,
+            Some(true) => storage_enums::IntentStatus::RequiresCustomerAction,
+            _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
-        None => enums::IntentStatus::RequiresPaymentMethod,
+        None => storage_enums::IntentStatus::RequiresPaymentMethod,
     }
 }
 
@@ -379,7 +380,7 @@ pub(crate) async fn call_payment_method(
     state: &AppState,
     merchant_id: &str,
     payment_method: Option<&api::PaymentMethod>,
-    payment_method_type: Option<enums::PaymentMethodType>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
     maybe_customer: &Option<storage::Customer>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
@@ -398,7 +399,7 @@ pub(crate) async fn call_payment_method(
                             let customer_id = customer.customer_id.clone();
                             let payment_method_request = api::CreatePaymentMethod {
                                 merchant_id: Some(merchant_id.to_string()),
-                                payment_method: payment_method_type,
+                                payment_method: payment_method_type.into(),
                                 payment_method_type: None,
                                 payment_method_issuer: None,
                                 payment_method_issuer_code: None,
@@ -430,7 +431,7 @@ pub(crate) async fn call_payment_method(
                 _ => {
                     let payment_method_request = api::CreatePaymentMethod {
                         merchant_id: Some(merchant_id.to_string()),
-                        payment_method: payment_method_type,
+                        payment_method: payment_method_type.into(),
                         payment_method_type: None,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
@@ -566,7 +567,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
-    payment_method: Option<enums::PaymentMethodType>,
+    payment_method: Option<storage_enums::PaymentMethodType>,
     txn_id: &str,
     _payment_attempt: &storage::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
@@ -574,7 +575,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-            if payment_method == Some(enums::PaymentMethodType::Card) {
+            if payment_method == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
                 Vault::get_payment_method_data_from_locker(state, token).await?
             } else {
@@ -749,9 +750,11 @@ pub async fn create_temp_card(
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_capture_method(capture_method: enums::CaptureMethod) -> RouterResult<()> {
+pub(crate) fn validate_capture_method(
+    capture_method: storage_enums::CaptureMethod,
+) -> RouterResult<()> {
     utils::when(
-        capture_method == enums::CaptureMethod::Automatic,
+        capture_method == storage_enums::CaptureMethod::Automatic,
         Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
             field_name: "capture_method".to_string(),
             current_flow: "captured".to_string(),
@@ -762,9 +765,9 @@ pub(crate) fn validate_capture_method(capture_method: enums::CaptureMethod) -> R
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_status(status: enums::IntentStatus) -> RouterResult<()> {
+pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
     utils::when(
-        status != enums::IntentStatus::RequiresCapture,
+        status != storage_enums::IntentStatus::RequiresCapture,
         Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
             field_name: "payment.status".to_string(),
             current_flow: "captured".to_string(),
@@ -787,13 +790,13 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
-pub fn can_call_connector(status: enums::IntentStatus) -> bool {
+pub fn can_call_connector(status: storage_enums::IntentStatus) -> bool {
     matches!(
         status,
-        enums::IntentStatus::Failed
-            | enums::IntentStatus::Processing
-            | enums::IntentStatus::Succeeded
-            | enums::IntentStatus::RequiresCustomerAction
+        storage_enums::IntentStatus::Failed
+            | storage_enums::IntentStatus::Processing
+            | storage_enums::IntentStatus::Succeeded
+            | storage_enums::IntentStatus::RequiresCustomerAction
     )
 }
 
@@ -808,9 +811,10 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
     let result = db
-        .filter_payment_intent_by_constraints(merchant_id, constraints)
+        .filter_payment_intent_by_constraints(merchant_id, constraints, storage_scheme)
         .await?;
     Ok(result)
 }

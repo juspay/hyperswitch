@@ -9,15 +9,15 @@ use time::PrimitiveDateTime;
 use crate::{
     core::errors::{self, RouterResult},
     pii::{self, Secret},
-    types::storage::enums,
+    types::api::enums as api_enums,
 };
 
 /// Static collection that contains valid Payment Method Type and Payment Method SubType
 /// tuples. Used for validation.
 static PAYMENT_METHOD_TYPE_SET: Lazy<
-    HashMap<enums::PaymentMethodType, Vec<enums::PaymentMethodSubType>>,
+    HashMap<api_enums::PaymentMethodType, Vec<api_enums::PaymentMethodSubType>>,
 > = Lazy::new(|| {
-    use enums::{PaymentMethodSubType as ST, PaymentMethodType as T};
+    use api_enums::{PaymentMethodSubType as ST, PaymentMethodType as T};
 
     hmap! {
         T::Card => vec![
@@ -39,9 +39,9 @@ static PAYMENT_METHOD_TYPE_SET: Lazy<
 /// Static collection that contains valid Payment Method Issuer and Payment Method Issuer
 /// Type tuples. Used for validation.
 static PAYMENT_METHOD_ISSUER_SET: Lazy<
-    HashMap<enums::PaymentMethodType, Vec<enums::PaymentMethodIssuerCode>>,
+    HashMap<api_enums::PaymentMethodType, Vec<api_enums::PaymentMethodIssuerCode>>,
 > = Lazy::new(|| {
-    use enums::{PaymentMethodIssuerCode as IC, PaymentMethodType as T};
+    use api_enums::{PaymentMethodIssuerCode as IC, PaymentMethodType as T};
 
     hmap! {
         T::Card => vec![
@@ -72,10 +72,10 @@ static PAYMENT_METHOD_ISSUER_SET: Lazy<
 #[serde(deny_unknown_fields)]
 pub struct CreatePaymentMethod {
     pub merchant_id: Option<String>,
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_type: Option<enums::PaymentMethodSubType>,
+    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
-    pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
+    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     pub card: Option<CardDetail>,
     pub metadata: Option<serde_json::Value>,
     pub customer_id: Option<String>,
@@ -144,10 +144,10 @@ pub struct CardDetail {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentMethodResponse {
     pub payment_method_id: String,
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_type: Option<enums::PaymentMethodSubType>,
+    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
-    pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
+    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     pub card: Option<CardDetailFromLocker>,
     //TODO: Populate this on request?
     // pub accepted_country: Option<Vec<String>>,
@@ -181,7 +181,7 @@ pub struct CardDetailFromLocker {
 #[serde(deny_unknown_fields)]
 pub struct ListPaymentMethodRequest {
     pub accepted_countries: Option<Vec<String>>,
-    pub accepted_currencies: Option<Vec<enums::Currency>>,
+    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     pub amount: Option<i32>,
     pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
@@ -189,13 +189,13 @@ pub struct ListPaymentMethodRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListPaymentMethodResponse {
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_types: Option<Vec<enums::PaymentMethodSubType>>,
+    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
     pub payment_method_issuers: Option<Vec<String>>,
-    pub payment_method_issuer_code: Option<Vec<enums::PaymentMethodIssuerCode>>,
+    pub payment_method_issuer_code: Option<Vec<api_enums::PaymentMethodIssuerCode>>,
     pub payment_schemes: Option<Vec<String>>,
     pub accepted_countries: Option<Vec<String>>,
-    pub accepted_currencies: Option<Vec<enums::Currency>>,
+    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     pub minimum_amount: Option<i32>,
     pub maximum_amount: Option<i32>,
     pub recurring_enabled: bool,
@@ -219,10 +219,10 @@ pub struct DeletePaymentMethodResponse {
 pub struct CustomerPaymentMethod {
     pub payment_token: String,
     pub customer_id: String,
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_type: Option<enums::PaymentMethodSubType>,
+    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
-    pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
+    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     //TODO: Populate this on request?
     // pub accepted_country: Option<Vec<String>>,
     // pub accepted_currency: Option<Vec<enums::Currency>>,

@@ -5,7 +5,7 @@ use crate::schema::mandate;
 // use serde::{Deserialize, Serialize};
 use crate::{
     pii::{self, Secret},
-    types::enums,
+    types::storage::enums as storage_enums,
 };
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
@@ -16,8 +16,8 @@ pub struct Mandate {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    pub mandate_status: enums::MandateStatus,
-    pub mandate_type: enums::MandateType,
+    pub mandate_status: storage_enums::MandateStatus,
+    pub mandate_type: storage_enums::MandateType,
     pub customer_accepted_at: Option<PrimitiveDateTime>,
     pub customer_ip_address: Option<Secret<String, pii::IpAddress>>,
     pub customer_user_agent: Option<String>,
@@ -33,8 +33,8 @@ pub struct MandateNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    pub mandate_status: enums::MandateStatus,
-    pub mandate_type: enums::MandateType,
+    pub mandate_status: storage_enums::MandateStatus,
+    pub mandate_type: storage_enums::MandateType,
     pub customer_accepted_at: Option<PrimitiveDateTime>,
     pub customer_ip_address: Option<Secret<String, pii::IpAddress>>,
     pub customer_user_agent: Option<String>,
@@ -46,14 +46,14 @@ pub struct MandateNew {
 #[derive(Debug)]
 pub enum MandateUpdate {
     StatusUpdate {
-        mandate_status: enums::MandateStatus,
+        mandate_status: storage_enums::MandateStatus,
     },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = mandate)]
 pub(super) struct MandateUpdateInternal {
-    mandate_status: enums::MandateStatus,
+    mandate_status: storage_enums::MandateStatus,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
