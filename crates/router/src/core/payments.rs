@@ -342,7 +342,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
-    let stime_connector = Instant::now();
+    let call_connectors_start_time = Instant::now();
     let mut router_data_list = Vec::with_capacity(connectors.len());
 
     for connector in connectors {
@@ -381,9 +381,10 @@ where
             })
     }
 
-    let etime_connector = Instant::now();
-    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
-    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+    let call_connectors_end_time = Instant::now();
+    let call_connectors_duration =
+        call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
+    tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
 }
