@@ -59,7 +59,7 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    //FIXME: why should response be filled during request
+    //FIXME[#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
