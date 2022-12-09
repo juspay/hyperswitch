@@ -69,7 +69,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         connector: types::Connector,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -166,7 +166,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -239,7 +239,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,
