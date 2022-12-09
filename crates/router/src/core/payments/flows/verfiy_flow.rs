@@ -44,9 +44,10 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Verify>,
         call_connector_action: payments::CallConnectorAction,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Verify>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -62,6 +63,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
                 customer,
                 Some(true),
                 call_connector_action,
+                storage_scheme,
             )
             .await;
 
@@ -74,9 +76,10 @@ impl types::VerifyRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
@@ -151,7 +154,7 @@ impl types::VerifyRouterData {
 fn generate_mandate(
     merchant_id: String,
     setup_mandate_details: Option<api::MandateData>,
-    customer: &Option<api::CustomerResponse>,
+    customer: &Option<storage::Customer>,
     payment_method_id: String,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {

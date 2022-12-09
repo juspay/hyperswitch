@@ -2,6 +2,7 @@ mod payment_cancel;
 mod payment_capture;
 mod payment_confirm;
 mod payment_create;
+mod payment_method_validate;
 mod payment_response;
 mod payment_session;
 mod payment_start;
@@ -13,6 +14,7 @@ pub use payment_cancel::PaymentCancel;
 pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
 pub use payment_create::PaymentCreate;
+pub use payment_method_validate::PaymentMethodValidate;
 pub use payment_response::PaymentResponse;
 pub use payment_session::PaymentSession;
 pub use payment_start::PaymentStart;
@@ -66,18 +68,20 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+pub struct ValidateResult<'a> {
+    pub merchant_id: &'a str,
+    pub payment_id: api::PaymentIdType,
+    pub mandate_type: Option<api::MandateTxnType>,
+    pub storage_scheme: enums::MerchantStorageScheme,
+}
+
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
         merchant_account: &'a storage::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, R>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
-    )>;
+    ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 
 #[async_trait]
@@ -91,6 +95,7 @@ pub trait GetTracker<F, D, R>: Send {
         connector: types::Connector,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -103,7 +108,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,
-    ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<api::CustomerResponse>), errors::StorageError>;
+    ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
@@ -114,6 +119,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -133,6 +139,7 @@ pub trait UpdateTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         customer: Option<Customer>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, D)>
     where
         F: 'b + Send;
@@ -146,6 +153,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: Option<types::RouterData<F, R, PaymentsResponseData>>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
         F: 'b + Send;
@@ -167,7 +175,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -190,6 +198,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -254,7 +263,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -278,6 +287,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
@@ -311,7 +321,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -334,6 +344,7 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
@@ -358,7 +369,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -382,6 +393,7 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,

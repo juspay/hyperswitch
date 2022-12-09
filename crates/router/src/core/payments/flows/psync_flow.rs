@@ -8,7 +8,11 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, PaymentsResponseData, PaymentsSyncData, PaymentsSyncRouterData},
+    types::{
+        self, api,
+        storage::{self, enums},
+        PaymentsResponseData, PaymentsSyncData, PaymentsSyncRouterData,
+    },
 };
 
 #[async_trait]
@@ -40,9 +44,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::PSync>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::PSync>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -70,7 +75,7 @@ impl PaymentsSyncRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsSyncRouterData>

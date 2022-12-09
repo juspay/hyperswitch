@@ -8,7 +8,10 @@ use crate::{
     },
     pii::Secret,
     routes::AppState,
-    types::{api, storage},
+    types::{
+        api::{self, enums as api_enums},
+        storage::{self, enums as storage_enums},
+    },
 };
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -19,13 +22,13 @@ pub struct MandateId {
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MandateRevokedResponse {
     pub mandate_id: String,
-    pub status: storage::enums::MandateStatus,
+    pub status: api_enums::MandateStatus,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MandateResponse {
     pub mandate_id: String,
-    pub status: storage::enums::MandateStatus,
+    pub status: api_enums::MandateStatus,
     pub payment_method_id: String,
     pub payment_method: String,
     pub card: Option<MandateCardDetails>,
@@ -44,7 +47,7 @@ impl MandateResponse {
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
-        let card = if payment_method.payment_method == storage::enums::PaymentMethodType::Card {
+        let card = if payment_method.payment_method == storage_enums::PaymentMethodType::Card {
             let get_card_resp = payment_methods::cards::get_card_from_legacy_locker(
                 state,
                 &payment_method.merchant_id,
@@ -73,7 +76,7 @@ impl MandateResponse {
                 }),
             }),
             card,
-            status: mandate.mandate_status,
+            status: mandate.mandate_status.into(),
             payment_method: payment_method.payment_method.to_string(),
             payment_method_id: mandate.payment_method_id,
         })
