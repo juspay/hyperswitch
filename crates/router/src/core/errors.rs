@@ -286,6 +286,8 @@ pub enum ConnectorError {
     FailedToObtainAuthType,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+    #[error("Missing connector transaction ID")]
+    MissingConnectorTransactionID,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]

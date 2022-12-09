@@ -376,10 +376,12 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            connector_transaction_id: payment_data
-                .payment_attempt
-                .connector_transaction_id
-                .ok_or(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?,
+            connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
+                Some(connector_txn_id) => {
+                    types::ResponseId::ConnectorTransactionId(connector_txn_id)
+                }
+                None => types::ResponseId::NoResponseId,
+            },
             encoded_data: payment_data.connector_response.encoded_data,
         })
     }
