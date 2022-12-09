@@ -60,6 +60,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
         customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -75,6 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
                 customer,
                 Some(true),
                 call_connector_action,
+                storage_scheme,
             )
             .await;
 
@@ -92,6 +94,7 @@ impl PaymentsAuthorizeRouterData {
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentsAuthorizeRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<

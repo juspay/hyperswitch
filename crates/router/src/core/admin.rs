@@ -277,7 +277,7 @@ pub async fn create_payment_connector(
     req: api::PaymentConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
-    store
+    let _merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
@@ -335,6 +335,13 @@ pub async fn retrieve_payment_connector(
     merchant_id: String,
     merchant_connector_id: i32,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
+    let _merchant_account = store
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
     let mca = store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &merchant_id,
@@ -369,11 +376,13 @@ pub async fn update_payment_connector(
     merchant_connector_id: i32,
     req: api::PaymentConnectorCreate,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
-    db.find_merchant_account_by_merchant_id(merchant_id)
+    let _merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
+
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
@@ -433,6 +442,13 @@ pub async fn delete_payment_connector(
     merchant_id: String,
     merchant_connector_id: i32,
 ) -> RouterResponse<api::DeleteMcaResponse> {
+    let _merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
     let is_deleted = db
         .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
             &merchant_id,
