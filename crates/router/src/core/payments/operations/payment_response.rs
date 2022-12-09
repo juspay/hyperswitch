@@ -36,6 +36,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         response: Option<
             types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -44,7 +45,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
-        Ok(payment_response_ut(db, payment_id, payment_data, Some(router_data)).await?)
+        Ok(payment_response_ut(
+            db,
+            payment_id,
+            payment_data,
+            Some(router_data),
+            storage_scheme,
+        )
+        .await?)
     }
 }
 
@@ -58,11 +66,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         response: Option<
             types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
     }
 }
 
@@ -78,11 +87,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         response: Option<
             types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
     }
 }
 
@@ -96,11 +106,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         response: Option<
             types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
     }
 }
 
@@ -114,11 +125,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
         response: Option<
             types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
     }
 }
 
@@ -127,6 +139,7 @@ async fn payment_response_ut<F: Clone, T>(
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
     response: Option<types::RouterData<F, T, types::PaymentsResponseData>>,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
     let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
     let mut connector_response_data = None;
@@ -156,7 +169,11 @@ async fn payment_response_ut<F: Clone, T>(
     };
 
     payment_data.payment_attempt = db
-        .update_payment_attempt(payment_data.payment_attempt, payment_attempt_update)
+        .update_payment_attempt(
+            payment_data.payment_attempt,
+            payment_attempt_update,
+            storage_scheme,
+        )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
@@ -180,11 +197,15 @@ async fn payment_response_ut<F: Clone, T>(
                 encoded_data: payment_data.connector_response.encoded_data.clone(),
             };
 
-            db.update_connector_response(payment_data.connector_response, connector_response_update)
-                .await
-                .map_err(|error| {
-                    error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                })?
+            db.update_connector_response(
+                payment_data.connector_response,
+                connector_response_update,
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?
         }
         None => payment_data.connector_response,
     };
@@ -201,7 +222,11 @@ async fn payment_response_ut<F: Clone, T>(
     };
 
     payment_data.payment_intent = db
-        .update_payment_intent(payment_data.payment_intent, payment_intent_update)
+        .update_payment_intent(
+            payment_data.payment_intent,
+            payment_intent_update,
+            storage_scheme,
+        )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 

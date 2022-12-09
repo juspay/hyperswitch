@@ -9,7 +9,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -36,6 +36,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         _connector: Connector,
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -49,14 +50,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id)
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, merchant_id)
+            .find_payment_attempt_by_payment_id_merchant_id(
+                &payment_id,
+                merchant_id,
+                storage_scheme,
+            )
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -95,6 +100,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 &payment_intent.payment_id,
                 &payment_intent.merchant_id,
                 &payment_attempt.txn_id,
+                storage_scheme,
             )
             .await
             .map_err(|error| {
@@ -147,6 +153,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<Customer>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -166,9 +173,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
+        operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = Some(&request.merchant_id[..]);
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
@@ -181,9 +186,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
 
         Ok((
             Box::new(self),
-            &merchant_account.merchant_id,
-            api::PaymentIdType::PaymentIntentId(payment_id),
-            None,
+            operations::ValidateResult {
+                merchant_id: &merchant_account.merchant_id,
+                payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
+                mandate_type: None,
+                storage_scheme: merchant_account.storage_scheme,
+            },
         ))
     }
 }
@@ -227,6 +235,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethod>,

@@ -26,7 +26,11 @@ use crate::{
     db::StorageInterface,
     logger, routes,
     routes::AppState,
-    types::{self, api, storage, ErrorResponse, Response},
+    types::{
+        self, api,
+        storage::{self, enums},
+        ErrorResponse, Response,
+    },
     utils::OptionExt,
 };
 
@@ -556,6 +560,7 @@ pub async fn authenticate_merchant<'a>(
                 payment_response_hash_key: None,
                 redirect_to_merchant_with_http_post: false,
                 publishable_key: None,
+                storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             })
         }
 

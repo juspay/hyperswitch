@@ -6,7 +6,8 @@ pub mod diesel_exports {
         DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
-        DbPaymentFlow as PaymentFlow, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbMerchantStorageScheme as MerchantStorageScheme, DbPaymentFlow as PaymentFlow,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
         DbRefundType as RefundType, DbRoutingAlgorithm as RoutingAlgorithm,
@@ -360,6 +361,28 @@ pub enum FutureUsage {
     #[default]
     OffSession,
     OnSession,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    router_derive::DieselEnum,
+)]
+#[router_derive::diesel_enum]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantStorageScheme {
+    #[default]
+    PostgresOnly,
+    RedisKv,
 }
 
 #[derive(

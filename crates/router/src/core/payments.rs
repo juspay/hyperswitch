@@ -65,21 +65,22 @@ where
 
     let operation: BoxedOperation<F, Req> = Box::new(operation);
 
-    let (operation, merchant_id, payment_id, mandate_type) = operation
+    let (operation, validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    tracing::Span::current().record("payment_id", &format!("{:?}", payment_id));
+    tracing::Span::current().record("payment_id", &format!("{:?}", validate_result.payment_id));
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
             state,
-            &payment_id,
-            merchant_id,
+            &validate_result.payment_id,
+            validate_result.merchant_id,
             connector.connector_name,
             &req,
-            mandate_type,
+            validate_result.mandate_type,
+            validate_result.storage_scheme,
         )
         .await?;
 
@@ -89,7 +90,7 @@ where
             &*state.store,
             &mut payment_data,
             customer_details,
-            merchant_id,
+            validate_result.merchant_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -103,13 +104,20 @@ where
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
             &payment_data.token,
+            validate_result.storage_scheme,
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
-        .update_trackers(&*state.store, &payment_id, payment_data, customer.clone())
+        .update_trackers(
+            &*state.store,
+            &validate_result.payment_id,
+            payment_data,
+            customer.clone(),
+            validate_result.storage_scheme,
+        )
         .await?;
 
     operation
@@ -121,7 +129,7 @@ where
         payment_data = call_connector_service(
             state,
             &merchant_account,
-            &payment_id,
+            &validate_result.payment_id,
             connector,
             &operation,
             payment_data,
@@ -295,13 +303,20 @@ where
             customer,
             payment_data,
             call_connector_action,
+            merchant_account.storage_scheme,
         )
         .await;
     let response = helpers::amap(res, |response| async {
         let operation = helpers::response_operation::<F, Req>();
         let payment_data = operation
             .to_post_update_tracker()?
-            .update_tracker(db, payment_id, payment_data, Some(response))
+            .update_tracker(
+                db,
+                payment_id,
+                payment_data,
+                Some(response),
+                merchant_account.storage_scheme,
+            )
             .await?;
         Ok(payment_data)
     })
@@ -451,9 +466,10 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let payment_intent = filter_by_constraints(db, &constraints, merchant_id)
-        .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+    let payment_intent =
+        filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
+            .await
+            .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
     let data: Vec<api::PaymentsResponse> = payment_intent.into_iter().map(From::from).collect();
     utils::when(
