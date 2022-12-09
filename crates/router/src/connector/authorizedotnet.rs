@@ -43,6 +43,18 @@ impl api::PaymentAuthorize for Authorizedotnet {}
 impl api::PaymentSync for Authorizedotnet {}
 impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
+impl api::PaymentSession for Authorizedotnet {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Authorizedotnet {}
 
 impl

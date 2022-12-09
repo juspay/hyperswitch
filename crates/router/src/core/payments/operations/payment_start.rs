@@ -68,7 +68,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             })?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = api::Amount::from(payment_attempt.amount);
+        amount = payment_attempt.amount.into();
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -137,6 +137,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                     payment_method_data: None,
                     force_sync: None,
                     refunds: vec![],
+                    sessions_token: vec![],
                 },
                 Some(customer_details),
             )),
