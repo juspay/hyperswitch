@@ -80,7 +80,9 @@ pub struct PaymentsRedirectRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {
-    pub merchant_id: String,
+    // The merchant_id is generated through api key
+    // and is later passed in the struct
+    pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
     pub email: Option<Secret<String, pii::Email>>,
     pub name: Option<Secret<String>>,
@@ -93,6 +95,26 @@ pub struct VerifyRequest {
     pub setup_future_usage: Option<api_types::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+}
+
+impl From<PaymentsRequest> for VerifyRequest {
+    fn from(item: PaymentsRequest) -> Self {
+        Self {
+            client_secret: item.client_secret,
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            email: item.email,
+            name: item.name,
+            phone: item.phone,
+            phone_country_code: item.phone_country_code,
+            payment_method: item.payment_method,
+            payment_method_data: item.payment_method_data,
+            payment_token: item.payment_token,
+            mandate_data: item.mandate_data,
+            setup_future_usage: item.setup_future_usage,
+            off_session: item.off_session,
+        }
+    }
 }
 
 pub enum MandateTxnType {
@@ -411,7 +433,7 @@ pub struct VerifyResponse {
     pub payment_method: Option<enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    pub payment_token: Option<i32>,
+    pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
@@ -508,6 +530,24 @@ impl From<PaymentsRequest> for PaymentsResponse {
             statement_descriptor_name: item.statement_descriptor_name,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             mandate_data: item.mandate_data,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<VerifyRequest> for VerifyResponse {
+    fn from(item: VerifyRequest) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            email: item.email,
+            name: item.name,
+            phone: item.phone,
+            payment_method: item.payment_method,
+            payment_method_data: item
+                .payment_method_data
+                .map(PaymentMethodDataResponse::from),
+            payment_token: item.payment_token,
             ..Default::default()
         }
     }
