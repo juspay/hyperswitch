@@ -131,6 +131,7 @@ diesel::table! {
         mandate_currency -> Nullable<Currency>,
         amount_captured -> Nullable<Int4>,
         connector -> Varchar,
+        connector_mandate_id -> Nullable<Varchar>,
     }
 }
 

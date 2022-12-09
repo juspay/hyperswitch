@@ -28,6 +28,7 @@ pub struct Mandate {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i32>,
     pub connector: String,
+    pub connector_mandate_id: Option<String>,
 }
 
 #[derive(
@@ -51,6 +52,7 @@ pub struct MandateNew {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i32>,
     pub connector: String,
+    pub connector_mandate_id: String,
 }
 
 #[derive(Debug)]
