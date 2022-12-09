@@ -26,10 +26,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(
-    PaymentData<F>,
-    types::RouterData<F, T, types::PaymentsResponseData>,
-)>
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
@@ -62,13 +59,13 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
+    //FIXME[#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
         .as_ref()
-        .map(|id| types::PaymentsResponseData {
+        .map(|id| types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-            //TODO: Add redirection details here
             redirection_data: None,
             redirect: false,
         });
@@ -100,7 +97,7 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
-    Ok((payment_data, router_data))
+    Ok(router_data)
 }
 
 pub trait ToResponse<Req, D, Op>
@@ -414,6 +411,14 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
                 })?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
         })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
+    type Error = errors::ApiErrorResponse;
+
+    fn try_from(_payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {})
     }
 }
 

@@ -28,7 +28,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::Authorize>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
@@ -40,19 +40,18 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        let output = transformers::construct_payment_router_data::<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsAuthorizeData>
-    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
+impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         self,
         state: &AppState,

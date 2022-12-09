@@ -22,19 +22,19 @@ use crate::{
 impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for PaymentData<api::Verify>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::VerifyRouterData> {
-        let (_, router_data) = transformers::construct_payment_router_data::<
-            api::Verify,
-            types::VerifyRequestData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-
-        Ok(router_data)
+        transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 

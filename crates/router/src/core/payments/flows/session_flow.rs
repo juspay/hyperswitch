@@ -1,32 +1,30 @@
 use async_trait::async_trait;
 
-use super::ConstructFlowSpecificData;
+use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, transformers, Feature, PaymentData},
+        payments::{self, transformers, PaymentData},
     },
-    routes::AppState,
-    services,
+    routes, services,
     types::{
         self, api,
         storage::{self, enums},
-        PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
 
 #[async_trait]
 impl
-    ConstructFlowSpecificData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for PaymentData<api::Capture>
+    ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for PaymentData<api::Session>
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &routes::AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<PaymentsCaptureRouterData> {
-        transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
+    ) -> RouterResult<types::PaymentsSessionRouterData> {
+        transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
             state,
             self.clone(),
             connector_id,
@@ -37,25 +35,16 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Capture, types::PaymentsCaptureData>
-    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-{
+impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &routes::AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::Capture>,
+        payment_data: PaymentData<api::Session>,
         call_connector_action: payments::CallConnectorAction,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::Capture>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-    {
+        _storage_schema: enums::MerchantStorageScheme,
+    ) -> (RouterResult<Self>, PaymentData<api::Session>) {
         let resp = self
             .decide_flow(
                 state,
@@ -70,24 +59,26 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
     }
 }
 
-impl PaymentsCaptureRouterData {
-    #[allow(clippy::too_many_arguments)]
+impl types::PaymentsSessionRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a AppState,
+        state: &'a routes::AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<storage::Customer>,
+        _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsCaptureRouterData>
+    ) -> RouterResult<types::PaymentsSessionRouterData>
     where
-        dyn api::Connector + Sync:
-            services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>,
+        dyn api::Connector + Sync: services::ConnectorIntegration<
+            api::Session,
+            types::PaymentsSessionData,
+            types::PaymentsResponseData,
+        >,
     {
         let connector_integration: services::BoxedConnectorIntegration<
-            api::Capture,
-            PaymentsCaptureData,
-            PaymentsResponseData,
+            api::Session,
+            types::PaymentsSessionData,
+            types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(
             state,

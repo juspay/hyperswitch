@@ -276,6 +276,9 @@ pub struct PSync;
 pub struct Void;
 
 #[derive(Debug, Clone)]
+pub struct Session;
+
+#[derive(Debug, Clone)]
 pub struct Verify;
 
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -710,6 +713,11 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PaymentSession:
+    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
+{
+}
+
 pub trait PreVerify:
     api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
 {
@@ -722,8 +730,10 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PreVerify
+    + PaymentSession
 {
 }
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsRetrieveRequest {
     pub resource_id: PaymentIdType,
