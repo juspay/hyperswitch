@@ -95,9 +95,10 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
     payment_id: &str,
     merchant_id: &str,
     refund_id: &str,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Refund>> {
     let refund = db
-        .find_refund_by_merchant_id_refund_id(merchant_id, refund_id)
+        .find_refund_by_merchant_id_refund_id(merchant_id, refund_id, storage_scheme)
         .await;
     logger::debug!(?refund);
     match refund {

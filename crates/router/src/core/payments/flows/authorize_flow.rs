@@ -14,7 +14,7 @@ use crate::{
     services,
     types::{
         self, api,
-        storage::{self, enums},
+        storage::{self, enums as storage_enums},
         PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
     utils,
@@ -57,9 +57,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -75,6 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
                 customer,
                 Some(true),
                 call_connector_action,
+                storage_scheme,
             )
             .await;
 
@@ -89,9 +91,10 @@ impl PaymentsAuthorizeRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentsAuthorizeRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
@@ -164,7 +167,7 @@ impl PaymentsAuthorizeRouterData {
 
     fn generate_mandate(
         &self,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_method_id: String,
     ) -> Option<storage::MandateNew> {
         match (self.request.setup_mandate_details.clone(), customer) {
@@ -175,8 +178,8 @@ impl PaymentsAuthorizeRouterData {
                     customer_id: cus.customer_id.clone(),
                     merchant_id: self.merchant_id.clone(),
                     payment_method_id,
-                    mandate_status: enums::MandateStatus::Active,
-                    mandate_type: enums::MandateType::MultiUse,
+                    mandate_status: storage_enums::MandateStatus::Active,
+                    mandate_type: storage_enums::MandateType::MultiUse,
                     customer_ip_address: data.customer_acceptance.get_ip_address().map(Secret::new),
                     customer_user_agent: data.customer_acceptance.get_user_agent(),
                     customer_accepted_at: Some(data.customer_acceptance.get_accepted_at()),

@@ -16,6 +16,7 @@ pub trait AddressInterface {
         &self,
         address: AddressNew,
     ) -> CustomResult<Address, errors::StorageError>;
+
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError>;
 }
 
