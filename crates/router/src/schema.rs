@@ -152,6 +152,7 @@ diesel::table! {
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
         publishable_key -> Nullable<Varchar>,
+        storage_scheme -> MerchantStorageScheme,
     }
 }
 

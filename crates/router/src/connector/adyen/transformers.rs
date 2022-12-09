@@ -9,7 +9,11 @@ use crate::{
     core::errors,
     pii::{PeekInterface, Secret},
     services,
-    types::{self, api, storage::enums},
+    types::{
+        self,
+        api::{self, enums as api_enums},
+        storage::enums as storage_enums,
+    },
     utils::OptionExt,
 };
 
@@ -276,16 +280,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
         };
 
         let recurring_processing_model = match item.request.setup_future_usage {
-            Some(enums::FutureUsage::OffSession) => {
+            Some(storage_enums::FutureUsage::OffSession) => {
                 Some(AdyenRecurringModel::UnscheduledCardOnFile)
             }
             _ => None,
         };
 
         let payment_type = match item.payment_method {
-            types::storage::enums::PaymentMethodType::Card => "scheme".to_string(),
-            types::storage::enums::PaymentMethodType::Paypal => "paypal".to_string(),
-            types::storage::enums::PaymentMethodType::Wallet => wallet_data
+            storage_enums::PaymentMethodType::Card => "scheme".to_string(),
+            storage_enums::PaymentMethodType::Paypal => "paypal".to_string(),
+            storage_enums::PaymentMethodType::Wallet => wallet_data
                 .get_required_value("issuer_name")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .issuer_name
@@ -294,7 +298,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
         };
 
         let payment_method = match item.payment_method {
-            enums::PaymentMethodType::Card => {
+            storage_enums::PaymentMethodType::Card => {
                 let card = AdyenCard {
                     payment_type,
                     number: ccard.map(|x| x.card_number.peek().clone().into()), // FIXME: xxx: should also be secret?
@@ -307,12 +311,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
 
                 Ok(AdyenPaymentMethod::AdyenCard(card))
             }
-            enums::PaymentMethodType::Wallet => match wallet_data
+
+            storage_enums::PaymentMethodType::Wallet => match wallet_data
                 .get_required_value("issuer_name")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .issuer_name
             {
-                enums::WalletIssuer::GooglePay => {
+                api_enums::WalletIssuer::GooglePay => {
                     let gpay_data = AdyenGPay {
                         payment_type,
                         google_pay_token: wallet_data
@@ -323,7 +328,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     };
                     Ok(AdyenPaymentMethod::Gpay(gpay_data))
                 }
-                enums::WalletIssuer::ApplePay => {
+
+                api_enums::WalletIssuer::ApplePay => {
                     let apple_pay_data = AdyenApplePay {
                         payment_type,
                         apple_pay_token: wallet_data
@@ -335,16 +341,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
                 }
             },
-            enums::PaymentMethodType::Paypal => {
+
+            storage_enums::PaymentMethodType::Paypal => {
                 let wallet = AdyenPaypal { payment_type };
                 Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
             }
+
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method".to_string(),
             }),
         }?;
 
-        let browser_info = if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
+        let browser_info = if matches!(item.auth_type, storage_enums::AuthenticationType::ThreeDs) {
             item.request
                 .browser_info
                 .clone()
@@ -391,9 +399,9 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.response.as_str() {
-            "received" => enums::AttemptStatus::Voided,
-            "processing" => enums::AttemptStatus::Pending,
-            _ => enums::AttemptStatus::VoidFailed,
+            "received" => storage_enums::AttemptStatus::Voided,
+            "processing" => storage_enums::AttemptStatus::Pending,
+            _ => storage_enums::AttemptStatus::VoidFailed,
         };
         Ok(types::RouterData {
             status,
@@ -411,7 +419,7 @@ pub fn get_adyen_response(
     response: AdyenResponse,
 ) -> errors::CustomResult<
     (
-        enums::AttemptStatus,
+        storage_enums::AttemptStatus,
         Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
@@ -419,9 +427,9 @@ pub fn get_adyen_response(
 > {
     let result = response.result_code;
     let status = match result.as_str() {
-        "Authorised" => enums::AttemptStatus::Charged,
-        "Refused" => enums::AttemptStatus::Failure,
-        _ => enums::AttemptStatus::Pending,
+        "Authorised" => storage_enums::AttemptStatus::Charged,
+        "Refused" => storage_enums::AttemptStatus::Failure,
+        _ => storage_enums::AttemptStatus::Pending,
     };
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
@@ -449,7 +457,7 @@ pub fn get_redirection_response(
     response: AdyenRedirectionResponse,
 ) -> errors::CustomResult<
     (
-        enums::AttemptStatus,
+        storage_enums::AttemptStatus,
         Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
@@ -457,11 +465,11 @@ pub fn get_redirection_response(
 > {
     let result = response.result_code;
     let status = match result.as_str() {
-        "Authorised" => enums::AttemptStatus::Charged,
-        "Refused" => enums::AttemptStatus::Failure,
-        "Cancelled" => enums::AttemptStatus::Failure,
-        "RedirectShopper" => enums::AttemptStatus::PendingVbv,
-        _ => enums::AttemptStatus::Pending,
+        "Authorised" => storage_enums::AttemptStatus::Charged,
+        "Refused" => storage_enums::AttemptStatus::Failure,
+        "Cancelled" => storage_enums::AttemptStatus::Failure,
+        "RedirectShopper" => storage_enums::AttemptStatus::PendingVbv,
+        _ => storage_enums::AttemptStatus::Pending,
     };
 
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
@@ -580,8 +588,8 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
         let refund_status = match item.response.status.as_str() {
             // From the docs, the only value returned is "received", outcome of refund is available
             // through refund notification webhook
-            "received" => enums::RefundStatus::Success,
-            _ => enums::RefundStatus::Pending,
+            "received" => storage_enums::RefundStatus::Success,
+            _ => storage_enums::RefundStatus::Pending,
         };
         Ok(types::RouterData {
             response: Ok(types::RefundsResponseData {
