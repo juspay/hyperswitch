@@ -46,28 +46,17 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::PSync>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::PSync>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::PSync,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
-    {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        (resp, payment_data)
+    ) -> RouterResult<Self> {
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 
@@ -79,11 +68,7 @@ impl PaymentsSyncRouterData {
         _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsSyncRouterData>
-    where
-        dyn api::Connector + Sync:
-            services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>,
-    {
+    ) -> RouterResult<PaymentsSyncRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::PSync,
             PaymentsSyncData,

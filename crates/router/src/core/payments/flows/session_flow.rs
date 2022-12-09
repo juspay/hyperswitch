@@ -41,21 +41,17 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         state: &routes::AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::Session>,
         call_connector_action: payments::CallConnectorAction,
         _storage_schema: enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::Session>) {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        (resp, payment_data)
+    ) -> RouterResult<Self> {
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 
@@ -67,14 +63,7 @@ impl types::PaymentsSessionRouterData {
         _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<types::PaymentsSessionRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Session,
-            types::PaymentsSessionData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<types::PaymentsSessionRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Session,
             types::PaymentsSessionData,
