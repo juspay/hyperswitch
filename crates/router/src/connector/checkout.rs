@@ -119,7 +119,10 @@ impl
             "{}{}{}",
             self.base_url(connectors),
             "payments/",
-            req.request.connector_transaction_id
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 

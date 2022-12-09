@@ -303,7 +303,9 @@ pub(crate) enum StripeErrorType {
 impl From<ApiErrorResponse> for ErrorCode {
     fn from(value: ApiErrorResponse) -> Self {
         match value {
-            ApiErrorResponse::Unauthorized => ErrorCode::Unauthorized,
+            ApiErrorResponse::Unauthorized | ApiErrorResponse::InvalidEphermeralKey => {
+                ErrorCode::Unauthorized
+            }
             ApiErrorResponse::InvalidRequestUrl | ApiErrorResponse::InvalidHttpMethod => {
                 ErrorCode::InvalidRequestUrl
             }
