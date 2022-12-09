@@ -108,7 +108,11 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
             "{}/merchants/{}/transactions/{}",
             self.base_url(connectors),

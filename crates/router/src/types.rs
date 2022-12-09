@@ -104,7 +104,7 @@ pub struct PaymentsCaptureData {
 #[derive(Debug, Clone)]
 pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
-    pub connector_transaction_id: String,
+    pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
 }
 

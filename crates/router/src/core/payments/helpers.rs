@@ -567,7 +567,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
-    payment_method: Option<storage_enums::PaymentMethodType>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
     txn_id: &str,
     _payment_attempt: &storage::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
@@ -575,7 +575,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-            if payment_method == Some(storage_enums::PaymentMethodType::Card) {
+            if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
                 Vault::get_payment_method_data_from_locker(state, token).await?
             } else {
@@ -594,7 +594,13 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
     let payment_method = match payment_method {
         Some(pm) => Some(pm),
-        None => Vault::get_payment_method_data_from_locker(state, txn_id).await?,
+        None => {
+            if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
+                Vault::get_payment_method_data_from_locker(state, txn_id).await?
+            } else {
+                None
+            }
+        }
     };
 
     Ok((operation, payment_method))
