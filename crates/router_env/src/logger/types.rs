@@ -112,6 +112,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments Session Token flow
+    PaymentsSessionToken,
     /// Payments start flow.
     PaymentsStart,
     /// Payments list flow.

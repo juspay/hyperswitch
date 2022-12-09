@@ -17,7 +17,7 @@ use crate::{
     connector,
     core::errors::{self, CustomResult},
     services::ConnectorRedirectResponse,
-    types::{self},
+    types,
 };
 
 pub trait ConnectorCommon {
