@@ -112,6 +112,7 @@ pub struct Connectors {
     pub checkout: ConnectorParams,
     pub stripe: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub klarna: ConnectorParams,
     pub supported: SupportedConnectors,
 }
 
