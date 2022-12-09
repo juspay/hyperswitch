@@ -162,7 +162,7 @@ where
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
-                        .set_status(payment_intent.status)
+                        .set_status(payment_intent.status.into())
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
@@ -189,7 +189,7 @@ where
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_payment_method(
-                            payment_attempt.payment_method,
+                            payment_attempt.payment_method.map(Into::into),
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_method_data(
@@ -202,11 +202,13 @@ where
                         .to_owned()
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
-                        .set_authentication_type(payment_attempt.authentication_type)
+                        .set_authentication_type(
+                            payment_attempt.authentication_type.map(Into::into),
+                        )
                         .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
-                        .set_setup_future_usage(payment_intent.setup_future_usage)
-                        .set_capture_method(payment_attempt.capture_method)
+                        .set_setup_future_usage(payment_intent.setup_future_usage.map(Into::into))
+                        .set_capture_method(payment_attempt.capture_method.map(Into::into))
                         .to_owned(),
                 )
             }
@@ -214,7 +216,7 @@ where
         None => services::BachResponse::Json(PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
-            status: payment_intent.status,
+            status: payment_intent.status.into(),
             amount: payment_attempt.amount,
             amount_capturable: None,
             amount_received: payment_intent.amount_captured,
@@ -224,8 +226,8 @@ where
             customer_id: payment_intent.customer_id,
             description: payment_intent.description,
             refunds: refunds_response,
-            payment_method: payment_attempt.payment_method,
-            capture_method: payment_attempt.capture_method,
+            payment_method: payment_attempt.payment_method.map(Into::into),
+            capture_method: payment_attempt.capture_method.map(Into::into),
             error_message: payment_attempt.error_message,
             payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
             email: customer
