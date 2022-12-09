@@ -196,11 +196,9 @@ async fn refund_for_successful_payments() {
     > = connector.connector.get_connector_integration();
     let mut refund_request = construct_refund_router_data();
     refund_request.request.connector_transaction_id = match response.response.unwrap() {
-        types::PaymentsResponseData::TransactionResponse {
-            resource_id,
-            redirection_data: _,
-            redirect: _,
-        } => resource_id.get_connector_transaction_id().unwrap(),
+        types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
+            resource_id.get_connector_transaction_id().unwrap()
+        }
         _ => panic!("Connector transaction id not found"),
     };
     let response = services::api::execute_connector_processing_step(
