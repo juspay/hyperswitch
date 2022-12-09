@@ -1,6 +1,6 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::{pii::StrongSecret, schema::merchant_account, types::enums};
+use crate::{pii::StrongSecret, schema::merchant_account, types::storage::enums as storage_enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
@@ -15,12 +15,12 @@ pub struct MerchantAccount {
     pub merchant_name: Option<String>,
     pub merchant_details: Option<serde_json::Value>,
     pub webhook_details: Option<serde_json::Value>,
-    pub routing_algorithm: Option<enums::RoutingAlgorithm>,
+    pub routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
     pub custom_routing_rules: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
     pub publishable_key: Option<String>,
-    pub storage_scheme: enums::MerchantStorageScheme,
+    pub storage_scheme: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -32,7 +32,7 @@ pub struct MerchantAccountNew {
     pub merchant_details: Option<serde_json::Value>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
-    pub routing_algorithm: Option<enums::RoutingAlgorithm>,
+    pub routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
     pub custom_routing_rules: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
@@ -51,7 +51,7 @@ pub enum MerchantAccountUpdate {
         merchant_details: Option<serde_json::Value>,
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
-        routing_algorithm: Option<enums::RoutingAlgorithm>,
+        routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
         custom_routing_rules: Option<serde_json::Value>,
         sub_merchants_enabled: Option<bool>,
         parent_merchant_id: Option<String>,
@@ -71,7 +71,7 @@ pub(super) struct MerchantAccountUpdateInternal {
     merchant_details: Option<serde_json::Value>,
     return_url: Option<String>,
     webhook_details: Option<serde_json::Value>,
-    routing_algorithm: Option<enums::RoutingAlgorithm>,
+    routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
     custom_routing_rules: Option<serde_json::Value>,
     sub_merchants_enabled: Option<bool>,
     parent_merchant_id: Option<String>,

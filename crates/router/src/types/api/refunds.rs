@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::ConnectorCommon;
 use crate::{
     services::api,
-    types::{self, storage::enums},
+    types::{self, api::enums as api_enums, storage::enums as storage_enums},
 };
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -48,15 +48,27 @@ impl Default for RefundStatus {
     }
 }
 
-impl From<enums::RefundStatus> for RefundStatus {
-    fn from(status: enums::RefundStatus) -> Self {
+impl From<api_enums::RefundStatus> for RefundStatus {
+    fn from(status: api_enums::RefundStatus) -> Self {
         match status {
-            enums::RefundStatus::Failure | enums::RefundStatus::TransactionFailure => {
+            api_enums::RefundStatus::Failure | api_enums::RefundStatus::TransactionFailure => {
                 RefundStatus::Failed
             }
-            enums::RefundStatus::ManualReview => RefundStatus::Review,
-            enums::RefundStatus::Pending => RefundStatus::Pending,
-            enums::RefundStatus::Success => RefundStatus::Succeeded,
+            api_enums::RefundStatus::ManualReview => RefundStatus::Review,
+            api_enums::RefundStatus::Pending => RefundStatus::Pending,
+            api_enums::RefundStatus::Success => RefundStatus::Succeeded,
+        }
+    }
+}
+
+impl From<storage_enums::RefundStatus> for RefundStatus {
+    fn from(status: storage_enums::RefundStatus) -> Self {
+        match status {
+            storage_enums::RefundStatus::Failure
+            | storage_enums::RefundStatus::TransactionFailure => RefundStatus::Failed,
+            storage_enums::RefundStatus::ManualReview => RefundStatus::Review,
+            storage_enums::RefundStatus::Pending => RefundStatus::Pending,
+            storage_enums::RefundStatus::Success => RefundStatus::Succeeded,
         }
     }
 }

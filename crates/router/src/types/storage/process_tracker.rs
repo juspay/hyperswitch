@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     core::errors, db::StorageInterface, scheduler::metrics, schema::process_tracker,
-    types::storage::enums,
+    types::storage::enums as storage_enums,
 };
 
 #[derive(
@@ -31,7 +31,7 @@ pub struct ProcessTracker {
     pub rule: String,
     pub tracking_data: serde_json::Value,
     pub business_status: String,
-    pub status: enums::ProcessTrackerStatus,
+    pub status: storage_enums::ProcessTrackerStatus,
     #[diesel(deserialize_as = super::DieselArray<String>)]
     pub event: Vec<String>,
     pub created_at: PrimitiveDateTime,
@@ -64,7 +64,7 @@ impl ProcessTracker {
             tracking_data: serde_json::to_value(tracking_data)
                 .map_err(|_| errors::ProcessTrackerError::SerializationFailed)?,
             business_status: String::from("Pending"),
-            status: enums::ProcessTrackerStatus::New,
+            status: storage_enums::ProcessTrackerStatus::New,
             event: vec![],
             created_at: current_time,
             updated_at: current_time,
@@ -80,7 +80,7 @@ impl ProcessTracker {
         db.update_process_tracker(
             self.clone(),
             ProcessTrackerUpdate::StatusRetryUpdate {
-                status: enums::ProcessTrackerStatus::Pending,
+                status: storage_enums::ProcessTrackerStatus::Pending,
                 retry_count: self.retry_count + 1,
                 schedule_time,
             },
@@ -97,7 +97,7 @@ impl ProcessTracker {
         db.update_process(
             self,
             ProcessTrackerUpdate::StatusUpdate {
-                status: enums::ProcessTrackerStatus::Finish,
+                status: storage_enums::ProcessTrackerStatus::Finish,
                 business_status: Some(status),
             },
         )
@@ -120,7 +120,7 @@ pub struct ProcessTrackerNew {
     pub rule: String,
     pub tracking_data: serde_json::Value,
     pub business_status: String,
-    pub status: enums::ProcessTrackerStatus,
+    pub status: storage_enums::ProcessTrackerStatus,
     pub event: Vec<String>,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
@@ -134,15 +134,15 @@ pub enum ProcessTrackerUpdate {
         schedule_time: Option<PrimitiveDateTime>,
         tracking_data: Option<serde_json::Value>,
         business_status: Option<String>,
-        status: Option<enums::ProcessTrackerStatus>,
+        status: Option<storage_enums::ProcessTrackerStatus>,
         updated_at: Option<PrimitiveDateTime>,
     },
     StatusUpdate {
-        status: enums::ProcessTrackerStatus,
+        status: storage_enums::ProcessTrackerStatus,
         business_status: Option<String>,
     },
     StatusRetryUpdate {
-        status: enums::ProcessTrackerStatus,
+        status: storage_enums::ProcessTrackerStatus,
         retry_count: i32,
         schedule_time: PrimitiveDateTime,
     },
@@ -156,7 +156,7 @@ pub(super) struct ProcessTrackerUpdateInternal {
     schedule_time: Option<PrimitiveDateTime>,
     tracking_data: Option<serde_json::Value>,
     business_status: Option<String>,
-    status: Option<enums::ProcessTrackerStatus>,
+    status: Option<storage_enums::ProcessTrackerStatus>,
     updated_at: Option<PrimitiveDateTime>,
 }
 

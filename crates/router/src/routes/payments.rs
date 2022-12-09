@@ -14,16 +14,14 @@ use super::app::AppState;
 use crate::{
     core::{errors::http_not_implemented, payments},
     services::api,
-    types::{
-        api::{
-            payments::{
-                PaymentIdType, PaymentListConstraints, PaymentsCancelRequest,
-                PaymentsCaptureRequest, PaymentsRequest, PaymentsRetrieveRequest,
-            },
-            Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
-            Verify, VerifyRequest, VerifyResponse, Void,
+    types::api::{
+        enums as api_enums,
+        payments::{
+            PaymentIdType, PaymentListConstraints, PaymentsCancelRequest, PaymentsCaptureRequest,
+            PaymentsRequest, PaymentsRetrieveRequest,
         },
-        storage::enums::CaptureMethod,
+        Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
+        Verify, VerifyRequest, VerifyResponse, Void,
     }, // FIXME imports
 };
 
@@ -36,7 +34,7 @@ pub async fn payments_create(
 ) -> HttpResponse {
     let payload = json_payload.into_inner();
 
-    if let Some(CaptureMethod::Scheduled) = payload.capture_method {
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
     match payload.amount {
@@ -189,7 +187,7 @@ pub async fn payments_update(
 ) -> HttpResponse {
     let mut payload = json_payload.into_inner();
 
-    if let Some(CaptureMethod::Scheduled) = payload.capture_method {
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
 
@@ -234,7 +232,7 @@ pub async fn payments_confirm(
 ) -> HttpResponse {
     let mut payload = json_payload.into_inner();
 
-    if let Some(CaptureMethod::Scheduled) = payload.capture_method {
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
 
