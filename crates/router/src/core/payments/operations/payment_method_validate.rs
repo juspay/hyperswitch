@@ -12,14 +12,15 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, Operation, PaymentData},
+        payments::{self, helpers, operations, Operation, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
     types::{
-        self, api,
-        storage::{self, enums},
+        self,
+        api::{self, enums as api_enums},
+        storage::{self, enums as storage_enums},
     },
     utils,
 };
@@ -36,11 +37,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         merchant_account: &'a types::storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
+        operations::ValidateResult<'a>,
     )> {
-        let request_merchant_id = Some(&request.merchant_id[..]);
+        let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -49,9 +48,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
 
         Ok((
             Box::new(self),
-            &merchant_account.merchant_id,
-            api::PaymentIdType::PaymentIntentId(validation_id),
-            mandate_type,
+            operations::ValidateResult {
+                merchant_id: &merchant_account.merchant_id,
+                payment_id: api::PaymentIdType::PaymentIntentId(validation_id),
+                mandate_type,
+                storage_scheme: merchant_account.storage_scheme,
+            },
         ))
     }
 }
@@ -67,6 +69,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         connector: types::Connector,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -80,13 +83,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         payment_attempt = match db
-            .insert_payment_attempt(Self::make_payment_attempt(
-                &payment_id,
-                merchant_id,
-                connector,
-                request.payment_method,
-                request,
-            ))
+            .insert_payment_attempt(
+                Self::make_payment_attempt(
+                    &payment_id,
+                    merchant_id,
+                    connector,
+                    request.payment_method,
+                    request,
+                ),
+                storage_scheme,
+            )
             .await
         {
             Ok(payment_attempt) => Ok(payment_attempt),
@@ -96,12 +102,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         }?;
 
         payment_intent = match db
-            .insert_payment_intent(Self::make_payment_intent(
-                &payment_id,
-                merchant_id,
-                connector,
-                request,
-            ))
+            .insert_payment_intent(
+                Self::make_payment_intent(&payment_id, merchant_id, connector, request),
+                storage_scheme,
+            )
             .await
         {
             Ok(payment_intent) => Ok(payment_intent),
@@ -111,7 +115,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         }?;
 
         connector_response = match db
-            .insert_connector_response(PaymentCreate::make_connector_response(&payment_attempt))
+            .insert_connector_response(
+                PaymentCreate::make_connector_response(&payment_attempt),
+                storage_scheme,
+            )
             .await
         {
             Ok(connector_resp) => Ok(connector_resp),
@@ -127,7 +134,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 payment_intent,
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
-                currency: enums::Currency::default(),
+                currency: storage_enums::Currency::default(),
                 amount: 0,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
@@ -159,12 +166,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
         // There is no fsm involved in this operation all the change of states must happen in a single request
-        let status = Some(enums::IntentStatus::Processing);
+        let status = Some(storage_enums::IntentStatus::Processing);
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
@@ -178,6 +186,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
                     shipping_address_id: None,
                     billing_address_id: None,
                 },
+                storage_scheme,
             )
             .await
             .map_err(|err| {
@@ -207,7 +216,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::VerifyRequest>,
-            Option<api::CustomerResponse>,
+            Option<storage::Customer>,
         ),
         errors::StorageError,
     > {
@@ -225,11 +234,12 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
+        payment_method: Option<storage_enums::PaymentMethodType>,
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,
@@ -253,11 +263,11 @@ impl PaymentMethodValidate {
         payment_id: &str,
         merchant_id: &str,
         connector: types::Connector,
-        payment_method: Option<enums::PaymentMethodType>,
+        payment_method: Option<api_enums::PaymentMethodType>,
         _request: &api::VerifyRequest,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
-        let status = enums::AttemptStatus::Pending;
+        let status = storage_enums::AttemptStatus::Pending;
 
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
@@ -268,7 +278,7 @@ impl PaymentMethodValidate {
             amount: 0,
             currency: Default::default(),
             connector: connector.to_string(),
-            payment_method,
+            payment_method: payment_method.map(Into::into),
             confirm: true,
             created_at,
             modified_at,
@@ -299,7 +309,7 @@ impl PaymentMethodValidate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage,
+            setup_future_usage: request.setup_future_usage.map(Into::into),
             off_session: request.off_session,
             ..Default::default()
         }

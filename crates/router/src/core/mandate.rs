@@ -48,7 +48,7 @@ pub async fn revoke_mandate(
     Ok(services::BachResponse::Json(
         mandates::MandateRevokedResponse {
             mandate_id: mandate.mandate_id,
-            status: mandate.mandate_status,
+            status: mandate.mandate_status.into(),
         },
     ))
 }

@@ -20,7 +20,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,verifydata"
 )]
 pub struct PaymentResponse;
 
@@ -36,6 +36,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         response: Option<
             types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -44,8 +45,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
-
-        payment_response_update_tracker(db, payment_id, payment_data, Some(router_data)).await
+      
+        payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            Some(router_data),
+            storage_scheme,
+        )
+        .await
     }
 }
 
@@ -59,11 +67,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         response: Option<
             types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response).await
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme).await
     }
 }
 
@@ -79,11 +88,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         response: Option<
             types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response).await
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme).await
     }
 }
 
@@ -97,11 +107,31 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         response: Option<
             types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response).await
+         payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme).await
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        response: Option<
+            types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
+        >,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme).await
     }
 }
 
@@ -110,6 +140,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
     response: Option<types::RouterData<F, T, types::PaymentsResponseData>>,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
     let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
 
@@ -180,8 +211,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?,
-        None => payment_data.connector_response,
-    };
 
     let payment_intent_update = match router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
@@ -195,7 +224,11 @@ async fn payment_response_update_tracker<F: Clone, T>(
     };
 
     payment_data.payment_intent = db
-        .update_payment_intent(payment_data.payment_intent, payment_intent_update)
+        .update_payment_intent(
+            payment_data.payment_intent,
+            payment_intent_update,
+            storage_scheme,
+        )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 

@@ -121,7 +121,6 @@ pub fn mk_app(
 ///  Unwrap used because without the value we can't start the server
 pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
-
     let server = conf.server.clone();
     let state = routes::AppState::new(conf).await;
     // Cloning to close connections before shutdown
