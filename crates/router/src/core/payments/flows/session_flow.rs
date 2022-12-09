@@ -8,7 +8,10 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{
+        self, api,
+        storage::{self, enums},
+    },
 };
 
 #[async_trait]
@@ -38,9 +41,10 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Session>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_schema: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Session>) {
         let resp = self
             .decide_flow(
@@ -61,7 +65,7 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _customer: &Option<api::CustomerResponse>,
+        _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<types::PaymentsSessionRouterData>
