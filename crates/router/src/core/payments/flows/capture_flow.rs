@@ -24,12 +24,13 @@ impl
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<PaymentsCaptureRouterData> {
-        let output = transformers::construct_payment_router_data::<
-            api::Capture,
-            types::PaymentsCaptureData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 

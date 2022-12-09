@@ -397,15 +397,11 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         };
         Ok(types::RouterData {
             status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse(
-                types::PaymentsTransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.psp_reference,
-                    ),
-                    redirection_data: None,
-                    redirect: false,
-                },
-            )),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
+                redirection_data: None,
+                redirect: false,
+            }),
             ..item.data
         })
     }
@@ -441,12 +437,11 @@ pub fn get_adyen_response(
         None
     };
 
-    let payments_response_data =
-        types::PaymentsResponseData::TransactionResponse(types::PaymentsTransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
-            redirection_data: None,
-            redirect: false,
-        });
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+        resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
+        redirection_data: None,
+        redirect: false,
+    };
     Ok((status, error, payments_response_data))
 }
 
@@ -497,12 +492,11 @@ pub fn get_redirection_response(
     };
 
     // We don't get connector transaction id for redirections in Adyen.
-    let payments_response_data =
-        types::PaymentsResponseData::TransactionResponse(types::PaymentsTransactionResponse {
-            resource_id: types::ResponseId::NoResponseId,
-            redirection_data: Some(redirection_data),
-            redirect: true,
-        });
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+        resource_id: types::ResponseId::NoResponseId,
+        redirection_data: Some(redirection_data),
+        redirect: true,
+    };
     Ok((status, error, payments_response_data))
 }
 

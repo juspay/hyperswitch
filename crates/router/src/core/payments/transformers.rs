@@ -26,10 +26,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(
-    PaymentData<F>,
-    types::RouterData<F, T, types::PaymentsResponseData>,
-)>
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
@@ -62,17 +59,15 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    //FIXME: why should response be filled during request
+    //FIXME[#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
         .as_ref()
-        .map(|id| {
-            types::PaymentsResponseData::TransactionResponse(types::PaymentsTransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-                redirection_data: None,
-                redirect: false,
-            })
+        .map(|id| types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
+            redirection_data: None,
+            redirect: false,
         });
 
     let orca_return_url = Some(helpers::create_redirect_url(
@@ -102,7 +97,7 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
-    Ok((payment_data, router_data))
+    Ok(router_data)
 }
 
 #[instrument(skip_all)]
