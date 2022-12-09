@@ -86,6 +86,11 @@ locker_encryption_key2 = "" # public key 2 in pem format, corresponding private 
 locker_decryption_key1 = "" # private key 1 in pem format, corresponding public key in basilisk
 locker_decryption_key2 = "" # private key 2 in pem format, corresponding public key in basilisk
 
+
+# Validity of an Ephemeral Key in Hours
+[eph_key]
+validity = 1
+
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.

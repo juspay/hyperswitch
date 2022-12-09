@@ -6,7 +6,7 @@ use crate::{core::errors,types::{self,storage::enums}};
 pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {}
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
         todo!()
     }
@@ -17,7 +17,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
 pub struct {{project-name | downcase | pascal_case}}AuthType {}
 
 impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         todo!()
     }

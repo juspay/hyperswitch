@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
@@ -19,7 +21,7 @@ use crate::{
                 PaymentsCaptureRequest, PaymentsRequest, PaymentsRetrieveRequest,
             },
             Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
-            Verify, VerifyRequest, VerifyResponse, Void,
+            Verify, VerifyResponse, Void,
         },
         storage::enums::CaptureMethod,
     }, // FIXME imports
@@ -105,34 +107,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::MerchantId(&merchant_id),
-    )
-    .await
-}
-
-#[allow(dead_code)]
-#[instrument(skip(state), fields(flow = ?Flow::ValidatePaymentMethod))]
-pub async fn validate_pm(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<VerifyRequest>,
-) -> HttpResponse {
-    let payload = json_payload.into_inner();
-    api::server_wrap(
-        &state,
-        &req,
-        payload,
-        |state, merchant_account, req| {
-            payments::payments_core::<Verify, VerifyResponse, _, _, _>(
-                state,
-                merchant_account,
-                payments::PaymentMethodValidate,
-                req,
-                api::AuthFlow::Merchant,
-                payments::CallConnectorAction::Trigger,
-            )
-        },
-        api::MerchantAuthentication::ApiKey,
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -321,7 +296,7 @@ pub async fn payments_response(
         |state, merchant_account, req| {
             payments::handle_payments_redirect_response::<PSync>(state, merchant_account, req)
         },
-        api::MerchantAuthentication::MerchantId(&merchant_id),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
