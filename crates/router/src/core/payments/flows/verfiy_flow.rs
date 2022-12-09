@@ -47,6 +47,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Verify>,
         call_connector_action: payments::CallConnectorAction,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Verify>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -62,6 +63,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
                 customer,
                 Some(true),
                 call_connector_action,
+                storage_scheme,
             )
             .await;
 
@@ -77,6 +79,7 @@ impl types::VerifyRouterData {
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<

@@ -8,7 +8,7 @@ use router_env::tracing::{self, instrument};
 #[cfg(not(feature = "kv_store"))]
 use super::generics::{self, ExecuteQuery};
 #[cfg(feature = "kv_store")]
-use super::generics::{self, RawQuery, RawSqlQuery};
+use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -21,7 +21,6 @@ use crate::{
 };
 
 impl PaymentAttemptNew {
-    #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
     pub async fn insert_diesel(
         self,
@@ -32,7 +31,7 @@ impl PaymentAttemptNew {
 
     #[cfg(feature = "kv_store")]
     #[instrument(skip(conn))]
-    pub async fn insert_diesel(
+    pub async fn insert_diesel_query(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<RawSqlQuery, errors::StorageError> {
@@ -41,7 +40,6 @@ impl PaymentAttemptNew {
 }
 
 impl PaymentAttempt {
-    #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
     pub async fn update(
         self,
@@ -68,7 +66,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "kv_store")]
     #[instrument(skip(conn))]
-    pub async fn update(
+    pub async fn update_query(
         self,
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
