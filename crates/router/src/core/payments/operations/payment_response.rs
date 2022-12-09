@@ -162,9 +162,12 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 redirection_data,
                 redirect,
             } => {
-                let connector_transaction_id = resource_id
-                    .get_connector_transaction_id()
-                    .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+                let connector_transaction_id = match resource_id {
+                    types::ResponseId::NoResponseId => None,
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
+                };
+
                 let encoded_data = payment_data.connector_response.encoded_data.clone();
 
                 let authentication_data = redirection_data
@@ -175,7 +178,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
                 let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                     status: router_data.status,
-                    connector_transaction_id: Some(connector_transaction_id.clone()),
+                    connector_transaction_id: connector_transaction_id.clone(),
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
                     redirect: Some(redirect),
@@ -183,7 +186,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
-                    connector_transaction_id: Some(connector_transaction_id),
+                    connector_transaction_id: connector_transaction_id,
                     authentication_data,
                     encoded_data,
                 };
