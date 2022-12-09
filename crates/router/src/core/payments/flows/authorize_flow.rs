@@ -128,6 +128,21 @@ impl PaymentsAuthorizeRouterData {
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                        let mandate = match mandate.mandate_type {
+                            storage_enums::MandateType::SingleUse => state
+                                .store
+                                .update_mandate_by_merchant_id_mandate_id(
+                                    &resp.merchant_id,
+                                    mandate_id,
+                                    storage::MandateUpdate::StatusUpdate {
+                                        mandate_status: storage_enums::MandateStatus::Revoked,
+                                    },
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::MandateNotFound),
+                            storage_enums::MandateType::MultiUse => Ok(mandate),
+                        }?;
+
                         resp.payment_method_id = Some(mandate.payment_method_id);
                     }
                     None => {
@@ -173,19 +188,32 @@ impl PaymentsAuthorizeRouterData {
         match (self.request.setup_mandate_details.clone(), customer) {
             (Some(data), Some(cus)) => {
                 let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
-                Some(storage::MandateNew {
-                    mandate_id,
-                    customer_id: cus.customer_id.clone(),
-                    merchant_id: self.merchant_id.clone(),
-                    payment_method_id,
-                    mandate_status: storage_enums::MandateStatus::Active,
-                    mandate_type: storage_enums::MandateType::MultiUse,
-                    customer_ip_address: data.customer_acceptance.get_ip_address().map(Secret::new),
-                    customer_user_agent: data.customer_acceptance.get_user_agent(),
-                    customer_accepted_at: Some(data.customer_acceptance.get_accepted_at()),
-                    ..Default::default() // network_transaction_id: Option<String>,
-                                         // previous_transaction_id: Option<String>,
-                                         // created_at: Option<PrimitiveDateTime>,
+
+                // The construction of the mandate new must be visible
+                let mut new_mandate = storage::MandateNew::default();
+
+                new_mandate
+                    .set_mandate_id(mandate_id)
+                    .set_customer_id(cus.customer_id.clone())
+                    .set_merchant_id(self.merchant_id.clone())
+                    .set_payment_method_id(payment_method_id)
+                    .set_mandate_status(storage_enums::MandateStatus::Active)
+                    .set_customer_ip_address(
+                        data.customer_acceptance.get_ip_address().map(Secret::new),
+                    )
+                    .set_customer_user_agent(data.customer_acceptance.get_user_agent())
+                    .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()));
+
+                Some(match data.mandate_type {
+                    api::MandateType::SingleUse(data) => new_mandate
+                        .set_single_use_amount(Some(data.amount))
+                        .set_single_use_currency(Some(data.currency))
+                        .set_mandate_type(storage_enums::MandateType::SingleUse)
+                        .to_owned(),
+
+                    api::MandateType::MultiUse => new_mandate
+                        .set_mandate_type(storage_enums::MandateType::MultiUse)
+                        .to_owned(),
                 })
             }
             (_, _) => None,
