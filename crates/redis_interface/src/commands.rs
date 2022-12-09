@@ -13,7 +13,7 @@ use fred::{
     interfaces::{KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisValue, SetOptions, XReadResponse,
+        RedisMap, RedisValue, SetOptions, XReadResponse,
     },
 };
 use router_env::{tracing, tracing::instrument};
@@ -38,6 +38,18 @@ impl super::RedisConnectionPool {
                 None,
                 false,
             )
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetFailed)
+    }
+
+    pub async fn msetnx<V>(&self, value: V) -> CustomResult<u8, errors::RedisError>
+    where
+        V: TryInto<RedisMap> + Debug,
+        V::Error: Into<fred::error::RedisError>,
+    {
+        self.pool
+            .msetnx::<u8, V>(value)
             .await
             .into_report()
             .change_context(errors::RedisError::SetFailed)

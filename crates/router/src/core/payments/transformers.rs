@@ -103,6 +103,92 @@ where
     Ok((payment_data, router_data))
 }
 
+pub trait ToResponse<Req, D, Op>
+where
+    Self: From<Req>,
+    Op: Debug,
+{
+    fn generate_response(
+        req: Option<Req>,
+        data: D,
+        customer: Option<storage::Customer>,
+        auth_flow: services::AuthFlow,
+        server: &Server,
+        operation: Op,
+    ) -> RouterResponse<Self>;
+}
+
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        req: Option<Req>,
+        payment_data: PaymentData<F>,
+        customer: Option<storage::Customer>,
+        auth_flow: services::AuthFlow,
+        server: &Server,
+        operation: Op,
+    ) -> RouterResponse<Self> {
+        payments_to_payments_response(
+            req,
+            payment_data.payment_attempt,
+            payment_data.payment_intent,
+            payment_data.refunds,
+            payment_data.mandate_id,
+            payment_data.payment_method_data,
+            customer,
+            auth_flow,
+            payment_data.address,
+            server,
+            payment_data.connector_response.authentication_data,
+            operation,
+        )
+    }
+}
+
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        _req: Option<Req>,
+        data: PaymentData<F>,
+        customer: Option<storage::Customer>,
+        _auth_flow: services::AuthFlow,
+        _server: &Server,
+        _operation: Op,
+    ) -> RouterResponse<Self> {
+        Ok(services::BachResponse::Json(Self {
+            verify_id: Some(data.payment_intent.payment_id),
+            merchant_id: Some(data.payment_intent.merchant_id),
+            client_secret: data.payment_intent.client_secret.map(masking::Secret::new),
+            customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
+            email: customer
+                .as_ref()
+                .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
+            name: customer
+                .as_ref()
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+            phone: customer
+                .as_ref()
+                .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
+            mandate_id: data.mandate_id,
+            payment_method: data.payment_attempt.payment_method,
+            payment_method_data: data
+                .payment_method_data
+                .map(api::PaymentMethodDataResponse::from),
+            payment_token: data.token,
+            error_code: None,
+            error_message: data.payment_attempt.error_message,
+        }))
+    }
+}
+
 #[instrument(skip_all)]
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
@@ -130,7 +216,6 @@ where
         .as_ref()
         .get_required_value("currency")?
         .to_string();
-
     let refunds_response = if refunds.is_empty() {
         None
     } else {

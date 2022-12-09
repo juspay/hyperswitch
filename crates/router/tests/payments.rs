@@ -343,16 +343,17 @@ async fn payments_create_core() {
         ..Default::default()
     };
     let expected_response = services::BachResponse::Json(expected_response);
-    let actual_response = payments::payments_core::<api::Authorize, _, _, _>(
-        &state,
-        merchant_account,
-        payments::PaymentCreate,
-        req,
-        services::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
+    let actual_response =
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account,
+            payments::PaymentCreate,
+            req,
+            services::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .unwrap();
     assert_eq!(expected_response, actual_response);
 }
 
@@ -497,15 +498,16 @@ async fn payments_create_core_adyen_no_redirect() {
         mandate_id: None,
         ..Default::default()
     });
-    let actual_response = payments::payments_core::<api::Authorize, _, _, _>(
-        &state,
-        merchant_account,
-        payments::PaymentCreate,
-        req,
-        services::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
+    let actual_response =
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account,
+            payments::PaymentCreate,
+            req,
+            services::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .unwrap();
     assert_eq!(expected_response, actual_response);
 }

@@ -2,7 +2,7 @@ use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
-    types::storage,
+    types::storage::{self, enums},
 };
 
 #[async_trait::async_trait]
@@ -10,17 +10,22 @@ pub trait ConnectorResponseInterface {
     async fn insert_connector_response(
         &self,
         connector_response: storage::ConnectorResponseNew,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
+
     async fn find_connector_response_by_payment_id_merchant_id_txn_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         txn_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
+
     async fn update_connector_response(
         &self,
         this: storage::ConnectorResponse,
         payment_attempt: storage::ConnectorResponseUpdate,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
 }
 
@@ -29,6 +34,7 @@ impl ConnectorResponseInterface for Store {
     async fn insert_connector_response(
         &self,
         connector_response: storage::ConnectorResponseNew,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         connector_response.insert(&conn).await
@@ -39,6 +45,7 @@ impl ConnectorResponseInterface for Store {
         payment_id: &str,
         merchant_id: &str,
         txn_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         storage::ConnectorResponse::find_by_payment_id_and_merchant_id_transaction_id(
@@ -54,6 +61,7 @@ impl ConnectorResponseInterface for Store {
         &self,
         this: storage::ConnectorResponse,
         connector_response_update: storage::ConnectorResponseUpdate,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, connector_response_update).await
@@ -65,6 +73,7 @@ impl ConnectorResponseInterface for MockDb {
     async fn insert_connector_response(
         &self,
         new: storage::ConnectorResponseNew,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
         let response = storage::ConnectorResponse {
@@ -88,6 +97,7 @@ impl ConnectorResponseInterface for MockDb {
         _payment_id: &str,
         _merchant_id: &str,
         _txn_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         todo!()
     }
@@ -96,6 +106,7 @@ impl ConnectorResponseInterface for MockDb {
         &self,
         this: storage::ConnectorResponse,
         connector_response_update: storage::ConnectorResponseUpdate,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
         let response = connector_response

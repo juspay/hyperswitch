@@ -238,7 +238,12 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::{configs::settings::Settings, db::StorageImpl, routes, types};
+    use crate::{
+        configs::settings::Settings,
+        db::StorageImpl,
+        routes,
+        types::{self, storage::enums},
+    };
 
     #[actix_rt::test]
     #[ignore]
@@ -259,7 +264,7 @@ mod tests {
 
         let response = state
             .store
-            .insert_payment_attempt(payment_attempt)
+            .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
         eprintln!("{:?}", response);
@@ -289,13 +294,17 @@ mod tests {
         };
         state
             .store
-            .insert_payment_attempt(payment_attempt)
+            .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(&payment_id, &merchant_id)
+            .find_payment_attempt_by_payment_id_merchant_id(
+                &payment_id,
+                &merchant_id,
+                enums::MerchantStorageScheme::PostgresOnly,
+            )
             .await
             .unwrap();
 
@@ -326,13 +335,17 @@ mod tests {
         };
         state
             .store
-            .insert_payment_attempt(payment_attempt)
+            .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(&uuid, "1")
+            .find_payment_attempt_by_payment_id_merchant_id(
+                &uuid,
+                "1",
+                enums::MerchantStorageScheme::PostgresOnly,
+            )
             .await
             .unwrap();
         // checking it after fetch

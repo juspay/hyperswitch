@@ -2,6 +2,7 @@ pub mod address;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
+pub mod ephemeral_key;
 pub mod events;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -19,13 +20,7 @@ use std::sync::Arc;
 
 use futures::lock::Mutex;
 
-use crate::{
-    services::Store,
-    types::storage::{
-        ConnectorResponse, Customer, MerchantAccount, MerchantConnectorAccount, PaymentAttempt,
-        PaymentIntent, ProcessTracker, Refund, TempCard,
-    },
-};
+use crate::{services::Store, types::storage};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -54,6 +49,7 @@ pub trait StorageInterface:
     + process_tracker::ProcessTrackerInterface
     + refund::RefundInterface
     + queue::QueueInterface
+    + ephemeral_key::EphemeralKeyInterface
     + connector_response::ConnectorResponseInterface
     + 'static
 {
@@ -73,15 +69,15 @@ impl StorageInterface for Store {
 
 #[derive(Clone)]
 pub struct MockDb {
-    merchant_accounts: Arc<Mutex<Vec<MerchantAccount>>>,
-    merchant_connector_accounts: Arc<Mutex<Vec<MerchantConnectorAccount>>>,
-    payment_attempts: Arc<Mutex<Vec<PaymentAttempt>>>,
-    payment_intents: Arc<Mutex<Vec<PaymentIntent>>>,
-    customers: Arc<Mutex<Vec<Customer>>>,
-    temp_cards: Arc<Mutex<Vec<TempCard>>>,
-    refunds: Arc<Mutex<Vec<Refund>>>,
-    processes: Arc<Mutex<Vec<ProcessTracker>>>,
-    connector_response: Arc<Mutex<Vec<ConnectorResponse>>>,
+    merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
+    merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
+    payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
+    payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
+    customers: Arc<Mutex<Vec<storage::Customer>>>,
+    temp_cards: Arc<Mutex<Vec<storage::TempCard>>>,
+    refunds: Arc<Mutex<Vec<storage::Refund>>>,
+    processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
+    connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
 }
 
