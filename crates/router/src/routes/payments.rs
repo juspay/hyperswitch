@@ -16,12 +16,13 @@ use crate::{
     services::api,
     types::{
         api::{
+            self as api_types,
             payments::{
                 PaymentIdType, PaymentListConstraints, PaymentsCancelRequest,
                 PaymentsCaptureRequest, PaymentsRequest, PaymentsRetrieveRequest,
             },
             Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
-            Verify, VerifyResponse, Void,
+            Verify, Void,
         },
         storage::enums::CaptureMethod,
     }, // FIXME imports
@@ -39,32 +40,20 @@ pub async fn payments_create(
     if let Some(CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
-    match payload.amount {
-        Some(0) | None => {
-            api::server_wrap(
-                &state,
-                &req,
-                payload.into(),
-                |state, merchant_account, req| {
-                    payments::payments_core::<Verify, VerifyResponse, _, _, _>(
-                        state,
-                        merchant_account,
-                        payments::PaymentMethodValidate,
-                        req,
-                        api::AuthFlow::Merchant,
-                        payments::CallConnectorAction::Trigger,
-                    )
-                },
-                api::MerchantAuthentication::ApiKey,
-            )
-            .await
-        }
-        _ => {
-            api::server_wrap(
-                &state,
-                &req,
-                payload,
-                |state, merchant_account, req| {
+
+    api::server_wrap(
+        &state,
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
+            async {
+                if req
+                    .amount
+                    .as_ref()
+                    .map(|x| x != &api_types::Amount::Null)
+                    .unwrap_or(true)
+                {
                     payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                         state,
                         merchant_account,
@@ -73,12 +62,23 @@ pub async fn payments_create(
                         api::AuthFlow::Merchant,
                         payments::CallConnectorAction::Trigger,
                     )
-                },
-                api::MerchantAuthentication::ApiKey,
-            )
-            .await
-        }
-    }
+                    .await
+                } else {
+                    payments::payments_core::<Verify, PaymentsResponse, _, _, _>(
+                        state,
+                        merchant_account,
+                        payments::PaymentCreate,
+                        req,
+                        api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                    )
+                    .await
+                }
+            }
+        },
+        api::MerchantAuthentication::ApiKey,
+    )
+    .await
 }
 
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]

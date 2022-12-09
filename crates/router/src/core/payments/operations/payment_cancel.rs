@@ -71,7 +71,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount;
+        let amount = api::Amount::from(payment_attempt.amount);
 
         payment_attempt.cancellation_reason = request.cancellation_reason.clone();
 
