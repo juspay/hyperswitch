@@ -26,6 +26,8 @@ pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, Payme
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData =
+    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
 pub type PaymentsResponseRouterData<R> =
@@ -115,6 +117,16 @@ pub struct PaymentsCancelData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentsSessionData {
+    //TODO: Add the fields here as required
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsSessionResponseData {
+    pub client_token: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct VerifyRequestData {
     pub payment_method_data: payments::PaymentMethod,
     pub confirm: bool,
@@ -124,12 +136,17 @@ pub struct VerifyRequestData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
 }
+
 #[derive(Debug, Clone)]
-pub struct PaymentsResponseData {
-    pub resource_id: ResponseId,
-    // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
-    pub redirection_data: Option<services::RedirectForm>,
-    pub redirect: bool,
+pub enum PaymentsResponseData {
+    TransactionResponse {
+        resource_id: ResponseId,
+        redirection_data: Option<services::RedirectForm>,
+        redirect: bool,
+    },
+    SessionResponse {
+        session_token: String,
+    },
 }
 
 #[derive(Debug, Clone, Default)]

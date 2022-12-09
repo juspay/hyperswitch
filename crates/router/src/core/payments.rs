@@ -294,7 +294,7 @@ where
     let stime_connector = Instant::now();
 
     let router_data = payment_data
-        .construct_r_d(state, connector.connector.id(), merchant_account)
+        .construct_router_data(state, connector.connector.id(), merchant_account)
         .await?;
     let (res, payment_data) = router_data
         .decide_flows(

@@ -45,14 +45,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
-        Ok(payment_response_ut(
+
+        payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             Some(router_data),
             storage_scheme,
         )
-        .await?)
+        .await
     }
 }
 
@@ -71,7 +72,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+            .await
     }
 }
 
@@ -92,7 +94,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+            .await
     }
 }
 
@@ -111,7 +114,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+            .await
     }
 }
 
@@ -130,11 +134,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+            .await
     }
 }
 
-async fn payment_response_ut<F: Clone, T>(
+async fn payment_response_update_tracker<F: Clone, T>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
@@ -142,68 +147,77 @@ async fn payment_response_ut<F: Clone, T>(
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
     let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
-    let mut connector_response_data = None;
 
-    let payment_attempt_update = match router_data.response.clone() {
-        Err(err) => storage::PaymentAttemptUpdate::ErrorUpdate {
-            status: storage::enums::AttemptStatus::Failure,
-            error_message: Some(err.message),
-        },
-        Ok(response) => {
-            connector_response_data = Some(response.clone());
-
-            storage::PaymentAttemptUpdate::ResponseUpdate {
-                status: router_data.status,
-                connector_transaction_id: match response.resource_id {
+    let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
+        Err(err) => (
+            Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                status: storage::enums::AttemptStatus::Failure,
+                error_message: Some(err.message),
+            }),
+            None,
+        ),
+        Ok(payments_response) => match payments_response {
+            types::PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data,
+                redirect,
+            } => {
+                let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,
-                    _ => Some(
-                        response
-                            .resource_id
-                            .get_connector_transaction_id()
-                            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
-                    ),
-                },
-                authentication_type: None,
-                payment_method_id: Some(router_data.payment_method_id),
-                redirect: Some(response.redirect),
-                mandate_id: payment_data.mandate_id.clone(),
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
+                };
+
+                let encoded_data = payment_data.connector_response.encoded_data.clone();
+
+                let authentication_data = redirection_data
+                    .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not parse the connector response")?;
+
+                let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
+                    status: router_data.status,
+                    connector_transaction_id: connector_transaction_id.clone(),
+                    authentication_type: None,
+                    payment_method_id: Some(router_data.payment_method_id),
+                    redirect: Some(redirect),
+                    mandate_id: payment_data.mandate_id.clone(),
+                };
+
+                let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
+                    connector_transaction_id,
+                    authentication_data,
+                    encoded_data,
+                };
+
+                (
+                    Some(payment_attempt_update),
+                    Some(connector_response_update),
+                )
             }
-        }
+
+            types::PaymentsResponseData::SessionResponse { .. } => (None, None),
+        },
     };
 
-    payment_data.payment_attempt = db
-        .update_payment_attempt(
-            payment_data.payment_attempt,
-            payment_attempt_update,
-            storage_scheme,
-        )
-        .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+    payment_data.payment_attempt = match payment_attempt_update {
+        Some(payment_attempt_update) => db
+            .update_payment_attempt(
+                payment_data.payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?,
+        None => payment_data.payment_attempt,
+    };
 
-    payment_data.connector_response = match connector_response_data {
-        Some(connector_response) => {
-            let authentication_data = connector_response
-                .redirection_data
-                .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not parse the connector response")?;
-
-            let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
-                connector_transaction_id: match connector_response.resource_id {
-                    types::ResponseId::NoResponseId => None,
-                    _ => Some(
-                        connector_response
-                            .resource_id
-                            .get_connector_transaction_id()
-                            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?,
-                    ),
-                },
-                authentication_data,
-                encoded_data: payment_data.connector_response.encoded_data.clone(),
-            };
-
-            db.update_connector_response(
+    payment_data.connector_response = match connector_response_update {
+        Some(connector_response_update) => db
+            .update_connector_response(
                 payment_data.connector_response,
                 connector_response_update,
                 storage_scheme,
@@ -211,8 +225,7 @@ async fn payment_response_ut<F: Clone, T>(
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?
-        }
+            })?,
         None => payment_data.connector_response,
     };
 
