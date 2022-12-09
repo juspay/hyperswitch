@@ -75,6 +75,9 @@ impl Payments {
                 web::resource("/{payment_id}/{merchant_id}/response/{connector}")
                     .route(web::get().to(payments_response)),
             )
+            .service(
+                web::resource("/session_tokens").route(web::get().to(payments_connector_session)),
+            )
     }
 }
 

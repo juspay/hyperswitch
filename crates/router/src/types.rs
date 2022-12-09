@@ -121,7 +121,7 @@ pub struct PaymentsSessionData {
     //TODO: Add the fields here as required
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ConnectorSessionToken {
     pub connector_name: String,
     pub session_token: String,

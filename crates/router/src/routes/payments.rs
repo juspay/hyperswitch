@@ -18,11 +18,11 @@ use crate::{
         enums as api_enums,
         payments::{
             PaymentIdType, PaymentListConstraints, PaymentsCancelRequest, PaymentsCaptureRequest,
-            PaymentsRequest, PaymentsRetrieveRequest,
+            PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest, VerifyRequest,
         },
-        Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsResponse, PaymentsStartRequest,
-        Verify, VerifyRequest, VerifyResponse, Void,
-    }, // FIXME imports
+        Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsSessionRequest,
+        PaymentsSessionResponse, PaymentsStartRequest, Session, Verify, VerifyResponse, Void,
+    },
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -288,6 +288,34 @@ pub(crate) async fn payments_capture(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
+                payload,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        api::MerchantAuthentication::ApiKey,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
+// #[post("/{payment_id}/capture")]
+pub(crate) async fn payments_connector_session(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<PaymentsSessionRequest>,
+) -> HttpResponse {
+    let sessions_payload = json_payload.into_inner();
+
+    api::server_wrap(
+        &state,
+        &req,
+        sessions_payload,
+        |state, merchant_account, payload| {
+            payments::payments_core::<Session, PaymentsSessionResponse, _, _, _>(
+                state,
+                merchant_account,
+                payments::PaymentSession,
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
