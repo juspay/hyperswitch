@@ -1,3 +1,5 @@
+use router_env::logger;
+
 use super::{PaymentsSyncWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::payments::{self as payment_flows, operations},
@@ -97,11 +99,14 @@ pub async fn get_sync_process_schedule_time(
         .await;
     let mapping = match redis_mapping {
         Ok(x) => x,
-        Err(_) => process_data::ConnectorPTMapping::default(),
+        Err(err) => {
+            logger::error!("Redis Mapping Error: {}", err);
+            process_data::ConnectorPTMapping::default()
+        }
     };
     let time_delta = utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
 
-    Ok(crate::scheduler::utils::get_time_from_delta(time_delta))
+    Ok(utils::get_time_from_delta(time_delta))
 }
 
 pub async fn retry_sync_task(

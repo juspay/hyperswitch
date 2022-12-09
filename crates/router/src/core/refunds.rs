@@ -9,12 +9,9 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments, utils as core_utils,
     },
-    db::{get_and_deserialize_key, StorageInterface},
-    logger,
+    db, logger,
     routes::AppState,
-    scheduler::{
-        process_data, utils as process_tracker_utils, workflows::payment_sync::retry_sync_task,
-    },
+    scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
     services,
     types::{
         self,
@@ -279,7 +276,7 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundRequest,
@@ -602,8 +599,7 @@ pub async fn sync_refund_with_gateway_workflow(
                 .await?
         }
         _ => {
-            // TODO: Retry Refund Sync Task
-            retry_sync_task(
+            payment_sync::retry_sync_task(
                 &*state.store,
                 response.connector,
                 response.merchant_id,
@@ -693,11 +689,16 @@ pub async fn trigger_refund_execute_workflow(
             add_refund_sync_task(db, &updated_refund, "REFUND_WORKFLOW_ROUTER").await?;
         }
         (true, enums::RefundStatus::Pending) => {
-            //create sync task
+            // create sync task
             add_refund_sync_task(db, &refund, "REFUND_WORKFLOW_ROUTER").await?;
         }
         (_, _) => {
             //mark task as finished
+            let id = refund_tracker.id.clone();
+            refund_tracker
+                .clone()
+                .finish_with_status(db, format!("COMPLETED_BY_PT_{}", id))
+                .await?;
         }
     };
     Ok(())
@@ -717,7 +718,7 @@ pub fn refund_to_refund_core_workflow_model(
 
 #[instrument(skip_all)]
 pub async fn add_refund_sync_task(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
@@ -752,7 +753,7 @@ pub async fn add_refund_sync_task(
 
 #[instrument(skip_all)]
 pub async fn add_refund_execute_task(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     refund: &storage::Refund,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
@@ -786,13 +787,13 @@ pub async fn add_refund_execute_task(
 }
 
 pub async fn get_refund_sync_process_schedule_time(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     connector: &str,
     merchant_id: &str,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
-        get_and_deserialize_key(
+        db::get_and_deserialize_key(
             db,
             &format!("pt_mapping_refund_sync_{}", connector),
             "ConnectorPTMapping",
@@ -811,7 +812,7 @@ pub async fn get_refund_sync_process_schedule_time(
 }
 
 pub async fn retry_refund_sync_task(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     connector: String,
     merchant_id: String,
     pt: storage::ProcessTracker,
