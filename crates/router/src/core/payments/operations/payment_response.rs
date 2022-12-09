@@ -125,11 +125,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
         response: Option<
             types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
         >,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+        Ok(payment_response_ut(db, payment_id, payment_data, response, storage_scheme).await?)
     }
 }
 
