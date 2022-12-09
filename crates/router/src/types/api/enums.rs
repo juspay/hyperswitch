@@ -1,19 +1,3 @@
-#[doc(hidden)]
-pub mod diesel_exports {
-    pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType, DbCurrency as Currency,
-        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
-        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbMandateType as MandateType,
-        DbMerchantStorageScheme as MerchantStorageScheme, DbPaymentFlow as PaymentFlow,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
-        DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
-        DbRefundType as RefundType, DbRoutingAlgorithm as RoutingAlgorithm,
-    };
-}
-
 #[derive(
     Clone,
     Copy,
@@ -25,9 +9,7 @@ pub mod diesel_exports {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AttemptStatus {
@@ -66,9 +48,7 @@ pub enum AttemptStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
@@ -88,9 +68,7 @@ pub enum AuthenticationType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureMethod {
@@ -111,9 +89,7 @@ pub enum CaptureMethod {
     strum::EnumString,
     serde::Deserialize,
     serde::Serialize,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorType {
@@ -146,9 +122,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 pub enum Currency {
     AED,
     ALL,
@@ -266,47 +240,7 @@ pub enum Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventClass {
-    Payments,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventObjectType {
-    PaymentDetails,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
@@ -324,9 +258,7 @@ pub enum EventType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum IntentStatus {
@@ -352,61 +284,13 @@ pub enum IntentStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FutureUsage {
     #[default]
     OffSession,
     OnSession,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MerchantStorageScheme {
-    #[default]
-    PostgresOnly,
-    RedisKv,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    serde::Serialize,
-    serde::Deserialize,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentFlow {
-    Vsc,
-    Emi,
-    Otp,
-    UpiIntent,
-    UpiCollect,
-    UpiScanAndPay,
-    Sdk,
 }
 
 #[derive(
@@ -420,9 +304,7 @@ pub enum PaymentFlow {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodIssuerCode {
@@ -449,9 +331,7 @@ pub enum PaymentMethodIssuerCode {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodSubType {
@@ -475,9 +355,7 @@ pub enum PaymentMethodSubType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
@@ -507,9 +385,7 @@ pub enum PaymentMethodType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum WalletIssuer {
@@ -517,46 +393,7 @@ pub enum WalletIssuer {
     ApplePay,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ProcessTrackerStatus {
-    // Picked by the producer
-    Processing,
-    // State when the task is added
-    New,
-    // Send to retry
-    Pending,
-    // Picked by consumer
-    ProcessStarted,
-    // Finished by consumer
-    Finish,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, strum::Display, strum::EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
@@ -571,37 +408,15 @@ pub enum RefundStatus {
     Clone,
     Copy,
     Debug,
-    Default,
-    Eq,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
-#[strum(serialize_all = "snake_case")]
-pub enum RefundType {
-    InstantRefund,
-    #[default]
-    RegularRefund,
-    RetryRefund,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
     Eq,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum]
 pub enum RoutingAlgorithm {
     RoundRobin,
     MaxConversion,
@@ -609,7 +424,6 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
-// Mandate
 #[derive(
     Clone,
     Copy,
@@ -621,31 +435,7 @@ pub enum RoutingAlgorithm {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MandateType {
-    SingleUse,
-    #[default]
-    MultiUse,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MandateStatus {

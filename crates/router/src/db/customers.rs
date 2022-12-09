@@ -2,10 +2,7 @@ use super::MockDb;
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
-    types::{
-        api::CreateCustomerRequest,
-        storage::{Customer, CustomerNew, CustomerUpdate},
-    },
+    types::storage::{Customer, CustomerNew, CustomerUpdate},
 };
 
 #[async_trait::async_trait]
@@ -37,7 +34,7 @@ pub trait CustomerInterface {
 
     async fn insert_customer(
         &self,
-        customer_data: CreateCustomerRequest,
+        customer_data: CustomerNew,
     ) -> CustomResult<Customer, errors::StorageError>;
 }
 

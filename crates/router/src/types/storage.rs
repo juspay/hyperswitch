@@ -3,6 +3,7 @@ pub mod configs;
 pub mod connector_response;
 pub mod customers;
 pub mod enums;
+pub mod ephemeral_key;
 pub mod events;
 pub mod locker_mock_up;
 pub mod mandate;

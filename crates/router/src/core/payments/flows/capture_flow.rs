@@ -9,7 +9,9 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, storage, PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
+        self, api,
+        storage::{self, enums},
+        PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
 
@@ -42,8 +44,9 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -69,7 +72,7 @@ impl PaymentsCaptureRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsCaptureRouterData>
