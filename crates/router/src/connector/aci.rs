@@ -53,6 +53,18 @@ impl api::PaymentAuthorize for Aci {}
 impl api::PaymentSync for Aci {}
 impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
+impl api::PaymentSession for Aci {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for Aci
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Aci {}
 
 impl
