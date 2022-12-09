@@ -35,8 +35,8 @@ pub async fn create_payment_method(
             customer_id,
             merchant_id: merchant_id.to_string(),
             payment_method_id,
-            payment_method: req.payment_method,
-            payment_method_type: req.payment_method_type,
+            payment_method: req.payment_method.into(),
+            payment_method_type: req.payment_method_type.map(Into::into),
             payment_method_issuer: req.payment_method_issuer.clone(),
             ..storage::PaymentMethodNew::default()
         })
@@ -436,12 +436,12 @@ pub async fn list_customer_payment_method(
         let pma = api::CustomerPaymentMethod {
             payment_token: payment_token.to_string(),
             customer_id: pm.customer_id,
-            payment_method: pm.payment_method,
-            payment_method_type: pm.payment_method_type,
+            payment_method: pm.payment_method.into(),
+            payment_method_type: pm.payment_method_type.map(Into::into),
             payment_method_issuer: pm.payment_method_issuer,
             card,
             metadata: None,
-            payment_method_issuer_code: pm.payment_method_issuer_code,
+            payment_method_issuer_code: pm.payment_method_issuer_code.map(Into::into),
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO chnage to enum
@@ -611,13 +611,13 @@ pub async fn retrieve_payment_method(
     };
     Ok(services::BachResponse::Json(api::PaymentMethodResponse {
         payment_method_id: pm.payment_method_id,
-        payment_method: pm.payment_method,
-        payment_method_type: pm.payment_method_type,
+        payment_method: pm.payment_method.into(),
+        payment_method_type: pm.payment_method_type.map(Into::into),
         payment_method_issuer: pm.payment_method_issuer,
         card,
         metadata: None, // TODO add in addCard api
         created: Some(pm.created_at),
-        payment_method_issuer_code: pm.payment_method_issuer_code,
+        payment_method_issuer_code: pm.payment_method_issuer_code.map(Into::into),
         recurring_enabled: false,                                      //TODO
         installment_payment_enabled: false,                            //TODO
         payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO,
