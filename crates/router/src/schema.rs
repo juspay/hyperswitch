@@ -127,6 +127,8 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         previous_transaction_id -> Nullable<Varchar>,
         created_at -> Timestamp,
+        single_use_amount -> Nullable<Int4>,
+        single_use_currency -> Nullable<Currency>,
     }
 }
 
@@ -150,6 +152,7 @@ diesel::table! {
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
         publishable_key -> Nullable<Varchar>,
+        storage_scheme -> MerchantStorageScheme,
     }
 }
 

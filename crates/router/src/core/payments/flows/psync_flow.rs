@@ -8,14 +8,18 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, PaymentsResponseData, PaymentsSyncData, PaymentsSyncRouterData},
+    types::{
+        self, api,
+        storage::{self, enums},
+        PaymentsResponseData, PaymentsSyncData, PaymentsSyncRouterData,
+    },
 };
 
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
@@ -23,12 +27,13 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
-        let output = transformers::construct_payment_router_data::<
-            api::PSync,
-            types::PaymentsSyncData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::PSync, types::PaymentsSyncData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
@@ -43,6 +48,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::PSync>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::PSync>)
     where
         dyn api::Connector: services::ConnectorIntegration<

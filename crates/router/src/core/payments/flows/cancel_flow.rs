@@ -8,25 +8,30 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, PaymentsCancelRouterData, PaymentsResponseData},
+    types::{
+        self, api,
+        storage::{self, enums},
+        PaymentsCancelRouterData, PaymentsResponseData,
+    },
 };
 
 #[async_trait]
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for PaymentData<api::Void>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<PaymentsCancelRouterData> {
-        let output = transformers::construct_payment_router_data::<
-            api::Void,
-            types::PaymentsCancelData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Void, types::PaymentsCancelData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
@@ -41,6 +46,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Void>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Void>)
     where
         dyn api::Connector: services::ConnectorIntegration<

@@ -55,7 +55,7 @@ pub async fn create_merchant_account(
         merchant_details: Some(merchant_details),
         return_url: req.return_url,
         webhook_details: Some(webhook_details),
-        routing_algorithm: req.routing_algorithm,
+        routing_algorithm: req.routing_algorithm.map(Into::into),
         custom_routing_rules: Some(custom_routing_rules),
         sub_merchants_enabled: req.sub_merchants_enabled,
         parent_merchant_id: get_parent_merchant(
@@ -110,7 +110,7 @@ pub async fn get_merchant_account(
         merchant_details,
         return_url: merchant_account.return_url,
         webhook_details,
-        routing_algorithm: merchant_account.routing_algorithm,
+        routing_algorithm: merchant_account.routing_algorithm.map(Into::into),
         custom_routing_rules,
         sub_merchants_enabled: merchant_account.sub_merchants_enabled,
         parent_merchant_id: merchant_account.parent_merchant_id,
@@ -171,7 +171,10 @@ pub async fn merchant_account_update(
         } else {
             merchant_account.webhook_details.to_owned()
         },
-        routing_algorithm: req.routing_algorithm.or(merchant_account.routing_algorithm),
+        routing_algorithm: req
+            .routing_algorithm
+            .map(Into::into)
+            .or(merchant_account.routing_algorithm),
         custom_routing_rules: if req.custom_routing_rules.is_some() {
             Some(
                 utils::Encode::<api::CustomRoutingRules>::encode_to_value(
@@ -274,7 +277,7 @@ pub async fn create_payment_connector(
     req: api::PaymentConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
-    store
+    let _merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
@@ -307,7 +310,7 @@ pub async fn create_payment_connector(
 
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type),
+        connector_type: Some(req.connector_type.into()),
         connector_name: Some(req.connector_name),
         merchant_connector_id: None,
         connector_account_details: req.connector_account_details,
@@ -332,6 +335,13 @@ pub async fn retrieve_payment_connector(
     merchant_id: String,
     merchant_connector_id: i32,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
+    let _merchant_account = store
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
     let mca = store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &merchant_id,
@@ -348,7 +358,7 @@ pub async fn retrieve_payment_connector(
         None => None,
     };
     let response = api::PaymentConnectorCreate {
-        connector_type: mca.connector_type,
+        connector_type: mca.connector_type.into(),
         connector_name: mca.connector_name,
         merchant_connector_id: Some(mca.merchant_connector_id),
         connector_account_details: Some(Secret::new(mca.connector_account_details)),
@@ -366,11 +376,13 @@ pub async fn update_payment_connector(
     merchant_connector_id: i32,
     req: api::PaymentConnectorCreate,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
-    db.find_merchant_account_by_merchant_id(merchant_id)
+    let _merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
+
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
@@ -397,7 +409,7 @@ pub async fn update_payment_connector(
     };
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type),
+        connector_type: Some(req.connector_type.into()),
         connector_name: Some(req.connector_name),
         merchant_connector_id: Some(merchant_connector_id),
         connector_account_details: req
@@ -413,7 +425,7 @@ pub async fn update_payment_connector(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let response = api::PaymentConnectorCreate {
-        connector_type: updated_mca.connector_type,
+        connector_type: updated_mca.connector_type.into(),
         connector_name: updated_mca.connector_name,
         merchant_connector_id: Some(updated_mca.merchant_connector_id),
         connector_account_details: Some(Secret::new(updated_mca.connector_account_details)),
@@ -430,6 +442,13 @@ pub async fn delete_payment_connector(
     merchant_id: String,
     merchant_connector_id: i32,
 ) -> RouterResponse<api::DeleteMcaResponse> {
+    let _merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
     let is_deleted = db
         .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
             &merchant_id,

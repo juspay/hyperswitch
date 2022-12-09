@@ -7,7 +7,7 @@ use crate::{
     core::errors,
     pii,
     services::api,
-    types::{self, api as api_types, enums, storage},
+    types::{self, api as api_types, api::enums as api_enums, storage},
     utils::custom_serde,
 };
 
@@ -29,7 +29,7 @@ pub struct PaymentsRequest {
     pub merchant_id: Option<String>,
     pub amount: Option<i32>,
     pub currency: Option<String>,
-    pub capture_method: Option<enums::CaptureMethod>,
+    pub capture_method: Option<api_enums::CaptureMethod>,
     pub amount_to_capture: Option<i32>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
@@ -42,10 +42,10 @@ pub struct PaymentsRequest {
     pub off_session: Option<bool>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub setup_future_usage: Option<enums::FutureUsage>,
-    pub authentication_type: Option<enums::AuthenticationType>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub authentication_type: Option<api_enums::AuthenticationType>,
     pub payment_method_data: Option<PaymentMethod>,
-    pub payment_method: Option<enums::PaymentMethodType>,
+    pub payment_method: Option<api_enums::PaymentMethodType>,
     pub payment_token: Option<String>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
@@ -88,11 +88,11 @@ pub struct VerifyRequest {
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
-    pub payment_method: Option<enums::PaymentMethodType>,
+    pub payment_method: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_token: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<api_types::FutureUsage>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
@@ -126,6 +126,14 @@ pub enum MandateTxnType {
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
+    pub mandate_type: MandateType,
+}
+
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateType {
+    SingleUse(storage::SingleUseMandate),
+    #[default]
+    MultiUse,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -200,7 +208,7 @@ pub enum PaymentMethod {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct WalletData {
-    pub issuer_name: enums::WalletIssuer,
+    pub issuer_name: api_enums::WalletIssuer,
     pub token: String,
 }
 
@@ -266,6 +274,9 @@ pub struct Capture;
 pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
+
+#[derive(Debug, Clone)]
+pub struct Session;
 
 #[derive(Debug, Clone)]
 pub struct Verify;
@@ -349,7 +360,7 @@ pub struct NextAction {
 pub struct PaymentsResponse {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
-    pub status: enums::IntentStatus,
+    pub status: api_enums::IntentStatus,
     pub amount: i32,
     pub amount_capturable: Option<i32>,
     pub amount_received: Option<i32>,
@@ -362,13 +373,13 @@ pub struct PaymentsResponse {
     pub refunds: Option<Vec<api_types::RefundResponse>>,
     pub mandate_id: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub off_session: Option<bool>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
-    pub capture_method: Option<enums::CaptureMethod>,
+    pub capture_method: Option<api_enums::CaptureMethod>,
     #[auth_based]
-    pub payment_method: Option<enums::PaymentMethodType>,
+    pub payment_method: Option<api_enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
     pub payment_token: Option<String>,
@@ -379,7 +390,7 @@ pub struct PaymentsResponse {
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub return_url: Option<String>,
-    pub authentication_type: Option<enums::AuthenticationType>,
+    pub authentication_type: Option<api_enums::AuthenticationType>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub next_action: Option<NextAction>,
@@ -430,7 +441,7 @@ pub struct VerifyResponse {
     pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,
     #[auth_based]
-    pub payment_method: Option<enums::PaymentMethodType>,
+    pub payment_method: Option<api_enums::PaymentMethodType>,
     #[auth_based]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
     pub payment_token: Option<String>,
@@ -452,7 +463,7 @@ pub struct MandateValidationFields {
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub setup_future_usage: Option<api_types::FutureUsage>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub off_session: Option<bool>,
 }
 
@@ -568,7 +579,7 @@ impl From<types::storage::PaymentIntent> for PaymentsResponse {
         Self {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
-            status: item.status,
+            status: item.status.into(),
             amount: item.amount,
             amount_capturable: item.amount_captured,
             client_secret: item.client_secret.map(|s| s.into()),
@@ -632,7 +643,7 @@ impl From<PaymentsCaptureRequest> for PaymentsResponse {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PgRedirectResponse {
     pub payment_id: String,
-    pub status: storage::enums::IntentStatus,
+    pub status: api_enums::IntentStatus,
     pub gateway_id: String,
     pub customer_id: Option<String>,
     pub amount: Option<i32>,
@@ -682,41 +693,6 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
     }
 }
 
-impl From<enums::AttemptStatus> for enums::IntentStatus {
-    fn from(s: enums::AttemptStatus) -> Self {
-        match s {
-            enums::AttemptStatus::Charged | enums::AttemptStatus::AutoRefunded => {
-                enums::IntentStatus::Succeeded
-            }
-
-            enums::AttemptStatus::ConfirmationAwaited => enums::IntentStatus::RequiresConfirmation,
-            enums::AttemptStatus::PaymentMethodAwaited => {
-                enums::IntentStatus::RequiresPaymentMethod
-            }
-
-            enums::AttemptStatus::Authorized => enums::IntentStatus::RequiresCapture,
-            enums::AttemptStatus::PendingVbv => enums::IntentStatus::RequiresCustomerAction,
-
-            enums::AttemptStatus::PartialCharged
-            | enums::AttemptStatus::Started
-            | enums::AttemptStatus::VbvSuccessful
-            | enums::AttemptStatus::Authorizing
-            | enums::AttemptStatus::CodInitiated
-            | enums::AttemptStatus::VoidInitiated
-            | enums::AttemptStatus::CaptureInitiated
-            | enums::AttemptStatus::Pending => enums::IntentStatus::Processing,
-
-            enums::AttemptStatus::AuthenticationFailed
-            | enums::AttemptStatus::AuthorizationFailed
-            | enums::AttemptStatus::VoidFailed
-            | enums::AttemptStatus::JuspayDeclined
-            | enums::AttemptStatus::CaptureFailed
-            | enums::AttemptStatus::Failure => enums::IntentStatus::Failed,
-            enums::AttemptStatus::Voided => enums::IntentStatus::Cancelled,
-        }
-    }
-}
-
 pub trait PaymentAuthorize:
     api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
@@ -737,6 +713,11 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PaymentSession:
+    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
+{
+}
+
 pub trait PreVerify:
     api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
 {
@@ -749,8 +730,10 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PreVerify
+    + PaymentSession
 {
 }
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsRetrieveRequest {
     pub resource_id: PaymentIdType,

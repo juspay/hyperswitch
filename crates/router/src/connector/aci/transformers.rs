@@ -213,9 +213,8 @@ impl<F, T>
             status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
                 &item.response.result.code,
             )?),
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                //TODO: Add redirection details here
                 redirection_data: None,
                 redirect: false,
             }),

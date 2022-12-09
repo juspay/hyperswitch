@@ -28,6 +28,8 @@ pub enum ApiErrorResponse {
                     the Dashboard Settings section."
     )]
     BadCredentials,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Invalid Ephemeral Key for the customer")]
+    InvalidEphermeralKey,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
@@ -137,9 +139,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            ApiErrorResponse::Unauthorized | ApiErrorResponse::BadCredentials => {
-                StatusCode::UNAUTHORIZED
-            } // 401
+            ApiErrorResponse::Unauthorized
+            | ApiErrorResponse::BadCredentials
+            | ApiErrorResponse::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
             ApiErrorResponse::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             ApiErrorResponse::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             ApiErrorResponse::MissingRequiredField { .. }

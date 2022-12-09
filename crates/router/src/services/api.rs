@@ -26,8 +26,12 @@ use crate::{
     db::StorageInterface,
     logger, routes,
     routes::AppState,
-    types::{self, api, storage, ErrorResponse, Response},
-    utils::OptionExt,
+    types::{
+        self, api,
+        storage::{self, enums},
+        ErrorResponse, Response,
+    },
+    utils::{self, OptionExt},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -556,6 +560,7 @@ pub async fn authenticate_merchant<'a>(
                 payment_response_hash_key: None,
                 redirect_to_merchant_with_http_post: false,
                 publishable_key: None,
+                storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             })
         }
 
@@ -589,6 +594,29 @@ pub(crate) fn get_auth_type_and_check_client_secret(
         payments::helpers::client_secret_auth(payload, &auth_type)?,
         auth_type,
     ))
+}
+
+pub(crate) async fn authenticate_eph_key<'a>(
+    req: &'a actix_web::HttpRequest,
+    store: &dyn StorageInterface,
+    customer_id: String,
+) -> RouterResult<MerchantAuthentication<'a>> {
+    let api_key = get_api_key(req)?;
+    if api_key.starts_with("epk") {
+        let ek = store
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::BadCredentials)?;
+        utils::when(
+            ek.customer_id.ne(&customer_id),
+            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey)),
+        )?;
+        Ok(MerchantAuthentication::MerchantId(Cow::Owned(
+            ek.merchant_id,
+        )))
+    } else {
+        Ok(MerchantAuthentication::ApiKey)
+    }
 }
 
 fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {

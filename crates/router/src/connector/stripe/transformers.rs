@@ -365,7 +365,7 @@ impl<F, T>
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
@@ -402,7 +402,7 @@ impl<F, T>
 
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,

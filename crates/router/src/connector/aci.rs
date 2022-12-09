@@ -53,6 +53,18 @@ impl api::PaymentAuthorize for Aci {}
 impl api::PaymentSync for Aci {}
 impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
+impl api::PaymentSession for Aci {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for Aci
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Aci {}
 
 impl
@@ -109,7 +121,10 @@ impl
             "{}{}{}{}{}",
             self.base_url(connectors),
             "v1/payments/",
-            req.request.connector_transaction_id,
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             "?entityId=",
             auth.entity_id
         ))
