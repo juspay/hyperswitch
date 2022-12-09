@@ -16,14 +16,26 @@ use crate::{
 pub async fn create_customer(
     db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
-    customer_data: customers::CreateCustomerRequest,
+    customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let mut customer_data = customer_data.validate()?;
     let customer_id = customer_data.customer_id.to_owned();
     let merchant_id = merchant_account.merchant_id.to_owned();
     customer_data.merchant_id = merchant_id.to_owned();
 
-    let customer = match db.insert_customer(customer_data).await {
+    let new_customer = storage::CustomerNew {
+        customer_id: customer_id.clone(),
+        merchant_id: merchant_id.clone(),
+        name: customer_data.name,
+        email: customer_data.email,
+        phone: customer_data.phone,
+        description: customer_data.description,
+        phone_country_code: customer_data.phone_country_code,
+        address: customer_data.address,
+        metadata: customer_data.metadata,
+    };
+
+    let customer = match db.insert_customer(new_customer).await {
         Ok(customer) => customer,
         Err(error) => match error.current_context() {
             errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => db
@@ -33,7 +45,7 @@ pub async fn create_customer(
             _ => Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?,
         },
     };
-    Ok(services::BachResponse::Json(customer))
+    Ok(services::BachResponse::Json(customer.into()))
 }
 
 #[instrument(skip(db))]
@@ -47,7 +59,7 @@ pub async fn retrieve_customer(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
-    Ok(services::BachResponse::Json(response))
+    Ok(services::BachResponse::Json(response.into()))
 }
 
 #[instrument(skip_all)]
@@ -104,7 +116,7 @@ pub async fn delete_customer(
 pub async fn update_customer(
     db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
-    update_customer: customers::CustomerUpdateRequest,
+    update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let update_customer = update_customer.validate()?;
 
@@ -124,5 +136,6 @@ pub async fn update_customer(
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
-    Ok(services::BachResponse::Json(response))
+
+    Ok(services::BachResponse::Json(response.into()))
 }

@@ -57,9 +57,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -75,6 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
                 customer,
                 Some(true),
                 call_connector_action,
+                storage_scheme,
             )
             .await;
 
@@ -89,9 +91,10 @@ impl PaymentsAuthorizeRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentsAuthorizeRouterData>
     where
         dyn api::Connector + Sync: services::ConnectorIntegration<
@@ -164,7 +167,7 @@ impl PaymentsAuthorizeRouterData {
 
     fn generate_mandate(
         &self,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         payment_method_id: String,
     ) -> Option<storage::MandateNew> {
         match (self.request.setup_mandate_details.clone(), customer) {
