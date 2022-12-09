@@ -243,40 +243,6 @@ pub enum Currency {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum EventClass {
-    Payments,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventObjectType {
-    PaymentDetails,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
 }
@@ -325,28 +291,6 @@ pub enum FutureUsage {
     #[default]
     OffSession,
     OnSession,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentFlow {
-    Vsc,
-    Emi,
-    Otp,
-    UpiIntent,
-    UpiCollect,
-    UpiScanAndPay,
-    Sdk,
 }
 
 #[derive(
@@ -449,32 +393,6 @@ pub enum WalletIssuer {
     ApplePay,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ProcessTrackerStatus {
-    // Picked by the producer
-    Processing,
-    // State when the task is added
-    New,
-    // Send to retry
-    Pending,
-    // Picked by consumer
-    ProcessStarted,
-    // Finished by consumer
-    Finish,
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, strum::Display, strum::EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
@@ -484,15 +402,6 @@ pub enum RefundStatus {
     Pending,
     Success,
     TransactionFailure,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, strum::Display, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum RefundType {
-    InstantRefund,
-    #[default]
-    RegularRefund,
-    RetryRefund,
 }
 
 #[derive(
@@ -513,27 +422,6 @@ pub enum RoutingAlgorithm {
     MaxConversion,
     MinCost,
     Custom,
-}
-
-// Mandate
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MandateType {
-    SingleUse,
-    #[default]
-    MultiUse,
 }
 
 #[derive(
