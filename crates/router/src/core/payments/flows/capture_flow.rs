@@ -9,7 +9,9 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, storage, PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
+        self, api,
+        storage::{self, enums},
+        PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
 
@@ -24,12 +26,13 @@ impl
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<PaymentsCaptureRouterData> {
-        let output = transformers::construct_payment_router_data::<
-            api::Capture,
-            types::PaymentsCaptureData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
@@ -41,8 +44,9 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -68,7 +72,7 @@ impl PaymentsCaptureRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsCaptureRouterData>

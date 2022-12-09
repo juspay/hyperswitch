@@ -4,7 +4,7 @@ pub use self::CreateMerchantAccount as MerchantAccountResponse;
 use super::payments::AddressDetails;
 use crate::{
     pii::{self, Secret, StrongSecret},
-    types::enums,
+    types::api::enums as api_enums,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -16,7 +16,7 @@ pub struct CreateMerchantAccount {
     pub merchant_details: Option<MerchantDetails>,
     pub return_url: Option<String>,
     pub webhook_details: Option<WebhookDetails>,
-    pub routing_algorithm: Option<enums::RoutingAlgorithm>,
+    pub routing_algorithm: Option<api_enums::RoutingAlgorithm>,
     pub custom_routing_rules: Option<Vec<CustomRoutingRules>>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
@@ -56,16 +56,16 @@ pub struct WebhookDetails {
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CustomRoutingRules {
-    pub payment_methods_incl: Option<Vec<enums::PaymentMethodType>>, //FIXME Add enums for all PM enums
-    pub payment_methods_excl: Option<Vec<enums::PaymentMethodType>>,
-    pub payment_method_types_incl: Option<Vec<enums::PaymentMethodSubType>>,
-    pub payment_method_types_excl: Option<Vec<enums::PaymentMethodSubType>>,
+    pub payment_methods_incl: Option<Vec<api_enums::PaymentMethodType>>, //FIXME Add enums for all PM enums
+    pub payment_methods_excl: Option<Vec<api_enums::PaymentMethodType>>,
+    pub payment_method_types_incl: Option<Vec<api_enums::PaymentMethodSubType>>,
+    pub payment_method_types_excl: Option<Vec<api_enums::PaymentMethodSubType>>,
     pub payment_method_issuers_incl: Option<Vec<String>>,
     pub payment_method_issuers_excl: Option<Vec<String>>,
     pub countries_incl: Option<Vec<String>>,
     pub countries_excl: Option<Vec<String>>,
-    pub currencies_incl: Option<Vec<enums::Currency>>,
-    pub currencies_excl: Option<Vec<enums::Currency>>,
+    pub currencies_incl: Option<Vec<api_enums::Currency>>,
+    pub currencies_excl: Option<Vec<api_enums::Currency>>,
     pub metadata_filters_keys: Option<Vec<String>>,
     pub metadata_filters_values: Option<Vec<String>>,
     pub connectors_pecking_order: Option<Vec<String>>,
@@ -93,7 +93,7 @@ pub struct MerchantConnectorId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentConnectorCreate {
-    pub connector_type: enums::ConnectorType,
+    pub connector_type: api_enums::ConnectorType,
     pub connector_name: String,
     pub merchant_connector_id: Option<i32>,
     pub connector_account_details: Option<Secret<serde_json::Value>>,
@@ -106,11 +106,11 @@ pub struct PaymentConnectorCreate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethods {
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_types: Option<Vec<enums::PaymentMethodSubType>>,
+    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
     pub payment_method_issuers: Option<Vec<String>>,
     pub payment_schemes: Option<Vec<String>>,
-    pub accepted_currencies: Option<Vec<enums::Currency>>,
+    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     pub accepted_countries: Option<Vec<String>>,
     pub minimum_amount: Option<i32>,
     pub maximum_amount: Option<i32>,

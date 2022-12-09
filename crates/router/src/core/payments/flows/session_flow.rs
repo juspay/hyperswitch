@@ -8,7 +8,10 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{
+        self, api,
+        storage::{self, enums},
+    },
 };
 
 #[async_trait]
@@ -22,12 +25,13 @@ impl
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        let output = transformers::construct_payment_router_data::<
-            api::Session,
-            types::PaymentsSessionData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
@@ -37,8 +41,9 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_schema: enums::MerchantStorageScheme,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -56,7 +61,7 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a AppState,
         connector: api::ConnectorData,
-        _customer: &Option<api::CustomerResponse>,
+        _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<types::PaymentsSessionRouterData>

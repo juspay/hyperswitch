@@ -32,8 +32,17 @@ pool_size = 5
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
 
 [locker]
+host = ""
+mock_locker = true
+basilisk_host = ""
 
 [jwekey]
+locker_key_identifier1 = ""
+locker_key_identifier2 = ""
+locker_encryption_key1 = ""
+locker_encryption_key2 = ""
+locker_decryption_key1 = ""
+locker_decryption_key2 = ""
 
 [redis]
 host = "redis-queue"

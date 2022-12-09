@@ -8,7 +8,11 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, PaymentsCancelRouterData, PaymentsResponseData},
+    types::{
+        self, api,
+        storage::{self, enums},
+        PaymentsCancelRouterData, PaymentsResponseData,
+    },
 };
 
 #[async_trait]
@@ -21,12 +25,13 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<PaymentsCancelRouterData> {
-        let output = transformers::construct_payment_router_data::<
-            api::Void,
-            types::PaymentsCancelData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Void, types::PaymentsCancelData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
@@ -38,8 +43,9 @@ impl Feature<api::Void, types::PaymentsCancelData>
         self,
         state: &AppState,
         connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
         dyn api::Connector: services::ConnectorIntegration<
@@ -65,12 +71,11 @@ impl PaymentsCancelRouterData {
         &'b self,
         state: &AppState,
         connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<PaymentsCancelRouterData>
     where
-        // P: 'a,
         dyn api::Connector + Sync: services::ConnectorIntegration<
             api::Void,
             types::PaymentsCancelData,
