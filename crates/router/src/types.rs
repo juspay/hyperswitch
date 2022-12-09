@@ -213,8 +213,18 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
-    HeaderKey { api_key: String },
-    BodyKey { api_key: String, key1: String },
+    HeaderKey {
+        api_key: String,
+    },
+    BodyKey {
+        api_key: String,
+        key1: String,
+    },
+    SignatureKey {
+        api_key: String,
+        key1: String,
+        api_secret: String,
+    },
 }
 
 impl Default for ConnectorAuthType {

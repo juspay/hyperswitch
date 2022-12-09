@@ -2,6 +2,7 @@ pub mod address;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
+pub mod ephemeral_key;
 pub mod events;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -54,6 +55,7 @@ pub trait StorageInterface:
     + process_tracker::ProcessTrackerInterface
     + refund::RefundInterface
     + queue::QueueInterface
+    + ephemeral_key::EphemeralKeyInterface
     + connector_response::ConnectorResponseInterface
     + 'static
 {
