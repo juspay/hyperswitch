@@ -49,7 +49,7 @@ pub async fn payments_create(
                 if req
                     .amount
                     .as_ref()
-                    .map(|x| x != &api_types::Amount::Null)
+                    .map(|x| x != &api_types::Amount::Zero)
                     .unwrap_or(true)
                 {
                     payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(

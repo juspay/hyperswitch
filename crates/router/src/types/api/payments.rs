@@ -73,21 +73,21 @@ impl PaymentsRequest {
 pub enum Amount {
     Value(i32),
     #[default]
-    Null,
+    Zero,
 }
 
 impl From<Amount> for i32 {
     fn from(amount: Amount) -> Self {
         match amount {
             Amount::Value(v) => v,
-            Amount::Null => 0,
+            Amount::Zero => 0,
         }
     }
 }
 impl From<i32> for Amount {
     fn from(val: i32) -> Self {
         match val {
-            0 => Amount::Null,
+            0 => Amount::Zero,
             amount => Amount::Value(amount),
         }
     }
