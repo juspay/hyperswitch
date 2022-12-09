@@ -248,7 +248,8 @@ where
         let connector_names = db
             .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
             .await
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Database error when querying for merchant accounts")?
             .iter()
             .filter(|connector_account| {
                 supported_connectors.contains(&connector_account.connector_name)
