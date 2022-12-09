@@ -68,18 +68,20 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+pub struct ValidateResult<'a> {
+    pub merchant_id: &'a str,
+    pub payment_id: api::PaymentIdType,
+    pub mandate_type: Option<api::MandateTxnType>,
+    pub storage_scheme: enums::MerchantStorageScheme,
+}
+
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
         merchant_account: &'a storage::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, R>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
-    )>;
+    ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 
 #[async_trait]
@@ -93,6 +95,7 @@ pub trait GetTracker<F, D, R>: Send {
         connector: types::Connector,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -116,6 +119,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -135,6 +139,7 @@ pub trait UpdateTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         customer: Option<Customer>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, D)>
     where
         F: 'b + Send;
@@ -148,6 +153,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: Option<types::RouterData<F, R, PaymentsResponseData>>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
         F: 'b + Send;
@@ -192,6 +198,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -280,6 +287,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
@@ -336,6 +344,7 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
@@ -384,6 +393,7 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,
