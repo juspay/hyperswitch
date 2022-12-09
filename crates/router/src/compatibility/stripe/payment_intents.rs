@@ -47,7 +47,7 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
@@ -95,7 +95,7 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<PSync, _, _, _>(
+            payments::payments_core::<PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -149,7 +149,7 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -204,7 +204,7 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
@@ -251,7 +251,7 @@ pub async fn payment_intents_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Capture, _, _, _>(
+            payments::payments_core::<Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -304,7 +304,7 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Void, _, _, _>(
+            payments::payments_core::<Void, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,

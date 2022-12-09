@@ -14,6 +14,7 @@ enum Derives {
     Syncdata,
     Canceldata,
     Capturedata,
+    VerifyData,
     Start,
     Verify,
     Session,
@@ -32,6 +33,7 @@ impl From<String> for Derives {
             "capturedata" => Self::Capturedata,
             "start" => Self::Start,
             "verify" => Self::Verify,
+            "verifydata" => Self::VerifyData,
             "session" => Self::Session,
             _ => Self::Authorize,
         }
@@ -103,6 +105,7 @@ impl Conversion {
             Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
+            Derives::VerifyData => syn::Ident::new("VerifyRequestData", Span::call_site()),
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
         }
     }
@@ -280,6 +283,7 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                     PaymentData
                 };
                 use crate::types::{
+                    VerifyRequestData,
                     PaymentsSyncData,
                     PaymentsCaptureData,
                     PaymentsCancelData,
