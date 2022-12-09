@@ -209,6 +209,7 @@ async fn get_tracker_for_sync<
             payment_method_data: None,
             force_sync: Some(request.force_sync),
             refunds,
+            sessions_token: vec![],
         },
         None,
     ))

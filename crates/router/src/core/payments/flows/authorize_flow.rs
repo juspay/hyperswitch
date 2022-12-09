@@ -57,17 +57,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
                 state,
@@ -81,7 +73,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        (resp, payment_data)
+        resp
     }
 }
 
@@ -94,14 +86,7 @@ impl PaymentsAuthorizeRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentsAuthorizeRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Authorize,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsAuthorizeRouterData> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<

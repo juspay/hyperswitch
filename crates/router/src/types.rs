@@ -122,6 +122,12 @@ pub struct PaymentsSessionData {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConnectorSessionToken {
+    pub connector_name: String,
+    pub session_token: String,
+}
+
+#[derive(serde::Serialize, Debug)]
 pub struct PaymentsSessionResponseData {
     pub client_token: Option<String>,
 }
