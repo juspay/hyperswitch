@@ -24,9 +24,13 @@ pub struct Mandate {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: PrimitiveDateTime,
+    pub single_use_amount: Option<i32>,
+    pub single_use_currency: Option<storage_enums::Currency>,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    router_derive::Setter, Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay,
+)]
 #[diesel(table_name = mandate)]
 pub struct MandateNew {
     pub mandate_id: String,
@@ -41,6 +45,8 @@ pub struct MandateNew {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
+    pub single_use_amount: Option<i32>,
+    pub single_use_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug)]
@@ -48,6 +54,12 @@ pub enum MandateUpdate {
     StatusUpdate {
         mandate_status: storage_enums::MandateStatus,
     },
+}
+
+#[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct SingleUseMandate {
+    pub amount: i32,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]

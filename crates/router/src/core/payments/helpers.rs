@@ -139,6 +139,11 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
+    utils::when(
+        mandate.mandate_status != storage_enums::MandateStatus::Active,
+        Err(errors::ApiErrorResponse::MandateNotFound),
+    )?;
+
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
