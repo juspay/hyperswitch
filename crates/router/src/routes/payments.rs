@@ -272,8 +272,7 @@ pub(crate) async fn payments_capture(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
-// #[post("/{payment_id}/capture")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub(crate) async fn payments_connector_session(
     state: web::Data<AppState>,
     req: HttpRequest,

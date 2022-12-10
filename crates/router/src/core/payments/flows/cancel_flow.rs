@@ -46,14 +46,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<Self>
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Void,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<Self> {
         self.decide_flow(
             state,
             connector,
@@ -74,14 +67,7 @@ impl PaymentsCancelRouterData {
         _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsCancelRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Void,
-            types::PaymentsCancelData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsCancelRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Void,
             types::PaymentsCancelData,
