@@ -13,7 +13,7 @@ doctest = false
 [dependencies]
 proc-macro2 = "1.0.47"
 quote = "1.0.21"
-syn = { version = "1.0.101", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
+syn = { version = "1.0.105", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
 
 [dev-dependencies]
 diesel = { git = "https://github.com/juspay/diesel", features = ["postgres"], rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
