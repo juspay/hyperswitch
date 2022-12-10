@@ -5,7 +5,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytes = "1.2.1"
+bytes = "1.3.0"
 error-stack = "0.2.1"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
 serde = { version = "1.0.145", features = ["derive"] }
