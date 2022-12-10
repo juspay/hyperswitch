@@ -52,7 +52,7 @@ regex = "1.6.0"
 reqwest = { version = "0.11.12", features = ["json"] }
 ring = "0.16.20"
 serde = { version = "1.0.149", features = ["derive"] }
-serde_json = "1.0.85"
+serde_json = "1.0.89"
 serde_path_to_error = "0.1.8"
 serde_qs = { version = "0.10.1", optional = true }
 serde_urlencoded = "0.7.1"
