@@ -1,7 +1,6 @@
-use crate::{
-    core::errors,
-    types::{api::enums as api_enums, storage::enums as storage_enums},
-};
+use api_models::enums as api_enums;
+
+use crate::{core::errors, types::storage::enums as storage_enums};
 
 impl From<api_enums::RoutingAlgorithm> for storage_enums::RoutingAlgorithm {
     fn from(algo: api_enums::RoutingAlgorithm) -> Self {
@@ -173,43 +172,6 @@ impl From<api_enums::IntentStatus> for storage_enums::IntentStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture => Self::RequiresCapture,
-        }
-    }
-}
-
-impl From<api_enums::AttemptStatus> for api_enums::IntentStatus {
-    fn from(s: api_enums::AttemptStatus) -> Self {
-        match s {
-            api_enums::AttemptStatus::Charged | api_enums::AttemptStatus::AutoRefunded => {
-                api_enums::IntentStatus::Succeeded
-            }
-
-            api_enums::AttemptStatus::ConfirmationAwaited => {
-                api_enums::IntentStatus::RequiresConfirmation
-            }
-            api_enums::AttemptStatus::PaymentMethodAwaited => {
-                api_enums::IntentStatus::RequiresPaymentMethod
-            }
-
-            api_enums::AttemptStatus::Authorized => api_enums::IntentStatus::RequiresCapture,
-            api_enums::AttemptStatus::PendingVbv => api_enums::IntentStatus::RequiresCustomerAction,
-
-            api_enums::AttemptStatus::PartialCharged
-            | api_enums::AttemptStatus::Started
-            | api_enums::AttemptStatus::VbvSuccessful
-            | api_enums::AttemptStatus::Authorizing
-            | api_enums::AttemptStatus::CodInitiated
-            | api_enums::AttemptStatus::VoidInitiated
-            | api_enums::AttemptStatus::CaptureInitiated
-            | api_enums::AttemptStatus::Pending => api_enums::IntentStatus::Processing,
-
-            api_enums::AttemptStatus::AuthenticationFailed
-            | api_enums::AttemptStatus::AuthorizationFailed
-            | api_enums::AttemptStatus::VoidFailed
-            | api_enums::AttemptStatus::JuspayDeclined
-            | api_enums::AttemptStatus::CaptureFailed
-            | api_enums::AttemptStatus::Failure => api_enums::IntentStatus::Failed,
-            api_enums::AttemptStatus::Voided => api_enums::IntentStatus::Cancelled,
         }
     }
 }

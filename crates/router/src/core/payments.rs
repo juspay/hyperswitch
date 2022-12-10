@@ -31,7 +31,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentsResponse, PaymentsRetrieveRequest},
+        api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
         storage::{self, enums},
     },
     utils::{self, OptionExt},

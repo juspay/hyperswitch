@@ -20,7 +20,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums},
     },
     utils::{
@@ -948,9 +948,9 @@ pub fn make_url_with_signature(
         params: parameters,
         return_url_with_query_params: url.to_string(),
         http_method: if merchant_account.redirect_to_merchant_with_http_post {
-            services::Method::Post
+            services::Method::Post.to_string()
         } else {
-            services::Method::Get
+            services::Method::Get.to_string()
         },
         headers: Vec::new(),
     })

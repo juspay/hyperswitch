@@ -13,7 +13,8 @@ use crate::{
     scheduler::metrics,
     services,
     types::{
-        self, api,
+        self,
+        api::{self, CustomerAcceptanceExt},
         storage::{self, enums as storage_enums},
         PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },

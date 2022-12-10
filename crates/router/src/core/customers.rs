@@ -5,7 +5,10 @@ use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
     services,
-    types::{api::customers, storage},
+    types::{
+        api::customers::{self, CustomerRequestExt},
+        storage,
+    },
 };
 
 #[instrument(skip(db))]

@@ -12,7 +12,8 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api,
+        self,
+        api::{self, CustomerAcceptanceExt},
         storage::{self, enums},
     },
     utils,
