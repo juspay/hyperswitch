@@ -36,7 +36,7 @@ crc32fast = "1.3.2"
 diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "serde_json", "time"], rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
 dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
-error-stack = "0.2.1"
+error-stack = "0.2.4"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] , optional = true }
 futures = "0.3.25"
 hex = "0.4.3"
