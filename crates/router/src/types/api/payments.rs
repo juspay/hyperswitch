@@ -73,21 +73,21 @@ impl PaymentsRequest {
 pub enum Amount {
     Value(i32),
     #[default]
-    Null,
+    Zero,
 }
 
 impl From<Amount> for i32 {
     fn from(amount: Amount) -> Self {
         match amount {
             Amount::Value(v) => v,
-            Amount::Null => 0,
+            Amount::Zero => 0,
         }
     }
 }
 impl From<i32> for Amount {
     fn from(val: i32) -> Self {
         match val {
-            0 => Amount::Null,
+            0 => Amount::Zero,
             amount => Amount::Value(amount),
         }
     }
@@ -304,6 +304,9 @@ pub struct Capture;
 pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
+
+#[derive(Debug, Clone)]
+pub struct Session;
 
 #[derive(Debug, Clone)]
 pub struct Verify;
@@ -740,6 +743,11 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PaymentSession:
+    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
+{
+}
+
 pub trait PreVerify:
     api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
 {
@@ -752,8 +760,10 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PreVerify
+    + PaymentSession
 {
 }
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsRetrieveRequest {
     pub resource_id: PaymentIdType,

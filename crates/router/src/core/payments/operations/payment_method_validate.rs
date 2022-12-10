@@ -135,7 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
                 currency: storage_enums::Currency::default(),
-                amount: api::Amount::Null,
+                amount: api::Amount::Zero,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),
@@ -145,6 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 address: types::PaymentAddress::default(),
                 force_sync: None,
                 refunds: vec![],
+                sessions_token: vec![],
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),

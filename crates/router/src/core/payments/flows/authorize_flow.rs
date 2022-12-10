@@ -25,7 +25,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::Authorize>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
@@ -37,35 +37,26 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        let output = transformers::construct_payment_router_data::<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsAuthorizeData>
-    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
+impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
                 state,
@@ -79,7 +70,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
 
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        (resp, payment_data)
+        resp
     }
 }
 
@@ -92,14 +83,7 @@ impl PaymentsAuthorizeRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentsAuthorizeRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Authorize,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsAuthorizeRouterData> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<

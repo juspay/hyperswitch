@@ -19,19 +19,19 @@ use crate::{
 impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for PaymentData<api::Verify>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::VerifyRouterData> {
-        let (_, router_data) = transformers::construct_payment_router_data::<
-            api::Verify,
-            types::VerifyRequestData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-
-        Ok(router_data)
+        transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
@@ -42,29 +42,18 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::Verify>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::Verify>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Verify,
-            types::VerifyRequestData,
-            types::PaymentsResponseData,
-        >,
-    {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-                storage_scheme,
-            )
-            .await;
-
-        (resp, payment_data)
+    ) -> RouterResult<Self> {
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+            storage_scheme,
+        )
+        .await
     }
 }
 
@@ -77,14 +66,7 @@ impl types::VerifyRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<Self>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Verify,
-            types::VerifyRequestData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
