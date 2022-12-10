@@ -28,13 +28,13 @@ tracing-attributes = "0.1.22"
 tracing-core = "0.1.29"
 tracing-opentelemetry = "0.18.0"
 tracing-subscriber = { version = "0.3.15", default-features = true, features = ["json", "env-filter", "registry"] }
-vergen = { version = "7.4.2", optional = true }
+vergen = { version = "7.4.3", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
-vergen = "7.4.2"
+vergen = "7.4.3"
 
 [features]
 default = ["actix_web"]
