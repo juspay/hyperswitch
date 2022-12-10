@@ -233,7 +233,7 @@ pub fn validate_request_amount_and_amount_to_capture(
                         })),
                     )
                 }
-                api::Amount::Null => {
+                api::Amount::Zero => {
                     // If the amount is Null but still amount_to_capture is passed this is invalid and
                     Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message: "amount_to_capture should not exist for when amount = 0"
