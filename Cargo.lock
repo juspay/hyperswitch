@@ -2624,7 +2624,6 @@ dependencies = [
  "once_cell",
  "rand",
  "redis_interface",
- "regex",
  "reqwest",
  "ring",
  "router_derive",
