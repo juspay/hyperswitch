@@ -107,6 +107,20 @@ pub enum MandateTxnType {
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
+    pub mandate_type: MandateType,
+}
+
+#[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct SingleUseMandate {
+    pub amount: i32,
+    pub currency: api_enums::Currency,
+}
+
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateType {
+    SingleUse(SingleUseMandate),
+    #[default]
+    MultiUse,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]

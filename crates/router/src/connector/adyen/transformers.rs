@@ -130,7 +130,7 @@ pub struct AdyenRedirectionAction {
     method: String,
     #[serde(rename = "type")]
     type_of_response: String,
-    data: HashMap<String, String>,
+    data: Option<HashMap<String, String>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -405,7 +405,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         };
         Ok(types::RouterData {
             status,
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
                 redirect: false,
@@ -445,7 +445,7 @@ pub fn get_adyen_response(
         None
     };
 
-    let payments_response_data = types::PaymentsResponseData {
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         redirect: false,
@@ -491,16 +491,25 @@ pub fn get_redirection_response(
         .change_context(errors::ParsingError)
         .attach_printable("Failed to parse redirection url")?;
 
+    let form_field_for_redirection = match response.action.data {
+        Some(data) => data,
+        None => std::collections::HashMap::from_iter(
+            redirection_url_response
+                .query_pairs()
+                .map(|(k, v)| (k.to_string(), v.to_string())),
+        ),
+    };
+
     let redirection_data = services::RedirectForm {
         url: redirection_url_response.to_string(),
         method: services::Method::from_str(&response.action.method)
             .into_report()
             .change_context(errors::ParsingError)?,
-        form_fields: response.action.data,
+        form_fields: form_field_for_redirection,
     };
 
     // We don't get connector transaction id for redirections in Adyen.
-    let payments_response_data = types::PaymentsResponseData {
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
         redirect: true,

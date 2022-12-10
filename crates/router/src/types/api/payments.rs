@@ -1,8 +1,8 @@
 use api_models::payments;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, AuthenticationForStartResponse, CCard,
-    CustomerAcceptance, MandateData, MandateTxnType, MandateValidationFields, NextAction,
-    NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
+    NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethod, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
     PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
     PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
@@ -68,6 +68,9 @@ pub struct Capture;
 pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
+
+#[derive(Debug, Clone)]
+pub struct Session;
 
 #[derive(Debug, Clone)]
 pub struct Verify;
@@ -146,6 +149,11 @@ pub trait PaymentCapture:
 {
 }
 
+pub trait PaymentSession:
+    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
+{
+}
+
 pub trait PreVerify:
     api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
 {
@@ -158,6 +166,7 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PreVerify
+    + PaymentSession
 {
 }
 

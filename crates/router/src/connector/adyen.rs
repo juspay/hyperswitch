@@ -65,6 +65,18 @@ impl
     // TODO: Critical implement
 }
 
+impl api::PaymentSession for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for Adyen
+{
+    // Not Implemented (R)
+}
+
 impl
     services::ConnectorIntegration<
         api::Capture,
