@@ -85,7 +85,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 
-        amount = payment_attempt.amount;
+        amount = payment_attempt.amount.into();
 
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(

@@ -68,7 +68,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             })?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount;
+        amount = payment_attempt.amount.into();
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,

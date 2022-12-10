@@ -136,7 +136,7 @@ pub(crate) struct StripePaymentIntentRequest {
 impl From<StripePaymentIntentRequest> for PaymentsRequest {
     fn from(item: StripePaymentIntentRequest) -> Self {
         PaymentsRequest {
-            amount: item.amount,
+            amount: item.amount.map(|amount| amount.into()),
             currency: item.currency.as_ref().map(|c| c.to_uppercase()),
             capture_method: item.capture_method,
             amount_to_capture: item.amount_capturable,
