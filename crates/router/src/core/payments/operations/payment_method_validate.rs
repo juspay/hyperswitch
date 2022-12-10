@@ -135,7 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
                 currency: storage_enums::Currency::default(),
-                amount: 0,
+                amount: api::Amount::Zero,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),

@@ -210,27 +210,37 @@ pub fn validate_merchant_id(
 
 #[instrument(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
-    op_amount: Option<i32>,
+    op_amount: Option<api::Amount>,
     op_amount_to_capture: Option<i32>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    // If both amount and amount to capture is present
-    // then amount to be capture should be less than or equal to request amount
-
-    let is_capture_amount_valid = op_amount
-        .and_then(|amount| {
-            op_amount_to_capture.map(|amount_to_capture| amount_to_capture.le(&amount))
-        })
-        .unwrap_or(true);
-
-    utils::when(
-        !is_capture_amount_valid,
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-            "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
-            op_amount_to_capture, op_amount
-        )
-        })),
-    )
+    match (op_amount, op_amount_to_capture) {
+        (None, _) => Ok(()),
+        (Some(_amount), None) => Ok(()),
+        (Some(amount), Some(amount_to_capture)) => {
+            match amount {
+                api::Amount::Value(amount_inner) => {
+                    // If both amount and amount to capture is present
+                    // then amount to be capture should be less than or equal to request amount
+                    utils::when(
+                        !amount_to_capture.le(&amount_inner),
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message: format!(
+                            "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
+                            amount_to_capture, amount
+                        )
+                        })),
+                    )
+                }
+                api::Amount::Zero => {
+                    // If the amount is Null but still amount_to_capture is passed this is invalid and
+                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "amount_to_capture should not exist for when amount = 0"
+                            .to_string()
+                    }))
+                }
+            }
+        }
+    }
 }
 
 pub fn validate_mandate(

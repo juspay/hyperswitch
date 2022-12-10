@@ -1,6 +1,6 @@
 use api_models::payments;
 pub use api_models::payments::{
-    AcceptanceType, Address, AddressDetails, AuthenticationForStartResponse, CCard,
+    AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, CCard,
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
     NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethod, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
@@ -190,7 +190,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
-            amount: Some(200),
+            amount: Some(Amount::Value(200)),
             payment_method_data: Some(PaymentMethod::Card(card())),
             ..PaymentsRequest::default()
         }

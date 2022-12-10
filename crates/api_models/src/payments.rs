@@ -18,7 +18,8 @@ pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "payment_id_type::deserialize_option")]
     pub payment_id: Option<PaymentIdType>,
     pub merchant_id: Option<String>,
-    pub amount: Option<i32>,
+    #[serde(default, deserialize_with = "amount::deserialize_option")]
+    pub amount: Option<Amount>,
     pub currency: Option<String>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub amount_to_capture: Option<i32>,
@@ -47,6 +48,30 @@ pub struct PaymentsRequest {
     pub mandate_data: Option<MandateData>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum Amount {
+    Value(i32),
+    #[default]
+    Zero,
+}
+
+impl From<Amount> for i32 {
+    fn from(amount: Amount) -> Self {
+        match amount {
+            Amount::Value(v) => v,
+            Amount::Zero => 0,
+        }
+    }
+}
+impl From<i32> for Amount {
+    fn from(val: i32) -> Self {
+        match val {
+            0 => Amount::Zero,
+            amount => Amount::Value(amount),
+        }
+    }
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -699,5 +724,69 @@ mod payment_id_type {
         D: Deserializer<'a>,
     {
         deserializer.deserialize_option(OptionalPaymentIdVisitor)
+    }
+}
+
+mod amount {
+    use serde::de;
+
+    use super::Amount;
+    struct AmountVisitor;
+    struct OptionalAmountVisitor;
+
+    // This is defined to provide guarded deserialization of amount
+    // which itself handles zero and non-zero values internally
+    impl<'de> de::Visitor<'de> for AmountVisitor {
+        type Value = Amount;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(formatter, "amount as i32")
+        }
+
+        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(match v {
+                0 => Amount::Zero,
+                amount => Amount::Value(amount),
+            })
+        }
+    }
+
+    impl<'de> de::Visitor<'de> for OptionalAmountVisitor {
+        type Value = Option<Amount>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(formatter, "option of amount (as i32)")
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            deserializer.deserialize_any(AmountVisitor).map(Some)
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Amount, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(AmountVisitor)
+    }
+    pub(crate) fn deserialize_option<'de, D>(deserializer: D) -> Result<Option<Amount>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_option(OptionalAmountVisitor)
     }
 }

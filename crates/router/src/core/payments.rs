@@ -431,7 +431,7 @@ where
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
-    pub amount: i32,
+    pub amount: api::Amount,
     pub currency: enums::Currency,
     pub mandate_id: Option<String>,
     pub setup_mandate: Option<api::MandateData>,

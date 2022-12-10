@@ -72,7 +72,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         payment_attempt.payment_method = Some(enums::PaymentMethodType::Wallet);
 
-        let amount = payment_intent.amount;
+        let amount = payment_intent.amount.into();
 
         if let Some(ref payment_intent_client_secret) = payment_intent.client_secret {
             if request.client_secret.ne(payment_intent_client_secret) {
