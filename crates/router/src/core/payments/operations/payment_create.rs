@@ -281,10 +281,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let amount = request.amount.get_required_value("amount")?;
-
         helpers::validate_request_amount_and_amount_to_capture(
-            Some(amount),
+            request.amount,
             request.amount_to_capture,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -292,8 +290,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
-        let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+
+        let mandate_type = helpers::validate_mandate(request)?;
 
         Ok((
             Box::new(self),
@@ -312,7 +311,7 @@ impl PaymentCreate {
     fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
-        money: (i32, enums::Currency),
+        money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
@@ -326,7 +325,7 @@ impl PaymentCreate {
             merchant_id: merchant_id.to_string(),
             txn_id: Uuid::new_v4().to_string(),
             status,
-            amount,
+            amount: amount.into(),
             currency,
             payment_method,
             capture_method: request.capture_method.map(Into::into),
@@ -345,7 +344,7 @@ impl PaymentCreate {
     fn make_payment_intent(
         payment_id: &str,
         merchant_id: &str,
-        money: (i32, enums::Currency),
+        money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
@@ -360,7 +359,7 @@ impl PaymentCreate {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
             status,
-            amount,
+            amount: amount.into(),
             currency,
             description: request.description.clone(),
             created_at,
@@ -399,7 +398,7 @@ impl PaymentCreate {
 #[instrument(skip_all)]
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
-) -> RouterResult<(i32, enums::Currency)> {
+) -> RouterResult<(api::Amount, enums::Currency)> {
     let currency: enums::Currency = req
         .currency
         .as_ref()
