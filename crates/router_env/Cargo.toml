@@ -9,7 +9,7 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [dependencies]
-config = { version = "0.13.2", features = ["toml"] }
+config = { version = "0.13.3", features = ["toml"] }
 gethostname = "0.2.3"
 once_cell = "1.15.0"
 opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust/", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658",  features = ["rt-tokio-current-thread", "metrics"] }
