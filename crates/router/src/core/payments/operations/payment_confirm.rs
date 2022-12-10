@@ -93,7 +93,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount;
+        amount = payment_attempt.amount.into();
 
         connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(

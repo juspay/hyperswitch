@@ -27,7 +27,8 @@ pub struct PaymentsRequest {
     )]
     pub payment_id: Option<PaymentIdType>,
     pub merchant_id: Option<String>,
-    pub amount: Option<i32>,
+    #[serde(default, deserialize_with = "custom_serde::amount::deserialize_option")]
+    pub amount: Option<Amount>,
     pub currency: Option<String>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub amount_to_capture: Option<i32>,
@@ -64,6 +65,30 @@ impl PaymentsRequest {
             (None, None) => None,
             (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
             (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+        }
+    }
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum Amount {
+    Value(i32),
+    #[default]
+    Zero,
+}
+
+impl From<Amount> for i32 {
+    fn from(amount: Amount) -> Self {
+        match amount {
+            Amount::Value(v) => v,
+            Amount::Zero => 0,
+        }
+    }
+}
+impl From<i32> for Amount {
+    fn from(val: i32) -> Self {
+        match val {
+            0 => Amount::Zero,
+            amount => Amount::Value(amount),
         }
     }
 }
@@ -788,7 +813,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
-            amount: Some(200),
+            amount: Some(Amount::Value(200)),
             payment_method_data: Some(PaymentMethod::Card(card())),
             ..PaymentsRequest::default()
         }
