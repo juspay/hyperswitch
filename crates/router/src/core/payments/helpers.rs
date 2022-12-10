@@ -21,13 +21,14 @@ use crate::{
     routes::AppState,
     services,
     types::{
+        self,
         api::{self, enums as api_enums},
         storage::{self, enums as storage_enums, ephemeral_key},
     },
     utils::{
         self,
         crypto::{self, SignMessage},
-        OptionExt,
+        OptionExt, ValueExt,
     },
 };
 
@@ -313,13 +314,14 @@ pub fn create_startpay_url(
     )
 }
 
-pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAttempt) -> String {
+pub fn create_redirect_url(
+    server: &Server,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url,
-        payment_attempt.payment_id,
-        payment_attempt.merchant_id,
-        payment_attempt.connector
+        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
@@ -520,6 +522,44 @@ pub async fn get_customer_from_details(
                 .await
         }
     }
+}
+
+pub async fn get_connector_default(
+    merchant_account: &storage::MerchantAccount,
+    state: &AppState,
+) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+    let connectors = &state.conf.connectors;
+    let vec_val: Vec<serde_json::Value> = merchant_account
+        .custom_routing_rules
+        .clone()
+        .parse_value("CustomRoutingRulesVec")
+        .change_context(errors::ConnectorError::RoutingRulesParsingError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let custom_routing_rules: api::CustomRoutingRules = vec_val[0]
+        .clone()
+        .parse_value("CustomRoutingRules")
+        .change_context(errors::ConnectorError::RoutingRulesParsingError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let connector_names = custom_routing_rules
+        .connectors_pecking_order
+        .unwrap_or_else(|| vec!["stripe".to_string()]);
+
+    //use routing rules if configured by merchant else query MCA as per PM
+    let connector_list: types::ConnectorsList = types::ConnectorsList {
+        connectors: connector_names,
+    };
+
+    let connector_name = connector_list
+        .connectors
+        .first()
+        .get_required_value("connectors")
+        .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .as_str();
+
+    let connector_data = api::ConnectorData::get_connector_by_name(connectors, connector_name)?;
+
+    Ok(api::ConnectorCallType::Single(connector_data))
 }
 
 #[instrument(skip_all)]

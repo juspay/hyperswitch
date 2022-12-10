@@ -73,6 +73,7 @@ where
     let orca_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
+        &merchant_connector_account.connector_name,
     ));
 
     router_data = types::RouterData {
@@ -142,6 +143,26 @@ where
             payment_data.connector_response.authentication_data,
             operation,
         )
+    }
+}
+
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        _req: Option<Req>,
+        payment_data: PaymentData<F>,
+        _customer: Option<storage::Customer>,
+        _auth_flow: services::AuthFlow,
+        _server: &Server,
+        _operation: Op,
+    ) -> RouterResponse<Self> {
+        Ok(services::BachResponse::Json(Self {
+            session_token: payment_data.sessions_token,
+        }))
     }
 }
 

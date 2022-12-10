@@ -15,7 +15,7 @@ pub struct PaymentAttempt {
     pub amount: i32,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
@@ -49,7 +49,7 @@ pub struct PaymentAttemptNew {
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
@@ -88,6 +88,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         payment_method: Option<storage_enums::PaymentMethodType>,
         browser_info: Option<serde_json::Value>,
+        connector: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -117,6 +118,7 @@ pub(super) struct PaymentAttemptUpdateInternal {
     currency: Option<storage_enums::Currency>,
     status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
+    connector: Option<String>,
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethodType>,
     error_message: Option<String>,
@@ -182,11 +184,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status,
                 payment_method,
                 browser_info,
+                connector,
             } => Self {
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 browser_info,
+                connector,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -256,7 +260,7 @@ mod tests {
         let current_time = common_utils::date_time::now();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -287,7 +291,7 @@ mod tests {
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -326,7 +330,7 @@ mod tests {
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
             merchant_id: "1".to_string(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             // Adding a mandate_id
