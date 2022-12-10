@@ -2468,14 +2468,11 @@ dependencies = [
 name = "redis_interface"
 version = "0.1.0"
 dependencies = [
- "bytes",
  "common_utils",
  "error-stack",
  "fred",
  "router_env",
  "serde",
- "serde_json",
- "serde_urlencoded",
  "thiserror",
 ]
 
