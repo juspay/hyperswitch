@@ -361,7 +361,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount: payment_data.amount,
+            amount: payment_data.amount.into(),
             currency: payment_data.currency,
             browser_info,
         })
