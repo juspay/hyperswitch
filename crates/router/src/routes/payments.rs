@@ -46,31 +46,29 @@ pub async fn payments_create(
         |state, merchant_account, req| {
             // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
             async {
-                if req
-                    .amount
-                    .as_ref()
-                    .map(|x| x != &api_types::Amount::Zero)
-                    .unwrap_or(true)
-                {
-                    payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
-                        state,
-                        merchant_account,
-                        payments::PaymentCreate,
-                        req,
-                        api::AuthFlow::Merchant,
-                        payments::CallConnectorAction::Trigger,
-                    )
-                    .await
-                } else {
-                    payments::payments_core::<Verify, PaymentsResponse, _, _, _>(
-                        state,
-                        merchant_account,
-                        payments::PaymentCreate,
-                        req,
-                        api::AuthFlow::Merchant,
-                        payments::CallConnectorAction::Trigger,
-                    )
-                    .await
+                match req.amount.as_ref() {
+                    Some(api_types::Amount::Value(_)) | None => {
+                        payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+                            state,
+                            merchant_account,
+                            payments::PaymentCreate,
+                            req,
+                            api::AuthFlow::Merchant,
+                            payments::CallConnectorAction::Trigger,
+                        )
+                        .await
+                    }
+                    Some(api_types::Amount::Zero) => {
+                        payments::payments_core::<Verify, PaymentsResponse, _, _, _>(
+                            state,
+                            merchant_account,
+                            payments::PaymentCreate,
+                            req,
+                            api::AuthFlow::Merchant,
+                            payments::CallConnectorAction::Trigger,
+                        )
+                        .await
+                    }
                 }
             }
         },
