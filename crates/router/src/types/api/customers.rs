@@ -16,16 +16,6 @@ newtype!(
     derives = (Debug, Clone, Serialize)
 );
 
-//newtype!(
-//pub CustomerId = customers::CustomerId,
-//derives = (Default, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub CustomerDeleteResponse = customers::CustomerDeleteResponse,
-//derives = (Default, Debug, Deserialize, Serialize)
-//);
-
 pub(crate) trait CustomerRequestExt: Sized {
     fn validate(self) -> RouterResult<Self>;
 }
