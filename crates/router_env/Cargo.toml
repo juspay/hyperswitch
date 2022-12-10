@@ -17,16 +17,12 @@ opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-ru
 rustc-hash = "1.1"
 serde = { version = "1.0.149", features = ["derive"] }
 serde_json = "1.0.89"
-serde_urlencoded = "0.7.1"
 strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.17", default-features = false, features = ["formatting"] }
 tokio = { version = "1.23.0" }
 tracing = "0.1.36"
 tracing-actix-web = { version = "0.6.1", features = ["opentelemetry_0_18"], optional = true }
 tracing-appender = "0.2.2"
-tracing-attributes = "0.1.22"
-tracing-core = "0.1.29"
-tracing-opentelemetry = "0.18.0"
 tracing-subscriber = { version = "0.3.15", default-features = true, features = ["json", "env-filter", "registry"] }
 vergen = { version = "7.4.3", optional = true }
 
