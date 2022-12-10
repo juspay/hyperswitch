@@ -11,7 +11,7 @@ proc-macro = true
 doctest = false
 
 [dependencies]
-proc-macro2 = "1.0.46"
+proc-macro2 = "1.0.47"
 quote = "1.0.21"
 syn = { version = "1.0.101", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
 
