@@ -38,7 +38,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        connector: types::Connector,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -85,7 +84,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 Self::make_payment_attempt(
                     &payment_id,
                     merchant_id,
-                    connector,
                     money,
                     payment_method_type,
                     request,
@@ -118,7 +116,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 Self::make_payment_intent(
                     &payment_id,
                     merchant_id,
-                    &connector.to_string(),
                     money,
                     request,
                     shipping_address.clone().map(|x| x.address_id),
@@ -315,7 +312,6 @@ impl PaymentCreate {
     fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
-        connector: types::Connector,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
@@ -332,7 +328,6 @@ impl PaymentCreate {
             status,
             amount: amount.into(),
             currency,
-            connector: connector.to_string(),
             payment_method,
             capture_method: request.capture_method.map(Into::into),
             capture_on: request.capture_on,
@@ -350,7 +345,6 @@ impl PaymentCreate {
     fn make_payment_intent(
         payment_id: &str,
         merchant_id: &str,
-        connector_id: &str,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -368,7 +362,6 @@ impl PaymentCreate {
             status,
             amount: amount.into(),
             currency,
-            connector_id: Some(connector_id.to_string()),
             description: request.description.clone(),
             created_at,
             modified_at,

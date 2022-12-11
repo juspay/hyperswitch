@@ -519,6 +519,28 @@ impl From<PaymentsStartRequest> for PaymentsResponse {
     }
 }
 
+impl From<PaymentsSessionRequest> for PaymentsResponse {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        let payment_id = match item.payment_id {
+            PaymentIdType::PaymentIntentId(id) => Some(id),
+            _ => None,
+        };
+
+        Self {
+            payment_id,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+    fn from(_item: PaymentsSessionRequest) -> Self {
+        Self {
+            session_token: vec![],
+        }
+    }
+}
+
 impl From<PaymentsStartRequest> for PaymentsRequest {
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
@@ -627,10 +649,21 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ConnectorSessionToken {
+    pub connector_name: String,
+    pub session_token: String,
+}
+
 #[derive(Default, Debug, serde::Deserialize, Clone)]
 pub struct PaymentsSessionRequest {
     pub payment_id: PaymentIdType,
     pub client_secret: String,
+}
+
+#[derive(Default, Debug, serde::Serialize, Clone)]
+pub struct PaymentsSessionResponse {
+    pub session_token: Vec<ConnectorSessionToken>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

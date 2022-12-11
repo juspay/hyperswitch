@@ -16,10 +16,10 @@ use crate::{
     types::{
         api,
         storage::{self, enums},
-        Connector,
     },
     utils::{self, OptionExt},
 };
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "sync")]
 pub struct PaymentStatus;
@@ -94,7 +94,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsRetrieveRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
