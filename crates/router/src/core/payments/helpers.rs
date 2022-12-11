@@ -36,6 +36,8 @@ pub async fn get_address_for_payment_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
+    merchant_id: &str,
+    customer_id: &Option<String>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
     // TODO: Refactor this function for more readability (TryFrom)
     Ok(match req_address {
@@ -50,6 +52,10 @@ pub async fn get_address_for_payment_request(
                 ),
                 None => {
                     // generate a new address here
+                    let customer_id = customer_id
+                        .as_deref()
+                        .get_required_value("customer_id")
+                        .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
                     Some(
                         db.insert_address(storage::AddressNew {
                             city: address.address.as_ref().and_then(|a| a.city.clone()),
@@ -66,6 +72,8 @@ pub async fn get_address_for_payment_request(
                                 .phone
                                 .as_ref()
                                 .and_then(|a| a.country_code.clone()),
+                            customer_id: customer_id.to_string(),
+                            merchant_id: merchant_id.to_string(),
                             ..storage::AddressNew::default()
                         })
                         .await
