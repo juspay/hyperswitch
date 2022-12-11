@@ -5,7 +5,7 @@ use router_env::tracing::{self, instrument};
 
 #[cfg(not(feature = "kv_store"))]
 use super::generics::{self, ExecuteQuery};
-#[cfg(feature = "kv_store")]
+// #[cfg(feature = "kv_store")]
 use super::generics::{self, RawQuery, RawSqlQuery};
 use crate::{
     connection::PgPooledConn,
@@ -20,23 +20,28 @@ use crate::{
 };
 
 impl PaymentIntentNew {
-    #[cfg(not(feature = "kv_store"))]
+    // #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
     pub async fn insert(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentIntent, errors::StorageError> {
-        generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, ExecuteQuery::new()).await
+        generics::generic_insert::<_, _, PaymentIntent, _>(
+            conn,
+            self,
+            generics::ExecuteQuery::new(),
+        )
+        .await
     }
 
-    #[cfg(feature = "kv_store")]
-    #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<RawSqlQuery, errors::StorageError> {
-        generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, RawQuery).await
-    }
+    // #[cfg(feature = "kv_store")]
+    // #[instrument(skip(conn))]
+    // pub async fn insert(
+    //     self,
+    //     conn: &PgPooledConn,
+    // ) -> CustomResult<RawSqlQuery, errors::StorageError> {
+    //     generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, RawQuery).await
+    // }
 }
 
 impl PaymentIntent {

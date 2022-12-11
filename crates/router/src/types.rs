@@ -9,6 +9,7 @@
 pub mod api;
 pub mod connector;
 pub mod storage;
+pub mod kv_traits;
 
 use std::marker::PhantomData;
 

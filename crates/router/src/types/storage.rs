@@ -12,7 +12,7 @@ pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
 pub mod process_tracker;
-mod query;
+pub(crate) mod query;
 pub mod refund;
 pub mod temp_card;
 
