@@ -715,7 +715,7 @@ impl Vault {
         state: &AppState,
         lookup_key: &str,
     ) -> RouterResult<Option<api::PaymentMethod>> {
-        let resp = cards::mock_get_card(&*state.store, lookup_key)
+        let (resp, card_cvc) = cards::mock_get_card(&*state.store, lookup_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let card = resp.card;
@@ -737,7 +737,7 @@ impl Vault {
             card_exp_month: card_exp_month.into(),
             card_exp_year: card_exp_year.into(),
             card_holder_name: card_holder_name.into(),
-            card_cvc: "card_cvc".to_string().into(),
+            card_cvc: card_cvc.unwrap_or_default().into(),
         });
         Ok(Some(card))
     }
@@ -755,7 +755,7 @@ impl Vault {
             card_holder_name: Some(card.card_holder_name.clone()),
         };
         let db = &*state.store;
-        cards::mock_add_card(db, txn_id, &card_detail)
+        cards::mock_add_card(db, txn_id, &card_detail, Some(card.card_cvc.peek().clone()))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed")?;

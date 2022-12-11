@@ -106,6 +106,7 @@ diesel::table! {
         nickname -> Nullable<Varchar>,
         customer_id -> Nullable<Varchar>,
         duplicate -> Nullable<Bool>,
+        card_cvc -> Nullable<Varchar>,
     }
 }
 
