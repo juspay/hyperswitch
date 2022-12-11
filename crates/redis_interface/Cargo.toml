@@ -1,7 +1,11 @@
 [package]
 name = "redis_interface"
+description = "A user-friendly interface to Redis"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.64"
+readme = "README.md"
+license = "Apache-2.0"
 
 [dependencies]
 error-stack = "0.2.4"
