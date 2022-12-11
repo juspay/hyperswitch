@@ -154,11 +154,16 @@ pub struct MandateData {
     pub mandate_type: MandateType,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateType {
-    SingleUse(storage::SingleUseMandate),
-    #[default]
-    MultiUse,
+    SingleUse(storage::MandateAmountData),
+    MultiUse(Option<storage::MandateAmountData>),
+}
+
+impl Default for MandateType {
+    fn default() -> Self {
+        Self::MultiUse(None)
+    }
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]

@@ -146,6 +146,8 @@ pub(crate) enum ErrorCode {
         current_value: String,
         states: String,
     },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
+    PaymentIntentMandateInvalid { message: String },
     // TODO: Some day implement all stripe error codes https://stripe.com/docs/error-codes
     // AccountCountryInvalidAddress,
     // AccountErrorCountryChangeRequiresAdditionalSteps,
@@ -227,7 +229,6 @@ pub(crate) enum ErrorCode {
     // PaymentIntentIncompatiblePaymentMethod,
     // PaymentIntentInvalidParameter,
     // PaymentIntentKonbiniRejectedConfirmationNumber,
-    // PaymentIntentMandateInvalid,
     // PaymentIntentPaymentAttemptExpired,
     // PaymentIntentUnexpectedState,
     // PaymentMethodBankAccountAlreadyVerified,
@@ -350,6 +351,9 @@ impl From<ApiErrorResponse> for ErrorCode {
                 ErrorCode::MerchantConnectorAccountNotFound
             }
             ApiErrorResponse::MandateNotFound => ErrorCode::MandateNotFound,
+            ApiErrorResponse::MandateValidationFailed { reason } => {
+                ErrorCode::PaymentIntentMandateInvalid { message: reason }
+            }
             ApiErrorResponse::ReturnUrlUnavailable => ErrorCode::ReturnUrlUnavailable,
             ApiErrorResponse::DuplicateMerchantAccount => ErrorCode::DuplicateMerchantAccount,
             ApiErrorResponse::DuplicateMerchantConnectorAccount => {
@@ -427,6 +431,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::SuccessfulPaymentNotFound
             | ErrorCode::AddressNotFound
             | ErrorCode::ResourceIdNotFound
+            | ErrorCode::PaymentIntentMandateInvalid { .. }
             | ErrorCode::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
             ErrorCode::RefundFailed | ErrorCode::InternalServerError => {
                 StatusCode::INTERNAL_SERVER_ERROR
