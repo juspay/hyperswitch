@@ -95,7 +95,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.63
+          toolchain: 1.64
 
       - uses: Swatinem/rust-cache@v2.2.0
         with:
