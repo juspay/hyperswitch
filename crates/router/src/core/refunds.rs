@@ -91,7 +91,11 @@ pub async fn trigger_refund_to_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<storage::Refund> {
-    let connector_id = payment_attempt.connector.to_string();
+    let connector = payment_attempt
+        .connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+    let connector_id = connector.to_string();
     let connector: api::ConnectorData =
         api::ConnectorData::get_connector_by_name(&state.conf.connectors, &connector_id)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -390,9 +394,14 @@ pub async fn validate_and_create_refund(
             validator::validate_maximum_refund_against_payment_attempt(&all_refunds)
                 .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
+            let connector = payment_attempt
+                .connector
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
             refund_create_req = mk_new_refund(
                 req,
-                payment_attempt.connector.to_owned(),
+                connector,
                 payment_attempt,
                 currency,
                 &refund_id,

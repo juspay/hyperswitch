@@ -16,7 +16,6 @@ use crate::{
     types::{
         api,
         storage::{self, enums, Customer},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -33,7 +32,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
