@@ -31,7 +31,17 @@ pub struct PaymentIntent {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
     pub payment_id: String,

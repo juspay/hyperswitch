@@ -1,16 +1,18 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+use crate::types::storage::{PaymentIntent, PaymentIntentNew};
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "db_op", content = "data")]
-pub enum DBOperation<T> {
-    Insert(InsertData<T>),
+pub enum DBOperation {
+    Insert(InsertData),
     Update(UpdateData),
     Delete,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct InsertData<T> {
-    pub insertable: T,
+pub struct InsertData {
+    pub insertable: Insertables,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,16 +21,18 @@ pub struct UpdateData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TypedSql<T> {
+pub struct TypedSql {
     #[serde(flatten)]
-    pub op: DBOperation<T>,
+    pub op: DBOperation,
 }
 
-impl<T> TypedSql<T>
-where
-    T: Serialize + DeserializeOwned + 'static,
-{
+impl TypedSql {
     pub fn to_field_value_pairs(&self) -> Vec<(&str, String)> {
         vec![("typedsql", serde_json::to_string(self).unwrap())]
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Insertables {
+    PaymentIntent(PaymentIntentNew),
 }

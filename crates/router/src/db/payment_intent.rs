@@ -34,20 +34,19 @@ pub trait IPaymentIntent {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
-    use error_stack::{IntoReport, ResultExt};
-    use fred::prelude::{RedisErrorKind, *};
-    use redis_interface::RedisEntryId;
-
     use super::IPaymentIntent;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        db::kv_gen::{DBOperation, InsertData, TypedSql},
+        db::kv_gen::{DBOperation, InsertData, Insertables, TypedSql},
         services::Store,
         types::{api, storage::payment_intent::*},
         utils::storage_partitioning::KvStorePartition,
     };
+    use common_utils::date_time;
+    use error_stack::{IntoReport, ResultExt};
+    use fred::prelude::{RedisErrorKind, *};
+    use redis_interface::RedisEntryId;
 
     #[async_trait::async_trait]
     impl IPaymentIntent for Store {
@@ -102,7 +101,7 @@ mod storage {
                     //     .change_context(errors::StorageError::KVError)?;
                     let redis_entry = TypedSql {
                         op: DBOperation::Insert(InsertData {
-                            insertable: created_intent.clone(),
+                            insertable: Insertables::PaymentIntent(new),
                         }),
                     };
                     let stream_name = self.drainer_stream(&PaymentIntent::shard_key(

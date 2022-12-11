@@ -1,10 +1,9 @@
 use errors::DrainerError;
-use router::services::Store;
+use router::{connection::pg_connection, db::kv_gen::DBOperation, services::Store};
 use std::sync::Arc;
 pub mod errors;
 pub mod utils;
-use async_bb8_diesel::{AsyncConnection, ConnectionError, ConnectionManager, PoolError};
-use bb8::{CustomizeConnection, PooledConnection};
+
 use utils::*;
 
 pub async fn start_drainer(
@@ -12,13 +11,9 @@ pub async fn start_drainer(
     number_of_streams: &u8,
     max_read_count: &usize,
 ) -> Result<(), errors::DrainerError> {
-    let mut drainer_index: u8 = 1;
-    
-    tokio::spawn(drainer_handler(
-        store.clone(),
-        1,
-        max_read_count.clone(),
-    ));
+    let mut drainer_index: u8 = 10;
+
+    tokio::spawn(drainer_handler(store.clone(), 10, max_read_count.clone()));
 
     loop {
         // if is_stream_available(&drainer_index, store.clone()).await {
@@ -79,43 +74,32 @@ async fn drainer(
     println!("drainer stream_read  {:?}", stream_read);
     // parse_stream_entries returns error if no entries is found
     let (entries, last_entry_id) = parse_stream_entries(&stream_read, stream_name)?;
-    println!("drainer  {}", entries.len());
+    println!("drainer  entries {:?}", entries);
 
     for entry in entries {
         //TODO: PROCESS ENTRIES
         println!("{:#?}", entry);
-        let sql = entry
-            .1
-            .get("sql")
-            .ok_or(DrainerError::MessudUp("getting sql from redis".to_owned()))?
-            .to_owned();
-
-        let binds = entry
-            .1
-            .get("binds")
-            .ok_or(DrainerError::MessudUp("getting sql from redis".to_owned()))?
-            .to_owned();
-
-        let act_binds = serde_json::from_str::<Vec<Option<Vec<u8>>>>(binds.as_str()).unwrap();
-        println!("decoding bu=inds: ");
-        let decode_binds = act_binds;
-        //     .iter()
-        //     .map(|bytes| bytes.as_ref().map(|p| hex::decode(p).unwrap()))
-        //     .collect::<Vec<_>>();
-
-            println!("going to build rawrawquer decode_binds: {:#?}", decode_binds);
-        let o = diesel::query_builder::raw_query::RawRawQuery {
-            raw_sql: sql.to_owned(),
-            raw_binds: decode_binds,
+        let typedsql = entry.1.get("typedsql").unwrap_or(&"".to_owned()).to_owned();
+        let f = serde_json::from_str::<DBOperation>(&typedsql);
+        let dbop = match f {
+            Ok(f) => f,
+            Err(err) => continue,
         };
-        println!("built rawarawquery , going to add in db: ");
-        store
-            .master_pool
-            .conn
-            .run::<_,PoolError,_>(|conn| Ok(diesel::query_builder::raw_query::execute(o, conn).unwrap()))
-            .await
-            .unwrap();
-        
+
+        let conn = pg_connection(&store.master_pool.conn).await;
+        let r = match dbop {
+            DBOperation::Insert(a) => match a.insertable {
+                router::db::kv_gen::Insertables::PaymentIntent(a) => {
+                    let p = a.insert(&conn).await;
+                    match p {
+                        Ok(aa) => println!("succesfully inserted {:#?}", aa),
+                        Err(err) => println!("Err not able to insert {:?}", err),
+                    }
+                }
+            },
+            DBOperation::Update(_) => todo!(),
+            DBOperation::Delete => todo!(),
+        };
         println!("succesfully added: ");
     }
 

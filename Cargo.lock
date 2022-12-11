@@ -1045,6 +1045,7 @@ dependencies = [
  "fred",
  "redis_interface",
  "router",
+ "serde_json",
  "structopt",
  "thiserror",
  "tokio",
