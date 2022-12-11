@@ -14,4 +14,7 @@ pub enum DrainerError {
     NoStreamEntry(String),
     #[error("Error in making stream: {0} available")]
     DeleteKeyFailed(String),
+    #[error("Error in messing up: {0} available")]
+    MessudUp(String),
+    
 }
