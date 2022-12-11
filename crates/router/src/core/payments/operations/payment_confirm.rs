@@ -17,7 +17,6 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        Connector,
     },
     utils::{self, OptionExt},
 };
@@ -34,7 +33,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -194,6 +192,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
         };
 
+        let connector = payment_data.payment_attempt.connector.clone();
+
         payment_data.payment_attempt = db
             .update_payment_attempt(
                 payment_data.payment_attempt,
@@ -201,6 +201,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     status: attempt_status,
                     payment_method,
                     browser_info,
+                    connector,
                 },
                 storage_scheme,
             )

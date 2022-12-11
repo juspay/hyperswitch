@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::Secret;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         payments::{self, helpers, transformers, PaymentData},
@@ -15,7 +13,6 @@ use crate::{
         self, api,
         storage::{self, enums},
     },
-    utils,
 };
 
 #[async_trait]
@@ -108,8 +105,9 @@ impl types::VerifyRouterData {
                             .payment_method_id;
 
                             resp.payment_method_id = Some(payment_method_id.clone());
-                            if let Some(new_mandate_data) = generate_mandate(
+                            if let Some(new_mandate_data) = helpers::generate_mandate(
                                 self.merchant_id.clone(),
+                                self.connector.clone(),
                                 self.request.setup_mandate_details.clone(),
                                 maybe_customer,
                                 payment_method_id,
@@ -130,31 +128,5 @@ impl types::VerifyRouterData {
             }
             _ => Ok(self.clone()),
         }
-    }
-}
-
-fn generate_mandate(
-    merchant_id: String,
-    setup_mandate_details: Option<api::MandateData>,
-    customer: &Option<storage::Customer>,
-    payment_method_id: String,
-) -> Option<storage::MandateNew> {
-    match (setup_mandate_details, customer) {
-        (Some(data), Some(cus)) => {
-            let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
-            Some(storage::MandateNew {
-                mandate_id,
-                customer_id: cus.customer_id.clone(),
-                merchant_id,
-                payment_method_id,
-                mandate_status: enums::MandateStatus::Active,
-                mandate_type: enums::MandateType::MultiUse,
-                customer_ip_address: data.customer_acceptance.get_ip_address().map(Secret::new),
-                customer_user_agent: data.customer_acceptance.get_user_agent(),
-                customer_accepted_at: Some(data.customer_acceptance.get_accepted_at()),
-                ..Default::default()
-            })
-        }
-        (_, _) => None,
     }
 }

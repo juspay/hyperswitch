@@ -24,8 +24,11 @@ pub struct Mandate {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: PrimitiveDateTime,
-    pub single_use_amount: Option<i32>,
-    pub single_use_currency: Option<storage_enums::Currency>,
+    pub mandate_amount: Option<i32>,
+    pub mandate_currency: Option<storage_enums::Currency>,
+    pub amount_captured: Option<i32>,
+    pub connector: String,
+    pub connector_mandate_id: Option<String>,
 }
 
 #[derive(
@@ -45,8 +48,11 @@ pub struct MandateNew {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
-    pub single_use_amount: Option<i32>,
-    pub single_use_currency: Option<storage_enums::Currency>,
+    pub mandate_amount: Option<i32>,
+    pub mandate_currency: Option<storage_enums::Currency>,
+    pub amount_captured: Option<i32>,
+    pub connector: String,
+    pub connector_mandate_id: String,
 }
 
 #[derive(Debug)]
@@ -54,10 +60,13 @@ pub enum MandateUpdate {
     StatusUpdate {
         mandate_status: storage_enums::MandateStatus,
     },
+    CaptureAmountUpdate {
+        amount_captured: Option<i32>,
+    },
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct SingleUseMandate {
+pub struct MandateAmountData {
     pub amount: i32,
     pub currency: storage_enums::Currency,
 }
@@ -65,13 +74,21 @@ pub struct SingleUseMandate {
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = mandate)]
 pub(super) struct MandateUpdateInternal {
-    mandate_status: storage_enums::MandateStatus,
+    mandate_status: Option<storage_enums::MandateStatus>,
+    amount_captured: Option<i32>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
     fn from(mandate_update: MandateUpdate) -> Self {
         match mandate_update {
-            MandateUpdate::StatusUpdate { mandate_status } => Self { mandate_status },
+            MandateUpdate::StatusUpdate { mandate_status } => Self {
+                mandate_status: Some(mandate_status),
+                amount_captured: None,
+            },
+            MandateUpdate::CaptureAmountUpdate { amount_captured } => Self {
+                mandate_status: None,
+                amount_captured,
+            },
         }
     }
 }

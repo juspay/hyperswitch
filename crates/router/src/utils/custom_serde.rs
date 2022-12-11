@@ -86,16 +86,23 @@ pub(crate) mod amount {
         type Value = api::Amount;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(formatter, "amount as i32")
+            write!(formatter, "amount as integer")
         }
 
-        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            self.visit_i64(v as i64)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
             Ok(match v {
                 0 => api::Amount::Zero,
-                amount => api::Amount::Value(amount),
+                amount => api::Amount::Value(amount as i32),
             })
         }
     }
@@ -104,14 +111,14 @@ pub(crate) mod amount {
         type Value = Option<api::Amount>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(formatter, "option of amount (as i32)")
+            write!(formatter, "option of amount (as integer)")
         }
 
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
         where
             D: serde::Deserializer<'de>,
         {
-            deserializer.deserialize_any(AmountVisitor).map(Some)
+            deserialize(deserializer).map(Some)
         }
 
         fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -127,7 +134,7 @@ pub(crate) mod amount {
     where
         D: de::Deserializer<'de>,
     {
-        deserializer.deserialize_any(AmountVisitor)
+        deserializer.deserialize_i64(AmountVisitor)
     }
     pub(crate) fn deserialize_option<'de, D>(
         deserializer: D,
