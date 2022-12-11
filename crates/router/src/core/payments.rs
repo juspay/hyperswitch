@@ -92,7 +92,7 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (operation, payment_method_data) = operation
+    let (operation, payment_method_data, payment_token) = operation
         .to_domain()?
         .make_pm_data(
             state,
@@ -105,6 +105,9 @@ where
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
+    if let Some(token) = payment_token {
+        payment_data.token = Some(token)
+    }
 
     let connector_details = operation
         .to_domain()?

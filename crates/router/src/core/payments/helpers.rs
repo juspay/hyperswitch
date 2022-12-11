@@ -667,38 +667,43 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     _payment_attempt: &storage::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
     token: &Option<String>,
-) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
-    let payment_method = match (request, token) {
+) -> RouterResult<(
+    BoxedOperation<'a, F, R>,
+    Option<api::PaymentMethod>,
+    Option<String>,
+)> {
+    let (payment_method, payment_token) = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                Vault::get_payment_method_data_from_locker(state, token).await?
+                let pm = Vault::get_payment_method_data_from_locker(state, token).await?;
+                (pm, Some(token.to_string()))
             } else {
                 // TODO: Implement token flow for other payment methods
-                None
+                (None, Some(token.to_string()))
             },
         ),
         (pm @ Some(api::PaymentMethod::Card(card)), _) => {
             Vault::store_payment_method_data_in_locker(state, txn_id, card).await?;
-            Ok(pm.to_owned())
+            Ok((pm.to_owned(), Some(txn_id.to_string())))
         }
-        (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethod::Wallet(_)), _) => Ok(pm.to_owned()),
-        _ => Ok(None),
+        (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok((pm.to_owned(), None)),
+        (pm @ Some(api::PaymentMethod::Wallet(_)), _) => Ok((pm.to_owned(), None)),
+        _ => Ok((None, None)),
     }?;
 
-    let payment_method = match payment_method {
-        Some(pm) => Some(pm),
-        None => {
-            if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
-                Vault::get_payment_method_data_from_locker(state, txn_id).await?
-            } else {
-                None
-            }
-        }
-    };
+    // let payment_method = match payment_method {
+    //     Some(pm) => Some(pm),
+    //     None => {
+    //         if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
+    //             Vault::get_payment_method_data_from_locker(state, txn_id).await?
+    //         } else {
+    //             None
+    //         }
+    //     }
+    // };
 
-    Ok((operation, payment_method))
+    Ok((operation, payment_method, payment_token))
 }
 
 pub struct Vault {}

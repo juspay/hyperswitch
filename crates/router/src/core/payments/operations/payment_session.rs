@@ -229,9 +229,10 @@ where
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(

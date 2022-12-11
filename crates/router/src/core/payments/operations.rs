@@ -119,7 +119,11 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
+    ) -> RouterResult<(
+        BoxedOperation<'a, F, R>,
+        Option<api::PaymentMethod>,
+        Option<String>,
+    )>;
 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
@@ -207,6 +211,7 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -317,6 +322,7 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -374,8 +380,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -431,8 +438,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
