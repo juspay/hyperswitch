@@ -16,7 +16,6 @@ use crate::{
     types::{
         api,
         storage::{self, enums, Customer},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -33,7 +32,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -251,5 +249,13 @@ where
             token,
         )
         .await
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }

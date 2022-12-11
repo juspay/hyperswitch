@@ -11,7 +11,7 @@ use time;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentStatus, PaymentUpdate,
+    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -61,9 +61,6 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let connector = api::ConnectorData::construct(&state.conf.connectors, &merchant_account)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
     let operation: BoxedOperation<F, Req> = Box::new(operation);
 
     let (operation, validate_result) = operation
@@ -78,7 +75,6 @@ where
             state,
             &validate_result.payment_id,
             validate_result.merchant_id,
-            connector.connector_name,
             &req,
             validate_result.mandate_type,
             validate_result.storage_scheme,
@@ -110,6 +106,16 @@ where
         .await?;
     payment_data.payment_method_data = payment_method_data;
 
+    let connector_details = operation
+        .to_domain()?
+        .get_connector(&merchant_account, state)
+        .await?;
+
+    if let api::ConnectorCallType::Single(ref connector) = connector_details {
+        payment_data.payment_attempt.connector =
+            Some(connector.connector_name.to_owned().to_string());
+    }
+
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -127,17 +133,32 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
-        payment_data = call_connector_service(
-            state,
-            &merchant_account,
-            &validate_result.payment_id,
-            connector,
-            &operation,
-            payment_data,
-            &customer,
-            call_connector_action,
-        )
-        .await?;
+        payment_data = match connector_details {
+            api::ConnectorCallType::Single(connector) => {
+                call_connector_service(
+                    state,
+                    &merchant_account,
+                    &validate_result.payment_id,
+                    connector,
+                    &operation,
+                    payment_data,
+                    &customer,
+                    call_connector_action,
+                )
+                .await?
+            }
+            api::ConnectorCallType::Multiple(connectors) => {
+                call_multiple_connectors_service(
+                    state,
+                    &merchant_account,
+                    connectors,
+                    &operation,
+                    payment_data,
+                    &customer,
+                )
+                .await?
+            }
+        }
     }
     Ok((payment_data, req, customer))
 }
