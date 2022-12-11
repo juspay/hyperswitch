@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::Secret;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         payments::{self, helpers, transformers, PaymentData},
@@ -17,7 +15,6 @@ use crate::{
         storage::{self, enums as storage_enums},
         PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
-    utils,
 };
 
 #[async_trait]
@@ -124,7 +121,20 @@ impl PaymentsAuthorizeRouterData {
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::MandateNotFound),
-                            storage_enums::MandateType::MultiUse => Ok(mandate),
+                            storage_enums::MandateType::MultiUse => state
+                                .store
+                                .update_mandate_by_merchant_id_mandate_id(
+                                    &resp.merchant_id,
+                                    mandate_id,
+                                    storage::MandateUpdate::CaptureAmountUpdate {
+                                        amount_captured: Some(
+                                            mandate.amount_captured.unwrap_or(0)
+                                                + self.request.amount,
+                                        ),
+                                    },
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::MandateNotFound),
                         }?;
 
                         resp.payment_method_id = Some(mandate.payment_method_id);
@@ -142,9 +152,13 @@ impl PaymentsAuthorizeRouterData {
                             .payment_method_id;
 
                             resp.payment_method_id = Some(payment_method_id.clone());
-                            if let Some(new_mandate_data) =
-                                self.generate_mandate(maybe_customer, payment_method_id)
-                            {
+                            if let Some(new_mandate_data) = helpers::generate_mandate(
+                                self.merchant_id.clone(),
+                                self.connector.clone(),
+                                None,
+                                maybe_customer,
+                                payment_method_id,
+                            ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
                                 state.store.insert_mandate(new_mandate_data).await.map_err(
                                     |err| {
@@ -161,46 +175,6 @@ impl PaymentsAuthorizeRouterData {
                 Ok(resp)
             }
             _ => Ok(self.clone()),
-        }
-    }
-
-    fn generate_mandate(
-        &self,
-        customer: &Option<storage::Customer>,
-        payment_method_id: String,
-    ) -> Option<storage::MandateNew> {
-        match (self.request.setup_mandate_details.clone(), customer) {
-            (Some(data), Some(cus)) => {
-                let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
-
-                // The construction of the mandate new must be visible
-                let mut new_mandate = storage::MandateNew::default();
-
-                new_mandate
-                    .set_mandate_id(mandate_id)
-                    .set_customer_id(cus.customer_id.clone())
-                    .set_merchant_id(self.merchant_id.clone())
-                    .set_payment_method_id(payment_method_id)
-                    .set_mandate_status(storage_enums::MandateStatus::Active)
-                    .set_customer_ip_address(
-                        data.customer_acceptance.get_ip_address().map(Secret::new),
-                    )
-                    .set_customer_user_agent(data.customer_acceptance.get_user_agent())
-                    .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()));
-
-                Some(match data.mandate_type {
-                    api::MandateType::SingleUse(data) => new_mandate
-                        .set_single_use_amount(Some(data.amount))
-                        .set_single_use_currency(Some(data.currency))
-                        .set_mandate_type(storage_enums::MandateType::SingleUse)
-                        .to_owned(),
-
-                    api::MandateType::MultiUse => new_mandate
-                        .set_mandate_type(storage_enums::MandateType::MultiUse)
-                        .to_owned(),
-                })
-            }
-            (_, _) => None,
         }
     }
 }

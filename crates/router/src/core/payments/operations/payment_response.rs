@@ -20,7 +20,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,verifydata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,verifydata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -66,6 +66,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         payment_data: PaymentData<F>,
         response: Option<
             types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        >,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+            .await
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        response: Option<
+            types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         >,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
@@ -169,6 +191,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 };
 
                 let encoded_data = payment_data.connector_response.encoded_data.clone();
+                let connector_name = payment_data.payment_attempt.connector.clone();
 
                 let authentication_data = redirection_data
                     .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
@@ -189,6 +212,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     connector_transaction_id,
                     authentication_data,
                     encoded_data,
+                    connector_name,
                 };
 
                 (

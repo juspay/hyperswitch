@@ -21,13 +21,14 @@ use crate::{
     routes::AppState,
     services,
     types::{
+        self,
         api::{self, enums as api_enums},
         storage::{self, enums as storage_enums, ephemeral_key},
     },
     utils::{
         self,
         crypto::{self, SignMessage},
-        OptionExt,
+        OptionExt, ValueExt,
     },
 };
 
@@ -140,10 +141,7 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
-    utils::when(
-        mandate.mandate_status != storage_enums::MandateStatus::Active,
-        Err(errors::ApiErrorResponse::MandateNotFound),
-    )?;
+    // TODO: Make currency in payments request as Currency enum
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -158,8 +156,13 @@ pub async fn get_token_for_recurring_mandate(
                 message: "mandate is not active".into()
             }))?
         };
-        mandate.payment_method_id
+        mandate.payment_method_id.clone()
     };
+    verify_mandate_details(
+        req.amount.get_required_value("amount")?.into(),
+        req.currency.clone().get_required_value("currency")?,
+        mandate.clone(),
+    )?;
 
     let payment_method = db
         .find_payment_method(payment_method_id.as_str())
@@ -313,13 +316,14 @@ pub fn create_startpay_url(
     )
 }
 
-pub fn create_redirect_url(server: &Server, payment_attempt: &storage::PaymentAttempt) -> String {
+pub fn create_redirect_url(
+    server: &Server,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url,
-        payment_attempt.payment_id,
-        payment_attempt.merchant_id,
-        payment_attempt.connector
+        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
@@ -342,6 +346,44 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
     }
 
     Ok(())
+}
+
+pub fn verify_mandate_details(
+    request_amount: i32,
+    request_currency: String,
+    mandate: storage::Mandate,
+) -> RouterResult<()> {
+    match mandate.mandate_type {
+        storage_enums::MandateType::SingleUse => utils::when(
+            mandate
+                .mandate_amount
+                .map(|mandate_amount| request_amount > mandate_amount)
+                .unwrap_or(true),
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "request amount is greater than mandate amount".to_string()
+            })),
+        ),
+        storage::enums::MandateType::MultiUse => utils::when(
+            mandate
+                .mandate_amount
+                .map(|mandate_amount| {
+                    (mandate.amount_captured.unwrap_or(0) + request_amount) > mandate_amount
+                })
+                .unwrap_or(false),
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "request amount is greater than mandate amount".to_string()
+            })),
+        ),
+    }?;
+    utils::when(
+        mandate
+            .mandate_currency
+            .map(|mandate_currency| mandate_currency.to_string() != request_currency)
+            .unwrap_or(true),
+        Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+            reason: "cross currency mandates not supported".to_string()
+        })),
+    )
 }
 
 #[instrument(skip_all)]
@@ -520,6 +562,44 @@ pub async fn get_customer_from_details(
                 .await
         }
     }
+}
+
+pub async fn get_connector_default(
+    merchant_account: &storage::MerchantAccount,
+    state: &AppState,
+) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+    let connectors = &state.conf.connectors;
+    let vec_val: Vec<serde_json::Value> = merchant_account
+        .custom_routing_rules
+        .clone()
+        .parse_value("CustomRoutingRulesVec")
+        .change_context(errors::ConnectorError::RoutingRulesParsingError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let custom_routing_rules: api::CustomRoutingRules = vec_val[0]
+        .clone()
+        .parse_value("CustomRoutingRules")
+        .change_context(errors::ConnectorError::RoutingRulesParsingError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let connector_names = custom_routing_rules
+        .connectors_pecking_order
+        .unwrap_or_else(|| vec!["stripe".to_string()]);
+
+    //use routing rules if configured by merchant else query MCA as per PM
+    let connector_list: types::ConnectorsList = types::ConnectorsList {
+        connectors: connector_names,
+    };
+
+    let connector_name = connector_list
+        .connectors
+        .first()
+        .get_required_value("connectors")
+        .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .as_str();
+
+    let connector_data = api::ConnectorData::get_connector_by_name(connectors, connector_name)?;
+
+    Ok(api::ConnectorCallType::Single(connector_data))
 }
 
 #[instrument(skip_all)]
@@ -1036,4 +1116,54 @@ pub fn hmac_sha256_sorted_query_params<'a>(
 
 pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
     format!("{:?}", operations) == "PaymentConfirm"
+}
+
+pub fn generate_mandate(
+    merchant_id: String,
+    connector: String,
+    setup_mandate_details: Option<api::MandateData>,
+    customer: &Option<storage::Customer>,
+    payment_method_id: String,
+) -> Option<storage::MandateNew> {
+    match (setup_mandate_details, customer) {
+        (Some(data), Some(cus)) => {
+            let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
+
+            // The construction of the mandate new must be visible
+            let mut new_mandate = storage::MandateNew::default();
+
+            new_mandate
+                .set_mandate_id(mandate_id)
+                .set_customer_id(cus.customer_id.clone())
+                .set_merchant_id(merchant_id)
+                .set_payment_method_id(payment_method_id)
+                .set_connector(connector)
+                .set_mandate_status(storage_enums::MandateStatus::Active)
+                .set_customer_ip_address(
+                    data.customer_acceptance
+                        .get_ip_address()
+                        .map(masking::Secret::new),
+                )
+                .set_customer_user_agent(data.customer_acceptance.get_user_agent())
+                .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()));
+
+            Some(match data.mandate_type {
+                api::MandateType::SingleUse(data) => new_mandate
+                    .set_mandate_amount(Some(data.amount))
+                    .set_mandate_currency(Some(data.currency))
+                    .set_mandate_type(storage_enums::MandateType::SingleUse)
+                    .to_owned(),
+
+                api::MandateType::MultiUse(op_data) => match op_data {
+                    Some(data) => new_mandate
+                        .set_mandate_amount(Some(data.amount))
+                        .set_mandate_currency(Some(data.currency)),
+                    None => &mut new_mandate,
+                }
+                .set_mandate_type(storage_enums::MandateType::MultiUse)
+                .to_owned(),
+            })
+        }
+        (_, _) => None,
+    }
 }

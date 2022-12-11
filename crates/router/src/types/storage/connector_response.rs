@@ -13,7 +13,7 @@ pub struct ConnectorResponseNew {
     pub txn_id: String,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub connector_name: String,
+    pub connector_name: Option<String>,
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
@@ -30,7 +30,7 @@ pub struct ConnectorResponse {
     pub txn_id: String,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub connector_name: String,
+    pub connector_name: Option<String>,
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
@@ -43,6 +43,7 @@ pub struct ConnectorResponseUpdateInternal {
     pub authentication_data: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub encoded_data: Option<String>,
+    pub connector_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -51,6 +52,7 @@ pub enum ConnectorResponseUpdate {
         connector_transaction_id: Option<String>,
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
+        connector_name: Option<String>,
     },
 }
 
@@ -74,11 +76,13 @@ impl From<ConnectorResponseUpdate> for ConnectorResponseUpdateInternal {
                 connector_transaction_id,
                 authentication_data,
                 encoded_data,
+                connector_name,
             } => Self {
                 connector_transaction_id,
                 authentication_data,
                 encoded_data,
                 modified_at: common_utils::date_time::now(),
+                connector_name,
             },
         }
     }
