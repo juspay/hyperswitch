@@ -3,10 +3,10 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Q
 use error_stack::{IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
 
-#[cfg(not(feature = "kv_store"))]
-use super::generics::{self, ExecuteQuery};
+// #[cfg(not(feature = "kv_store"))]
+// use super::generics::{self, ExecuteQuery};
 // #[cfg(feature = "kv_store")]
-use super::generics::{self, RawQuery, RawSqlQuery};
+use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
@@ -45,7 +45,7 @@ impl PaymentIntentNew {
 }
 
 impl PaymentIntent {
-    #[cfg(not(feature = "kv_store"))]
+    // #[cfg(not(feature = "kv_store"))]
     #[instrument(skip(conn))]
     pub async fn update(
         self,
@@ -70,21 +70,21 @@ impl PaymentIntent {
         }
     }
 
-    #[cfg(feature = "kv_store")]
-    #[instrument(skip(conn))]
-    pub async fn update(
-        self,
-        conn: &PgPooledConn,
-        payment_intent: PaymentIntentUpdate,
-    ) -> CustomResult<RawSqlQuery, errors::StorageError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
-            conn,
-            self.id,
-            PaymentIntentUpdateInternal::from(payment_intent),
-            RawQuery,
-        )
-        .await
-    }
+    // #[cfg(feature = "kv_store")]
+    // #[instrument(skip(conn))]
+    // pub async fn update(
+    //     self,
+    //     conn: &PgPooledConn,
+    //     payment_intent: PaymentIntentUpdate,
+    // ) -> CustomResult<RawSqlQuery, errors::StorageError> {
+    //     generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+    //         conn,
+    //         self.id,
+    //         PaymentIntentUpdateInternal::from(payment_intent),
+    //         RawQuery,
+    //     )
+    //     .await
+    // }
 
     #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id(

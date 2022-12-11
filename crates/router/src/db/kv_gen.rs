@@ -1,6 +1,9 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
-use crate::types::storage::{PaymentIntent, PaymentIntentNew};
+use crate::types::storage::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentIntent, PaymentIntentNew,
+    PaymentIntentUpdate,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "db_op", content = "data")]
@@ -17,7 +20,7 @@ pub struct InsertData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateData {
-    pub up: String,
+    pub updateable: Updateables,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,4 +38,23 @@ impl TypedSql {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Insertables {
     PaymentIntent(PaymentIntentNew),
+    PaymentAttempt(PaymentAttemptNew),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Updateables {
+    PaymentIntentUpdate(PaymentIntentUpdateMems),
+    PaymentAttemptUpdate(PaymentAttemptUpdateMems),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentIntentUpdateMems {
+    pub orig: PaymentIntent,
+    pub update_data: PaymentIntentUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentAttemptUpdateMems {
+    pub orig: PaymentAttempt,
+    pub update_data: PaymentAttemptUpdate,
 }

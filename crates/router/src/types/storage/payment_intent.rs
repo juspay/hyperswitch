@@ -67,7 +67,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: enums::IntentStatus,
