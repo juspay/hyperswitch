@@ -4,7 +4,7 @@ pub(crate) trait KvStorePartition {
     }
 
     fn shard_key(key: PartitionKey, num_partitions: u8) -> String {
-        format!("shard_{}", Self::partition_number(key, num_partitions))
+        format!("{}", Self::partition_number(key, num_partitions))
     }
 }
 

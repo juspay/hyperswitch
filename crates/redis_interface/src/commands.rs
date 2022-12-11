@@ -240,7 +240,7 @@ impl super::RedisConnectionPool {
         Ids: Into<MultipleIDs> + Debug,
     {
         self.pool
-            .xread(
+            .xread_map(
                 Some(self.config.default_stream_read_count),
                 None,
                 streams,
