@@ -606,13 +606,8 @@ impl From<PaymentsStartRequest> for PaymentsResponse {
 
 impl From<PaymentsSessionRequest> for PaymentsResponse {
     fn from(item: PaymentsSessionRequest) -> Self {
-        let payment_id = match item.payment_id {
-            api_types::PaymentIdType::PaymentIntentId(id) => Some(id),
-            _ => None,
-        };
-
         Self {
-            payment_id,
+            payment_id: Some(item.payment_id),
             ..Default::default()
         }
     }
@@ -797,7 +792,7 @@ pub struct PaymentsRetrieveRequest {
 
 #[derive(Default, Debug, serde::Deserialize, Clone)]
 pub struct PaymentsSessionRequest {
-    pub payment_id: PaymentIdType,
+    pub payment_id: String,
     pub client_secret: String,
 }
 
