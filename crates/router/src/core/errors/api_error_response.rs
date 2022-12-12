@@ -120,6 +120,8 @@ pub enum ApiErrorResponse {
     SuccessfulPaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_05", message = "Address does not exist in our records.")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Mandate Validation Failed" )]
+    MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
     NotImplemented,
 }
@@ -159,7 +161,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::CardExpired { .. }
             | ApiErrorResponse::RefundFailed { .. }
             | ApiErrorResponse::VerificationFailed { .. }
-            | ApiErrorResponse::PaymentUnexpectedState { .. } => StatusCode::BAD_REQUEST, // 400
+            | ApiErrorResponse::PaymentUnexpectedState { .. }
+            | ApiErrorResponse::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             ApiErrorResponse::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             ApiErrorResponse::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400

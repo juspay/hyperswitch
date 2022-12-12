@@ -1,9 +1,8 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, IntoReport, Report, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 
 use crate::{
     core::errors::{self, ApiErrorResponse, CustomResult, RouterResult},
-    types::api::AddressDetails,
     utils::when,
 };
 
@@ -129,11 +128,11 @@ where
     }
 }
 
-pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), errors::ValidationError> {
-    if let Err(err) = serde_json::from_value::<AddressDetails>(address.clone()) {
-        return Err(report!(errors::ValidationError::InvalidValue {
-            message: format!("Invalid address: {err}")
-        }));
-    }
-    Ok(())
-}
+// pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), errors::ValidationError> {
+//     if let Err(err) = serde_json::from_value::<AddressDetails>(address.clone()) {
+//         return Err(report!(errors::ValidationError::InvalidValue {
+//             message: format!("Invalid address: {err}")
+//         }));
+//     }
+//     Ok(())
+// }
