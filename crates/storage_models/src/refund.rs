@@ -80,7 +80,7 @@ pub enum RefundUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
-pub(super) struct RefundUpdateInternal {
+pub struct RefundUpdateInternal {
     pg_refund_id: Option<String>,
     refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,

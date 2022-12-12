@@ -76,7 +76,7 @@ pub enum ProcessTrackerUpdate {
 
 #[derive(Debug, Clone, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = process_tracker)]
-pub(super) struct ProcessTrackerUpdateInternal {
+pub struct ProcessTrackerUpdateInternal {
     name: Option<String>,
     retry_count: Option<i32>,
     schedule_time: Option<PrimitiveDateTime>,

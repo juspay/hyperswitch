@@ -17,6 +17,7 @@ use crate::{
         self,
         api::{self, refunds},
         storage::{self, enums},
+        transformers::{Foreign, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -212,7 +213,7 @@ pub async fn refund_retrieve_core(
     )
     .await?;
 
-    Ok(services::BachResponse::Json(response.into()))
+    Ok(services::BachResponse::Json(response.foreign_into()))
 }
 
 #[instrument(skip_all)]
@@ -311,7 +312,7 @@ pub async fn refund_update_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok(services::BachResponse::Json(response.into()))
+    Ok(services::BachResponse::Json(response.foreign_into()))
 }
 
 // ********************************************** VALIDATIONS **********************************************
@@ -426,7 +427,8 @@ pub async fn validate_and_create_refund(
             .await?
         }
     };
-    Ok(refund.into())
+
+    Ok(refund.foreign_into())
 }
 
 // ********************************************** UTILS **********************************************
@@ -477,7 +479,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
         let response = data.response;
 
         let (status, error_message) = match response {
-            Ok(response) => (response.refund_status.into(), None),
+            Ok(response) => (response.refund_status.foreign_into(), None),
             Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
         };
 
@@ -494,18 +496,20 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
     }
 }
 
-impl From<storage::Refund> for api::RefundResponse {
-    fn from(refund: storage::Refund) -> Self {
-        Self {
+impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
+    fn from(refund: Foreign<storage::Refund>) -> Self {
+        let refund = refund.0;
+        api::RefundResponse {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
             currency: refund.currency.to_string(),
             reason: refund.description,
-            status: refund.refund_status.into(),
+            status: refund.refund_status.foreign_into(),
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
         }
+        .into()
     }
 }
 

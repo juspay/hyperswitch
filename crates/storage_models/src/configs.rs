@@ -30,7 +30,7 @@ pub enum ConfigUpdate {
 
 #[derive(Clone, Debug, AsChangeset, Default)]
 #[diesel(table_name = configs)]
-pub(super) struct ConfigUpdateInternal {
+pub struct ConfigUpdateInternal {
     config: Option<String>,
 }
 

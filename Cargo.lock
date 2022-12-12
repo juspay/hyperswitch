@@ -2669,6 +2669,7 @@ dependencies = [
  "serde_qs",
  "serde_urlencoded",
  "sha2",
+ "storage_models",
  "structopt",
  "strum",
  "thiserror",

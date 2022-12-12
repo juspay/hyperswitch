@@ -50,7 +50,7 @@ pub enum CustomerUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = customers)]
-pub(super) struct CustomerUpdateInternal {
+pub struct CustomerUpdateInternal {
     name: Option<String>,
     email: Option<Secret<String, pii::Email>>,
     phone: Option<Secret<String>>,

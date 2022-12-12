@@ -40,7 +40,7 @@ pub struct MerchantAccountNew {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub(crate) publishable_key: Option<String>,
+    pub publishable_key: Option<String>,
 }
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ pub enum MerchantAccountUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
-pub(super) struct MerchantAccountUpdateInternal {
+pub struct MerchantAccountUpdateInternal {
     merchant_id: Option<String>,
     merchant_name: Option<String>,
     api_key: Option<StrongSecret<String>>,

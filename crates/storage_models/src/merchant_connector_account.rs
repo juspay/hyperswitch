@@ -46,7 +46,7 @@ pub enum MerchantConnectorAccountUpdate {
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
-pub(super) struct MerchantConnectorAccountUpdateInternal {
+pub struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
     connector_type: Option<storage_enums::ConnectorType>,
     connector_name: Option<String>,

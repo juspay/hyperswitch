@@ -15,7 +15,7 @@ pub struct PaymentAttempt {
     pub amount: i32,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
@@ -49,7 +49,7 @@ pub struct PaymentAttemptNew {
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
@@ -88,6 +88,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         payment_method: Option<storage_enums::PaymentMethodType>,
         browser_info: Option<serde_json::Value>,
+        connector: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -112,11 +113,12 @@ pub enum PaymentAttemptUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
-pub(super) struct PaymentAttemptUpdateInternal {
+pub struct PaymentAttemptUpdateInternal {
     amount: Option<i32>,
     currency: Option<storage_enums::Currency>,
     status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
+    connector: Option<String>,
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethodType>,
     error_message: Option<String>,
@@ -182,11 +184,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status,
                 payment_method,
                 browser_info,
+                connector,
             } => Self {
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 browser_info,
+                connector,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

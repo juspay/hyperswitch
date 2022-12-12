@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::MockDb;
 use crate::{
     connection::pg_connection,
@@ -46,7 +48,10 @@ impl CustomerInterface for super::Store {
         merchant_id: &str,
     ) -> CustomResult<Option<Customer>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
+        Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -56,7 +61,10 @@ impl CustomerInterface for super::Store {
         customer: CustomerUpdate,
     ) -> CustomResult<Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Customer::update_by_customer_id_merchant_id(&conn, customer_id, merchant_id, customer).await
+        Customer::update_by_customer_id_merchant_id(&conn, customer_id, merchant_id, customer)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_customer_by_customer_id_merchant_id(
@@ -65,7 +73,10 @@ impl CustomerInterface for super::Store {
         merchant_id: &str,
     ) -> CustomResult<Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
+        Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_customer(
@@ -73,7 +84,11 @@ impl CustomerInterface for super::Store {
         customer_data: CustomerNew,
     ) -> CustomResult<Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        customer_data.insert_diesel(&conn).await
+        customer_data
+            .insert_diesel(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn delete_customer_by_customer_id_merchant_id(
@@ -82,7 +97,10 @@ impl CustomerInterface for super::Store {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
+        Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

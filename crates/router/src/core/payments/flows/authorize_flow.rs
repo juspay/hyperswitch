@@ -16,6 +16,7 @@ use crate::{
         self,
         api::{self, CustomerAcceptanceExt},
         storage::{self, enums as storage_enums},
+        transformers::ForeignInto,
         PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
     utils,
@@ -192,7 +193,7 @@ impl PaymentsAuthorizeRouterData {
                 Some(match data.mandate_type {
                     api::MandateType::SingleUse(data) => new_mandate
                         .set_single_use_amount(Some(data.amount))
-                        .set_single_use_currency(Some(data.currency.into()))
+                        .set_single_use_currency(Some(data.currency.foreign_into()))
                         .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 

@@ -61,7 +61,7 @@ pub struct SingleUseMandate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = mandate)]
-pub(super) struct MandateUpdateInternal {
+pub struct MandateUpdateInternal {
     mandate_status: storage_enums::MandateStatus,
 }
 

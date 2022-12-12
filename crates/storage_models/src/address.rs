@@ -69,7 +69,7 @@ pub enum AddressUpdate {
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]
-pub(super) struct AddressUpdateInternal {
+pub struct AddressUpdateInternal {
     city: Option<String>,
     country: Option<String>,
     line1: Option<Secret<String>>,

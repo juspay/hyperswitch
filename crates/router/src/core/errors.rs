@@ -10,6 +10,7 @@ use config::ConfigError;
 use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
+use storage_models::errors as storage_errors;
 
 pub use self::api_error_response::ApiErrorResponse;
 pub(crate) use self::utils::{ApiClientErrorExt, ConnectorErrorExt, StorageErrorExt};
@@ -68,8 +69,7 @@ macro_rules! router_error_error_stack_specific {
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("DatabaseError: {0}")]
-    DatabaseError(#[from] DatabaseError),
-
+    DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
     #[error("DuplicateValue: {0}")]
@@ -78,21 +78,32 @@ pub enum StorageError {
     KVError,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum DatabaseError {
-    #[error("An error occurred when obtaining database connection")]
-    DatabaseConnectionError,
-    #[error("The requested resource was not found in the database")]
-    NotFound,
-    #[error("A unique constraint violation occurred")]
-    UniqueViolation,
-    #[error("No fields were provided to be updated")]
-    NoFieldsToUpdate,
-    #[error("An error occurred when generating raw SQL query")]
-    QueryGenerationFailed,
-    // InsertFailed,
-    #[error("An unknown error occurred")]
-    Others,
+impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
+    fn from(err: error_stack::Report<storage_errors::DatabaseError>) -> Self {
+        Self::DatabaseError(err)
+    }
+}
+
+impl StorageError {
+    pub fn is_db_not_found(&self) -> bool {
+        match self {
+            Self::DatabaseError(err) => matches!(
+                err.current_context(),
+                storage_errors::DatabaseError::NotFound
+            ),
+            _ => false,
+        }
+    }
+
+    pub fn is_db_unique_violation(&self) -> bool {
+        match self {
+            Self::DatabaseError(err) => matches!(
+                err.current_context(),
+                storage_errors::DatabaseError::UniqueViolation,
+            ),
+            _ => false,
+        }
+    }
 }
 
 impl_error_type!(AuthenticationError, "Authentication error");
@@ -123,7 +134,7 @@ pub enum BachError {
     ConfigurationError(ConfigError),
 
     #[error("{{ error_description: Database operation failed, error_message: {0} }}")]
-    EDatabaseError(error_stack::Report<DatabaseError>),
+    EDatabaseError(error_stack::Report<storage_errors::DatabaseError>),
 
     #[error("{{ error_description: Encryption module operation failed, error_message: {0} }}")]
     EEncryptionError(error_stack::Report<EncryptionError>),
@@ -136,7 +147,7 @@ pub enum BachError {
 }
 
 router_error_error_stack_specific!(
-    error_stack::Report<DatabaseError>,
+    error_stack::Report<storage_errors::DatabaseError>,
     BachError::EDatabaseError(error_stack::Report<DatabaseError>)
 );
 router_error_error_stack_specific!(
