@@ -114,6 +114,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub braintree: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub cybersource: ConnectorParams,
     pub supported: SupportedConnectors,
     pub applepay: ConnectorParams,
 }
