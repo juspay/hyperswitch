@@ -53,7 +53,7 @@ impl AddressInterface for super::Store {
         &self,
         address_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool.conn).await;
+        let conn = pg_connection(&self.master_pool).await;
         Address::delete_by_address_id(&conn, address_id).await
     }
 }

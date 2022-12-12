@@ -284,8 +284,7 @@ impl PaymentAttemptInterface for MockDb {
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use fred::prelude::*;
-    use redis_interface::RedisEntryId;
+    use redis_interface::{RedisEntryId, SetNXReply};
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -347,22 +346,17 @@ mod storage {
                         mandate_id: payment_attempt.mandate_id.clone(),
                         browser_info: payment_attempt.browser_info.clone(),
                     };
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&created_attempt)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
                     match self
                         .redis_conn
-                        .pool
-                        .hsetnx::<u8, &str, &str, &str>(&key, "pa", &redis_value)
+                        .serialize_and_set_hash_field_if_not_exist(&key, "pa", &created_attempt)
                         .await
                     {
-                        Ok(0) => Err(errors::StorageError::DuplicateValue(format!(
-                            "Payment Attempt already exists for payment_id: {}",
-                            key
-                        )))
+                        Ok(SetNXReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
+                            format!("Payment Attempt already exists for payment_id: {}", key),
+                        ))
                         .into_report(),
-                        Ok(1) => {
+                        Ok(SetNXReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = payment_attempt
                                 .insert_diesel_query(&conn)
@@ -385,14 +379,7 @@ mod storage {
                                 .change_context(errors::StorageError::KVError)?;
                             Ok(created_attempt)
                         }
-                        Ok(i) => Err(errors::StorageError::KVError)
-                            .into_report()
-                            .attach_printable_lazy(|| {
-                                format!("Invalid response for HSETNX: {}", i)
-                            }),
-                        Err(er) => Err(er)
-                            .into_report()
-                            .change_context(errors::StorageError::KVError),
+                        Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                     }
                 }
             }
@@ -415,17 +402,11 @@ mod storage {
 
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&updated_attempt)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
                     let updated_attempt = self
                         .redis_conn
-                        .pool
-                        .hset::<u8, &str, (&str, String)>(&key, ("pa", redis_value))
+                        .serialize_and_set_hash_fields(&key, ("pa", &updated_attempt))
                         .await
                         .map(|_| updated_attempt)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let conn = pg_connection(&self.master_pool).await;
@@ -469,15 +450,18 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", payment_id, merchant_id);
                     self.redis_conn
-                        .pool
-                        .hget::<String, String, &str>(key, "pa")
+                        .get_hash_field_and_deserialize::<PaymentAttempt>(
+                            &key,
+                            "pa",
+                            "PaymentAttempt",
+                        )
                         .await
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<PaymentAttempt>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
+                                format!("Payment Attempt does not exist for {}", key),
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                     // Check for database presence as well Maybe use a read replica here ?
                 }

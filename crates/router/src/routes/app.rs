@@ -1,8 +1,8 @@
 use actix_web::{web, Scope};
 
 use super::{
-    admin::*, customers::*, health::*, mandates::*, payment_methods::*, payments::*, payouts::*,
-    refunds::*, webhooks::*,
+    admin::*, customers::*, ephemeral_key::*, health::*, mandates::*, payment_methods::*,
+    payments::*, payouts::*, refunds::*, webhooks::*,
 };
 use crate::{
     configs::settings::Settings,
@@ -74,6 +74,9 @@ impl Payments {
             .service(
                 web::resource("/{payment_id}/{merchant_id}/response/{connector}")
                     .route(web::get().to(payments_response)),
+            )
+            .service(
+                web::resource("/session_tokens").route(web::get().to(payments_connector_session)),
             )
     }
 }
@@ -186,6 +189,17 @@ impl MerchantConnectorAccount {
                     .route(web::post().to(payment_connector_update))
                     .route(web::delete().to(payment_connector_delete)),
             )
+    }
+}
+
+pub struct EphemeralKey;
+
+impl EphemeralKey {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/ephemeral_keys")
+            .app_data(web::Data::new(config))
+            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
+            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
     }
 }
 

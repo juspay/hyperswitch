@@ -13,10 +13,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
-        api::PaymentsCaptureRequest,
+        api::{self, PaymentIdTypeExt, PaymentsCaptureRequest},
         storage::{self, enums},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -35,7 +33,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -85,7 +82,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 
-        amount = payment_attempt.amount;
+        amount = payment_attempt.amount.into();
 
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(
@@ -103,6 +100,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -110,6 +109,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -134,6 +135,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 payment_method_data: None,
                 refunds: vec![],
                 connector_response,
+                sessions_token: vec![],
             },
             None,
         ))

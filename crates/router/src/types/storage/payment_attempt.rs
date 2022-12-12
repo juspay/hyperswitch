@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::payment_attempt, types::enums};
+use crate::{schema::payment_attempt, types::storage::enums as storage_enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
@@ -11,24 +11,24 @@ pub struct PaymentAttempt {
     pub payment_id: String,
     pub merchant_id: String,
     pub txn_id: String,
-    pub status: enums::AttemptStatus,
+    pub status: storage_enums::AttemptStatus,
     pub amount: i32,
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
     pub tax_amount: Option<i32>,
     pub payment_method_id: Option<String>,
-    pub payment_method: Option<enums::PaymentMethodType>,
-    pub payment_flow: Option<enums::PaymentFlow>,
+    pub payment_method: Option<storage_enums::PaymentMethodType>,
+    pub payment_flow: Option<storage_enums::PaymentFlow>,
     pub redirect: Option<bool>,
     pub connector_transaction_id: Option<String>,
-    pub capture_method: Option<enums::CaptureMethod>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
-    pub authentication_type: Option<enums::AuthenticationType>,
+    pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub last_synced: Option<PrimitiveDateTime>,
@@ -44,25 +44,25 @@ pub struct PaymentAttemptNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub txn_id: String,
-    pub status: enums::AttemptStatus,
+    pub status: storage_enums::AttemptStatus,
     pub amount: i32,
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
-    pub connector: String,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i32>,
     pub surcharge_amount: Option<i32>,
     pub tax_amount: Option<i32>,
     pub payment_method_id: Option<String>,
-    pub payment_method: Option<enums::PaymentMethodType>,
-    pub payment_flow: Option<enums::PaymentFlow>,
+    pub payment_method: Option<storage_enums::PaymentMethodType>,
+    pub payment_flow: Option<storage_enums::PaymentFlow>,
     pub redirect: Option<bool>,
     pub connector_transaction_id: Option<String>,
-    pub capture_method: Option<enums::CaptureMethod>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
-    pub authentication_type: Option<enums::AuthenticationType>,
+    pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub created_at: Option<PrimitiveDateTime>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub last_synced: Option<PrimitiveDateTime>,
@@ -76,36 +76,37 @@ pub struct PaymentAttemptNew {
 pub enum PaymentAttemptUpdate {
     Update {
         amount: i32,
-        currency: enums::Currency,
-        status: enums::AttemptStatus,
-        authentication_type: Option<enums::AuthenticationType>,
-        payment_method: Option<enums::PaymentMethodType>,
+        currency: storage_enums::Currency,
+        status: storage_enums::AttemptStatus,
+        authentication_type: Option<storage_enums::AuthenticationType>,
+        payment_method: Option<storage_enums::PaymentMethodType>,
     },
     AuthenticationTypeUpdate {
-        authentication_type: enums::AuthenticationType,
+        authentication_type: storage_enums::AuthenticationType,
     },
     ConfirmUpdate {
-        status: enums::AttemptStatus,
-        payment_method: Option<enums::PaymentMethodType>,
+        status: storage_enums::AttemptStatus,
+        payment_method: Option<storage_enums::PaymentMethodType>,
         browser_info: Option<serde_json::Value>,
+        connector: Option<String>,
     },
     VoidUpdate {
-        status: enums::AttemptStatus,
+        status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
     },
     ResponseUpdate {
-        status: enums::AttemptStatus,
+        status: storage_enums::AttemptStatus,
         connector_transaction_id: Option<String>,
-        authentication_type: Option<enums::AuthenticationType>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
         redirect: Option<bool>,
         mandate_id: Option<String>,
     },
     StatusUpdate {
-        status: enums::AttemptStatus,
+        status: storage_enums::AttemptStatus,
     },
     ErrorUpdate {
-        status: enums::AttemptStatus,
+        status: storage_enums::AttemptStatus,
         error_message: Option<String>,
     },
 }
@@ -114,11 +115,12 @@ pub enum PaymentAttemptUpdate {
 #[diesel(table_name = payment_attempt)]
 pub(super) struct PaymentAttemptUpdateInternal {
     amount: Option<i32>,
-    currency: Option<enums::Currency>,
-    status: Option<enums::AttemptStatus>,
+    currency: Option<storage_enums::Currency>,
+    status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
-    authentication_type: Option<enums::AuthenticationType>,
-    payment_method: Option<enums::PaymentMethodType>,
+    connector: Option<String>,
+    authentication_type: Option<storage_enums::AuthenticationType>,
+    payment_method: Option<storage_enums::PaymentMethodType>,
     error_message: Option<String>,
     payment_method_id: Option<Option<String>>,
     cancellation_reason: Option<String>,
@@ -182,11 +184,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status,
                 payment_method,
                 browser_info,
+                connector,
             } => Self {
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 browser_info,
+                connector,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -256,7 +260,7 @@ mod tests {
         let current_time = common_utils::date_time::now();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -287,7 +291,7 @@ mod tests {
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -326,7 +330,7 @@ mod tests {
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
             merchant_id: "1".to_string(),
-            connector: types::Connector::Dummy.to_string(),
+            connector: Some(types::Connector::Dummy.to_string()),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             // Adding a mandate_id

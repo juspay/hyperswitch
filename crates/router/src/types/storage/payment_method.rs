@@ -1,7 +1,7 @@
 use diesel::{Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
-use crate::{pii::Secret, schema::payment_methods, types::storage::enums};
+use crate::{pii::Secret, schema::payment_methods, types::storage::enums as storage_enums};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
 #[diesel(table_name = payment_methods)]
@@ -10,8 +10,8 @@ pub struct PaymentMethod {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    #[diesel(deserialize_as = super::OptionalDieselArray<enums::Currency>)]
-    pub accepted_currency: Option<Vec<enums::Currency>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<storage_enums::Currency>)]
+    pub accepted_currency: Option<Vec<storage_enums::Currency>>,
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
@@ -25,10 +25,10 @@ pub struct PaymentMethod {
     pub network_transaction_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_type: Option<enums::PaymentMethodSubType>,
+    pub payment_method: storage_enums::PaymentMethodType,
+    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
-    pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
+    pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
@@ -37,11 +37,11 @@ pub struct PaymentMethodNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    pub payment_method: enums::PaymentMethodType,
-    pub payment_method_type: Option<enums::PaymentMethodSubType>,
+    pub payment_method: storage_enums::PaymentMethodType,
+    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
-    pub payment_method_issuer_code: Option<enums::PaymentMethodIssuerCode>,
-    pub accepted_currency: Option<Vec<enums::Currency>>,
+    pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
+    pub accepted_currency: Option<Vec<storage_enums::Currency>>,
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
@@ -64,7 +64,7 @@ impl Default for PaymentMethodNew {
             customer_id: String::default(),
             merchant_id: String::default(),
             payment_method_id: String::default(),
-            payment_method: enums::PaymentMethodType::default(),
+            payment_method: storage_enums::PaymentMethodType::default(),
             payment_method_type: Option::default(),
             payment_method_issuer: Option::default(),
             payment_method_issuer_code: Option::default(),

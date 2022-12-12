@@ -14,9 +14,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -35,7 +34,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -72,7 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         payment_attempt.payment_method = Some(enums::PaymentMethodType::Wallet);
 
-        let amount = payment_intent.amount;
+        let amount = payment_intent.amount.into();
 
         if let Some(ref payment_intent_client_secret) = payment_intent.client_secret {
             if request.client_secret.ne(payment_intent_client_secret) {
@@ -84,6 +82,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -91,6 +91,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -131,6 +133,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 payment_method_data: None,
                 force_sync: None,
                 refunds: vec![],
+                sessions_token: vec![],
                 connector_response,
             },
             None,
@@ -233,5 +236,39 @@ where
     )> {
         //No payment method data for this operation
         Ok((Box::new(self), None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> RouterResult<api::ConnectorCallType> {
+        let connectors = &state.conf.connectors;
+        let db = &state.store;
+
+        let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
+
+        //FIXME: Check if merchant has enabled wallet through the connector
+        let connector_names = db
+            .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Database error when querying for merchant accounts")?
+            .iter()
+            .filter(|connector_account| {
+                supported_connectors.contains(&connector_account.connector_name)
+            })
+            .map(|filtered_connector| filtered_connector.connector_name.clone())
+            .collect::<Vec<String>>();
+
+        let mut connectors_data = Vec::with_capacity(connector_names.len());
+
+        for connector_name in connector_names {
+            let connector_data =
+                api::ConnectorData::get_connector_by_name(connectors, &connector_name)?;
+            connectors_data.push(connector_data);
+        }
+
+        Ok(api::ConnectorCallType::Multiple(connectors_data))
     }
 }

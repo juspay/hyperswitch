@@ -27,6 +27,7 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
+pub(crate) mod macros;
 pub mod routes;
 pub mod scheduler;
 
@@ -105,6 +106,7 @@ pub fn mk_app(
         .service(routes::PaymentMethods::server(state.clone()))
         .service(routes::MerchantAccount::server(state.clone()))
         .service(routes::MerchantConnectorAccount::server(state.clone()))
+        .service(routes::EphemeralKey::server(state.clone()))
         .service(routes::Webhooks::server(state.clone()));
 
     #[cfg(feature = "stripe")]

@@ -16,10 +16,10 @@ use crate::{
     types::{
         api,
         storage::{self, enums},
-        Connector,
     },
     utils::{self, OptionExt},
 };
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "sync")]
 pub struct PaymentStatus;
@@ -94,7 +94,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsRetrieveRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -167,7 +166,7 @@ async fn get_tracker_for_sync<
 
     connector_response.encoded_data = request.param.clone();
     currency = payment_attempt.currency.get_required_value("currency")?;
-    amount = payment_attempt.amount;
+    amount = payment_attempt.amount.into();
 
     let shipping_address =
         helpers::get_address_by_id(db, payment_intent.shipping_address_id.clone()).await?;
@@ -209,6 +208,7 @@ async fn get_tracker_for_sync<
             payment_method_data: None,
             force_sync: Some(request.force_sync),
             refunds,
+            sessions_token: vec![],
         },
         None,
     ))
