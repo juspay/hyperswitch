@@ -41,8 +41,7 @@ pub trait PaymentIntentInterface {
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use fred::prelude::{RedisErrorKind, *};
-    use redis_interface::RedisEntryId;
+    use redis_interface::{RedisEntryId, SetNXReply};
 
     use super::PaymentIntentInterface;
     use crate::{
@@ -95,21 +94,17 @@ mod storage {
                         off_session: new.off_session,
                         client_secret: new.client_secret.clone(),
                     };
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&created_intent)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
                     match self
                         .redis_conn
-                        .pool
-                        .hsetnx::<u8, &str, &str, &str>(&key, "pi", &redis_value)
+                        .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
                     {
-                        Ok(0) => Err(errors::StorageError::DuplicateValue(format!(
-                            "Payment Intent already exists for payment_id: {key}"
-                        )))
+                        Ok(SetNXReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
+                            format!("Payment Intent already exists for payment_id: {key}"),
+                        ))
                         .into_report(),
-                        Ok(1) => {
+                        Ok(SetNXReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = new
                                 .insert_diesel_query(&conn)
@@ -132,14 +127,7 @@ mod storage {
                                 .change_context(errors::StorageError::KVError)?;
                             Ok(created_intent)
                         }
-                        Ok(i) => Err(errors::StorageError::KVError)
-                            .into_report()
-                            .attach_printable_lazy(|| {
-                                format!("Invalid response for HSETNX: {}", i)
-                            }),
-                        Err(er) => Err(er)
-                            .into_report()
-                            .change_context(errors::StorageError::KVError),
+                        Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                     }
                 }
             }
@@ -162,17 +150,11 @@ mod storage {
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&updated_intent)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
                     let updated_intent = self
                         .redis_conn
-                        .pool
-                        .hset::<u8, &str, (&str, String)>(&key, ("pi", redis_value))
+                        .serialize_and_set_hash_fields(&key, ("pi", &updated_intent))
                         .await
                         .map(|_| updated_intent)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let conn = pg_connection(&self.master_pool).await;
@@ -216,20 +198,18 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", payment_id, merchant_id);
                     self.redis_conn
-                        .pool
-                        .hget::<String, &str, &str>(&key, "pi")
+                        .get_hash_field_and_deserialize::<PaymentIntent>(
+                            &key,
+                            "pi",
+                            "PaymentIntent",
+                        )
                         .await
-                        .map_err(|err| match err.kind() {
-                            RedisErrorKind::NotFound => errors::StorageError::ValueNotFound(
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
                                 format!("Payment Intent does not exist for {}", key),
-                            ),
-                            _ => errors::StorageError::KVError,
-                        })
-                        .into_report()
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<PaymentIntent>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                     // Check for database presence as well Maybe use a read replica here ?
                 }
