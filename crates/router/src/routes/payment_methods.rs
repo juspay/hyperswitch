@@ -10,6 +10,7 @@ use crate::{
         errors::{http_not_implemented, BachResult},
         payment_methods::cards,
     },
+    services,
     services::api,
     types::api::payment_methods::{self, PaymentMethodId},
 };
@@ -44,14 +45,20 @@ pub async fn list_payment_method_api(
     json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
 ) -> HttpResponse {
     //let merchant_id = merchant_id.into_inner();
+    let (payload, auth_type) =
+        match api::get_auth_type_and_check_client_secret(&req, json_payload.into_inner()) {
+            Ok(values) => values,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     api::server_wrap(
         &state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, merchant_account, req| {
             cards::list_payment_methods(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        auth_type,
     )
     .await
 }
@@ -65,6 +72,13 @@ pub async fn list_customer_payment_method_api(
     json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
 ) -> HttpResponse {
     let customer_id = customer_id.into_inner().0;
+
+    let auth_type =
+        match services::authenticate_eph_key(&req, &*state.store, customer_id.clone()).await {
+            Ok(auth_type) => auth_type,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     api::server_wrap(
         &state,
         &req,
@@ -72,7 +86,7 @@ pub async fn list_customer_payment_method_api(
         |state, merchant_account, _| {
             cards::list_customer_payment_method(state, merchant_account, &customer_id)
         },
-        api::MerchantAuthentication::ApiKey,
+        auth_type,
     )
     .await
 }

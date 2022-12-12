@@ -69,6 +69,12 @@ impl PaymentsRequest {
     }
 }
 
+impl api::Authenticate for PaymentsRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(i32),

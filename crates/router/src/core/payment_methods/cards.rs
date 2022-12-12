@@ -10,6 +10,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::transformers as payment_methods,
+        payments::helpers,
     },
     db::StorageInterface,
     pii::prelude::*,
@@ -258,6 +259,14 @@ pub async fn list_payment_methods(
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
 ) -> RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+    helpers::verify_client_secret(
+        db,
+        merchant_account.storage_scheme,
+        req.client_secret.clone(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
         .await

@@ -9,6 +9,7 @@ use time::PrimitiveDateTime;
 use crate::{
     core::errors::{self, RouterResult},
     pii::{self, Secret},
+    services,
     types::api::enums as api_enums,
 };
 
@@ -180,11 +181,18 @@ pub struct CardDetailFromLocker {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ListPaymentMethodRequest {
+    pub client_secret: Option<String>,
     pub accepted_countries: Option<Vec<String>>,
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     pub amount: Option<i32>,
     pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
+}
+
+impl services::Authenticate for ListPaymentMethodRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
