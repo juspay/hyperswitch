@@ -13,7 +13,7 @@ pub async fn start_drainer(
 ) -> Result<(), errors::DrainerError> {
     let mut drainer_index: u8 = 10;
 
-    tokio::spawn(drainer_handler(store.clone(), 10, max_read_count.clone()));
+    tokio::spawn(drainer_handler(store.clone(), 42, max_read_count.clone()));
 
     loop {
         // if is_stream_available(&drainer_index, store.clone()).await {
@@ -96,8 +96,30 @@ async fn drainer(
                         Err(err) => println!("Err not able to insert {:?}", err),
                     }
                 }
+                router::db::kv_gen::Insertables::PaymentAttempt(a) => {
+                    let p = a.insert(&conn).await;
+                    match p {
+                        Ok(aa) => println!("succesfully inserted {:#?}", aa),
+                        Err(err) => println!("Err not able to insert {:?}", err),
+                    }
+                }
             },
-            DBOperation::Update(_) => todo!(),
+            DBOperation::Update(a) => match a.updateable {
+                router::db::kv_gen::Updateables::PaymentIntentUpdate(a) => {
+                    let p = a.orig.update(&conn, a.update_data).await;
+                    match p {
+                        Ok(aa) => println!("succesfully inserted {:#?}", aa),
+                        Err(err) => println!("Err not able to insert {:?}", err),
+                    }
+                }
+                router::db::kv_gen::Updateables::PaymentAttemptUpdate(a) => {
+                    let p = a.orig.update(&conn, a.update_data).await;
+                    match p {
+                        Ok(aa) => println!("succesfully inserted {:#?}", aa),
+                        Err(err) => println!("Err not able to insert {:?}", err),
+                    }
+                }
+            },
             DBOperation::Delete => todo!(),
         };
         println!("succesfully added: ");
