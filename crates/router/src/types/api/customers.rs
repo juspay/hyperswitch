@@ -30,14 +30,6 @@ impl CustomerRequestExt for CustomerRequest {
                 expected_format: "valid email address".to_string(),
             })?;
 
-        self.address
-            .as_ref()
-            .validate_opt(|addr| utils::validate_address(addr.peek()))
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "address".to_string(),
-                expected_format: "valid address".to_string(),
-            })?;
-
         Ok(self)
     }
 }
@@ -51,9 +43,9 @@ impl From<storage::Customer> for CustomerResponse {
             phone: cust.phone,
             phone_country_code: cust.phone_country_code,
             description: cust.description,
-            address: cust.address,
             created_at: cust.created_at,
             metadata: cust.metadata,
+            address: None,
         }
         .into()
     }

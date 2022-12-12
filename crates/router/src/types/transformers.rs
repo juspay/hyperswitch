@@ -8,7 +8,7 @@ use crate::{
     types::{api as api_types, storage},
 };
 
-pub(crate) struct Foreign<T>(pub T);
+pub struct Foreign<T>(pub T);
 
 type F<T> = Foreign<T>;
 
@@ -18,21 +18,21 @@ impl<T> From<T> for Foreign<T> {
     }
 }
 
-pub(crate) trait ForeignInto<T> {
+pub trait ForeignInto<T> {
     fn foreign_into(self) -> T;
 }
 
-pub(crate) trait ForeignTryInto<T> {
+pub trait ForeignTryInto<T> {
     type Error;
 
     fn foreign_try_into(self) -> Result<T, Self::Error>;
 }
 
-pub(crate) trait ForeignFrom<F> {
+pub trait ForeignFrom<F> {
     fn foreign_from(from: F) -> Self;
 }
 
-pub(crate) trait ForeignTryFrom<F>: Sized {
+pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;

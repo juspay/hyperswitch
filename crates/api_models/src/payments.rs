@@ -141,11 +141,22 @@ pub struct SingleUseMandate {
     pub currency: api_enums::Currency,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct MandateAmountData {
+    pub amount: i32,
+    pub currency: api_enums::Currency,
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateType {
-    SingleUse(SingleUseMandate),
-    #[default]
-    MultiUse,
+    SingleUse(MandateAmountData),
+    MultiUse(Option<MandateAmountData>),
+}
+
+impl Default for MandateType {
+    fn default() -> Self {
+        Self::MultiUse(None)
+    }
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -773,16 +784,23 @@ mod amount {
         type Value = Amount;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(formatter, "amount as i32")
+            write!(formatter, "amount as integer")
         }
 
-        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            self.visit_i64(v as i64)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
             Ok(match v {
                 0 => Amount::Zero,
-                amount => Amount::Value(amount),
+                amount => Amount::Value(amount as i32),
             })
         }
     }
@@ -791,14 +809,14 @@ mod amount {
         type Value = Option<Amount>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(formatter, "option of amount (as i32)")
+            write!(formatter, "option of amount (as integer)")
         }
 
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
         where
             D: serde::Deserializer<'de>,
         {
-            deserializer.deserialize_any(AmountVisitor).map(Some)
+            deserializer.deserialize_i64(AmountVisitor).map(Some)
         }
 
         fn visit_none<E>(self) -> Result<Self::Value, E>

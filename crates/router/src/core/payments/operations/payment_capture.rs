@@ -101,6 +101,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -108,6 +110,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 

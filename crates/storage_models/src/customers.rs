@@ -15,7 +15,6 @@ pub struct CustomerNew {
     pub phone: Option<Secret<String>>,
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
-    pub address: Option<Secret<serde_json::Value>>,
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -30,7 +29,6 @@ pub struct Customer {
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub description: Option<String>,
-    pub address: Option<Secret<serde_json::Value>>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<serde_json::Value>,
 }
@@ -43,7 +41,6 @@ pub enum CustomerUpdate {
         phone: Option<Secret<String>>,
         description: Option<String>,
         phone_country_code: Option<String>,
-        address: Option<Secret<serde_json::Value>>,
         metadata: Option<serde_json::Value>,
     },
 }
@@ -56,7 +53,6 @@ pub struct CustomerUpdateInternal {
     phone: Option<Secret<String>>,
     description: Option<String>,
     phone_country_code: Option<String>,
-    address: Option<Secret<serde_json::Value>>,
     metadata: Option<serde_json::Value>,
 }
 
@@ -69,7 +65,6 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone,
                 description,
                 phone_country_code,
-                address,
                 metadata,
             } => Self {
                 name,
@@ -77,7 +72,6 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone,
                 description,
                 phone_country_code,
-                address,
                 metadata,
             },
         }

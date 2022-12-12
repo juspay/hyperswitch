@@ -219,6 +219,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })
@@ -239,6 +241,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 //TODO: Add redirection details here
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })
@@ -279,6 +283,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
                 redirect: false,
                 redirection_data: None,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             status: response.into(),
             ..item.data
