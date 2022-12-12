@@ -41,12 +41,13 @@ where
             return WithType::fmt(val, f);
         }
 
-        f.write_str(format!(
+        write!(
+            f,
             "{}{}{}",
             &val_str[..2],
             "*".repeat(val_str.len() - 5),
             &val_str[(val_str.len() - 3)..]
-        ))
+        )
     }
 }
 */

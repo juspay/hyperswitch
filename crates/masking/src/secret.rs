@@ -31,9 +31,7 @@ use crate::{strategy::Strategy, PeekInterface};
 ///     T: fmt::Display
 /// {
 ///     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-///         f.write_str(
-///             &format!("{}", val).to_ascii_lowercase()
-///         )
+///         write!(f, "{}", val.to_string().to_ascii_lowercase())
 ///     }
 /// }
 ///
