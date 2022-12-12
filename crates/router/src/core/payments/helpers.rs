@@ -1209,13 +1209,11 @@ pub(crate) async fn verify_client_secret(
     match client_secret {
         None => Ok(()),
         Some(cs) => {
-            let payment_id = cs
-                .split('_')
-                .next()
-                .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)?;
+            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
-                    payment_id,
+                    &payment_id,
                     merchant_id,
                     storage_scheme,
                 )

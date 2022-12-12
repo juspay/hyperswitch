@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use error_stack::report;
 use literally::hmap;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -178,7 +178,7 @@ pub struct CardDetailFromLocker {
 }
 
 //List Payment Method
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ListPaymentMethodRequest {
     pub client_secret: Option<String>,
@@ -187,6 +187,64 @@ pub struct ListPaymentMethodRequest {
     pub amount: Option<i32>,
     pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
+}
+
+impl<'de> Deserialize<'de> for ListPaymentMethodRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct FieldVisitor;
+
+        impl<'de> de::Visitor<'de> for FieldVisitor {
+            type Value = ListPaymentMethodRequest;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Failed while deserializing as map")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut output = ListPaymentMethodRequest::default();
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "client_secret" => {
+                            output.client_secret = Some(map.next_value()?);
+                        }
+                        "accepted_countries" => match output.accepted_countries.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_countries = Some(vec![map.next_value()?]);
+                            }
+                        },
+                        "accepted_currencies" => match output.accepted_currencies.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_currencies = Some(vec![map.next_value()?]);
+                            }
+                        },
+                        "amount" => {
+                            output.amount = Some(map.next_value()?);
+                        }
+                        "recurring_enabled" => {
+                            output.recurring_enabled = Some(map.next_value()?);
+                        }
+                        "installment_payment_enabled" => {
+                            output.installment_payment_enabled = Some(map.next_value()?);
+                        }
+                        _ => {}
+                    }
+                }
+
+                Ok(output)
+            }
+        }
+
+        deserializer.deserialize_identifier(FieldVisitor)
+    }
 }
 
 impl services::Authenticate for ListPaymentMethodRequest {
