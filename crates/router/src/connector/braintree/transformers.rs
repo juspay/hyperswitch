@@ -44,7 +44,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let submit_for_settlement = matches!(item.request.capture_method, Some(enums::CaptureMethod::Automatic));
+                let submit_for_settlement = matches!(item.request.capture_method, Some(enums::CaptureMethod::Automatic) | None);
                 let braintree_payment_request = TransactionBody {
                     amount: item.request.amount.to_string(),
                     device_data: DeviceData {},

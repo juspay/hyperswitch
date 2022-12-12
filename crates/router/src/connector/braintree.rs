@@ -137,7 +137,7 @@ impl
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
-            .parse_struct("Error Response")
+            .parse_struct("Braintree Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
@@ -162,7 +162,7 @@ impl
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
-            .parse_struct("braintree PaymentsResponse")
+            .parse_struct("Braintree PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -247,7 +247,7 @@ impl
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: braintree::BraintreePaymentsResponse = res
             .response
-            .parse_struct("Braintree Payments Response")
+            .parse_struct("Braintree PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(braintreepayments_create_response=?response);
         types::ResponseRouterData {
@@ -266,7 +266,7 @@ impl
         logger::debug!(braintreepayments_create_response=?res);
 
         let response: braintree::ErrorResponse = res
-            .parse_struct("ErrorResponse")
+            .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
@@ -340,7 +340,7 @@ impl
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
-            .parse_struct("Error Response")
+            .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
@@ -365,7 +365,7 @@ impl
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
-            .parse_struct("braintree PaymentsVoidResponse")
+            .parse_struct("Braintree PaymentsVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -453,7 +453,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
-            .parse_struct("braintree RefundResponse")
+            .parse_struct("Braintree RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
@@ -528,7 +528,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
-            .parse_struct("braintree RefundResponse")
+            .parse_struct("Braintree RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
