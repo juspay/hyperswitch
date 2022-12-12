@@ -54,3 +54,8 @@ batch_size = 200
 [drainer]
 stream_name = "DRAINER_STREAM"
 num_partitions = 4
+
+# all supported wallets and cards
+[connectors.supported]
+wallets = []
+cards = []

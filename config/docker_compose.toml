@@ -4,17 +4,17 @@ host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
 [log.file]
-enabled = false              # Whether you want to store log in log files.
-path = "logs"               # Where to store log files.
-level = "DEBUG"             # What gets into log files.
+enabled = false # Whether you want to store log in log files.
+path = "logs"   # Where to store log files.
+level = "DEBUG" # What gets into log files.
 # rotation = "60"             # mins # current framework doesn't support configuring rotation. set to hourly rotation.
 
 [log.console]
-enabled = true              # Whether you want to see log in your terminal.
-level = "DEBUG"             # What you see in your terminal.
+enabled = true  # Whether you want to see log in your terminal.
+level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
-enabled = false             # Whether tracing/telemetry is enabled.
+enabled = false # Whether tracing/telemetry is enabled.
 
 [master_database]
 username = "db_user"
@@ -49,6 +49,11 @@ host = "redis-queue"
 port = 6379
 cluster_enabled = true
 cluster_urls = ["bach-redis-queue-1:6379", "bach-redis-queue-2:6379", "bach-redis-queue-3:6379"]
+
+# all supported wallets and cards
+[connectors.supported]
+wallets = ["klarna", "braintree"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree"]
 
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
