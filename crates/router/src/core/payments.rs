@@ -401,12 +401,15 @@ where
 
         match res.response {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse { session_token } =
-                    connector_response
+                if let types::PaymentsResponseData::SessionResponse {
+                    session_token,
+                    session_id,
+                } = connector_response
                 {
                     payment_data
                         .sessions_token
                         .push(api::ConnectorSessionToken {
+                            session_id,
                             connector_name,
                             session_token,
                         });

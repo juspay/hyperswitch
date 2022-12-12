@@ -61,6 +61,8 @@ base_url = "https://api.stripe.com/"
 [connectors.braintree]
 base_url = "https://api.sandbox.braintreegateway.com/"
 
+[connectors.klarna]
+base_url = "https://api-na.playground.klarna.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
