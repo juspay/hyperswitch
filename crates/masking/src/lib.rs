@@ -29,7 +29,7 @@ mod strategy;
 
 pub use strategy::{Strategy, WithType, WithoutType};
 mod abs;
-pub use abs::{ExposeInterface, PeekInterface, PeekOptionInterface};
+pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 
 mod secret;
 mod strong_secret;
@@ -62,7 +62,7 @@ pub use crate::serde::{Deserialize, SerializableSecret, Serialize};
 /// `use masking::prelude::*;`
 ///
 pub mod prelude {
-    pub use super::{ExposeInterface, PeekInterface, PeekOptionInterface};
+    pub use super::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 }
 
 #[cfg(feature = "diesel")]

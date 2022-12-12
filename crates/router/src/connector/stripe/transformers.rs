@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     core::errors,
-    pii::{self, PeekOptionInterface, Secret},
+    pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
 };

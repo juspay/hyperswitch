@@ -10,8 +10,8 @@ pub trait PeekInterface<S> {
     fn peek(&self) -> &S;
 }
 
-/// Interface to expose a clone of secret
-pub trait PeekOptionInterface<S> {
+/// Interface that consumes a option secret and returns the value.
+pub trait ExposeOptionInterface<S> {
     /// Expose option.
     fn expose_option(self) -> S;
 }
@@ -22,7 +22,7 @@ pub trait ExposeInterface<S> {
     fn expose(self) -> S;
 }
 
-impl<S, I> PeekOptionInterface<Option<S>> for Option<Secret<S, I>>
+impl<S, I> ExposeOptionInterface<Option<S>> for Option<Secret<S, I>>
 where
     S: Clone,
     I: crate::Strategy<S>,

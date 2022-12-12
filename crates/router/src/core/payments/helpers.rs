@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{PeekInterface, PeekOptionInterface};
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
