@@ -27,7 +27,6 @@ pub async fn create_customer(
         phone: customer_data.phone,
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
-        address: customer_data.address,
         metadata: customer_data.metadata,
     };
 
@@ -92,7 +91,6 @@ pub async fn update_customer(
                 email: update_customer.email,
                 phone: update_customer.phone,
                 phone_country_code: update_customer.phone_country_code,
-                address: update_customer.address,
                 metadata: update_customer.metadata,
                 description: update_customer.description,
             },
