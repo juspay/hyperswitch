@@ -2,7 +2,6 @@ use std::{convert::From, default::Default};
 
 use masking::{Secret, WithType};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 use crate::{pii::Email, types::api};
 
@@ -39,7 +38,6 @@ pub(crate) struct CustomerUpdateRequest {
 pub(crate) struct CreateCustomerResponse {
     id: String,
     object: String,
-    address: Option<Secret<serde_json::Value>>,
     created: u64,
     description: Option<String>,
     email: Option<Secret<String, Email>>,
@@ -65,16 +63,6 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             phone: req.phone,
             email: req.email,
             description: req.invoice_prefix,
-            address: req.address.map(|addr| {
-                Secret::new(json!({
-                    "city": addr.city,
-                    "country": addr.country,
-                    "line1": addr.line1,
-                    "line2": addr.line2,
-                    "postal_code": addr.postal_code,
-                    "state": addr.state
-                }))
-            }),
             ..Default::default()
         }
     }
@@ -87,17 +75,6 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             phone: req.phone,
             email: req.email,
             description: req.description,
-            address: req.address.map(|addr| {
-                Secret::new(json!({
-                    "city": addr.city,
-                    "country": addr.country,
-                    "line1": addr.line1,
-                    "line2": addr.line2,
-                    "postal_code": addr.postal_code,
-                    "state": addr.state
-                }))
-            }),
-
             metadata: req
                 .metadata
                 .map(|v| serde_json::from_str(&v).ok())
@@ -112,7 +89,6 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
         Self {
             id: cust.customer_id,
             object: "customer".to_owned(),
-            address: cust.address,
             created: cust.created_at.assume_utc().unix_timestamp() as u64,
             description: cust.description,
             email: cust.email,

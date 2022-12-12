@@ -109,12 +109,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 

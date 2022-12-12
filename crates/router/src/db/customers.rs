@@ -136,7 +136,6 @@ impl CustomerInterface for MockDb {
             phone: customer_data.phone,
             phone_country_code: customer_data.phone_country_code,
             description: customer_data.description,
-            address: customer_data.address,
             created_at: common_utils::date_time::now(),
             metadata: customer_data.metadata,
         };

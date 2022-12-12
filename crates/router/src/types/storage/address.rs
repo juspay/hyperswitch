@@ -22,6 +22,8 @@ pub struct AddressNew {
     pub last_name: Option<Secret<String>>,
     pub phone_number: Option<Secret<String>>,
     pub country_code: Option<String>,
+    pub customer_id: String,
+    pub merchant_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -48,6 +50,8 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
+    pub customer_id: String,
+    pub merchant_id: String,
 }
 
 #[derive(Debug)]
@@ -177,6 +181,8 @@ impl Default for AddressNew {
             last_name: None,
             phone_number: None,
             country_code: None,
+            customer_id: String::default(),
+            merchant_id: String::default(),
         }
     }
 }
