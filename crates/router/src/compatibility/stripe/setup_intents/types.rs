@@ -312,7 +312,8 @@ fn from_timestamp_to_datetime(
     time: Option<i64>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ApiErrorResponse> {
     if let Some(time) = time {
-        let time = time::OffsetDateTime::from_unix_timestamp(time).map_err(|_| {
+        let time = time::OffsetDateTime::from_unix_timestamp(time).map_err(|err| {
+            logger::error!("Error: from_unix_timestamp: {}", err);
             errors::ApiErrorResponse::InvalidRequestData {
                 message: "Error while converting timestamp".to_string(),
             }
