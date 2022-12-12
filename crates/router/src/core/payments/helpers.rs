@@ -1099,9 +1099,9 @@ pub fn make_url_with_signature(
         params: parameters,
         return_url_with_query_params: url.to_string(),
         http_method: if merchant_account.redirect_to_merchant_with_http_post {
-            services::Method::Post
+            services::Method::Post.to_string()
         } else {
-            services::Method::Get
+            services::Method::Get.to_string()
         },
         headers: Vec::new(),
     })
@@ -1167,14 +1167,14 @@ pub fn generate_mandate(
             Some(match data.mandate_type {
                 api::MandateType::SingleUse(data) => new_mandate
                     .set_mandate_amount(Some(data.amount))
-                    .set_mandate_currency(Some(data.currency))
+                    .set_mandate_currency(Some(data.currency.into()))
                     .set_mandate_type(storage_enums::MandateType::SingleUse)
                     .to_owned(),
 
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency)),
+                        .set_mandate_currency(Some(data.currency.into())),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)

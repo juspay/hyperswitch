@@ -13,8 +13,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
-        api::PaymentsCaptureRequest,
+        api::{self, PaymentIdTypeExt, PaymentsCaptureRequest},
         storage::{self, enums},
     },
     utils::OptionExt,

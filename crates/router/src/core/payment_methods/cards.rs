@@ -17,7 +17,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api,
+        api::{self, CreatePaymentMethodExt},
         storage::{self, enums},
     },
     utils::{self, BytesExt, OptionExt, StringExt, ValueExt},

@@ -15,7 +15,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        self, api,
+        self,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
     },
     utils::{self, OptionExt},

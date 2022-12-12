@@ -22,6 +22,7 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
             errors::StorageError::DatabaseError(DatabaseError::NotFound) => {
                 self.change_context(not_found_response)
             }
+            errors::StorageError::ValueNotFound(_) => self.change_context(not_found_response),
             _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
