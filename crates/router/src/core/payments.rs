@@ -399,6 +399,7 @@ where
     let result = join_all(join_handlers).await;
 
     for (connector_res, connector) in result.into_iter().zip(connectors) {
+        let connector_name = connector.connector_name.to_string();
         match connector_res?.response {
             Ok(connector_response) => {
                 if let types::PaymentsResponseData::SessionResponse {
@@ -410,7 +411,7 @@ where
                         .sessions_token
                         .push(api::ConnectorSessionToken {
                             session_id,
-                            connector_name: connector.connector_name.to_string(),
+                            connector_name,
                             session_token,
                         });
                 }
@@ -418,7 +419,7 @@ where
             Err(connector_error) => {
                 logger::debug!(
                     "sessions_connector_error {} {:?}",
-                    connector.connector_name.to_string(),
+                    connector_name,
                     connector_error
                 );
             }
