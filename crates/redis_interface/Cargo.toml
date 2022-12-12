@@ -1,16 +1,16 @@
 [package]
 name = "redis_interface"
+description = "A user-friendly interface to Redis"
 version = "0.1.0"
 edition = "2021"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version = "1.64"
+readme = "README.md"
+license = "Apache-2.0"
 
 [dependencies]
-bytes = "1.2.1"
-error-stack = "0.2.1"
+error-stack = "0.2.4"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
-serde = { version = "1.0.145", features = ["derive"] }
-serde_json = "1.0.85"
-serde_urlencoded = "0.7.1"
+serde = { version = "1.0.149", features = ["derive"] }
 thiserror = "1.0.37"
 
 # First party crates
