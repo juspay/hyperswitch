@@ -123,12 +123,6 @@ pub struct PaymentsSessionData {
     //TODO: Add the fields here as required
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ConnectorSessionToken {
-    pub connector_name: String,
-    pub session_token: String,
-}
-
 #[derive(serde::Serialize, Debug)]
 pub struct PaymentsSessionResponseData {
     pub client_token: Option<String>,
@@ -151,6 +145,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
         redirect: bool,
+        mandate_reference: Option<String>,
     },
     SessionResponse {
         session_token: String,

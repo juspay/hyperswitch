@@ -22,7 +22,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
     },
     utils::{
@@ -1092,9 +1092,9 @@ pub fn make_url_with_signature(
         params: parameters,
         return_url_with_query_params: url.to_string(),
         http_method: if merchant_account.redirect_to_merchant_with_http_post {
-            services::Method::Post
+            services::Method::Post.to_string()
         } else {
-            services::Method::Get
+            services::Method::Get.to_string()
         },
         headers: Vec::new(),
     })
@@ -1132,6 +1132,7 @@ pub fn generate_mandate(
     setup_mandate_details: Option<api::MandateData>,
     customer: &Option<storage::Customer>,
     payment_method_id: String,
+    connector_mandate_id: Option<String>,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1147,6 +1148,7 @@ pub fn generate_mandate(
                 .set_payment_method_id(payment_method_id)
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
+                .set_connector_mandate_id(connector_mandate_id)
                 .set_customer_ip_address(
                     data.customer_acceptance
                         .get_ip_address()
@@ -1158,14 +1160,14 @@ pub fn generate_mandate(
             Some(match data.mandate_type {
                 api::MandateType::SingleUse(data) => new_mandate
                     .set_mandate_amount(Some(data.amount))
-                    .set_mandate_currency(Some(data.currency))
+                    .set_mandate_currency(Some(data.currency.into()))
                     .set_mandate_type(storage_enums::MandateType::SingleUse)
                     .to_owned(),
 
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency)),
+                        .set_mandate_currency(Some(data.currency.into())),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)

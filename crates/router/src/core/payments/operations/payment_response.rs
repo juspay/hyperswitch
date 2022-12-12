@@ -183,6 +183,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 resource_id,
                 redirection_data,
                 redirect,
+                ..
             } => {
                 let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,

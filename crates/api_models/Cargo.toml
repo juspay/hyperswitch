@@ -1,0 +1,17 @@
+[package]
+name = "api_models"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.145", features = ["derive"] }
+serde_json = "1.0.85"
+strum = { version = "0.24.1", features = ["derive"] }
+time = { version = "0.3.14", features = ["serde", "serde-well-known", "std"] }
+
+# First party crates
+common_utils = { version = "0.1.0", path = "../common_utils" }
+masking = { version = "0.1.0", path = "../masking" }
+router_derive = { version = "0.1.0", path = "../router_derive" }

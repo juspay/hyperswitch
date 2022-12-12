@@ -32,7 +32,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentsResponse, PaymentsRetrieveRequest},
+        api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
         storage::{self, enums},
     },
     utils::{self, OptionExt},
@@ -406,7 +406,7 @@ where
                 {
                     payment_data
                         .sessions_token
-                        .push(types::ConnectorSessionToken {
+                        .push(api::ConnectorSessionToken {
                             connector_name,
                             session_token,
                         });
@@ -462,7 +462,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
-    pub sessions_token: Vec<types::ConnectorSessionToken>,
+    pub sessions_token: Vec<api::ConnectorSessionToken>,
 }
 
 #[derive(Debug)]

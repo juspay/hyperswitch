@@ -7,7 +7,10 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api::{customers, mandates},
+        api::{
+            customers,
+            mandates::{self, MandateResponseExt},
+        },
         storage,
     },
 };
