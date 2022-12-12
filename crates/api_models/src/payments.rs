@@ -664,6 +664,7 @@ pub struct PaymentsRetrieveRequest {
 pub struct ConnectorSessionToken {
     pub connector_name: String,
     pub session_token: String,
+    pub session_id: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, Clone)]

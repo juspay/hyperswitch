@@ -53,12 +53,10 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         Ok(types::RouterData {
-            response: Ok(types::PaymentsResponseData::SessionResponse(
-                types::PaymentsSessionResponse {
-                    session_id: Some(response.session_id.clone()),
-                    session_token: response.client_token.clone(),
-                },
-            )),
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_id: Some(response.session_id.clone()),
+                session_token: response.client_token.clone(),
+            }),
             ..item.data
         })
     }

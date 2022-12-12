@@ -170,6 +170,7 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: String,
+        session_id: Option<String>,
     },
 }
 
