@@ -1132,6 +1132,7 @@ pub fn generate_mandate(
     setup_mandate_details: Option<api::MandateData>,
     customer: &Option<storage::Customer>,
     payment_method_id: String,
+    connector_mandate_id: Option<String>,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1147,6 +1148,7 @@ pub fn generate_mandate(
                 .set_payment_method_id(payment_method_id)
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
+                .set_connector_mandate_id(connector_mandate_id)
                 .set_customer_ip_address(
                     data.customer_acceptance
                         .get_ip_address()

@@ -60,7 +60,12 @@ pub(crate) async fn refund_retrieve(
         &req,
         refund_id,
         |state, merchant_account, refund_id| {
-            refunds::refund_retrieve_core(state, merchant_account, refund_id)
+            refunds::refund_response_wrapper(
+                state,
+                merchant_account,
+                refund_id,
+                refunds::refund_retrieve_core,
+            )
         },
         api::MerchantAuthentication::ApiKey,
     )

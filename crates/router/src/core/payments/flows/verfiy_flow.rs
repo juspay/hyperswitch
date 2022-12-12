@@ -105,12 +105,21 @@ impl types::VerifyRouterData {
                             .payment_method_id;
 
                             resp.payment_method_id = Some(payment_method_id.clone());
+                            let mandate_reference = match resp.response.as_ref().ok() {
+                                Some(types::PaymentsResponseData::TransactionResponse {
+                                    mandate_reference,
+                                    ..
+                                }) => mandate_reference.clone(),
+                                _ => None,
+                            };
+
                             if let Some(new_mandate_data) = helpers::generate_mandate(
                                 self.merchant_id.clone(),
                                 self.connector.clone(),
                                 self.request.setup_mandate_details.clone(),
                                 maybe_customer,
                                 payment_method_id,
+                                mandate_reference,
                             ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
                                 state.store.insert_mandate(new_mandate_data).await.map_err(
