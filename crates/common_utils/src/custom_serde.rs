@@ -85,3 +85,20 @@ pub mod iso8601 {
         }
     }
 }
+
+/// https://github.com/serde-rs/serde/issues/994#issuecomment-316895860
+
+pub mod json_string {
+    use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
+    use serde_json;
+
+    /// Deserialize a string which is in json format
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: DeserializeOwned,
+        D: Deserializer<'de>,
+    {
+        let j = String::deserialize(deserializer)?;
+        serde_json::from_str(&j).map_err(de::Error::custom)
+    }
+}

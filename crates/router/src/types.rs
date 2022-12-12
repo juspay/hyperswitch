@@ -58,6 +58,8 @@ pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
+pub type PaymentsSessionType =
+    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 

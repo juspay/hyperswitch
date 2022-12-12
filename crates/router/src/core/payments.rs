@@ -397,7 +397,7 @@ where
                 CallConnectorAction::Trigger,
                 merchant_account.storage_scheme,
             )
-            .await?;
+            .await?; //FIXME: remove this error propogation
 
         match res.response {
             Ok(connector_response) => {
@@ -560,6 +560,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 enums::IntentStatus::RequiresCapture
             )
         }
+        "PaymentSession" => true,
         _ => false,
     }
 }
