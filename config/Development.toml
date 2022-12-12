@@ -36,6 +36,10 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
+[connectors.supported]
+wallets = ["klarna","braintree"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+
 [eph_key]
 validity = 1
 

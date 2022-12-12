@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::Secret;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         payments::{self, helpers, transformers, PaymentData},
@@ -17,7 +15,6 @@ use crate::{
         storage::{self, enums as storage_enums},
         PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
-    utils,
 };
 
 #[async_trait]
@@ -28,7 +25,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::Authorize>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
@@ -40,35 +37,26 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        let output = transformers::construct_payment_router_data::<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsAuthorizeData>
-    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
+impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<storage::Customer>,
-        payment_data: PaymentData<api::Authorize>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
                 state,
@@ -82,7 +70,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData>
 
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        (resp, payment_data)
+        resp
     }
 }
 
@@ -95,14 +83,7 @@ impl PaymentsAuthorizeRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentsAuthorizeRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Authorize,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsAuthorizeRouterData> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -128,6 +109,34 @@ impl PaymentsAuthorizeRouterData {
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                        let mandate = match mandate.mandate_type {
+                            storage_enums::MandateType::SingleUse => state
+                                .store
+                                .update_mandate_by_merchant_id_mandate_id(
+                                    &resp.merchant_id,
+                                    mandate_id,
+                                    storage::MandateUpdate::StatusUpdate {
+                                        mandate_status: storage_enums::MandateStatus::Revoked,
+                                    },
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::MandateNotFound),
+                            storage_enums::MandateType::MultiUse => state
+                                .store
+                                .update_mandate_by_merchant_id_mandate_id(
+                                    &resp.merchant_id,
+                                    mandate_id,
+                                    storage::MandateUpdate::CaptureAmountUpdate {
+                                        amount_captured: Some(
+                                            mandate.amount_captured.unwrap_or(0)
+                                                + self.request.amount,
+                                        ),
+                                    },
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::MandateNotFound),
+                        }?;
+
                         resp.payment_method_id = Some(mandate.payment_method_id);
                     }
                     None => {
@@ -143,9 +152,24 @@ impl PaymentsAuthorizeRouterData {
                             .payment_method_id;
 
                             resp.payment_method_id = Some(payment_method_id.clone());
-                            if let Some(new_mandate_data) =
-                                self.generate_mandate(maybe_customer, payment_method_id)
-                            {
+
+                            resp.payment_method_id = Some(payment_method_id.clone());
+                            let mandate_reference = match resp.response.as_ref().ok() {
+                                Some(types::PaymentsResponseData::TransactionResponse {
+                                    mandate_reference,
+                                    ..
+                                }) => mandate_reference.clone(),
+                                _ => None,
+                            };
+
+                            if let Some(new_mandate_data) = helpers::generate_mandate(
+                                self.merchant_id.clone(),
+                                self.connector.clone(),
+                                None,
+                                maybe_customer,
+                                payment_method_id,
+                                mandate_reference,
+                            ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
                                 state.store.insert_mandate(new_mandate_data).await.map_err(
                                     |err| {
@@ -162,33 +186,6 @@ impl PaymentsAuthorizeRouterData {
                 Ok(resp)
             }
             _ => Ok(self.clone()),
-        }
-    }
-
-    fn generate_mandate(
-        &self,
-        customer: &Option<storage::Customer>,
-        payment_method_id: String,
-    ) -> Option<storage::MandateNew> {
-        match (self.request.setup_mandate_details.clone(), customer) {
-            (Some(data), Some(cus)) => {
-                let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
-                Some(storage::MandateNew {
-                    mandate_id,
-                    customer_id: cus.customer_id.clone(),
-                    merchant_id: self.merchant_id.clone(),
-                    payment_method_id,
-                    mandate_status: storage_enums::MandateStatus::Active,
-                    mandate_type: storage_enums::MandateType::MultiUse,
-                    customer_ip_address: data.customer_acceptance.get_ip_address().map(Secret::new),
-                    customer_user_agent: data.customer_acceptance.get_user_agent(),
-                    customer_accepted_at: Some(data.customer_acceptance.get_accepted_at()),
-                    ..Default::default() // network_transaction_id: Option<String>,
-                                         // previous_transaction_id: Option<String>,
-                                         // created_at: Option<PrimitiveDateTime>,
-                })
-            }
-            (_, _) => None,
         }
     }
 }

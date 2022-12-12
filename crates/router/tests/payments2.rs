@@ -49,7 +49,7 @@ async fn payments_create_core() {
             "pay_mbabizu24mvu3mela5njyhpit10".to_string(),
         )),
         merchant_id: Some("jarnura".to_string()),
-        amount: Some(6540),
+        amount: Some(6540.into()),
         currency: Some("USD".to_string()),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
@@ -200,7 +200,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
         merchant_id: Some(merchant_id.clone()),
-        amount: Some(6540),
+        amount: Some(6540.into()),
         currency: Some("USD".to_string()),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),

@@ -28,6 +28,8 @@ pub enum ApiErrorResponse {
                     the Dashboard Settings section."
     )]
     BadCredentials,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Invalid Ephemeral Key for the customer")]
+    InvalidEphermeralKey,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
@@ -118,6 +120,8 @@ pub enum ApiErrorResponse {
     SuccessfulPaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_05", message = "Address does not exist in our records.")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Mandate Validation Failed" )]
+    MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
     NotImplemented,
 }
@@ -137,9 +141,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            ApiErrorResponse::Unauthorized | ApiErrorResponse::BadCredentials => {
-                StatusCode::UNAUTHORIZED
-            } // 401
+            ApiErrorResponse::Unauthorized
+            | ApiErrorResponse::BadCredentials
+            | ApiErrorResponse::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
             ApiErrorResponse::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             ApiErrorResponse::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             ApiErrorResponse::MissingRequiredField { .. }
@@ -157,7 +161,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::CardExpired { .. }
             | ApiErrorResponse::RefundFailed { .. }
             | ApiErrorResponse::VerificationFailed { .. }
-            | ApiErrorResponse::PaymentUnexpectedState { .. } => StatusCode::BAD_REQUEST, // 400
+            | ApiErrorResponse::PaymentUnexpectedState { .. }
+            | ApiErrorResponse::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             ApiErrorResponse::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             ApiErrorResponse::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400

@@ -44,7 +44,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let submit_for_settlement = matches!(item.request.capture_method, Some(enums::CaptureMethod::Automatic) | None);
+                let submit_for_settlement = matches!(
+                    item.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic) | None
+                );
                 let braintree_payment_request = TransactionBody {
                     amount: item.request.amount.to_string(),
                     device_data: DeviceData {},
@@ -144,12 +147,14 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.transaction.status),
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.id,
                 ),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })

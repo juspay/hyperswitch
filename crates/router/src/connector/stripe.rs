@@ -55,6 +55,18 @@ impl api::PaymentAuthorize for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
+impl api::PaymentSession for Stripe {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Stripe {}
 
 impl
@@ -202,7 +214,8 @@ impl
             "{}{}/{}",
             self.base_url(connectors),
             "v1/payment_intents",
-            id
+            id.get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 

@@ -19,7 +19,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums as storage_enums},
     },
     utils,
@@ -66,7 +66,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        connector: types::Connector,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -87,7 +86,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 Self::make_payment_attempt(
                     &payment_id,
                     merchant_id,
-                    connector,
                     request.payment_method,
                     request,
                 ),
@@ -103,7 +101,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         payment_intent = match db
             .insert_payment_intent(
-                Self::make_payment_intent(&payment_id, merchant_id, connector, request),
+                Self::make_payment_intent(&payment_id, merchant_id, request),
                 storage_scheme,
             )
             .await
@@ -135,7 +133,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
                 currency: storage_enums::Currency::default(),
-                amount: 0,
+                amount: api::Amount::Zero,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),
@@ -145,6 +143,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 address: types::PaymentAddress::default(),
                 force_sync: None,
                 refunds: vec![],
+                sessions_token: vec![],
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -255,6 +254,14 @@ where
         )
         .await
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
+    }
 }
 
 impl PaymentMethodValidate {
@@ -262,7 +269,6 @@ impl PaymentMethodValidate {
     fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
-        connector: types::Connector,
         payment_method: Option<api_enums::PaymentMethodType>,
         _request: &api::VerifyRequest,
     ) -> storage::PaymentAttemptNew {
@@ -277,7 +283,7 @@ impl PaymentMethodValidate {
             // Amount & Currency will be zero in this case
             amount: 0,
             currency: Default::default(),
-            connector: connector.to_string(),
+            connector: None,
             payment_method: payment_method.map(Into::into),
             confirm: true,
             created_at,
@@ -290,7 +296,6 @@ impl PaymentMethodValidate {
     fn make_payment_intent(
         payment_id: &str,
         merchant_id: &str,
-        connector: types::Connector,
         request: &api::VerifyRequest,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
@@ -304,7 +309,7 @@ impl PaymentMethodValidate {
             status,
             amount: 0,
             currency: Default::default(),
-            connector_id: Some(connector.to_string()),
+            connector_id: None,
             created_at,
             modified_at,
             last_synced,
