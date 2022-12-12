@@ -1,7 +1,6 @@
-use crate::{
-    core::errors,
-    types::{api::enums as api_enums, storage::enums as storage_enums},
-};
+use api_models::enums as api_enums;
+
+use crate::{core::errors, types::storage::enums as storage_enums};
 
 impl From<api_enums::RoutingAlgorithm> for storage_enums::RoutingAlgorithm {
     fn from(algo: api_enums::RoutingAlgorithm) -> Self {
@@ -177,43 +176,6 @@ impl From<api_enums::IntentStatus> for storage_enums::IntentStatus {
     }
 }
 
-impl From<api_enums::AttemptStatus> for api_enums::IntentStatus {
-    fn from(s: api_enums::AttemptStatus) -> Self {
-        match s {
-            api_enums::AttemptStatus::Charged | api_enums::AttemptStatus::AutoRefunded => {
-                api_enums::IntentStatus::Succeeded
-            }
-
-            api_enums::AttemptStatus::ConfirmationAwaited => {
-                api_enums::IntentStatus::RequiresConfirmation
-            }
-            api_enums::AttemptStatus::PaymentMethodAwaited => {
-                api_enums::IntentStatus::RequiresPaymentMethod
-            }
-
-            api_enums::AttemptStatus::Authorized => api_enums::IntentStatus::RequiresCapture,
-            api_enums::AttemptStatus::PendingVbv => api_enums::IntentStatus::RequiresCustomerAction,
-
-            api_enums::AttemptStatus::PartialCharged
-            | api_enums::AttemptStatus::Started
-            | api_enums::AttemptStatus::VbvSuccessful
-            | api_enums::AttemptStatus::Authorizing
-            | api_enums::AttemptStatus::CodInitiated
-            | api_enums::AttemptStatus::VoidInitiated
-            | api_enums::AttemptStatus::CaptureInitiated
-            | api_enums::AttemptStatus::Pending => api_enums::IntentStatus::Processing,
-
-            api_enums::AttemptStatus::AuthenticationFailed
-            | api_enums::AttemptStatus::AuthorizationFailed
-            | api_enums::AttemptStatus::VoidFailed
-            | api_enums::AttemptStatus::JuspayDeclined
-            | api_enums::AttemptStatus::CaptureFailed
-            | api_enums::AttemptStatus::Failure => api_enums::IntentStatus::Failed,
-            api_enums::AttemptStatus::Voided => api_enums::IntentStatus::Cancelled,
-        }
-    }
-}
-
 impl From<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     fn from(s: storage_enums::AttemptStatus) -> Self {
         match s {
@@ -342,6 +304,116 @@ impl From<storage_enums::AuthenticationType> for api_enums::AuthenticationType {
         match auth_type {
             storage_enums::AuthenticationType::ThreeDs => Self::ThreeDs,
             storage_enums::AuthenticationType::NoThreeDs => Self::NoThreeDs,
+        }
+    }
+}
+
+impl From<api_enums::Currency> for storage_enums::Currency {
+    fn from(currency: api_enums::Currency) -> Self {
+        match currency {
+            api_enums::Currency::AED => Self::AED,
+            api_enums::Currency::ALL => Self::ALL,
+            api_enums::Currency::AMD => Self::AMD,
+            api_enums::Currency::ARS => Self::ARS,
+            api_enums::Currency::AUD => Self::AUD,
+            api_enums::Currency::AWG => Self::AWG,
+            api_enums::Currency::AZN => Self::AZN,
+            api_enums::Currency::BBD => Self::BBD,
+            api_enums::Currency::BDT => Self::BDT,
+            api_enums::Currency::BHD => Self::BHD,
+            api_enums::Currency::BMD => Self::BMD,
+            api_enums::Currency::BND => Self::BND,
+            api_enums::Currency::BOB => Self::BOB,
+            api_enums::Currency::BRL => Self::BRL,
+            api_enums::Currency::BSD => Self::BSD,
+            api_enums::Currency::BWP => Self::BWP,
+            api_enums::Currency::BZD => Self::BZD,
+            api_enums::Currency::CAD => Self::CAD,
+            api_enums::Currency::CHF => Self::CHF,
+            api_enums::Currency::CNY => Self::CNY,
+            api_enums::Currency::COP => Self::COP,
+            api_enums::Currency::CRC => Self::CRC,
+            api_enums::Currency::CUP => Self::CUP,
+            api_enums::Currency::CZK => Self::CZK,
+            api_enums::Currency::DKK => Self::DKK,
+            api_enums::Currency::DOP => Self::DOP,
+            api_enums::Currency::DZD => Self::DZD,
+            api_enums::Currency::EGP => Self::EGP,
+            api_enums::Currency::ETB => Self::ETB,
+            api_enums::Currency::EUR => Self::EUR,
+            api_enums::Currency::FJD => Self::FJD,
+            api_enums::Currency::GBP => Self::GBP,
+            api_enums::Currency::GHS => Self::GHS,
+            api_enums::Currency::GIP => Self::GIP,
+            api_enums::Currency::GMD => Self::GMD,
+            api_enums::Currency::GTQ => Self::GTQ,
+            api_enums::Currency::GYD => Self::GYD,
+            api_enums::Currency::HKD => Self::HKD,
+            api_enums::Currency::HNL => Self::HNL,
+            api_enums::Currency::HRK => Self::HRK,
+            api_enums::Currency::HTG => Self::HTG,
+            api_enums::Currency::HUF => Self::HUF,
+            api_enums::Currency::IDR => Self::IDR,
+            api_enums::Currency::ILS => Self::ILS,
+            api_enums::Currency::INR => Self::INR,
+            api_enums::Currency::JMD => Self::JMD,
+            api_enums::Currency::JOD => Self::JOD,
+            api_enums::Currency::JPY => Self::JPY,
+            api_enums::Currency::KES => Self::KES,
+            api_enums::Currency::KGS => Self::KGS,
+            api_enums::Currency::KHR => Self::KHR,
+            api_enums::Currency::KRW => Self::KRW,
+            api_enums::Currency::KWD => Self::KWD,
+            api_enums::Currency::KYD => Self::KYD,
+            api_enums::Currency::KZT => Self::KZT,
+            api_enums::Currency::LAK => Self::LAK,
+            api_enums::Currency::LBP => Self::LBP,
+            api_enums::Currency::LKR => Self::LKR,
+            api_enums::Currency::LRD => Self::LRD,
+            api_enums::Currency::LSL => Self::LSL,
+            api_enums::Currency::MAD => Self::MAD,
+            api_enums::Currency::MDL => Self::MDL,
+            api_enums::Currency::MKD => Self::MKD,
+            api_enums::Currency::MMK => Self::MMK,
+            api_enums::Currency::MNT => Self::MNT,
+            api_enums::Currency::MOP => Self::MOP,
+            api_enums::Currency::MUR => Self::MUR,
+            api_enums::Currency::MVR => Self::MVR,
+            api_enums::Currency::MWK => Self::MWK,
+            api_enums::Currency::MXN => Self::MXN,
+            api_enums::Currency::MYR => Self::MYR,
+            api_enums::Currency::NAD => Self::NAD,
+            api_enums::Currency::NGN => Self::NGN,
+            api_enums::Currency::NIO => Self::NIO,
+            api_enums::Currency::NOK => Self::NOK,
+            api_enums::Currency::NPR => Self::NPR,
+            api_enums::Currency::NZD => Self::NZD,
+            api_enums::Currency::OMR => Self::OMR,
+            api_enums::Currency::PEN => Self::PEN,
+            api_enums::Currency::PGK => Self::PGK,
+            api_enums::Currency::PHP => Self::PHP,
+            api_enums::Currency::PKR => Self::PKR,
+            api_enums::Currency::PLN => Self::PLN,
+            api_enums::Currency::QAR => Self::QAR,
+            api_enums::Currency::RUB => Self::RUB,
+            api_enums::Currency::SAR => Self::SAR,
+            api_enums::Currency::SCR => Self::SCR,
+            api_enums::Currency::SEK => Self::SEK,
+            api_enums::Currency::SGD => Self::SGD,
+            api_enums::Currency::SLL => Self::SLL,
+            api_enums::Currency::SOS => Self::SOS,
+            api_enums::Currency::SSP => Self::SSP,
+            api_enums::Currency::SVC => Self::SVC,
+            api_enums::Currency::SZL => Self::SZL,
+            api_enums::Currency::THB => Self::THB,
+            api_enums::Currency::TTD => Self::TTD,
+            api_enums::Currency::TWD => Self::TWD,
+            api_enums::Currency::TZS => Self::TZS,
+            api_enums::Currency::USD => Self::USD,
+            api_enums::Currency::UYU => Self::UYU,
+            api_enums::Currency::UZS => Self::UZS,
+            api_enums::Currency::YER => Self::YER,
+            api_enums::Currency::ZAR => Self::ZAR,
         }
     }
 }

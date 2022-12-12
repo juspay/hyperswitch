@@ -19,7 +19,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums as storage_enums},
     },
     utils,

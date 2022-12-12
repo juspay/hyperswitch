@@ -58,7 +58,7 @@ pub(crate) struct CustomerDeleteResponse {
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
-            customer_id: api::generate_customer_id(),
+            customer_id: api_models::customers::generate_customer_id(),
             name: req.name,
             phone: req.phone,
             email: req.email,
@@ -86,6 +86,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
 
 impl From<api::CustomerResponse> for CreateCustomerResponse {
     fn from(cust: api::CustomerResponse) -> Self {
+        let cust = cust.into_inner();
         Self {
             id: cust.customer_id,
             object: "customer".to_owned(),
