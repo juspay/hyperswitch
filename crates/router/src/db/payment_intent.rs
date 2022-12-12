@@ -35,11 +35,6 @@ pub trait PaymentIntentInterface {
         pc: &api::PaymentListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
-
-    async fn filter_payment_intent_by_customer_id(
-        &self,
-        customer_id: &str,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -239,14 +234,6 @@ mod storage {
                 }
             }
         }
-
-        async fn filter_payment_intent_by_customer_id(
-            &self,
-            _customer_id: &str,
-        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            //TODO: Implement this
-            Err(errors::StorageError::KVError.into())
-        }
     }
 }
 
@@ -302,14 +289,6 @@ mod storage {
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
-        }
-
-        async fn filter_payment_intent_by_customer_id(
-            &self,
-            customer_id: &str,
-        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool.conn).await;
-            PaymentIntent::find_by_customer_id(&conn, customer_id).await
         }
     }
 }
@@ -391,12 +370,5 @@ impl PaymentIntentInterface for MockDb {
             })
             .cloned()
             .unwrap())
-    }
-
-    async fn filter_payment_intent_by_customer_id(
-        &self,
-        _customer_id: &str,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-        todo!()
     }
 }

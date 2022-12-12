@@ -11,7 +11,7 @@ use crate::{
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
-        storage,
+        storage::{self, enums},
     },
 };
 
@@ -72,7 +72,7 @@ pub async fn delete_customer(
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
     //TODO check if there are any existing mandates/subscriptions that exist for the current customer
-    let resp = db
+    let vec_pm = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
@@ -81,36 +81,63 @@ pub async fn delete_customer(
         .map_err(|err| {
             err.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
-    for pm in resp.into_iter() {
-        cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id).await?;
-    }
-    //delete address from address table
-    let payment_intent = db
-        .filter_payment_intent_by_customer_id(&req.customer_id)
-        .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
-    for pi in payment_intent.into_iter() {
-        if let Some(address_id) = pi.billing_address_id {
-            db.delete_address_by_address_id(&address_id)
-                .await
-                .change_context(errors::ApiErrorResponse::AddressNotFound)?; //DeleteAddressFailed ?
+    for pm in vec_pm.into_iter() {
+        if pm.payment_method == enums::PaymentMethodType::Card {
+            cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id).await?;
         }
-        if let Some(address_id) = pi.shipping_address_id {
-            db.delete_address_by_address_id(&address_id)
-                .await
-                .change_context(errors::ApiErrorResponse::AddressNotFound)?; //DeleteAddressFailed ?
-        }
-    }
-    let response = db
-        .delete_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
+        db.delete_payment_method_by_merchant_id_payment_method_id(
+            &merchant_account.merchant_id,
+            &pm.payment_method_id,
+        )
         .await
-        .map(|response| customers::CustomerDeleteResponse {
-            customer_id: req.customer_id,
-            customer_deleted: response,
-            address_deleted: true,
-            payment_methods_deleted: true,
-        })
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
+    }
+
+    let update_address = storage::AddressUpdate::Update {
+        city: Some("Redacted".to_string()),
+        country: Some("Redacted".to_string()),
+        line1: Some("Redacted".to_string().into()),
+        line2: Some("Redacted".to_string().into()),
+        line3: Some("Redacted".to_string().into()),
+        state: Some("Redacted".to_string().into()),
+        zip: Some("Redacted".to_string().into()),
+        first_name: Some("Redacted".to_string().into()),
+        last_name: Some("Redacted".to_string().into()),
+        phone_number: Some("Redacted".to_string().into()),
+        country_code: Some("Redacted".to_string()),
+    };
+    db.update_address_by_merchant_id_customer_id(
+        &req.customer_id,
+        &merchant_account.merchant_id,
+        update_address,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+
+    let updated_customer = storage::CustomerUpdate::Update {
+        name: Some("Redacted".to_string()),
+        email: Some("Redacted".to_string().into()),
+        phone: Some("Redacted".to_string().into()),
+        description: Some("Redacted".to_string()),
+        phone_country_code: Some("Redacted".to_string()),
+        metadata: None,
+    };
+    db.update_customer_by_customer_id_merchant_id(
+        req.customer_id.clone(),
+        merchant_account.merchant_id,
+        updated_customer,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let response = customers::CustomerDeleteResponse {
+        customer_id: req.customer_id,
+        customer_deleted: true,
+        address_deleted: true,
+        payment_methods_deleted: true,
+    };
     Ok(services::BachResponse::Json(response))
 }
 

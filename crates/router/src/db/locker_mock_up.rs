@@ -16,6 +16,11 @@ pub trait LockerMockUpInterface {
         &self,
         new: LockerMockUpNew,
     ) -> CustomResult<LockerMockUp, errors::StorageError>;
+
+    async fn delete_locker_mock_up(
+        &self,
+        card_id: &str,
+    ) -> CustomResult<LockerMockUp, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -35,6 +40,14 @@ impl LockerMockUpInterface for super::Store {
         let conn = pg_connection(&self.master_pool).await;
         new.insert(&conn).await
     }
+
+    async fn delete_locker_mock_up(
+        &self,
+        card_id: &str,
+    ) -> CustomResult<LockerMockUp, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        LockerMockUp::delete_by_card_id(&conn, card_id).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -49,6 +62,13 @@ impl LockerMockUpInterface for MockDb {
     async fn insert_locker_mock_up(
         &self,
         _new: LockerMockUpNew,
+    ) -> CustomResult<LockerMockUp, errors::StorageError> {
+        todo!()
+    }
+
+    async fn delete_locker_mock_up(
+        &self,
+        _card_id: &str,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
         todo!()
     }

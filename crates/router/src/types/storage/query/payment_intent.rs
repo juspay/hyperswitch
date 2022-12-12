@@ -95,19 +95,6 @@ impl PaymentIntent {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_customer_id(
-        conn: &PgPooledConn,
-        customer_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::StorageError> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::customer_id.eq(customer_id.to_owned()),
-            None,
-        )
-        .await
-    }
-
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
