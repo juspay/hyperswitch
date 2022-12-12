@@ -52,7 +52,7 @@ pub struct MandateNew {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i32>,
     pub connector: String,
-    pub connector_mandate_id: String,
+    pub connector_mandate_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -62,6 +62,9 @@ pub enum MandateUpdate {
     },
     CaptureAmountUpdate {
         amount_captured: Option<i32>,
+    },
+    ConnectorReferenceUpdate {
+        connector_mandate_id: Option<String>,
     },
 }
 
@@ -76,6 +79,7 @@ pub struct MandateAmountData {
 pub(super) struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
     amount_captured: Option<i32>,
+    connector_mandate_id: Option<String>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
@@ -83,11 +87,19 @@ impl From<MandateUpdate> for MandateUpdateInternal {
         match mandate_update {
             MandateUpdate::StatusUpdate { mandate_status } => Self {
                 mandate_status: Some(mandate_status),
+                connector_mandate_id: None,
                 amount_captured: None,
             },
             MandateUpdate::CaptureAmountUpdate { amount_captured } => Self {
                 mandate_status: None,
                 amount_captured,
+                connector_mandate_id: None,
+            },
+            MandateUpdate::ConnectorReferenceUpdate {
+                connector_mandate_id,
+            } => Self {
+                connector_mandate_id,
+                ..Default::default()
             },
         }
     }

@@ -149,6 +149,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
         redirect: bool,
+        mandate_reference: Option<String>,
     },
     SessionResponse {
         session_token: String,
