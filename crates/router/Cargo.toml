@@ -16,7 +16,7 @@ stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
 olap = []
 production = []
-kv_store = ["dep:fred"]
+kv_store = []
 
 
 [dependencies]
@@ -37,7 +37,6 @@ diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "se
 dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.4"
-fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] , optional = true }
 futures = "0.3.25"
 hex = "0.4.3"
 http = "0.2.8"
