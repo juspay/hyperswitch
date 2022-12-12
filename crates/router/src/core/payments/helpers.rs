@@ -23,11 +23,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
-        storage::{
-            self,
-            enums::{self as storage_enums, MerchantStorageScheme},
-            ephemeral_key,
-        },
+        storage::{self, enums as storage_enums, ephemeral_key},
     },
     utils::{
         self,
@@ -1202,7 +1198,7 @@ pub(crate) fn authenticate_client_secret(
 // A function to perform database lookup and then verify the client secret
 pub(crate) async fn verify_client_secret(
     db: &dyn StorageInterface,
-    storage_scheme: MerchantStorageScheme,
+    storage_scheme: storage_enums::MerchantStorageScheme,
     client_secret: Option<String>,
     merchant_id: &str,
 ) -> error_stack::Result<(), errors::ApiErrorResponse> {
