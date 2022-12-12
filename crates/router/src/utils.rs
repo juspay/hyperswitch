@@ -12,7 +12,7 @@ pub(crate) use common_utils::{
 use nanoid::nanoid;
 
 pub(crate) use self::{
-    ext_traits::{validate_address, OptionExt, ValidateCall},
+    ext_traits::{OptionExt, ValidateCall},
     fp_utils::when,
 };
 use crate::consts;

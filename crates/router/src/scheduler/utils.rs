@@ -8,7 +8,7 @@ use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
 use uuid::Uuid;
 
-use super::{consumer, metrics, workflows};
+use super::{consumer, metrics, process_data, workflows};
 use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
@@ -265,4 +265,41 @@ pub fn add_histogram_metrics(
             )],
         );
     };
+}
+
+pub fn get_schedule_time(
+    mapping: process_data::ConnectorPTMapping,
+    merchant_name: &str,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(
+            retry_count,
+            mapping.count.iter().zip(mapping.frequency.iter()),
+        )
+    }
+}
+
+fn get_delay<'a>(
+    retry_count: i32,
+    mut array: impl Iterator<Item = (&'a i32, &'a i32)>,
+) -> Option<i32> {
+    match array.next() {
+        Some(ele) => {
+            let v = retry_count - ele.0;
+            if v <= 0 {
+                Some(*ele.1)
+            } else {
+                get_delay(v, array)
+            }
+        }
+        None => None,
+    }
 }
