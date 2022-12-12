@@ -122,6 +122,8 @@ pub enum ApiErrorResponse {
     AddressNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Mandate Validation Failed" )]
     MandateValidationFailed { reason: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Customer has existing mandate/subsciption.")]
+    MandateActive,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
     NotImplemented,
 }
@@ -168,6 +170,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             ApiErrorResponse::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
             ApiErrorResponse::RefundNotFound
             | ApiErrorResponse::CustomerNotFound
+            | ApiErrorResponse::MandateActive
             | ApiErrorResponse::PaymentNotFound
             | ApiErrorResponse::PaymentMethodNotFound
             | ApiErrorResponse::MerchantAccountNotFound

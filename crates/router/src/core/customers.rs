@@ -71,7 +71,18 @@ pub async fn delete_customer(
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
-    //TODO check if there are any existing mandates/subscriptions that exist for the current customer
+
+    let vec_mandate = db
+        .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
+        .await
+        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+
+    for mandate in vec_mandate.into_iter() {
+        if mandate.mandate_status == enums::MandateStatus::Active {
+            Err(errors::ApiErrorResponse::MandateActive)?
+        }
+    }
+
     let vec_pm = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
