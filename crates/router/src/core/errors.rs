@@ -356,6 +356,8 @@ pub enum ProcessTrackerError {
     FlowExecutionError { flow: String },
     #[error("Not Implemented")]
     NotImplemented,
+    #[error("Job not found")]
+    JobNotFound,
     #[error("Recieved Error ApiResponseError: {0}")]
     EApiErrorResponse(error_stack::Report<ApiErrorResponse>),
     #[error("Recieved Error StorageError: {0}")]
