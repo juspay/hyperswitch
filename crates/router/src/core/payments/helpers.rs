@@ -22,7 +22,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{
             self,
             enums::{self as storage_enums, MerchantStorageScheme},

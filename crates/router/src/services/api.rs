@@ -707,6 +707,18 @@ pub trait Authenticate {
     fn get_client_secret(&self) -> Option<&String>;
 }
 
+impl Authenticate for api_models::payments::PaymentsRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl Authenticate for api_models::payment_methods::ListPaymentMethodRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
     use maud::PreEscaped;
 
