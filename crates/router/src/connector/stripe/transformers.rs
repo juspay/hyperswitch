@@ -663,7 +663,7 @@ pub enum CancellationReason {
 
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodOptions {
     Card {
         mandate_options: Option<StripeMandateOptions>,
