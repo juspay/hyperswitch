@@ -86,7 +86,11 @@ impl
         _req: &types::PaymentsSessionRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/payments"))
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "payments/v1/sessions"
+        ))
     }
 
     fn get_request_body(
@@ -94,7 +98,7 @@ impl
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         // encode only for for urlencoded things.
-        let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_url_encode(req)
+        let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         logger::debug!(klarna_payment_logs=?klarna_req);
         Ok(Some(klarna_req))
