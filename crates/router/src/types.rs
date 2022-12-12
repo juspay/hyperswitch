@@ -9,13 +9,14 @@
 pub mod api;
 pub mod connector;
 pub mod storage;
+pub mod transformers;
 
 use std::marker::PhantomData;
 
 use error_stack::{IntoReport, ResultExt};
 
 pub use self::connector::Connector;
-use self::{api::payments, storage::enums};
+use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
 use crate::{core::errors, services};
 
@@ -25,6 +26,8 @@ pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, Payme
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData =
+    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 
 pub type PaymentsResponseRouterData<R> =
@@ -57,14 +60,14 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
-    pub status: enums::AttemptStatus,
-    pub payment_method: enums::PaymentMethodType,
+    pub status: storage_enums::AttemptStatus,
+    pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub orca_return_url: Option<String>,
     pub address: PaymentAddress,
-    pub auth_type: enums::AuthenticationType,
+    pub auth_type: storage_enums::AuthenticationType,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -80,14 +83,14 @@ pub struct RouterData<Flow, Request, Response> {
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
     pub amount: i32,
-    pub currency: enums::Currency,
+    pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     // redirect form not used https://juspay.atlassian.net/browse/ORCA-301
     // pub redirection: Option<Redirection>,
-    pub capture_method: Option<enums::CaptureMethod>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
@@ -103,7 +106,7 @@ pub struct PaymentsCaptureData {
 #[derive(Debug, Clone)]
 pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
-    pub connector_transaction_id: String,
+    pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
 }
 
@@ -114,21 +117,37 @@ pub struct PaymentsCancelData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentsSessionData {
+    //TODO: Add the fields here as required
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct PaymentsSessionResponseData {
+    pub client_token: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct VerifyRequestData {
     pub payment_method_data: payments::PaymentMethod,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<String>,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
 }
+
 #[derive(Debug, Clone)]
-pub struct PaymentsResponseData {
-    pub resource_id: ResponseId,
-    // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
-    pub redirection_data: Option<services::RedirectForm>,
-    pub redirect: bool,
+pub enum PaymentsResponseData {
+    TransactionResponse {
+        resource_id: ResponseId,
+        redirection_data: Option<services::RedirectForm>,
+        redirect: bool,
+        mandate_reference: Option<String>,
+    },
+    SessionResponse {
+        session_token: String,
+    },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -159,7 +178,7 @@ pub struct RefundsData {
     pub refund_id: String,
     pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
-    pub currency: enums::Currency,
+    pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i32,
     /// Amount to be refunded
@@ -183,7 +202,7 @@ pub struct BrowserInformation {
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
-    pub refund_status: enums::RefundStatus,
+    pub refund_status: storage_enums::RefundStatus,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 

@@ -29,6 +29,9 @@ host = ""
 mock_locker = true
 basilisk_host = ""
 
+[eph_key]
+validity = 1
+
 [jwekey]
 locker_key_identifier1 = ""
 locker_key_identifier2 = ""
@@ -51,3 +54,6 @@ base_url = "https://api.sandbox.checkout.com/"
 
 [connectors.stripe]
 base_url = "http://stripe-mock:12111/"
+
+[connectors.braintree]
+base_url = "https://api.sandbox.braintreegateway.com/"

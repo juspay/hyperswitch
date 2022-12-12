@@ -26,10 +26,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(
-    PaymentData<F>,
-    types::RouterData<F, T, types::PaymentsResponseData>,
-)>
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
@@ -62,20 +59,22 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
+    //FIXME[#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
         .as_ref()
-        .map(|id| types::PaymentsResponseData {
+        .map(|id| types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-            //TODO: Add redirection details here
             redirection_data: None,
             redirect: false,
+            mandate_reference: None,
         });
 
     let orca_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
+        &merchant_connector_account.connector_name,
     ));
 
     router_data = types::RouterData {
@@ -100,7 +99,112 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
 
-    Ok((payment_data, router_data))
+    Ok(router_data)
+}
+
+pub trait ToResponse<Req, D, Op>
+where
+    Self: From<Req>,
+    Op: Debug,
+{
+    fn generate_response(
+        req: Option<Req>,
+        data: D,
+        customer: Option<storage::Customer>,
+        auth_flow: services::AuthFlow,
+        server: &Server,
+        operation: Op,
+    ) -> RouterResponse<Self>;
+}
+
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        req: Option<Req>,
+        payment_data: PaymentData<F>,
+        customer: Option<storage::Customer>,
+        auth_flow: services::AuthFlow,
+        server: &Server,
+        operation: Op,
+    ) -> RouterResponse<Self> {
+        payments_to_payments_response(
+            req,
+            payment_data.payment_attempt,
+            payment_data.payment_intent,
+            payment_data.refunds,
+            payment_data.payment_method_data,
+            customer,
+            auth_flow,
+            payment_data.address,
+            server,
+            payment_data.connector_response.authentication_data,
+            operation,
+        )
+    }
+}
+
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        _req: Option<Req>,
+        payment_data: PaymentData<F>,
+        _customer: Option<storage::Customer>,
+        _auth_flow: services::AuthFlow,
+        _server: &Server,
+        _operation: Op,
+    ) -> RouterResponse<Self> {
+        Ok(services::BachResponse::Json(Self {
+            session_token: payment_data.sessions_token,
+        }))
+    }
+}
+
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        _req: Option<Req>,
+        data: PaymentData<F>,
+        customer: Option<storage::Customer>,
+        _auth_flow: services::AuthFlow,
+        _server: &Server,
+        _operation: Op,
+    ) -> RouterResponse<Self> {
+        Ok(services::BachResponse::Json(Self {
+            verify_id: Some(data.payment_intent.payment_id),
+            merchant_id: Some(data.payment_intent.merchant_id),
+            client_secret: data.payment_intent.client_secret.map(masking::Secret::new),
+            customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
+            email: customer
+                .as_ref()
+                .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
+            name: customer
+                .as_ref()
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+            phone: customer
+                .as_ref()
+                .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
+            mandate_id: data.mandate_id,
+            payment_method: data.payment_attempt.payment_method.map(Into::into),
+            payment_method_data: data
+                .payment_method_data
+                .map(api::PaymentMethodDataResponse::from),
+            payment_token: data.token,
+            error_code: None,
+            error_message: data.payment_attempt.error_message,
+        }))
+    }
 }
 
 #[instrument(skip_all)]
@@ -112,7 +216,6 @@ pub fn payments_to_payments_response<R, Op>(
     payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
-    mandate_id: Option<String>,
     payment_method_data: Option<api::PaymentMethod>,
     customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
@@ -130,7 +233,7 @@ where
         .as_ref()
         .get_required_value("currency")?
         .to_string();
-
+    let mandate_id = payment_attempt.mandate_id.clone();
     let refunds_response = if refunds.is_empty() {
         None
     } else {
@@ -162,7 +265,7 @@ where
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
-                        .set_status(payment_intent.status)
+                        .set_status(payment_intent.status.into())
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
@@ -189,7 +292,7 @@ where
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_payment_method(
-                            payment_attempt.payment_method,
+                            payment_attempt.payment_method.map(Into::into),
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_method_data(
@@ -202,11 +305,13 @@ where
                         .to_owned()
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
-                        .set_authentication_type(payment_attempt.authentication_type)
+                        .set_authentication_type(
+                            payment_attempt.authentication_type.map(Into::into),
+                        )
                         .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
-                        .set_setup_future_usage(payment_intent.setup_future_usage)
-                        .set_capture_method(payment_attempt.capture_method)
+                        .set_setup_future_usage(payment_intent.setup_future_usage.map(Into::into))
+                        .set_capture_method(payment_attempt.capture_method.map(Into::into))
                         .to_owned(),
                 )
             }
@@ -214,7 +319,7 @@ where
         None => services::BachResponse::Json(PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
-            status: payment_intent.status,
+            status: payment_intent.status.into(),
             amount: payment_attempt.amount,
             amount_capturable: None,
             amount_received: payment_intent.amount_captured,
@@ -224,8 +329,8 @@ where
             customer_id: payment_intent.customer_id,
             description: payment_intent.description,
             refunds: refunds_response,
-            payment_method: payment_attempt.payment_method,
-            capture_method: payment_attempt.capture_method,
+            payment_method: payment_attempt.payment_method.map(Into::into),
+            capture_method: payment_attempt.capture_method.map(Into::into),
             error_message: payment_attempt.error_message,
             payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
             email: customer
@@ -278,7 +383,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount: payment_data.amount,
+            amount: payment_data.amount.into(),
             currency: payment_data.currency,
             browser_info,
         })
@@ -290,10 +395,12 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            connector_transaction_id: payment_data
-                .payment_attempt
-                .connector_transaction_id
-                .ok_or(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?,
+            connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
+                Some(connector_txn_id) => {
+                    types::ResponseId::ConnectorTransactionId(connector_txn_id)
+                }
+                None => types::ResponseId::NoResponseId,
+            },
             encoded_data: payment_data.connector_response.encoded_data,
         })
     }
@@ -326,6 +433,14 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
                 })?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
         })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
+    type Error = errors::ApiErrorResponse;
+
+    fn try_from(_payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {})
     }
 }
 

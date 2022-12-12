@@ -37,7 +37,7 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
 
-    let payments_response = payments::payments_core::<api::PSync, _, _, _>(
+    let payments_response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         &state,
         merchant_account.clone(),
         payments::operations::PaymentStatus,
@@ -123,7 +123,7 @@ async fn create_event_and_trigger_outgoing_webhook(
     let outgoing_webhook = api::OutgoingWebhook {
         merchant_id: merchant_account.merchant_id.clone(),
         event_id: event.event_id,
-        event_type: event.event_type,
+        event_type: event.event_type.into(),
         content,
         timestamp: event.created_at,
     };

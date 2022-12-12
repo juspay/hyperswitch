@@ -14,6 +14,7 @@ pub use payment_cancel::PaymentCancel;
 pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
 pub use payment_create::PaymentCreate;
+pub use payment_method_validate::PaymentMethodValidate;
 pub use payment_response::PaymentResponse;
 pub use payment_session::PaymentSession;
 pub use payment_start::PaymentStart;
@@ -67,18 +68,20 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+pub struct ValidateResult<'a> {
+    pub merchant_id: &'a str,
+    pub payment_id: api::PaymentIdType,
+    pub mandate_type: Option<api::MandateTxnType>,
+    pub storage_scheme: enums::MerchantStorageScheme,
+}
+
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
         merchant_account: &'a storage::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, R>,
-        &'a str,
-        api::PaymentIdType,
-        Option<api::MandateTxnType>,
-    )>;
+    ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 
 #[async_trait]
@@ -89,9 +92,9 @@ pub trait GetTracker<F, D, R>: Send {
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        connector: types::Connector,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -115,6 +118,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -124,6 +128,12 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
 }
 
 #[async_trait]
@@ -134,6 +144,7 @@ pub trait UpdateTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         customer: Option<Customer>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, D)>
     where
         F: 'b + Send;
@@ -147,6 +158,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: Option<types::RouterData<F, R, PaymentsResponseData>>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
         F: 'b + Send;
@@ -191,6 +203,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -216,9 +229,14 @@ where
         if helpers::check_if_operation_confirm(self) {
             metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
+            let connector_name = payment_attempt
+                .connector
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
             let schedule_time = payment_sync::get_sync_process_schedule_time(
                 &*state.store,
-                &payment_attempt.connector,
+                &connector_name,
                 &payment_attempt.merchant_id,
                 0,
             )
@@ -236,6 +254,14 @@ where
         } else {
             Ok(())
         }
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }
 
@@ -270,6 +296,14 @@ where
         ))
     }
 
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
+    }
+
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -279,6 +313,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
@@ -335,11 +370,20 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
     )> {
         Ok((Box::new(self), None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }
 
@@ -383,10 +427,19 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,
     )> {
         Ok((Box::new(self), None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }

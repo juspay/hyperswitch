@@ -10,8 +10,8 @@ use router_env::{tracing, tracing::instrument};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentResponse, PaymentSession,
-    PaymentStatus, PaymentUpdate,
+    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
+    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -23,16 +23,16 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments,
-        payments::transformers as payments_transformers,
     },
     db::StorageInterface,
+    logger,
     pii::Email,
     routes::AppState,
     scheduler::utils as pt_utils,
     services,
     types::{
         self,
-        api::{self, PaymentsResponse, PaymentsRetrieveRequest},
+        api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
         storage::{self, enums},
     },
     utils::{self, OptionExt},
@@ -61,26 +61,23 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let connector = api::ConnectorData::construct(&state.conf.connectors, &merchant_account)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
     let operation: BoxedOperation<F, Req> = Box::new(operation);
 
-    let (operation, merchant_id, payment_id, mandate_type) = operation
+    let (operation, validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    tracing::Span::current().record("payment_id", &format!("{:?}", payment_id));
+    tracing::Span::current().record("payment_id", &format!("{:?}", validate_result.payment_id));
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
             state,
-            &payment_id,
-            merchant_id,
-            connector.connector_name,
+            &validate_result.payment_id,
+            validate_result.merchant_id,
             &req,
-            mandate_type,
+            validate_result.mandate_type,
+            validate_result.storage_scheme,
         )
         .await?;
 
@@ -90,7 +87,7 @@ where
             &*state.store,
             &mut payment_data,
             customer_details,
-            merchant_id,
+            validate_result.merchant_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -104,13 +101,30 @@ where
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
             &payment_data.token,
+            validate_result.storage_scheme,
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
 
+    let connector_details = operation
+        .to_domain()?
+        .get_connector(&merchant_account, state)
+        .await?;
+
+    if let api::ConnectorCallType::Single(ref connector) = connector_details {
+        payment_data.payment_attempt.connector =
+            Some(connector.connector_name.to_owned().to_string());
+    }
+
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
-        .update_trackers(&*state.store, &payment_id, payment_data, customer.clone())
+        .update_trackers(
+            &*state.store,
+            &validate_result.payment_id,
+            payment_data,
+            customer.clone(),
+            validate_result.storage_scheme,
+        )
         .await?;
 
     operation
@@ -119,35 +133,51 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
-        payment_data = call_connector_service(
-            state,
-            &merchant_account,
-            &payment_id,
-            connector,
-            &operation,
-            payment_data,
-            &customer,
-            call_connector_action,
-        )
-        .await?;
+        payment_data = match connector_details {
+            api::ConnectorCallType::Single(connector) => {
+                call_connector_service(
+                    state,
+                    &merchant_account,
+                    &validate_result.payment_id,
+                    connector,
+                    &operation,
+                    payment_data,
+                    &customer,
+                    call_connector_action,
+                )
+                .await?
+            }
+            api::ConnectorCallType::Multiple(connectors) => {
+                call_multiple_connectors_service(
+                    state,
+                    &merchant_account,
+                    connectors,
+                    &operation,
+                    payment_data,
+                    &customer,
+                )
+                .await?
+            }
+        }
     }
     Ok((payment_data, req, customer))
 }
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn payments_core<F, Req, Op, FData>(
+pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
-) -> RouterResponse<api::PaymentsResponse>
+) -> RouterResponse<Res>
 where
     F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
@@ -159,9 +189,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-
     // To create merchant response
-    api::PaymentsResponse: From<Req>,
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -171,19 +199,12 @@ where
         call_connector_action,
     )
     .await?;
-
-    payments_transformers::payments_to_payments_response(
+    Res::generate_response(
         Some(req),
-        payment_data.payment_attempt,
-        payment_data.payment_intent,
-        payment_data.refunds,
-        payment_data.mandate_id,
-        payment_data.payment_method_data,
+        payment_data,
         customer,
         auth_flow,
-        payment_data.address,
         &state.conf.server,
-        payment_data.connector_response.authentication_data,
         operation,
     )
 }
@@ -253,7 +274,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
     req: PaymentsRetrieveRequest,
     flow_type: CallConnectorAction,
 ) -> RouterResponse<PaymentsResponse> {
-    payments_core::<api::PSync, _, _, _>(
+    payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         state,
         merchant_account,
         payments::PaymentStatus,
@@ -295,22 +316,30 @@ where
     let stime_connector = Instant::now();
 
     let router_data = payment_data
-        .construct_r_d(state, connector.connector.id(), merchant_account)
+        .construct_router_data(state, connector.connector.id(), merchant_account)
         .await?;
-    let (res, payment_data) = router_data
+
+    let res = router_data
         .decide_flows(
             state,
             connector,
             customer,
-            payment_data,
             call_connector_action,
+            merchant_account.storage_scheme,
         )
         .await;
+
     let response = helpers::amap(res, |response| async {
         let operation = helpers::response_operation::<F, Req>();
         let payment_data = operation
             .to_post_update_tracker()?
-            .update_tracker(db, payment_id, payment_data, Some(response))
+            .update_tracker(
+                db,
+                payment_id,
+                payment_data,
+                Some(response),
+                merchant_account.storage_scheme,
+            )
             .await?;
         Ok(payment_data)
     })
@@ -321,6 +350,84 @@ where
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
     Ok(response)
+}
+
+#[allow(dead_code)]
+async fn call_multiple_connectors_service<F, Op, Req>(
+    state: &AppState,
+    merchant_account: &storage::MerchantAccount,
+    connectors: Vec<api::ConnectorData>,
+    _operation: &Op,
+    mut payment_data: PaymentData<F>,
+    customer: &Option<storage::Customer>,
+) -> RouterResult<PaymentData<F>>
+where
+    Op: Debug,
+    F: Send + Clone,
+
+    // To create connector flow specific interface data
+    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+
+    // To construct connector flow specific api
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, Req>,
+{
+    let call_connectors_start_time = Instant::now();
+    let mut router_data_list = Vec::with_capacity(connectors.len());
+
+    for connector in connectors {
+        let connector_id = connector.connector.id();
+        let router_data = payment_data
+            .construct_router_data(state, connector_id, merchant_account)
+            .await?;
+
+        router_data_list.push((connector, router_data));
+    }
+
+    for (connector, router_data) in router_data_list {
+        let connector_name = connector.connector_name.to_owned().to_string();
+        let res = router_data
+            .decide_flows(
+                state,
+                connector,
+                customer,
+                CallConnectorAction::Trigger,
+                merchant_account.storage_scheme,
+            )
+            .await?;
+
+        match res.response {
+            Ok(connector_response) => {
+                if let types::PaymentsResponseData::SessionResponse { session_token } =
+                    connector_response
+                {
+                    payment_data
+                        .sessions_token
+                        .push(api::ConnectorSessionToken {
+                            connector_name,
+                            session_token,
+                        });
+                }
+            }
+            Err(connector_error) => {
+                logger::debug!(
+                    "sessions_connector_error {} {:?}",
+                    connector_name,
+                    connector_error
+                );
+            }
+        }
+    }
+
+    let call_connectors_end_time = Instant::now();
+    let call_connectors_duration =
+        call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
+    tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
+
+    Ok(payment_data)
 }
 
 pub enum CallConnectorAction {
@@ -349,7 +456,7 @@ where
     // first, there are situations where 2**31 would overflow.
     // second, payment shouldn't have negative amounts.
     // third, decimal place may be not shared.
-    pub amount: i32,
+    pub amount: api::Amount,
     pub currency: enums::Currency,
     pub mandate_id: Option<String>,
     pub setup_mandate: Option<api::MandateData>,
@@ -359,6 +466,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
+    pub sessions_token: Vec<api::ConnectorSessionToken>,
 }
 
 #[derive(Debug)]
@@ -464,9 +572,10 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let payment_intent = filter_by_constraints(db, &constraints, merchant_id)
-        .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+    let payment_intent =
+        filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
+            .await
+            .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
     let data: Vec<api::PaymentsResponse> = payment_intent.into_iter().map(From::from).collect();
     utils::when(

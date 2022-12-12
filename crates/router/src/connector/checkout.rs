@@ -70,6 +70,18 @@ impl api::PaymentAuthorize for Checkout {}
 impl api::PaymentSync for Checkout {}
 impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
+impl api::PaymentSession for Checkout {}
+
+impl
+    services::ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for Checkout
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Checkout {}
 
 impl
@@ -120,7 +132,10 @@ impl
             "{}{}{}",
             self.base_url(connectors),
             "payments/",
-            req.request.connector_transaction_id
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 

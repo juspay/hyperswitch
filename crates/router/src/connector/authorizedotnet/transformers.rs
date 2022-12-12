@@ -335,16 +335,14 @@ impl<F, T>
             status,
             response: match error {
                 Some(err) => Err(err),
-                None => {
-                    Ok(types::PaymentsResponseData {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.response.transaction_response.transaction_id,
-                        ),
-                        //TODO: Add redirection details here
-                        redirection_data: None,
-                        redirect: false,
-                    })
-                }
+                None => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transaction_response.transaction_id,
+                    ),
+                    redirection_data: None,
+                    redirect: false,
+                    mandate_reference: None,
+                }),
             },
             ..item.data
         })
@@ -509,10 +507,15 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
             .response
             .as_ref()
             .ok()
-            .map(|payment_response_data| {
-                payment_response_data
-                    .resource_id
-                    .get_connector_transaction_id()
+            .map(|payment_response_data| match payment_response_data {
+                types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
+                    resource_id.get_connector_transaction_id()
+                }
+                _ => Err(error_stack::report!(
+                    errors::ValidationError::MissingRequiredField {
+                        field_name: "transaction_id".to_string()
+                    }
+                )),
             })
             .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
@@ -617,12 +620,14 @@ impl<F, Req>
         let payment_status =
             enums::AttemptStatus::from(item.response.transaction.transaction_status);
         Ok(types::RouterData {
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.transaction_id,
                 ),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             status: payment_status,
             ..item.data

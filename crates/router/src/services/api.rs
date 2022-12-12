@@ -1,7 +1,7 @@
 mod client;
 pub(crate) mod request;
 
-use std::{collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
@@ -26,8 +26,12 @@ use crate::{
     db::StorageInterface,
     logger, routes,
     routes::AppState,
-    types::{self, api, storage, ErrorResponse, Response},
-    utils::OptionExt,
+    types::{
+        self, api,
+        storage::{self, enums},
+        ErrorResponse, Response,
+    },
+    utils::{self, OptionExt},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -364,7 +368,7 @@ pub enum ApiAuthentication<'a> {
 #[derive(Clone, Debug)]
 pub enum MerchantAuthentication<'a> {
     ApiKey,
-    MerchantId(&'a str),
+    MerchantId(Cow<'a, str>),
     AdminApiKey,
     PublishableKey,
 }
@@ -525,7 +529,7 @@ pub async fn authenticate_merchant<'a>(
 
         MerchantAuthentication::MerchantId(merchant_id) => {
             store
-                .find_merchant_account_by_merchant_id(merchant_id)
+                .find_merchant_account_by_merchant_id(&merchant_id)
                 .await
                 .map_err(|error| {
                     // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
@@ -564,6 +568,7 @@ pub async fn authenticate_merchant<'a>(
                 payment_response_hash_key: None,
                 redirect_to_merchant_with_http_post: false,
                 publishable_key: None,
+                storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             })
         }
 
@@ -597,6 +602,29 @@ pub(crate) fn get_auth_type_and_check_client_secret(
         payments::helpers::client_secret_auth(payload, &auth_type)?,
         auth_type,
     ))
+}
+
+pub(crate) async fn authenticate_eph_key<'a>(
+    req: &'a actix_web::HttpRequest,
+    store: &dyn StorageInterface,
+    customer_id: String,
+) -> RouterResult<MerchantAuthentication<'a>> {
+    let api_key = get_api_key(req)?;
+    if api_key.starts_with("epk") {
+        let ek = store
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::BadCredentials)?;
+        utils::when(
+            ek.customer_id.ne(&customer_id),
+            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey)),
+        )?;
+        Ok(MerchantAuthentication::MerchantId(Cow::Owned(
+            ek.merchant_id,
+        )))
+    } else {
+        Ok(MerchantAuthentication::ApiKey)
+    }
 }
 
 fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {

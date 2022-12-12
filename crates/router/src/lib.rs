@@ -41,6 +41,7 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
+pub(crate) mod macros;
 pub mod routes;
 pub mod scheduler;
 
@@ -119,6 +120,7 @@ pub fn mk_app(
         .service(routes::PaymentMethods::server(state.clone()))
         .service(routes::MerchantAccount::server(state.clone()))
         .service(routes::MerchantConnectorAccount::server(state.clone()))
+        .service(routes::EphemeralKey::server(state.clone()))
         .service(routes::Webhooks::server(state.clone()));
 
     #[cfg(feature = "stripe")]
@@ -135,7 +137,6 @@ pub fn mk_app(
 ///  Unwrap used because without the value we can't start the server
 pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
-
     let server = conf.server.clone();
     let state = routes::AppState::new(conf).await;
     // Cloning to close connections before shutdown

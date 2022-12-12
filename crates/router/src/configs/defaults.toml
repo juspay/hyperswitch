@@ -37,6 +37,9 @@ temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
 
 [jwekey]
 
+[eph_key]
+validity = 1
+
 [scheduler]
 stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"

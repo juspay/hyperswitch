@@ -140,12 +140,14 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Ok(types::PaymentsResponseData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.id,
                 ),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })

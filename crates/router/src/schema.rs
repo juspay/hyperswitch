@@ -20,6 +20,8 @@ diesel::table! {
         country_code -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        customer_id -> Varchar,
+        merchant_id -> Varchar,
     }
 }
 
@@ -45,7 +47,7 @@ diesel::table! {
         txn_id -> Varchar,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        connector_name -> Varchar,
+        connector_name -> Nullable<Varchar>,
         connector_transaction_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Json>,
         encoded_data -> Nullable<Text>,
@@ -65,7 +67,6 @@ diesel::table! {
         phone -> Nullable<Varchar>,
         phone_country_code -> Nullable<Varchar>,
         description -> Nullable<Varchar>,
-        address -> Nullable<Json>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
     }
@@ -127,6 +128,11 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         previous_transaction_id -> Nullable<Varchar>,
         created_at -> Timestamp,
+        mandate_amount -> Nullable<Int4>,
+        mandate_currency -> Nullable<Currency>,
+        amount_captured -> Nullable<Int4>,
+        connector -> Varchar,
+        connector_mandate_id -> Nullable<Varchar>,
     }
 }
 
@@ -150,6 +156,7 @@ diesel::table! {
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
         publishable_key -> Nullable<Varchar>,
+        storage_scheme -> MerchantStorageScheme,
     }
 }
 
@@ -183,7 +190,7 @@ diesel::table! {
         amount -> Int4,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Varchar,
+        connector -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int4>,
         surcharge_amount -> Nullable<Int4>,

@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{schema::refund, types::enums};
+use crate::{schema::refund, types::storage::enums as storage_enums};
 
 #[derive(Clone, Debug, Eq, Identifiable, Queryable, PartialEq)]
 #[diesel(table_name = refund)]
@@ -16,15 +16,13 @@ pub struct Refund {
     pub connector: String,
     pub pg_refund_id: Option<String>,
     pub external_reference_id: Option<String>,
-    pub refund_type: enums::RefundType,
+    pub refund_type: storage_enums::RefundType,
     // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
     // same as PaymentData::amount
     pub total_amount: i32,
-    pub currency: enums::Currency,
-    // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
-    // same as PaymentData::amount
+    pub currency: storage_enums::Currency,
     pub refund_amount: i32,
-    pub refund_status: enums::RefundStatus,
+    pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -45,15 +43,15 @@ pub struct RefundNew {
     pub transaction_id: String,
     pub connector: String,
     pub pg_refund_id: Option<String>,
-    pub refund_type: enums::RefundType,
+    pub refund_type: storage_enums::RefundType,
     // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
     // same as PaymentData::amount
     pub total_amount: i32,
-    pub currency: enums::Currency,
+    pub currency: storage_enums::Currency,
     // FIXME(kos) : It is incorrect to use i32 as payment amount. Use decimal instead.
     // same as PaymentData::amount
     pub refund_amount: i32,
-    pub refund_status: enums::RefundStatus,
+    pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -67,7 +65,7 @@ pub struct RefundNew {
 pub enum RefundUpdate {
     Update {
         pg_refund_id: String,
-        refund_status: enums::RefundStatus,
+        refund_status: storage_enums::RefundStatus,
         sent_to_gateway: bool,
         refund_error_message: Option<String>,
         refund_arn: String,
@@ -78,10 +76,10 @@ pub enum RefundUpdate {
     StatusUpdate {
         pg_refund_id: Option<String>,
         sent_to_gateway: bool,
-        refund_status: enums::RefundStatus,
+        refund_status: storage_enums::RefundStatus,
     },
     ErrorUpdate {
-        refund_status: Option<enums::RefundStatus>,
+        refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<String>,
     },
 }
@@ -90,7 +88,7 @@ pub enum RefundUpdate {
 #[diesel(table_name = refund)]
 pub(super) struct RefundUpdateInternal {
     pg_refund_id: Option<String>,
-    refund_status: Option<enums::RefundStatus>,
+    refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<String>,
     refund_arn: Option<String>,

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
@@ -12,16 +14,16 @@ use super::app::AppState;
 use crate::{
     core::{errors::http_not_implemented, payments},
     services::api,
-    types::{
-        api::{
-            payments::{
-                PaymentIdType, PaymentListConstraints, PaymentsCancelRequest,
-                PaymentsCaptureRequest, PaymentsRequest, PaymentsRetrieveRequest,
-            },
-            Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsStartRequest, Void,
+    types::api::{
+        self as api_types, enums as api_enums,
+        payments::{
+            PaymentIdType, PaymentListConstraints, PaymentsCancelRequest, PaymentsCaptureRequest,
+            PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
         },
-        storage::enums::CaptureMethod,
-    }, // FIXME imports
+        Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsSessionRequest,
+        PaymentsSessionResponse, PaymentsStartRequest, Session, Verify, Void,
+    },
+    //FIXME: remove specific imports
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -33,7 +35,7 @@ pub async fn payments_create(
 ) -> HttpResponse {
     let payload = json_payload.into_inner();
 
-    if let Some(CaptureMethod::Scheduled) = payload.capture_method {
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
 
@@ -42,14 +44,33 @@ pub async fn payments_create(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
-                state,
-                merchant_account,
-                payments::PaymentCreate,
-                req,
-                api::AuthFlow::Merchant,
-                payments::CallConnectorAction::Trigger,
-            )
+            // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
+            async {
+                match req.amount.as_ref() {
+                    Some(api_types::Amount::Value(_)) | None => {
+                        payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+                            state,
+                            merchant_account,
+                            payments::PaymentCreate,
+                            req,
+                            api::AuthFlow::Merchant,
+                            payments::CallConnectorAction::Trigger,
+                        )
+                        .await
+                    }
+                    Some(api_types::Amount::Zero) => {
+                        payments::payments_core::<Verify, PaymentsResponse, _, _, _>(
+                            state,
+                            merchant_account,
+                            payments::PaymentCreate,
+                            req,
+                            api::AuthFlow::Merchant,
+                            payments::CallConnectorAction::Trigger,
+                        )
+                        .await
+                    }
+                }
+            }
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -73,7 +94,7 @@ pub async fn payments_start(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::operations::PaymentStart,
@@ -82,7 +103,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::MerchantId(&merchant_id),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -113,7 +134,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<PSync, _, _, _>(
+            payments::payments_core::<PSync, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -137,7 +158,7 @@ pub async fn payments_update(
 ) -> HttpResponse {
     let mut payload = json_payload.into_inner();
 
-    if let Some(CaptureMethod::Scheduled) = payload.capture_method {
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
 
@@ -158,7 +179,7 @@ pub async fn payments_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -182,7 +203,7 @@ pub async fn payments_confirm(
 ) -> HttpResponse {
     let mut payload = json_payload.into_inner();
 
-    if let Some(CaptureMethod::Scheduled) = payload.capture_method {
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
 
@@ -202,7 +223,7 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
@@ -234,10 +255,37 @@ pub(crate) async fn payments_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Capture, _, _, _>(
+            payments::payments_core::<Capture, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
+                payload,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        api::MerchantAuthentication::ApiKey,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
+pub(crate) async fn payments_connector_session(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<PaymentsSessionRequest>,
+) -> HttpResponse {
+    let sessions_payload = json_payload.into_inner();
+
+    api::server_wrap(
+        &state,
+        &req,
+        sessions_payload,
+        |state, merchant_account, payload| {
+            payments::payments_core::<Session, PaymentsSessionResponse, _, _, _>(
+                state,
+                merchant_account,
+                payments::PaymentSession,
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
@@ -271,7 +319,7 @@ pub async fn payments_response(
         |state, merchant_account, req| {
             payments::handle_payments_redirect_response::<PSync>(state, merchant_account, req)
         },
-        api::MerchantAuthentication::MerchantId(&merchant_id),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -293,7 +341,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Void, _, _, _>(
+            payments::payments_core::<Void, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,

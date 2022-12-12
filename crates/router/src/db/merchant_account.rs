@@ -5,7 +5,7 @@ use super::MockDb;
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult, DatabaseError, StorageError},
-    types::storage::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdate},
+    types::storage::{enums, MerchantAccount, MerchantAccountNew, MerchantAccountUpdate},
 };
 
 #[async_trait::async_trait]
@@ -122,6 +122,7 @@ impl MerchantAccountInterface for MockDb {
             sub_merchants_enabled: merchant_account.sub_merchants_enabled,
             parent_merchant_id: merchant_account.parent_merchant_id,
             publishable_key: merchant_account.publishable_key,
+            storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
         };
         accounts.push(account.clone());
         Ok(account)

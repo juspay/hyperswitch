@@ -66,8 +66,8 @@ bash loadtest.sh -ca
 ```
 It uses `-c` compare flag and `-a` run loadtest using all the scripts. 
 
-Developer can observe live metrics using [K6 Load Testing Dashboard](http://localhost:3000/d/k6/k6-load-testing-results?orgId=1&refresh=5s&from=now-1m&to=now) in Grafana.
-The [Tempo datasource](http://localhost:3000/explore?orgId=1&left=%7B%22datasource%22:%22P214B5B846CF3925F%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22nativeSearch%22%7D%5D,%22range%22:%7B%22from%22:%22now-1m%22,%22to%22:%22now%22%7D%7D)
+Developer can observe live metrics using [K6 Load Testing Dashboard](http://localhost:3002/d/k6/k6-load-testing-results?orgId=1&refresh=5s&from=now-1m&to=now) in Grafana.
+The [Tempo datasource](http://localhost:3002/explore?orgId=1&left=%7B%22datasource%22:%22P214B5B846CF3925F%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22nativeSearch%22%7D%5D,%22range%22:%7B%22from%22:%22now-1m%22,%22to%22:%22now%22%7D%7D)
 is available to inspect tracing of individual requests.
 
 ### Notes
