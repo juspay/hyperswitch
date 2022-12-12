@@ -18,8 +18,9 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        self, api,
-        storage::{self, enums},
+        self,
+        api::{self, enums as api_enums, PaymentIdTypeExt},
+        storage::{self, enums as storage_enums},
     },
     utils,
 };
@@ -65,10 +66,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        connector: types::Connector,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -86,7 +86,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 Self::make_payment_attempt(
                     &payment_id,
                     merchant_id,
-                    connector,
                     request.payment_method,
                     request,
                 ),
@@ -102,7 +101,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         payment_intent = match db
             .insert_payment_intent(
-                Self::make_payment_intent(&payment_id, merchant_id, connector, request),
+                Self::make_payment_intent(&payment_id, merchant_id, request),
                 storage_scheme,
             )
             .await
@@ -133,8 +132,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 payment_intent,
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
-                currency: enums::Currency::default(),
-                amount: 0,
+                currency: storage_enums::Currency::default(),
+                amount: api::Amount::Zero,
                 mandate_id: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),
@@ -144,6 +143,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 address: types::PaymentAddress::default(),
                 force_sync: None,
                 refunds: vec![],
+                sessions_token: vec![],
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -165,13 +165,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
         // There is no fsm involved in this operation all the change of states must happen in a single request
-        let status = Some(enums::IntentStatus::Processing);
+        let status = Some(storage_enums::IntentStatus::Processing);
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
@@ -233,12 +233,12 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
+        payment_method: Option<storage_enums::PaymentMethodType>,
         txn_id: &str,
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,
@@ -254,6 +254,14 @@ where
         )
         .await
     }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
+    }
 }
 
 impl PaymentMethodValidate {
@@ -261,12 +269,11 @@ impl PaymentMethodValidate {
     fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
-        connector: types::Connector,
-        payment_method: Option<enums::PaymentMethodType>,
+        payment_method: Option<api_enums::PaymentMethodType>,
         _request: &api::VerifyRequest,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
-        let status = enums::AttemptStatus::Pending;
+        let status = storage_enums::AttemptStatus::Pending;
 
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
@@ -276,8 +283,8 @@ impl PaymentMethodValidate {
             // Amount & Currency will be zero in this case
             amount: 0,
             currency: Default::default(),
-            connector: connector.to_string(),
-            payment_method,
+            connector: None,
+            payment_method: payment_method.map(Into::into),
             confirm: true,
             created_at,
             modified_at,
@@ -289,7 +296,6 @@ impl PaymentMethodValidate {
     fn make_payment_intent(
         payment_id: &str,
         merchant_id: &str,
-        connector: types::Connector,
         request: &api::VerifyRequest,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
@@ -303,12 +309,12 @@ impl PaymentMethodValidate {
             status,
             amount: 0,
             currency: Default::default(),
-            connector_id: Some(connector.to_string()),
+            connector_id: None,
             created_at,
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage,
+            setup_future_usage: request.setup_future_usage.map(Into::into),
             off_session: request.off_session,
             ..Default::default()
         }

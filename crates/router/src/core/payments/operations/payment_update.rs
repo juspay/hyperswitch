@@ -15,9 +15,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
-        Connector,
     },
     utils::{OptionExt, StringExt},
 };
@@ -33,7 +32,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -42,12 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        let (mut payment_intent, mut payment_attempt, currency, amount): (
-            _,
-            _,
-            enums::Currency,
-            _,
-        );
+        let (mut payment_intent, mut payment_attempt, currency): (_, _, enums::Currency);
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -80,7 +73,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
 
-        amount = request.amount.unwrap_or(payment_attempt.amount);
+        let amount = request
+            .amount
+            .unwrap_or_else(|| payment_attempt.amount.into());
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
@@ -101,12 +96,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -156,6 +155,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     force_sync: None,
                     refunds: vec![],
                     connector_response,
+                    sessions_token: vec![],
                 },
                 Some(CustomerDetails {
                     customer_id: request.customer_id.clone(),
@@ -201,7 +201,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .update_payment_attempt(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
-                    amount: payment_data.amount,
+                    amount: payment_data.amount.into(),
                     currency: payment_data.currency,
                     status: get_attempt_status(),
                     authentication_type: None,
@@ -236,7 +236,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::Update {
-                    amount: payment_data.amount,
+                    amount: payment_data.amount.into(),
                     currency: payment_data.currency,
                     status: get_status(),
                     customer_id,
@@ -284,6 +284,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
+
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
             request.amount_to_capture,

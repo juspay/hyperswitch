@@ -10,7 +10,7 @@ pub struct EphemeralKey {
     pub id: String,
     pub merchant_id: String,
     pub customer_id: String,
-    pub created_at: time::PrimitiveDateTime,
-    pub expires: time::PrimitiveDateTime,
+    pub created_at: i64,
+    pub expires: i64,
     pub secret: String,
 }

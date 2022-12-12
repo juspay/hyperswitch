@@ -49,8 +49,8 @@ mod storage {
             let expires = created_at.saturating_add(validity.hours());
             let created_ek = EphemeralKey {
                 id: new.id,
-                created_at,
-                expires,
+                created_at: created_at.assume_utc().unix_timestamp(),
+                expires: expires.assume_utc().unix_timestamp(),
                 customer_id: new.customer_id,
                 merchant_id: new.merchant_id,
                 secret: new.secret,

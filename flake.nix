@@ -37,7 +37,7 @@
             pkg-config
             exa
             fd
-            rust-bin.stable."1.63.0".default
+            rust-bin.stable."1.64.0".default
           ] ++ lib.optionals stdenv.isDarwin [ frameworks.CoreServices frameworks.Foundation ]; # arch might have issue finding these libs.
 
         };

@@ -14,9 +14,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -33,7 +32,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -68,18 +66,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             })?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount;
+        amount = payment_attempt.amount.into();
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -137,6 +139,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                     payment_method_data: None,
                     force_sync: None,
                     refunds: vec![],
+                    sessions_token: vec![],
                 },
                 Some(customer_details),
             )),
@@ -250,5 +253,13 @@ where
             token,
         )
         .await
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }

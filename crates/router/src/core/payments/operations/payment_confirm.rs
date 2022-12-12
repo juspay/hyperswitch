@@ -15,9 +15,9 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        self, api,
+        self,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
-        Connector,
     },
     utils::{self, OptionExt},
 };
@@ -34,7 +34,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -93,7 +92,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount;
+        amount = payment_attempt.amount.into();
 
         connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(
@@ -111,12 +110,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -151,6 +154,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_method_data: request.payment_method_data.clone(),
                     force_sync: None,
                     refunds: vec![],
+                    sessions_token: vec![],
                 },
                 Some(CustomerDetails {
                     customer_id: request.customer_id.clone(),
@@ -193,6 +197,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
         };
 
+        let connector = payment_data.payment_attempt.connector.clone();
+
         payment_data.payment_attempt = db
             .update_payment_attempt(
                 payment_data.payment_attempt,
@@ -200,6 +206,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     status: attempt_status,
                     payment_method,
                     browser_info,
+                    connector,
                 },
                 storage_scheme,
             )

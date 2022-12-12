@@ -14,9 +14,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
-        Connector,
     },
     utils::OptionExt,
 };
@@ -33,7 +32,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        _connector: Connector,
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -77,7 +75,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount;
+        let amount = payment_attempt.amount.into();
 
         payment_attempt.cancellation_reason = request.cancellation_reason.clone();
 
@@ -106,6 +104,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                     force_sync: None,
                     refunds: vec![],
                     connector_response,
+                    sessions_token: vec![],
                 },
                 None,
             )),

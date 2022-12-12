@@ -286,6 +286,8 @@ pub enum ConnectorError {
     FailedToObtainAuthType,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+    #[error("Missing connector transaction ID")]
+    MissingConnectorTransactionID,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]
@@ -354,6 +356,8 @@ pub enum ProcessTrackerError {
     FlowExecutionError { flow: String },
     #[error("Not Implemented")]
     NotImplemented,
+    #[error("Job not found")]
+    JobNotFound,
     #[error("Recieved Error ApiResponseError: {0}")]
     EApiErrorResponse(error_stack::Report<ApiErrorResponse>),
     #[error("Recieved Error StorageError: {0}")]
