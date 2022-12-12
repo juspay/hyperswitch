@@ -230,6 +230,7 @@ async fn payments_create_core_adyen_no_redirect() {
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
         payment_token: None,
+        card_cvc: None,
         email: None,
         name: None,
         phone: None,

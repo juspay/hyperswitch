@@ -16,6 +16,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    pii::Secret,
     routes::AppState,
     types::{
         self,
@@ -144,6 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 force_sync: None,
                 refunds: vec![],
                 sessions_token: vec![],
+                card_cvc: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -238,6 +240,7 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        card_cvc: Option<Secret<String>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
@@ -252,6 +255,7 @@ where
             payment_attempt,
             request,
             token,
+            card_cvc,
         )
         .await
     }

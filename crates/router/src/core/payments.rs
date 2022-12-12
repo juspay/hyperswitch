@@ -26,7 +26,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    pii::Email,
+    pii::{Email, Secret},
     routes::AppState,
     scheduler::utils as pt_utils,
     services,
@@ -101,6 +101,7 @@ where
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
             &payment_data.token,
+            payment_data.card_cvc.clone(),
             validate_result.storage_scheme,
         )
         .await?;
@@ -466,6 +467,7 @@ where
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<types::ConnectorSessionToken>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Debug)]
