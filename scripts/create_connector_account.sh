@@ -39,6 +39,7 @@ case "$connector" in
     authorizedotnet) required_connector="authorizedotnet";;
     aci) required_connector="aci";;
     adyen) required_connector="adyen";;
+    braintree) required_connector="braintree";;
     *) echo "This connector is not supported" 1>&2;exit 1;;
 esac
 
