@@ -95,7 +95,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 #[ignore]
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     static CV: Authorizedotnet = Authorizedotnet;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -135,7 +135,7 @@ async fn payments_create_failure() {
             connector: Box::new(&CV),
             connector_name: types::Connector::Authorizedotnet,
         };
-        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
         let connector_integration: services::BoxedConnectorIntegration<
             types::api::Authorize,
             types::PaymentsAuthorizeData,
@@ -178,7 +178,7 @@ async fn refunds_create_success() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Execute,
         types::RefundsData,
@@ -213,7 +213,7 @@ async fn refunds_create_failure() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Execute,
         types::RefundsData,

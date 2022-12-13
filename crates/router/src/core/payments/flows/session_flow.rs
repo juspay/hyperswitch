@@ -39,7 +39,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     async fn decide_flows<'a>(
         self,
         state: &routes::AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _storage_schema: enums::MerchantStorageScheme,
@@ -59,7 +59,7 @@ impl types::PaymentsSessionRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,

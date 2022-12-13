@@ -20,7 +20,7 @@ use crate::{
 
 impl PaymentAttemptNew {
     #[instrument(skip(conn))]
-    pub async fn insert_diesel(
+    pub async fn insert(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentAttempt, errors::DatabaseError> {
@@ -28,7 +28,7 @@ impl PaymentAttemptNew {
     }
 
     #[instrument(skip(conn))]
-    pub async fn insert_diesel_query(
+    pub async fn insert_query(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {

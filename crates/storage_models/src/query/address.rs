@@ -66,7 +66,7 @@ impl Address {
         customer_id: &str,
         merchant_id: &str,
         address: AddressUpdate,
-    ) -> CustomResult<Vec<Self>, errors::StorageError> {
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             dsl::merchant_id
