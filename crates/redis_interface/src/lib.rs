@@ -15,6 +15,7 @@
 //!     // ... redis_conn ready to use
 //! }
 //! ```
+#![forbid(unsafe_code)]
 
 pub mod commands;
 pub mod errors;
