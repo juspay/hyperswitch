@@ -16,3 +16,6 @@ thiserror = "1.0.37"
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+
+[dev-dependencies]
+tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }

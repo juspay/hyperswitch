@@ -2495,6 +2495,7 @@ dependencies = [
  "router_env",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

@@ -44,4 +44,6 @@ pub enum RedisError {
     GetHashFieldFailed,
     #[error("The requested value was not found in Redis")]
     NotFound,
+    #[error("Invalid RedisEntryId provided")]
+    InvalidRedisEntryId,
 }

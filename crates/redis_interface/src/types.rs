@@ -6,8 +6,8 @@
 pub struct RedisSettings {
     pub host: String,
     pub port: u16,
-    pub cluster_urls: Vec<String>,
     pub cluster_enabled: bool,
+    pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
     pub pool_size: usize,
     pub reconnect_max_attempts: u32,
@@ -16,6 +16,23 @@ pub struct RedisSettings {
     /// TTL in seconds
     pub default_ttl: u32,
     pub stream_read_count: u64,
+}
+
+impl Default for RedisSettings {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_string(),
+            port: 6379,
+            cluster_enabled: false,
+            cluster_urls: vec![],
+            use_legacy_version: false,
+            pool_size: 5,
+            reconnect_max_attempts: 5,
+            reconnect_delay: 5,
+            default_ttl: 300,
+            stream_read_count: 1,
+        }
+    }
 }
 
 #[derive(Debug)]
