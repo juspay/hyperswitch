@@ -162,27 +162,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
-            .parse_struct("AuthorizedotnetPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let error = response
-            .transaction_response
-            .errors
-            .and_then(|errors| {
-                errors.first().map(|error| types::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
-                    reason: None,
-                })
-            })
-            .unwrap_or_else(|| types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-            });
-
-        Ok(error)
+        get_error_response(res)
     }
 }
 
@@ -282,27 +262,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
-            .parse_struct("AuthorizedotnetPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let error = response
-            .transaction_response
-            .errors
-            .and_then(|errors| {
-                errors.first().map(|error| types::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
-                    reason: None,
-                })
-            })
-            .unwrap_or_else(|| types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-            });
-
-        Ok(error)
+        get_error_response(res)
     }
 }
 
@@ -393,27 +353,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
-            .parse_struct("AuthorizedotnetPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let error = response
-            .transaction_response
-            .errors
-            .and_then(|errors| {
-                errors.first().map(|error| types::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
-                    reason: None,
-                })
-            })
-            .unwrap_or_else(|| types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-            });
-
-        Ok(error)
+        get_error_response(res)
     }
 }
 
@@ -506,28 +446,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
-            .parse_struct("AuthorizedotnetPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-
-        let error = response
-            .transaction_response
-            .errors
-            .and_then(|errors| {
-                errors.first().map(|error| types::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
-                    reason: None,
-                })
-            })
-            .unwrap_or_else(|| types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-            });
-
-        Ok(error)
+        get_error_response(res)
     }
 }
 
@@ -615,27 +534,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = res
-            .parse_struct("AuthorizedotnetPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let error = response
-            .transaction_response
-            .errors
-            .and_then(|errors| {
-                errors.first().map(|error| types::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
-                    reason: None,
-                })
-            })
-            .unwrap_or_else(|| types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-            });
-
-        Ok(error)
+        get_error_response(res)
     }
 }
 
@@ -664,3 +563,28 @@ impl api::IncomingWebhook for Authorizedotnet {
 }
 
 impl services::ConnectorRedirectResponse for Authorizedotnet {}
+
+#[inline]
+fn get_error_response(bytes: Bytes) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    let response: authorizedotnet::AuthorizedotnetPaymentsResponse = bytes
+        .parse_struct("AuthorizedotnetPaymentsResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    logger::info!(response=?response);
+
+    Ok(response
+        .transaction_response
+        .errors
+        .and_then(|errors| {
+            errors.into_iter().next().map(|error| types::ErrorResponse {
+                code: error.error_code,
+                message: error.error_text,
+                reason: None,
+            })
+        })
+        .unwrap_or_else(|| types::ErrorResponse {
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
+        }))
+}
