@@ -24,7 +24,7 @@ mod tests {
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
 
-        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
@@ -52,7 +52,7 @@ mod tests {
     async fn test_find_payment_attempt() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
-        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
@@ -94,7 +94,7 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let uuid = uuid::Uuid::new_v4().to_string();
-        let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
         let current_time = common_utils::date_time::now();
 
         let payment_attempt = PaymentAttemptNew {

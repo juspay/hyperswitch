@@ -1,10 +1,10 @@
 use error_stack::IntoReport;
 
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
-    types::storage::{Mandate, MandateNew, MandateUpdate},
+    types::storage,
 };
 
 #[async_trait::async_trait]
@@ -13,36 +13,36 @@ pub trait MandateInterface {
         &self,
         merchant_id: &str,
         mandate_id: &str,
-    ) -> CustomResult<Mandate, errors::StorageError>;
+    ) -> CustomResult<storage::Mandate, errors::StorageError>;
 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
         customer_id: &str,
-    ) -> CustomResult<Vec<Mandate>, errors::StorageError>;
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
         mandate_id: &str,
-        mandate: MandateUpdate,
-    ) -> CustomResult<Mandate, errors::StorageError>;
+        mandate: storage::MandateUpdate,
+    ) -> CustomResult<storage::Mandate, errors::StorageError>;
 
     async fn insert_mandate(
         &self,
-        mandate: MandateNew,
-    ) -> CustomResult<Mandate, errors::StorageError>;
+        mandate: storage::MandateNew,
+    ) -> CustomResult<storage::Mandate, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
-impl MandateInterface for super::Store {
+impl MandateInterface for Store {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
         mandate_id: &str,
-    ) -> CustomResult<Mandate, errors::StorageError> {
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
+        storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -52,9 +52,9 @@ impl MandateInterface for super::Store {
         &self,
         merchant_id: &str,
         customer_id: &str,
-    ) -> CustomResult<Vec<Mandate>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
+        storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -64,10 +64,10 @@ impl MandateInterface for super::Store {
         &self,
         merchant_id: &str,
         mandate_id: &str,
-        mandate: MandateUpdate,
-    ) -> CustomResult<Mandate, errors::StorageError> {
+        mandate: storage::MandateUpdate,
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
+        storage::Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
             .await
             .map_err(Into::into)
             .into_report()
@@ -75,8 +75,8 @@ impl MandateInterface for super::Store {
 
     async fn insert_mandate(
         &self,
-        mandate: MandateNew,
-    ) -> CustomResult<Mandate, errors::StorageError> {
+        mandate: storage::MandateNew,
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         mandate
             .insert(&conn)
@@ -92,7 +92,7 @@ impl MandateInterface for MockDb {
         &self,
         _merchant_id: &str,
         _mandate_id: &str,
-    ) -> CustomResult<Mandate, errors::StorageError> {
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
         todo!()
     }
 
@@ -100,7 +100,7 @@ impl MandateInterface for MockDb {
         &self,
         _merchant_id: &str,
         _customer_id: &str,
-    ) -> CustomResult<Vec<Mandate>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
         todo!()
     }
 
@@ -108,15 +108,15 @@ impl MandateInterface for MockDb {
         &self,
         _merchant_id: &str,
         _mandate_id: &str,
-        _mandate: MandateUpdate,
-    ) -> CustomResult<Mandate, errors::StorageError> {
+        _mandate: storage::MandateUpdate,
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
         todo!()
     }
 
     async fn insert_mandate(
         &self,
-        _mandate: MandateNew,
-    ) -> CustomResult<Mandate, errors::StorageError> {
+        _mandate: storage::MandateNew,
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
         todo!()
     }
 }

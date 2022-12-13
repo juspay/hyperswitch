@@ -4,6 +4,7 @@
 
 use std::{fmt, marker::PhantomData};
 
+use subtle::ConstantTimeEq;
 use zeroize::{self, Zeroize as ZeroizableSecret};
 
 use crate::{strategy::Strategy, PeekInterface};
@@ -13,84 +14,106 @@ use crate::{strategy::Strategy, PeekInterface};
 ///
 /// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
 ///
-
-pub struct StrongSecret<S: ZeroizableSecret, I = crate::WithType> {
+pub struct StrongSecret<Secret: ZeroizableSecret, MaskingStrategy = crate::WithType> {
     /// Inner secret value
-    pub(crate) inner_secret: S,
-    pub(crate) marker: PhantomData<I>,
+    pub(crate) inner_secret: Secret,
+    pub(crate) masking_strategy: PhantomData<MaskingStrategy>,
 }
 
-impl<S: ZeroizableSecret, I> StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy> StrongSecret<Secret, MaskingStrategy> {
     /// Take ownership of a secret value
-    pub fn new(secret: S) -> Self {
-        StrongSecret {
+    pub fn new(secret: Secret) -> Self {
+        Self {
             inner_secret: secret,
-            marker: PhantomData,
+            masking_strategy: PhantomData,
         }
     }
 }
 
-impl<S: ZeroizableSecret, I> PeekInterface<S> for StrongSecret<S, I> {
-    fn peek(&self) -> &S {
+impl<Secret: ZeroizableSecret, MaskingStrategy> PeekInterface<Secret>
+    for StrongSecret<Secret, MaskingStrategy>
+{
+    fn peek(&self) -> &Secret {
         &self.inner_secret
     }
 }
 
-impl<S: ZeroizableSecret, I> From<S> for StrongSecret<S, I> {
-    fn from(secret: S) -> StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy> From<Secret>
+    for StrongSecret<Secret, MaskingStrategy>
+{
+    fn from(secret: Secret) -> Self {
         Self::new(secret)
     }
 }
 
-impl<S: Clone + ZeroizableSecret, I> Clone for StrongSecret<S, I> {
+impl<Secret: Clone + ZeroizableSecret, MaskingStrategy> Clone
+    for StrongSecret<Secret, MaskingStrategy>
+{
     fn clone(&self) -> Self {
-        StrongSecret {
+        Self {
             inner_secret: self.inner_secret.clone(),
-            marker: PhantomData,
+            masking_strategy: PhantomData,
         }
     }
 }
 
-impl<S: ZeroizableSecret, I> PartialEq for StrongSecret<S, I>
+impl<Secret, MaskingStrategy> PartialEq for StrongSecret<Secret, MaskingStrategy>
 where
-    Self: PeekInterface<S>,
-    S: PartialEq,
+    Self: PeekInterface<Secret>,
+    Secret: ZeroizableSecret + StrongEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.peek().eq(other.peek())
+        StrongEq::strong_eq(self.peek(), other.peek())
     }
 }
 
-impl<S: ZeroizableSecret, I> Eq for StrongSecret<S, I>
+impl<Secret, MaskingStrategy> Eq for StrongSecret<Secret, MaskingStrategy>
 where
-    Self: PeekInterface<S>,
-    S: Eq,
+    Self: PeekInterface<Secret>,
+    Secret: ZeroizableSecret + StrongEq,
 {
 }
 
-impl<S: ZeroizableSecret, I: Strategy<S>> fmt::Debug for StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy: Strategy<Secret>> fmt::Debug
+    for StrongSecret<Secret, MaskingStrategy>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        I::fmt(&self.inner_secret, f)
+        MaskingStrategy::fmt(&self.inner_secret, f)
     }
 }
 
-impl<S: ZeroizableSecret, I: Strategy<S>> fmt::Display for StrongSecret<S, I> {
+impl<Secret: ZeroizableSecret, MaskingStrategy: Strategy<Secret>> fmt::Display
+    for StrongSecret<Secret, MaskingStrategy>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        I::fmt(&self.inner_secret, f)
+        MaskingStrategy::fmt(&self.inner_secret, f)
     }
 }
 
-impl<S: ZeroizableSecret, I> Default for StrongSecret<S, I>
+impl<Secret: ZeroizableSecret, MaskingStrategy> Default for StrongSecret<Secret, MaskingStrategy>
 where
-    S: ZeroizableSecret + Default,
+    Secret: ZeroizableSecret + Default,
 {
     fn default() -> Self {
-        S::default().into()
+        Secret::default().into()
     }
 }
 
-impl<T: ZeroizableSecret, S> Drop for StrongSecret<T, S> {
+impl<Secret: ZeroizableSecret, MaskingStrategy> Drop for StrongSecret<Secret, MaskingStrategy> {
     fn drop(&mut self) {
         self.inner_secret.zeroize();
+    }
+}
+
+trait StrongEq {
+    fn strong_eq(&self, other: &Self) -> bool;
+}
+
+impl StrongEq for String {
+    fn strong_eq(&self, other: &Self) -> bool {
+        let lhs = self.as_bytes();
+        let rhs = other.as_bytes();
+
+        bool::from(lhs.ct_eq(rhs))
     }
 }

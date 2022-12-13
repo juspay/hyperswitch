@@ -52,7 +52,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -78,7 +78,7 @@ impl PaymentsAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,

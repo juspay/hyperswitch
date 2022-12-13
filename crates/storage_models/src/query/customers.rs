@@ -11,7 +11,7 @@ use crate::{
 
 impl CustomerNew {
     #[instrument(skip(conn))]
-    pub async fn insert_diesel(
+    pub async fn insert(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<Customer, errors::DatabaseError> {

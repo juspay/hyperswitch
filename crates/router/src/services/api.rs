@@ -6,7 +6,7 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug, future::Future, str, ti
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::PeekOptionInterface;
+use masking::ExposeOptionInterface;
 use router_env::{
     tracing::{self, instrument},
     Tag,
@@ -223,12 +223,13 @@ async fn send_request(
                     client.body(url_encoded_payload).send()
                 }
                 None => client
-                    .body(request.payload.peek_cloning().unwrap_or_default())
+                    .body(request.payload.expose_option().unwrap_or_default())
                     .send(),
             }
             .await
         }
 
+        Method::Put => client.put(url).add_headers(headers).send().await,
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
     .into_report()

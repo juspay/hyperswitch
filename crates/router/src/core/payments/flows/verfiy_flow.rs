@@ -40,7 +40,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: enums::MerchantStorageScheme,
@@ -61,7 +61,7 @@ impl types::VerifyRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
