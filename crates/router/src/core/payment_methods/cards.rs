@@ -1,20 +1,18 @@
-use std::{collections::HashSet, hash::Hash};
+use std::collections;
 
 use error_stack::{report, ResultExt};
 use router_env::{tracing, tracing::instrument};
-use serde_json::Value;
-use uuid::Uuid;
 
 use crate::{
-    configs::settings::Keys,
+    configs::settings,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, StorageErrorExt},
         payment_methods::transformers as payment_methods,
+        payments::helpers,
     },
-    db::StorageInterface,
+    db,
     pii::prelude::*,
-    routes::AppState,
-    services,
+    routes, services,
     types::{
         api::{self, CreatePaymentMethodExt},
         storage::{self, enums},
@@ -25,12 +23,12 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn create_payment_method(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     req: &api::CreatePaymentMethod,
     customer_id: String,
     payment_method_id: String,
     merchant_id: &str,
-) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id,
@@ -48,10 +46,10 @@ pub async fn create_payment_method(
 
 #[instrument(skip_all)]
 pub async fn add_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     req: api::CreatePaymentMethod,
     merchant_id: String,
-) -> RouterResponse<api::PaymentMethodResponse> {
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
 
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -92,12 +90,12 @@ pub async fn add_payment_method(
 
 #[instrument(skip_all)]
 pub async fn add_card(
-    state: &AppState,
+    state: &routes::AppState,
     req: api::CreatePaymentMethod,
     card: api::CardDetail,
     customer_id: String,
     merchant_id: &str,
-) -> CustomResult<api::PaymentMethodResponse, errors::CardVaultError> {
+) -> errors::CustomResult<api::PaymentMethodResponse, errors::CardVaultError> {
     let locker = &state.conf.locker;
     let db = &*state.store;
     let request = payment_methods::mk_add_card_request(locker, &card, &customer_id, &req)?;
@@ -118,7 +116,7 @@ pub async fn add_card(
         }?;
         response
     } else {
-        let card_id = Uuid::new_v4().to_string();
+        let card_id = uuid::Uuid::new_v4().to_string();
         mock_add_card(db, &card_id, &card).await?
     };
 
@@ -137,15 +135,15 @@ pub async fn add_card(
 
 #[instrument(skip_all)]
 pub async fn mock_add_card(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     card_id: &str,
     card: &api::CardDetail,
-) -> CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
+) -> errors::CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
     let locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
-        external_id: Uuid::new_v4().to_string(),
-        card_fingerprint: Uuid::new_v4().to_string(),
-        card_global_fingerprint: Uuid::new_v4().to_string(),
+        external_id: uuid::Uuid::new_v4().to_string(),
+        card_fingerprint: uuid::Uuid::new_v4().to_string(),
+        card_global_fingerprint: uuid::Uuid::new_v4().to_string(),
         merchant_id: "mm01".to_string(),
         card_number: card.card_number.peek().to_string(),
         card_exp_year: card.card_exp_year.peek().to_string(),
@@ -174,9 +172,9 @@ pub async fn mock_add_card(
 
 #[instrument(skip_all)]
 pub async fn mock_get_card<'a>(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     card_id: &'a str,
-) -> CustomResult<payment_methods::GetCardResponse, errors::CardVaultError> {
+) -> errors::CustomResult<payment_methods::GetCardResponse, errors::CardVaultError> {
     let locker_mock_up = db
         .find_locker_by_card_id(card_id)
         .await
@@ -202,10 +200,10 @@ pub async fn mock_get_card<'a>(
 
 #[instrument(skip_all)]
 pub async fn get_card_from_legacy_locker<'a>(
-    state: &'a AppState,
+    state: &'a routes::AppState,
     merchant_id: &'a str,
     card_id: &'a str,
-) -> RouterResult<payment_methods::GetCardResponse> {
+) -> errors::RouterResult<payment_methods::GetCardResponse> {
     let locker = &state.conf.locker;
     let request = payment_methods::mk_get_card_request(locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -236,10 +234,10 @@ pub async fn get_card_from_legacy_locker<'a>(
 
 #[instrument(skip_all)]
 pub async fn delete_card<'a>(
-    state: &'a AppState,
+    state: &'a routes::AppState,
     merchant_id: &'a str,
     card_id: &'a str,
-) -> RouterResult<payment_methods::DeleteCardResponse> {
+) -> errors::RouterResult<payment_methods::DeleteCardResponse> {
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
@@ -255,10 +253,18 @@ pub async fn delete_card<'a>(
 }
 
 pub async fn list_payment_methods(
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
-) -> RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+) -> errors::RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+    helpers::verify_client_secret(
+        db,
+        merchant_account.storage_scheme,
+        req.client_secret.clone(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
         .await
@@ -283,7 +289,7 @@ pub async fn list_payment_methods(
 }
 
 fn filter_payment_methods(
-    payment_methods: Vec<Value>,
+    payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
     resp: &mut Vec<api::ListPaymentMethodResponse>,
 ) {
@@ -325,14 +331,14 @@ fn filter_payment_methods(
     }
 }
 
-fn filter_accepted_enum_based<T: Eq + Hash + Clone>(
+fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
     left: &Option<Vec<T>>,
     right: &Option<Vec<T>>,
 ) -> (Option<Vec<T>>, Option<Vec<T>>, bool) {
     match (left, right) {
         (Some(ref l), Some(ref r)) => {
-            let a: HashSet<&T> = HashSet::from_iter(l.iter());
-            let b: HashSet<&T> = HashSet::from_iter(r.iter());
+            let a: collections::HashSet<&T> = collections::HashSet::from_iter(l.iter());
+            let b: collections::HashSet<&T> = collections::HashSet::from_iter(r.iter());
 
             let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
             (Some(y), Some(r.to_vec()), true)
@@ -381,10 +387,10 @@ fn filter_installment_based(
 }
 
 pub async fn list_customer_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     customer_id: &str,
-) -> RouterResponse<api::ListCustomerPaymentMethodsResponse> {
+) -> errors::RouterResponse<api::ListCustomerPaymentMethodsResponse> {
     let db = &*state.store;
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
@@ -427,7 +433,7 @@ pub async fn list_customer_payment_method(
     }
     let mut vec = Vec::new();
     for pm in resp.into_iter() {
-        let payment_token = Uuid::new_v4().to_string();
+        let payment_token = uuid::Uuid::new_v4().to_string();
         let card = if pm.payment_method == enums::PaymentMethodType::Card {
             Some(get_lookup_key_from_locker(state, &payment_token, &pm).await?)
         } else {
@@ -462,10 +468,10 @@ pub async fn list_customer_payment_method(
 }
 
 pub async fn get_lookup_key_from_locker(
-    state: &AppState,
+    state: &routes::AppState,
     payment_token: &str,
     pm: &storage::PaymentMethod,
-) -> RouterResult<api::CardDetailFromLocker> {
+) -> errors::RouterResult<api::CardDetailFromLocker> {
     let get_card_resp = get_card_from_legacy_locker(
         state,
         pm.merchant_id.as_str(),
@@ -487,10 +493,10 @@ pub struct BasiliskCardSupport;
 #[cfg(not(feature = "basilisk"))]
 impl BasiliskCardSupport {
     async fn create_payment_method_data_in_locker(
-        state: &AppState,
+        state: &routes::AppState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
-    ) -> RouterResult<api::CardDetailFromLocker> {
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card
             .card_number
             .clone()
@@ -530,10 +536,10 @@ impl BasiliskCardSupport {
 impl BasiliskCardSupport {
     #[instrument(skip_all)]
     async fn create_payment_method_data_in_locker(
-        state: &AppState,
+        state: &routes::AppState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
-    ) -> RouterResult<api::CardDetailFromLocker> {
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card
             .card_number
             .clone()
@@ -579,9 +585,9 @@ impl BasiliskCardSupport {
 }
 
 pub async fn get_card_info_value(
-    keys: &Keys,
+    keys: &settings::Keys,
     card_info: String,
-) -> RouterResult<serde_json::Value> {
+) -> errors::RouterResult<serde_json::Value> {
     let key = services::KeyHandler::get_encryption_key(keys)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -593,9 +599,9 @@ pub async fn get_card_info_value(
 }
 
 pub async fn get_card_info_from_value(
-    keys: &Keys,
+    keys: &settings::Keys,
     card_info: serde_json::Value,
-) -> RouterResult<String> {
+) -> errors::RouterResult<String> {
     let key = services::KeyHandler::get_encryption_key(keys)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -608,9 +614,9 @@ pub async fn get_card_info_from_value(
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     pm: api::PaymentMethodId,
-) -> RouterResponse<api::PaymentMethodResponse> {
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let pm = db
         .find_payment_method(&pm.payment_method_id)
@@ -644,10 +650,10 @@ pub async fn retrieve_payment_method(
 
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     pm: api::PaymentMethodId,
-) -> RouterResponse<api::DeletePaymentMethodResponse> {
+) -> errors::RouterResponse<api::DeletePaymentMethodResponse> {
     let pm = state
         .store
         .delete_payment_method_by_merchant_id_payment_method_id(
@@ -678,11 +684,11 @@ pub async fn delete_payment_method(
 
 //------------------------------------------------TokenizeService------------------------------------------------
 pub async fn create_tokenize(
-    state: &AppState,
+    state: &routes::AppState,
     value1: String,
     value2: Option<String>,
     lookup_key: String,
-) -> RouterResult<String> {
+) -> errors::RouterResult<String> {
     let payload_to_be_encrypted = api::TokenizePayloadRequest {
         value1,
         value2: value2.unwrap_or_default(),
@@ -738,10 +744,10 @@ pub async fn create_tokenize(
 }
 
 pub async fn get_tokenized_data(
-    state: &AppState,
+    state: &routes::AppState,
     lookup_key: &str,
     should_get_value2: bool,
-) -> RouterResult<api::TokenizePayloadRequest> {
+) -> errors::RouterResult<api::TokenizePayloadRequest> {
     let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
         lookup_key: lookup_key.to_string(),
         get_value2: should_get_value2,
@@ -792,7 +798,10 @@ pub async fn get_tokenized_data(
     }
 }
 
-pub async fn delete_tokenized_data(state: &AppState, lookup_key: &str) -> RouterResult<String> {
+pub async fn delete_tokenized_data(
+    state: &routes::AppState,
+    lookup_key: &str,
+) -> errors::RouterResult<String> {
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
     };

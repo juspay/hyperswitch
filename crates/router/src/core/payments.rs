@@ -16,7 +16,6 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    helpers::{filter_by_constraints, validate_payment_list_request},
     operations::{BoxedOperation, Operation},
 };
 use super::errors::StorageErrorExt;
@@ -573,10 +572,10 @@ pub async fn list_payments(
     merchant: storage::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    validate_payment_list_request(&constraints)?;
+    helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let payment_intent =
-        filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
+        helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
             .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 

@@ -61,13 +61,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        if let Some(ref req_cs) = request.client_secret {
-            if let Some(ref pi_cs) = payment_intent.client_secret {
-                if req_cs.ne(pi_cs) {
-                    return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
-                }
-            }
-        }
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            payment_intent.client_secret.as_ref(),
+        )?;
 
         let browser_info = request
             .browser_info
