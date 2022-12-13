@@ -6,6 +6,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use error_stack::{IntoReport, ResultExt};
+use futures::future::join_all;
 use router_env::{tracing, tracing::instrument};
 use time;
 
@@ -323,7 +324,7 @@ where
     let res = router_data
         .decide_flows(
             state,
-            connector,
+            &connector,
             customer,
             call_connector_action,
             merchant_account.storage_scheme,
@@ -377,30 +378,30 @@ where
     PaymentResponse: Operation<F, Req>,
 {
     let call_connectors_start_time = Instant::now();
-    let mut router_data_list = Vec::with_capacity(connectors.len());
+    let mut join_handlers = Vec::with_capacity(connectors.len());
 
-    for connector in connectors {
+    for connector in connectors.iter() {
         let connector_id = connector.connector.id();
         let router_data = payment_data
             .construct_router_data(state, connector_id, merchant_account)
             .await?;
 
-        router_data_list.push((connector, router_data));
+        let res = router_data.decide_flows(
+            state,
+            connector,
+            customer,
+            CallConnectorAction::Trigger,
+            merchant_account.storage_scheme,
+        );
+
+        join_handlers.push(res);
     }
 
-    for (connector, router_data) in router_data_list {
-        let connector_name = connector.connector_name.to_owned().to_string();
-        let res = router_data
-            .decide_flows(
-                state,
-                connector,
-                customer,
-                CallConnectorAction::Trigger,
-                merchant_account.storage_scheme,
-            )
-            .await?; //FIXME: remove this error propogation
+    let result = join_all(join_handlers).await;
 
-        match res.response {
+    for (connector_res, connector) in result.into_iter().zip(connectors) {
+        let connector_name = connector.connector_name.to_string();
+        match connector_res?.response {
             Ok(connector_response) => {
                 if let types::PaymentsResponseData::SessionResponse {
                     session_token,
@@ -416,6 +417,7 @@ where
                         });
                 }
             }
+
             Err(connector_error) => {
                 logger::debug!(
                     "sessions_connector_error {} {:?}",
