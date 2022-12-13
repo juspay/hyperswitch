@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 // TODO: Add crate & modules documentation for this crate
 
 pub mod commands;
