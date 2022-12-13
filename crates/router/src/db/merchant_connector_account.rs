@@ -1,3 +1,4 @@
+use error_stack::IntoReport;
 use masking::ExposeInterface;
 
 use super::MockDb;
@@ -54,7 +55,10 @@ impl MerchantConnectorAccountInterface for super::Store {
         connector: &str,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        MerchantConnectorAccount::find_by_merchant_id_connector(&conn, merchant_id, connector).await
+        MerchantConnectorAccount::find_by_merchant_id_connector(&conn, merchant_id, connector)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -69,6 +73,8 @@ impl MerchantConnectorAccountInterface for super::Store {
             merchant_connector_id,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_merchant_connector_account(
@@ -76,7 +82,10 @@ impl MerchantConnectorAccountInterface for super::Store {
         t: MerchantConnectorAccountNew,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        t.insert_diesel(&conn).await
+        t.insert_diesel(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_merchant_connector_account_by_merchant_id_list(
@@ -84,7 +93,10 @@ impl MerchantConnectorAccountInterface for super::Store {
         merchant_id: &str,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id).await
+        MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_merchant_connector_account(
@@ -93,7 +105,10 @@ impl MerchantConnectorAccountInterface for super::Store {
         merchant_connector_account: MerchantConnectorAccountUpdate,
     ) -> CustomResult<MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, merchant_connector_account).await
+        this.update(&conn, merchant_connector_account)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -108,6 +123,8 @@ impl MerchantConnectorAccountInterface for super::Store {
             merchant_connector_id,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 }
 

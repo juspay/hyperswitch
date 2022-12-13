@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::MockDb;
 use crate::{
     connection::pg_connection,
@@ -35,7 +37,11 @@ impl TempCardInterface for super::Store {
         address: TempCardNew,
     ) -> CustomResult<TempCard, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        address.insert_diesel(&conn).await
+        address
+            .insert_diesel(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_tempcard_by_transaction_id(
@@ -43,7 +49,10 @@ impl TempCardInterface for super::Store {
         transaction_id: &str,
     ) -> CustomResult<Option<TempCard>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        TempCard::find_by_transaction_id(&conn, transaction_id).await
+        TempCard::find_by_transaction_id(&conn, transaction_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_tempcard_with_token(
@@ -51,7 +60,10 @@ impl TempCardInterface for super::Store {
         card: TempCard,
     ) -> CustomResult<TempCard, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        TempCard::insert_with_token(card, &conn).await
+        TempCard::insert_with_token(card, &conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_tempcard_by_token(
@@ -59,7 +71,10 @@ impl TempCardInterface for super::Store {
         token: &i32,
     ) -> CustomResult<TempCard, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        TempCard::find_by_token(&conn, token).await
+        TempCard::find_by_token(&conn, token)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

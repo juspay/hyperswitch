@@ -3,20 +3,12 @@ use error_stack::report;
 use router_env::tracing::{self, instrument};
 
 use super::generics::{self, ExecuteQuery};
-use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult},
-    schema::mandate::dsl,
-    types::storage::{self, mandate::*},
-};
+use crate::{errors, mandate::*, schema::mandate::dsl, CustomResult, PgPooledConn};
 
 impl MandateNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        generics::generic_insert::<_, _, storage::Mandate, _>(conn, self, ExecuteQuery::new()).await
+    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Mandate, errors::DatabaseError> {
+        generics::generic_insert::<_, _, Mandate, _>(conn, self, ExecuteQuery::new()).await
     }
 }
 
@@ -25,7 +17,7 @@ impl Mandate {
         conn: &PgPooledConn,
         merchant_id: &str,
         mandate_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -39,7 +31,7 @@ impl Mandate {
         conn: &PgPooledConn,
         merchant_id: &str,
         customer_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::StorageError> {
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -55,7 +47,7 @@ impl Mandate {
         merchant_id: &str,
         mandate_id: &str,
         mandate: MandateUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             dsl::merchant_id
@@ -68,10 +60,8 @@ impl Mandate {
         .first()
         .cloned()
         .ok_or_else(|| {
-            report!(errors::StorageError::DatabaseError(
-                errors::DatabaseError::NotFound
-            ))
-            .attach_printable("Error while updating mandate")
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable("Error while updating mandate")
         })
     }
 }

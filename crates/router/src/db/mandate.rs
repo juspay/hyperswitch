@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::MockDb;
 use crate::{
     connection::pg_connection,
@@ -40,7 +42,10 @@ impl MandateInterface for super::Store {
         mandate_id: &str,
     ) -> CustomResult<Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id).await
+        Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -49,7 +54,10 @@ impl MandateInterface for super::Store {
         customer_id: &str,
     ) -> CustomResult<Vec<Mandate>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id).await
+        Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -59,7 +67,10 @@ impl MandateInterface for super::Store {
         mandate: MandateUpdate,
     ) -> CustomResult<Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate).await
+        Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_mandate(
@@ -67,7 +78,11 @@ impl MandateInterface for super::Store {
         mandate: MandateNew,
     ) -> CustomResult<Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        mandate.insert(&conn).await
+        mandate
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

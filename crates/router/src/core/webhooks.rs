@@ -18,6 +18,7 @@ use crate::{
     types::{
         api,
         storage::{self, enums},
+        transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{generate_id, Encode, OptionExt, ValueExt},
 };
@@ -66,7 +67,7 @@ async fn payments_incoming_webhook_flow(
 
             let event_type: enums::EventType = payments_response
                 .status
-                .try_into()
+                .foreign_try_into()
                 .into_report()
                 .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
@@ -123,7 +124,7 @@ async fn create_event_and_trigger_outgoing_webhook(
     let outgoing_webhook = api::OutgoingWebhook {
         merchant_id: merchant_account.merchant_id.clone(),
         event_id: event.event_id,
-        event_type: event.event_type.into(),
+        event_type: event.event_type.foreign_into(),
         content,
         timestamp: event.created_at,
     };
