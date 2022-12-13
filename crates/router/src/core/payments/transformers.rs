@@ -459,8 +459,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
 impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(_payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {})
+    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: payment_data.amount.into(),
+            currency: payment_data.currency,
+        })
     }
 }
 

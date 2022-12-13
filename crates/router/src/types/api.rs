@@ -83,7 +83,7 @@ impl ConnectorData {
         let connector_name = types::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable_lazy(|| format!("unable to parse connector name {:?}", connector))
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(ConnectorData {
             connector,
@@ -102,6 +102,7 @@ impl ConnectorData {
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
+            "klarna" => Ok(Box::new(&connector::Klarna)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ConnectorError::InvalidConnectorName)
