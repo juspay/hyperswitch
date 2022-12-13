@@ -177,8 +177,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: item.response.client_token.value.authorization_fingerprint,
-                session_id: None,
+                session_token: types::api::SessionTokens::PaypalSessionToken {
+                    connector_name: "paypal".to_string(),
+                    session_token: item.response.client_token.value.authorization_fingerprint,
+                },
             }),
             ..item.data
         })

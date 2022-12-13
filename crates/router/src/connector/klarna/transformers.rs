@@ -54,8 +54,11 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
         let response = &item.response;
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_id: Some(response.session_id.clone()),
-                session_token: response.client_token.clone(),
+                session_token: types::api::SessionTokens::KlarnaSessionToken {
+                    connector_name: "klarna".to_string(),
+                    session_token: response.client_token.clone(),
+                    session_id: response.session_id.clone(),
+                },
             }),
             ..item.data
         })
