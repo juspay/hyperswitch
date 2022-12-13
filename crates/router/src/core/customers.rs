@@ -83,18 +83,18 @@ pub async fn delete_customer(
         Err(errors::ApiErrorResponse::CustomerRedacted)?
     }
 
-    let vec_mandate = db
+    let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
         .await
         .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
-    for mandate in vec_mandate.into_iter() {
+    for mandate in customer_mandates.into_iter() {
         if mandate.mandate_status == enums::MandateStatus::Active {
             Err(errors::ApiErrorResponse::MandateActive)?
         }
     }
 
-    let vec_pm = db
+    let customer_payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
@@ -103,7 +103,7 @@ pub async fn delete_customer(
         .map_err(|err| {
             err.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
-    for pm in vec_pm.into_iter() {
+    for pm in customer_payment_methods.into_iter() {
         if pm.payment_method == enums::PaymentMethodType::Card {
             cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id).await?;
         }
