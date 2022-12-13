@@ -3,15 +3,15 @@ use router_env::{tracing, tracing::instrument};
 
 use super::generics::{self, ExecuteQuery};
 use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult, DatabaseError},
+    address::{Address, AddressNew, AddressUpdate, AddressUpdateInternal},
+    errors,
     schema::address::dsl,
-    types::storage::{Address, AddressNew, AddressUpdate, AddressUpdateInternal},
+    CustomResult, PgPooledConn,
 };
 
 impl AddressNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Address, errors::StorageError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Address, errors::DatabaseError> {
         generics::generic_insert::<_, _, Address, _>(conn, self, ExecuteQuery::new()).await
     }
 }
@@ -22,7 +22,7 @@ impl Address {
         conn: &PgPooledConn,
         address_id: String,
         address: AddressUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             address_id.clone(),
@@ -32,10 +32,10 @@ impl Address {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::StorageError::DatabaseError(DatabaseError::NotFound) => {
+                errors::DatabaseError::NotFound => {
                     Err(error.attach_printable("Address with the given ID doesn't exist"))
                 }
-                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                errors::DatabaseError::NoFieldsToUpdate => {
                     generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
                         conn,
                         address_id.clone(),
@@ -52,7 +52,7 @@ impl Address {
     pub async fn delete_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<bool, errors::DatabaseError> {
         generics::generic_delete::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::address_id.eq(address_id.to_owned()),
@@ -65,7 +65,7 @@ impl Address {
     pub async fn find_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
             .await
     }
@@ -74,7 +74,7 @@ impl Address {
     pub async fn find_optional_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
-    ) -> CustomResult<Option<Self>, errors::StorageError> {
+    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             address_id.to_owned(),

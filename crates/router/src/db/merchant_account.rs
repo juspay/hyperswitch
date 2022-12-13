@@ -1,10 +1,10 @@
-use error_stack::Report;
+use error_stack::{IntoReport, Report};
 use masking::PeekInterface;
 
 use super::MockDb;
 use crate::{
     connection::pg_connection,
-    core::errors::{self, CustomResult, DatabaseError, StorageError},
+    core::errors::{self, CustomResult},
     types::storage::{enums, MerchantAccount, MerchantAccountNew, MerchantAccountUpdate},
 };
 
@@ -49,7 +49,11 @@ impl MerchantAccountInterface for super::Store {
         merchant_account: MerchantAccountNew,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        merchant_account.insert_diesel(&conn).await
+        merchant_account
+            .insert_diesel(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_merchant_account_by_merchant_id(
@@ -57,7 +61,10 @@ impl MerchantAccountInterface for super::Store {
         merchant_id: &str,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        MerchantAccount::find_by_merchant_id(&conn, merchant_id).await
+        MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_merchant(
@@ -66,7 +73,10 @@ impl MerchantAccountInterface for super::Store {
         merchant_account: MerchantAccountUpdate,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, merchant_account).await
+        this.update(&conn, merchant_account)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_merchant_account_by_api_key(
@@ -74,7 +84,10 @@ impl MerchantAccountInterface for super::Store {
         api_key: &str,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        MerchantAccount::find_by_api_key(&conn, api_key).await
+        MerchantAccount::find_by_api_key(&conn, api_key)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_merchant_account_by_publishable_key(
@@ -82,7 +95,10 @@ impl MerchantAccountInterface for super::Store {
         publishable_key: &str,
     ) -> CustomResult<MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        MerchantAccount::find_by_publishable_key(&conn, publishable_key).await
+        MerchantAccount::find_by_publishable_key(&conn, publishable_key)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn delete_merchant_account_by_merchant_id(
@@ -90,7 +106,10 @@ impl MerchantAccountInterface for super::Store {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        MerchantAccount::delete_by_merchant_id(&conn, merchant_id).await
+        MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 
@@ -163,7 +182,8 @@ impl MerchantAccountInterface for MockDb {
             .iter()
             .find(|account| account.api_key.as_ref().map(|s| s.peek()) == Some(&api_key.into()))
             .cloned()
-            .ok_or_else(|| Report::from(StorageError::DatabaseError(DatabaseError::NotFound)))
+            .ok_or_else(|| Report::from(storage_models::errors::DatabaseError::NotFound).into())
+            .into_report()
     }
 
     async fn find_merchant_account_by_publishable_key(

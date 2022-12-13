@@ -9,7 +9,7 @@ use crate::{
     scheduler::{consumer, process_data, utils},
     types::{
         api,
-        storage::{self, enums},
+        storage::{self, enums, ProcessTrackerExt},
     },
     utils::{OptionExt, ValueExt},
 };

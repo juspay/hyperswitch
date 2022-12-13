@@ -17,7 +17,10 @@ use time::PrimitiveDateTime;
 use crate::{
     core::errors,
     services::api,
-    types::{self, api as api_types},
+    types::{
+        self, api as api_types, storage,
+        transformers::{Foreign, ForeignInto},
+    },
 };
 
 pub(crate) trait PaymentsRequestExt {
@@ -109,12 +112,13 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
-impl From<types::storage::PaymentIntent> for PaymentsResponse {
-    fn from(item: types::storage::PaymentIntent) -> Self {
+impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
+    fn from(item: Foreign<storage::PaymentIntent>) -> Self {
+        let item = item.0;
         payments::PaymentsResponse {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
-            status: item.status.into(),
+            status: item.status.foreign_into(),
             amount: item.amount,
             amount_capturable: item.amount_captured,
             client_secret: item.client_secret.map(|s| s.into()),
@@ -123,8 +127,9 @@ impl From<types::storage::PaymentIntent> for PaymentsResponse {
             description: item.description,
             metadata: item.metadata,
             customer_id: item.customer_id,
-            ..Self::default()
+            ..Default::default()
         }
+        .into()
     }
 }
 

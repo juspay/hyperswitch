@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::MockDb;
 use crate::{
     connection::pg_connection,
@@ -25,7 +27,10 @@ impl LockerMockUpInterface for super::Store {
         card_id: &str,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        LockerMockUp::find_by_card_id(&conn, card_id).await
+        LockerMockUp::find_by_card_id(&conn, card_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_locker_mock_up(
@@ -33,7 +38,7 @@ impl LockerMockUpInterface for super::Store {
         new: LockerMockUpNew,
     ) -> CustomResult<LockerMockUp, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        new.insert(&conn).await
+        new.insert(&conn).await.map_err(Into::into).into_report()
     }
 }
 
