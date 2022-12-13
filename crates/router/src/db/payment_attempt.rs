@@ -77,7 +77,7 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
             payment_attempt
-                .insert_diesel(&conn)
+                .insert(&conn)
                 .await
                 .map_err(Into::into)
                 .into_report()
