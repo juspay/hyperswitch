@@ -7,8 +7,12 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api::{customers, mandates},
+        api::{
+            customers,
+            mandates::{self, MandateResponseExt},
+        },
         storage,
+        transformers::ForeignInto,
     },
 };
 
@@ -48,7 +52,7 @@ pub async fn revoke_mandate(
     Ok(services::BachResponse::Json(
         mandates::MandateRevokedResponse {
             mandate_id: mandate.mandate_id,
-            status: mandate.mandate_status.into(),
+            status: mandate.mandate_status.foreign_into(),
         },
     ))
 }

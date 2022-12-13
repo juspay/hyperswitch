@@ -5,7 +5,10 @@ use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
     services,
-    types::{api::customers, storage},
+    types::{
+        api::customers::{self, CustomerRequestExt},
+        storage,
+    },
 };
 
 #[instrument(skip(db))]
@@ -27,20 +30,22 @@ pub async fn create_customer(
         phone: customer_data.phone,
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
-        address: customer_data.address,
         metadata: customer_data.metadata,
     };
 
     let customer = match db.insert_customer(new_customer).await {
         Ok(customer) => customer,
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => db
-                .find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            _ => Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?,
-        },
+        Err(error) => {
+            if error.current_context().is_db_unique_violation() {
+                db.find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            } else {
+                Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?
+            }
+        }
     };
+
     Ok(services::BachResponse::Json(customer.into()))
 }
 
@@ -92,7 +97,6 @@ pub async fn update_customer(
                 email: update_customer.email,
                 phone: update_customer.phone,
                 phone_country_code: update_customer.phone_country_code,
-                address: update_customer.address,
                 metadata: update_customer.metadata,
                 description: update_customer.description,
             },

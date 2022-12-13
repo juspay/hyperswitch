@@ -20,8 +20,9 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums as storage_enums},
+        transformers::ForeignInto,
     },
     utils,
 };
@@ -289,7 +290,7 @@ impl PaymentMethodValidate {
             amount: 0,
             currency: Default::default(),
             connector: None,
-            payment_method: payment_method.map(Into::into),
+            payment_method: payment_method.map(ForeignInto::foreign_into),
             confirm: true,
             created_at,
             modified_at,
@@ -319,7 +320,7 @@ impl PaymentMethodValidate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(Into::into),
+            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
             ..Default::default()
         }

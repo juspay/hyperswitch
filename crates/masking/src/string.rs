@@ -23,7 +23,7 @@ where
     type Err = core::convert::Infallible;
 
     fn from_str(src: &str) -> Result<Self, Self::Err> {
-        Ok(Secret::<String, I>::new(src.to_string()))
+        Ok(Self::new(src.to_string()))
     }
 }
 
@@ -34,6 +34,6 @@ where
     type Err = core::convert::Infallible;
 
     fn from_str(src: &str) -> Result<Self, Self::Err> {
-        Ok(StrongSecret::<String, I>::new(src.to_string()))
+        Ok(Self::new(src.to_string()))
     }
 }

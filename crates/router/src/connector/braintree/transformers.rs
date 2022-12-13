@@ -44,11 +44,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
+                let submit_for_settlement = matches!(
+                    item.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic) | None
+                );
                 let braintree_payment_request = TransactionBody {
                     amount: item.request.amount.to_string(),
                     device_data: DeviceData {},
                     options: PaymentOptions {
-                        submit_for_settlement: true,
+                        submit_for_settlement,
                     },
                     credit_card: Card {
                         number: ccard.card_number.peek().clone(),
@@ -62,7 +66,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     transaction: braintree_payment_request,
                 })
             }
-            _ => Err(errors::ConnectorError::RequestEncodingFailed.into()),
+            _ => Err(
+                errors::ConnectorError::NotImplemented("Current Payment Method".to_string()).into(),
+            ),
         }
     }
 }
@@ -140,22 +146,67 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
+            status: enums::AttemptStatus::from(item.response.transaction.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.id,
                 ),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, BraintreeSessionTokenResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BraintreeSessionTokenResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(types::RouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: item.response.client_token.value.authorization_fingerprint,
+                session_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     transaction: TransactionResponse,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationFingerprint {
+    authorization_fingerprint: String,
+}
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientToken {
+    #[serde(with = "common_utils::custom_serde::json_string")]
+    pub value: AuthorizationFingerprint,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeSessionTokenResponse {
+    pub client_token: ClientToken,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -179,12 +230,21 @@ pub struct ApiErrorResponse {
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
-pub struct RefundRequest {}
+pub struct BraintreeRefundRequest {
+    transaction: Amount,
+}
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+#[derive(Default, Debug, Serialize, Clone)]
+pub struct Amount {
+    amount: Option<String>,
+}
+
+impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(RefundRequest {})
+        Ok(BraintreeRefundRequest {
+            transaction: Amount { amount: None },
+        })
     }
 }
 

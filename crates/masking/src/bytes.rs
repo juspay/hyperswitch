@@ -14,13 +14,13 @@ use super::{PeekInterface, ZeroizableSecret};
 /// Because of the nature of how the `BytesMut` type works, it needs some special
 /// care in order to have a proper zeroizing drop handler.
 #[derive(Clone)]
-#[cfg_attr(docsrs, doc(cfg(feature = "bytes")))]
+#[cfg_attr(docsrs, cfg(feature = "bytes"))]
 pub struct SecretBytesMut(BytesMut);
 
 impl SecretBytesMut {
     /// Wrap bytes in `SecretBytesMut`
-    pub fn new(bytes: impl Into<BytesMut>) -> SecretBytesMut {
-        SecretBytesMut(bytes.into())
+    pub fn new(bytes: impl Into<BytesMut>) -> Self {
+        Self(bytes.into())
     }
 }
 
@@ -37,8 +37,8 @@ impl fmt::Debug for SecretBytesMut {
 }
 
 impl From<BytesMut> for SecretBytesMut {
-    fn from(bytes: BytesMut) -> SecretBytesMut {
-        SecretBytesMut::new(bytes)
+    fn from(bytes: BytesMut) -> Self {
+        Self::new(bytes)
     }
 }
 

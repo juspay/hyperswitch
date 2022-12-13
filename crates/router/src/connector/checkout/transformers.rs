@@ -6,7 +6,11 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{self, api, storage::enums},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{Foreign, ForeignFrom},
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -138,8 +142,11 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::AttemptStatus {
-    fn from(item: (CheckoutPaymentStatus, Option<enums::CaptureMethod>)) -> Self {
+impl From<Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
+    for Foreign<enums::AttemptStatus>
+{
+    fn from(item: Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>) -> Self {
+        let item = item.0;
         let status = item.0;
         let capture_method = item.1;
         match status {
@@ -157,6 +164,7 @@ impl From<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::Atte
             CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
         }
+        .into()
     }
 }
 
@@ -203,7 +211,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             ),
         });
         Ok(types::RouterData {
-            status: enums::AttemptStatus::from((
+            status: enums::AttemptStatus::foreign_from((
                 item.response.status,
                 item.data.request.capture_method,
             )),
@@ -211,6 +219,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })
@@ -225,12 +235,14 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            status: enums::AttemptStatus::from((item.response.status, None)),
+            status: enums::AttemptStatus::foreign_from((item.response.status, None)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 //TODO: Add redirection details here
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             ..item.data
         })
@@ -271,6 +283,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
                 redirect: false,
                 redirection_data: None,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
             status: response.into(),
             ..item.data

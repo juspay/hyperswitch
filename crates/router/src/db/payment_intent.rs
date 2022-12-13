@@ -3,7 +3,7 @@ use crate::{
     core::errors::{self, CustomResult},
     types::{
         api,
-        storage::{enums, PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
+        storage::{self as types, enums},
     },
 };
 
@@ -11,38 +11,37 @@ use crate::{
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
         &self,
-        this: PaymentIntent,
-        payment_intent: PaymentIntentUpdate,
+        this: types::PaymentIntent,
+        payment_intent: types::PaymentIntentUpdate,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentIntent, errors::StorageError>;
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        new: types::PaymentIntentNew,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentIntent, errors::StorageError>;
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentIntent, errors::StorageError>;
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
         pc: &api::PaymentListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use fred::prelude::{RedisErrorKind, *};
-    use redis_interface::RedisEntryId;
+    use redis_interface::{RedisEntryId, SetNXReply};
 
     use super::PaymentIntentInterface;
     use crate::{
@@ -66,7 +65,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    new.insert_diesel(&conn).await
+                    new.insert(&conn).await.map_err(Into::into).into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -95,24 +94,20 @@ mod storage {
                         off_session: new.off_session,
                         client_secret: new.client_secret.clone(),
                     };
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&created_intent)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
                     match self
                         .redis_conn
-                        .pool
-                        .hsetnx::<u8, &str, &str, &str>(&key, "pi", &redis_value)
+                        .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
                     {
-                        Ok(0) => Err(errors::StorageError::DuplicateValue(format!(
-                            "Payment Intent already exists for payment_id: {key}"
-                        )))
+                        Ok(SetNXReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
+                            format!("Payment Intent already exists for payment_id: {key}"),
+                        ))
                         .into_report(),
-                        Ok(1) => {
+                        Ok(SetNXReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = new
-                                .insert_diesel_query(&conn)
+                                .insert_query(&conn)
                                 .await
                                 .change_context(errors::StorageError::KVError)?;
                             let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
@@ -132,14 +127,7 @@ mod storage {
                                 .change_context(errors::StorageError::KVError)?;
                             Ok(created_intent)
                         }
-                        Ok(i) => Err(errors::StorageError::KVError)
-                            .into_report()
-                            .attach_printable_lazy(|| {
-                                format!("Invalid response for HSETNX: {}", i)
-                            }),
-                        Err(er) => Err(er)
-                            .into_report()
-                            .change_context(errors::StorageError::KVError),
+                        Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                     }
                 }
             }
@@ -154,7 +142,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    this.update(&conn, payment_intent).await
+                    this.update(&conn, payment_intent)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -162,17 +153,11 @@ mod storage {
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&updated_intent)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
                     let updated_intent = self
                         .redis_conn
-                        .pool
-                        .hset::<u8, &str, (&str, String)>(&key, ("pi", redis_value))
+                        .serialize_and_set_hash_fields(&key, ("pi", &updated_intent))
                         .await
                         .map(|_| updated_intent)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let conn = pg_connection(&self.master_pool).await;
@@ -211,25 +196,25 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                         .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", payment_id, merchant_id);
                     self.redis_conn
-                        .pool
-                        .hget::<String, &str, &str>(&key, "pi")
+                        .get_hash_field_and_deserialize::<PaymentIntent>(
+                            &key,
+                            "pi",
+                            "PaymentIntent",
+                        )
                         .await
-                        .map_err(|err| match err.kind() {
-                            RedisErrorKind::NotFound => errors::StorageError::ValueNotFound(
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
                                 format!("Payment Intent does not exist for {}", key),
-                            ),
-                            _ => errors::StorageError::KVError,
-                        })
-                        .into_report()
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<PaymentIntent>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                     // Check for database presence as well Maybe use a read replica here ?
                 }
@@ -245,7 +230,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
+                    PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -259,6 +247,8 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use error_stack::IntoReport;
+
     use super::PaymentIntentInterface;
     use crate::{
         connection::pg_connection,
@@ -278,7 +268,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            new.insert_diesel(&conn).await
+            new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
         async fn update_payment_intent(
@@ -288,7 +278,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            this.update(&conn, payment_intent).await
+            this.update(&conn, payment_intent)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn find_payment_intent_by_payment_id_merchant_id(
@@ -298,7 +291,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
+            PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn filter_payment_intent_by_constraints(
@@ -308,7 +304,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
+            PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
     }
 }
@@ -320,19 +319,19 @@ impl PaymentIntentInterface for MockDb {
         _merchant_id: &str,
         _pc: &api::PaymentListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         todo!()
     }
 
     #[allow(clippy::panic)]
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        new: types::PaymentIntentNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
-        let payment_intent = PaymentIntent {
+        let payment_intent = types::PaymentIntent {
             id: payment_intents.len() as i32,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
@@ -362,10 +361,10 @@ impl PaymentIntentInterface for MockDb {
 
     async fn update_payment_intent(
         &self,
-        this: PaymentIntent,
-        update: PaymentIntentUpdate,
+        this: types::PaymentIntent,
+        update: types::PaymentIntentUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter_mut()
@@ -380,7 +379,7 @@ impl PaymentIntentInterface for MockDb {
         payment_id: &str,
         merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
         let payment_intents = self.payment_intents.lock().await;
 
         Ok(payment_intents

@@ -1,17 +1,19 @@
-use super::MockDb;
+use error_stack::IntoReport;
+
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
-    types::storage::{enums, ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
+    types::storage::{self, enums},
 };
 
 #[async_trait::async_trait]
 pub trait ConnectorResponseInterface {
     async fn insert_connector_response(
         &self,
-        connector_response: ConnectorResponseNew,
+        connector_response: storage::ConnectorResponseNew,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError>;
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
 
     async fn find_connector_response_by_payment_id_merchant_id_txn_id(
         &self,
@@ -19,25 +21,29 @@ pub trait ConnectorResponseInterface {
         merchant_id: &str,
         txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError>;
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
 
     async fn update_connector_response(
         &self,
-        this: ConnectorResponse,
-        payment_attempt: ConnectorResponseUpdate,
+        this: storage::ConnectorResponse,
+        payment_attempt: storage::ConnectorResponseUpdate,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError>;
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
-impl ConnectorResponseInterface for super::Store {
+impl ConnectorResponseInterface for Store {
     async fn insert_connector_response(
         &self,
-        connector_response: ConnectorResponseNew,
+        connector_response: storage::ConnectorResponseNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        connector_response.insert(&conn).await
+        connector_response
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_connector_response_by_payment_id_merchant_id_txn_id(
@@ -46,25 +52,30 @@ impl ConnectorResponseInterface for super::Store {
         merchant_id: &str,
         txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        ConnectorResponse::find_by_payment_id_and_merchant_id_transaction_id(
+        storage::ConnectorResponse::find_by_payment_id_and_merchant_id_transaction_id(
             &conn,
             payment_id,
             merchant_id,
             txn_id,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn update_connector_response(
         &self,
-        this: ConnectorResponse,
-        connector_response_update: ConnectorResponseUpdate,
+        this: storage::ConnectorResponse,
+        connector_response_update: storage::ConnectorResponseUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, connector_response_update).await
+        this.update(&conn, connector_response_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 
@@ -72,11 +83,11 @@ impl ConnectorResponseInterface for super::Store {
 impl ConnectorResponseInterface for MockDb {
     async fn insert_connector_response(
         &self,
-        new: ConnectorResponseNew,
+        new: storage::ConnectorResponseNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
-        let response = ConnectorResponse {
+        let response = storage::ConnectorResponse {
             id: connector_response.len() as i32,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
@@ -98,16 +109,16 @@ impl ConnectorResponseInterface for MockDb {
         _merchant_id: &str,
         _txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         todo!()
     }
 
     async fn update_connector_response(
         &self,
-        this: ConnectorResponse,
-        connector_response_update: ConnectorResponseUpdate,
+        this: storage::ConnectorResponse,
+        connector_response_update: storage::ConnectorResponseUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
         let response = connector_response
             .iter_mut()

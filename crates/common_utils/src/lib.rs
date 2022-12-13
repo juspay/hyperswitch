@@ -13,6 +13,7 @@
 )]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+pub mod consts;
 pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
@@ -28,4 +29,17 @@ pub mod date_time {
         let utc_date_time = OffsetDateTime::now_utc();
         PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
     }
+}
+
+/// Generate a nanoid with the given prefix and length
+#[inline]
+pub fn generate_id(length: usize, prefix: &str) -> String {
+    format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
+}
+
+/// Generate a nanoid with the given prefix and a default length
+#[inline]
+pub fn generate_id_with_default_len(prefix: &str) -> String {
+    let len = consts::ID_LENGTH;
+    format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }

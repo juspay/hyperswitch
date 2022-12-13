@@ -1,4 +1,3 @@
-use super::DatabaseError;
 use crate::{core::errors, logger};
 
 pub(crate) trait StorageErrorExt {
@@ -18,11 +17,10 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
         self,
         not_found_response: errors::ApiErrorResponse,
     ) -> error_stack::Report<errors::ApiErrorResponse> {
-        match self.current_context() {
-            errors::StorageError::DatabaseError(DatabaseError::NotFound) => {
-                self.change_context(not_found_response)
-            }
-            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
+        if self.current_context().is_db_not_found() {
+            self.change_context(not_found_response)
+        } else {
+            self.change_context(errors::ApiErrorResponse::InternalServerError)
         }
     }
 
@@ -30,11 +28,10 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
         self,
         duplicate_response: errors::ApiErrorResponse,
     ) -> error_stack::Report<errors::ApiErrorResponse> {
-        match self.current_context() {
-            errors::StorageError::DatabaseError(DatabaseError::UniqueViolation) => {
-                self.change_context(duplicate_response)
-            }
-            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
+        if self.current_context().is_db_unique_violation() {
+            self.change_context(duplicate_response)
+        } else {
+            self.change_context(errors::ApiErrorResponse::InternalServerError)
         }
     }
 }

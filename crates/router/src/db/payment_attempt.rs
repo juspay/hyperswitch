@@ -1,30 +1,30 @@
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
-    types::storage::{enums, PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
+    types::storage::{self as types, enums},
 };
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
     async fn insert_payment_attempt(
         &self,
-        payment_attempt: PaymentAttemptNew,
+        payment_attempt: types::PaymentAttemptNew,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn update_payment_attempt(
         &self,
-        this: PaymentAttempt,
-        payment_attempt: PaymentAttemptUpdate,
+        this: types::PaymentAttempt,
+        payment_attempt: types::PaymentAttemptUpdate,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
         &self,
@@ -32,32 +32,34 @@ pub trait PaymentAttemptInterface {
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
         connector_txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_txn_id(
         &self,
         merchant_id: &str,
         txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use error_stack::IntoReport;
+
     use super::PaymentAttemptInterface;
     use crate::{
         connection::pg_connection,
@@ -74,7 +76,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            payment_attempt.insert_diesel(&conn).await
+            payment_attempt
+                .insert(&conn)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn update_payment_attempt(
@@ -84,7 +90,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            this.update(&conn, payment_attempt).await
+            this.update(&conn, payment_attempt)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn find_payment_attempt_by_payment_id_merchant_id(
@@ -94,7 +103,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
+            PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
@@ -112,6 +124,8 @@ mod storage {
                 merchant_id,
             )
             .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -127,6 +141,8 @@ mod storage {
                 merchant_id,
             )
             .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -144,6 +160,8 @@ mod storage {
                 connector_txn_id,
             )
             .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_by_merchant_id_txn_id(
@@ -154,7 +172,10 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
 
-            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id).await
+            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
     }
 }
@@ -166,7 +187,7 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
@@ -175,21 +196,21 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _connector_txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
     #[allow(clippy::panic)]
     async fn insert_payment_attempt(
         &self,
-        payment_attempt: PaymentAttemptNew,
+        payment_attempt: types::PaymentAttemptNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
         let id = payment_attempts.len() as i32;
         let time = common_utils::date_time::now();
 
-        let payment_attempt = PaymentAttempt {
+        let payment_attempt = types::PaymentAttempt {
             id,
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
@@ -226,10 +247,10 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn update_payment_attempt(
         &self,
-        this: PaymentAttempt,
-        payment_attempt: PaymentAttemptUpdate,
+        this: types::PaymentAttempt,
+        payment_attempt: types::PaymentAttemptUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
 
         let item = payment_attempts
@@ -247,7 +268,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
@@ -257,7 +278,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
@@ -266,7 +287,7 @@ impl PaymentAttemptInterface for MockDb {
         payment_id: &str,
         merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         let payment_attempts = self.payment_attempts.lock().await;
 
         Ok(payment_attempts
@@ -284,8 +305,7 @@ impl PaymentAttemptInterface for MockDb {
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use fred::prelude::*;
-    use redis_interface::RedisEntryId;
+    use redis_interface::{RedisEntryId, SetNXReply};
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -306,7 +326,11 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    payment_attempt.insert_diesel(&conn).await
+                    payment_attempt
+                        .insert(&conn)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -347,25 +371,20 @@ mod storage {
                         mandate_id: payment_attempt.mandate_id.clone(),
                         browser_info: payment_attempt.browser_info.clone(),
                     };
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&created_attempt)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
                     match self
                         .redis_conn
-                        .pool
-                        .hsetnx::<u8, &str, &str, &str>(&key, "pa", &redis_value)
+                        .serialize_and_set_hash_field_if_not_exist(&key, "pa", &created_attempt)
                         .await
                     {
-                        Ok(0) => Err(errors::StorageError::DuplicateValue(format!(
-                            "Payment Attempt already exists for payment_id: {}",
-                            key
-                        )))
+                        Ok(SetNXReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
+                            format!("Payment Attempt already exists for payment_id: {}", key),
+                        ))
                         .into_report(),
-                        Ok(1) => {
+                        Ok(SetNXReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = payment_attempt
-                                .insert_diesel_query(&conn)
+                                .insert_query(&conn)
                                 .await
                                 .change_context(errors::StorageError::KVError)?;
                             let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(
@@ -385,14 +404,7 @@ mod storage {
                                 .change_context(errors::StorageError::KVError)?;
                             Ok(created_attempt)
                         }
-                        Ok(i) => Err(errors::StorageError::KVError)
-                            .into_report()
-                            .attach_printable_lazy(|| {
-                                format!("Invalid response for HSETNX: {}", i)
-                            }),
-                        Err(er) => Err(er)
-                            .into_report()
-                            .change_context(errors::StorageError::KVError),
+                        Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                     }
                 }
             }
@@ -407,7 +419,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    this.update(&conn, payment_attempt).await
+                    this.update(&conn, payment_attempt)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -415,17 +430,11 @@ mod storage {
 
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&updated_attempt)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
                     let updated_attempt = self
                         .redis_conn
-                        .pool
-                        .hset::<u8, &str, (&str, String)>(&key, ("pa", redis_value))
+                        .serialize_and_set_hash_fields(&key, ("pa", &updated_attempt))
                         .await
                         .map(|_| updated_attempt)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let conn = pg_connection(&self.master_pool).await;
@@ -464,20 +473,25 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                         .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", payment_id, merchant_id);
                     self.redis_conn
-                        .pool
-                        .hget::<String, String, &str>(key, "pa")
+                        .get_hash_field_and_deserialize::<PaymentAttempt>(
+                            &key,
+                            "pa",
+                            "PaymentAttempt",
+                        )
                         .await
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<PaymentAttempt>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
+                                format!("Payment Attempt does not exist for {}", key),
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                     // Check for database presence as well Maybe use a read replica here ?
                 }
@@ -550,6 +564,8 @@ mod storage {
                         connector_txn_id,
                     )
                     .await
+                    .map_err(Into::into)
+                    .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -569,6 +585,8 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
                         .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {

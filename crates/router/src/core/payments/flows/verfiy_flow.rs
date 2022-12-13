@@ -40,7 +40,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: enums::MerchantStorageScheme,
@@ -61,7 +61,7 @@ impl types::VerifyRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
-        connector: api::ConnectorData,
+        connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
@@ -105,12 +105,21 @@ impl types::VerifyRouterData {
                             .payment_method_id;
 
                             resp.payment_method_id = Some(payment_method_id.clone());
+                            let mandate_reference = match resp.response.as_ref().ok() {
+                                Some(types::PaymentsResponseData::TransactionResponse {
+                                    mandate_reference,
+                                    ..
+                                }) => mandate_reference.clone(),
+                                _ => None,
+                            };
+
                             if let Some(new_mandate_data) = helpers::generate_mandate(
                                 self.merchant_id.clone(),
                                 self.connector.clone(),
                                 self.request.setup_mandate_details.clone(),
                                 maybe_customer,
                                 payment_method_id,
+                                mandate_reference,
                             ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
                                 state.store.insert_mandate(new_mandate_data).await.map_err(

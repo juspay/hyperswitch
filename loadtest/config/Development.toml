@@ -54,3 +54,14 @@ base_url = "https://api.sandbox.checkout.com/"
 
 [connectors.stripe]
 base_url = "http://stripe-mock:12111/"
+
+[connectors.braintree]
+base_url = "https://api.sandbox.braintreegateway.com/"
+
+[connectors.klarna]
+base_url = "https://api-na.playground.klarna.com/"
+
+[connectors.supported]
+wallets = ["klarna","braintree"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+

@@ -15,8 +15,9 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
+        transformers::ForeignInto,
     },
     utils::{OptionExt, StringExt},
 };
@@ -84,24 +85,25 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        if let Some(ref req_cs) = request.client_secret {
-            if let Some(ref pi_cs) = payment_intent.client_secret {
-                if req_cs.ne(pi_cs) {
-                    return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
-                }
-            }
-        }
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            payment_intent.client_secret.as_ref(),
+        )?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -143,8 +145,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     token,
                     setup_mandate,
                     address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.into()),
-                        billing: billing_address.as_ref().map(|a| a.into()),
+                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
                     },
                     confirm: request.confirm,
                     payment_method_data: request.payment_method_data.clone(),

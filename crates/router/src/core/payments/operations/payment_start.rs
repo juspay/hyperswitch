@@ -15,8 +15,9 @@ use crate::{
     pii::Secret,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
+        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -73,12 +74,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -128,8 +133,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                     setup_mandate: None,
                     token: None,
                     address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.into()),
-                        billing: billing_address.as_ref().map(|a| a.into()),
+                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
                     },
                     confirm: Some(payment_attempt.confirm),
                     payment_attempt,

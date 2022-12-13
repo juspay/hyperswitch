@@ -1,4 +1,5 @@
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
+#![cfg_attr(docsrs, doc(cfg_hide(doc)))]
 #![forbid(unsafe_code)]
 #![warn(
     missing_docs,
@@ -11,7 +12,8 @@
     clippy::panicking_unwrap,
     clippy::unreachable,
     clippy::unwrap_in_result,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    clippy::use_self
 )]
 
 //!
@@ -27,7 +29,7 @@ mod strategy;
 
 pub use strategy::{Strategy, WithType, WithoutType};
 mod abs;
-pub use abs::{ExposeInterface, PeekInterface, PeekOptionInterface};
+pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 
 mod secret;
 mod strong_secret;
@@ -60,7 +62,7 @@ pub use crate::serde::{Deserialize, SerializableSecret, Serialize};
 /// `use masking::prelude::*;`
 ///
 pub mod prelude {
-    pub use super::{ExposeInterface, PeekInterface, PeekOptionInterface};
+    pub use super::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 }
 
 #[cfg(feature = "diesel")]

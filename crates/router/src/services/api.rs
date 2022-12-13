@@ -6,7 +6,7 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug, future::Future, str, ti
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::PeekOptionInterface;
+use masking::ExposeOptionInterface;
 use router_env::{
     tracing::{self, instrument},
     Tag,
@@ -223,12 +223,13 @@ async fn send_request(
                     client.body(url_encoded_payload).send()
                 }
                 None => client
-                    .body(request.payload.peek_cloning().unwrap_or_default())
+                    .body(request.payload.expose_option().unwrap_or_default())
                     .send(),
             }
             .await
         }
 
+        Method::Put => client.put(url).add_headers(headers).send().await,
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
     .into_report()
@@ -585,10 +586,13 @@ pub async fn authenticate_connector<'a>(
     }
 }
 
-pub(crate) fn get_auth_type_and_check_client_secret(
+pub(crate) fn get_auth_type_and_check_client_secret<P>(
     req: &actix_web::HttpRequest,
-    payload: types::api::PaymentsRequest,
-) -> RouterResult<(types::api::PaymentsRequest, MerchantAuthentication)> {
+    payload: P,
+) -> RouterResult<(P, MerchantAuthentication)>
+where
+    P: Authenticate,
+{
     let auth_type = get_auth_type(req)?;
     Ok((
         payments::helpers::client_secret_auth(payload, &auth_type)?,
@@ -697,6 +701,22 @@ pub trait ConnectorRedirectResponse {
         _query_params: &str,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Avoid)
+    }
+}
+
+pub trait Authenticate {
+    fn get_client_secret(&self) -> Option<&String>;
+}
+
+impl Authenticate for api_models::payments::PaymentsRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl Authenticate for api_models::payment_methods::ListPaymentMethodRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
     }
 }
 
