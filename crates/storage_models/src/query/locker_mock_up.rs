@@ -31,4 +31,17 @@ impl LockerMockUp {
         )
         .await
     }
+
+    #[instrument(skip(conn))]
+    pub async fn delete_by_card_id(
+        conn: &PgPooledConn,
+        card_id: &str,
+    ) -> CustomResult<Self, errors::DatabaseError> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self, _>(
+            conn,
+            dsl::card_id.eq(card_id.to_owned()),
+            ExecuteQuery::new(),
+        )
+        .await
+    }
 }

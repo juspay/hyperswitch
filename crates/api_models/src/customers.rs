@@ -39,7 +39,9 @@ pub struct CustomerId {
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct CustomerDeleteResponse {
     pub customer_id: String,
-    pub deleted: bool,
+    pub customer_deleted: bool,
+    pub address_deleted: bool,
+    pub payment_methods_deleted: bool,
 }
 
 pub fn generate_customer_id() -> String {
