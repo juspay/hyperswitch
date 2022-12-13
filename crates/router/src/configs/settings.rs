@@ -112,6 +112,7 @@ pub struct Connectors {
     pub checkout: ConnectorParams,
     pub stripe: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub klarna: ConnectorParams,
     pub supported: SupportedConnectors,
 }
 
@@ -173,7 +174,8 @@ impl Settings {
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
-                    .with_list_parse_key("redis.cluster_urls"),
+                    .with_list_parse_key("redis.cluster_urls")
+                    .with_list_parse_key("connectors.supported.wallets"),
             )
             .build()?;
 

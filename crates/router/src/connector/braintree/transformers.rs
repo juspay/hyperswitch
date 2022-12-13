@@ -154,10 +154,52 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, BraintreeSessionTokenResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BraintreeSessionTokenResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(types::RouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: item.response.client_token.value.authorization_fingerprint,
+                session_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     transaction: TransactionResponse,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationFingerprint {
+    authorization_fingerprint: String,
+}
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientToken {
+    #[serde(with = "common_utils::custom_serde::json_string")]
+    pub value: AuthorizationFingerprint,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeSessionTokenResponse {
+    pub client_token: ClientToken,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
