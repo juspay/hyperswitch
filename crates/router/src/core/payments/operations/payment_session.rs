@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -73,11 +73,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let amount = payment_intent.amount.into();
 
-        if let Some(ref payment_intent_client_secret) = payment_intent.client_secret {
-            if request.client_secret.ne(payment_intent_client_secret) {
-                return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
-            }
-        }
+        helpers::authenticate_client_secret(
+            Some(&request.client_secret),
+            payment_intent.client_secret.as_ref(),
+        )?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,

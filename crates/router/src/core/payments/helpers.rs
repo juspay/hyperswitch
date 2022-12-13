@@ -531,14 +531,17 @@ pub(crate) async fn call_payment_method(
     }
 }
 
-pub(crate) fn client_secret_auth(
-    payload: api::PaymentsRequest,
+pub(crate) fn client_secret_auth<P>(
+    payload: P,
     auth_type: &services::api::MerchantAuthentication,
-) -> RouterResult<api::PaymentsRequest> {
+) -> RouterResult<P>
+where
+    P: services::Authenticate,
+{
     match auth_type {
         services::MerchantAuthentication::PublishableKey => {
             payload
-                .client_secret
+                .get_client_secret()
                 .check_value_present("client_secret")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "client_secret".to_owned(),
@@ -546,7 +549,7 @@ pub(crate) fn client_secret_auth(
             Ok(payload)
         }
         services::api::MerchantAuthentication::ApiKey => {
-            if payload.client_secret.is_some() {
+            if payload.get_client_secret().is_some() {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "client_secret is not a valid parameter".to_owned(),
                 }))
@@ -1176,5 +1179,58 @@ pub fn generate_mandate(
             })
         }
         (_, _) => None,
+    }
+}
+
+// A function to manually authenticate the client secret
+pub(crate) fn authenticate_client_secret(
+    request_client_secret: Option<&String>,
+    payment_intent_client_secret: Option<&String>,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (request_client_secret, payment_intent_client_secret) {
+        (Some(req_cs), Some(pi_cs)) => utils::when(
+            req_cs.ne(pi_cs),
+            Err(errors::ApiErrorResponse::ClientSecretInvalid),
+        ),
+        _ => Ok(()),
+    }
+}
+
+// A function to perform database lookup and then verify the client secret
+pub(crate) async fn verify_client_secret(
+    db: &dyn StorageInterface,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+    client_secret: Option<String>,
+    merchant_id: &str,
+) -> error_stack::Result<(), errors::ApiErrorResponse> {
+    match client_secret {
+        None => Ok(()),
+        Some(cs) => {
+            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+
+            let payment_intent = db
+                .find_payment_intent_by_payment_id_merchant_id(
+                    &payment_id,
+                    merchant_id,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
+                .map_err(|err| err.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_authenticate_client_secret() {
+        let req_cs = Some("1".to_string());
+        let pi_cs = Some("2".to_string());
+        assert!(authenticate_client_secret(req_cs.as_ref(), pi_cs.as_ref()).is_err())
     }
 }
