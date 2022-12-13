@@ -417,6 +417,7 @@ where
                         });
                 }
             }
+
             Err(connector_error) => {
                 logger::debug!(
                     "sessions_connector_error {} {:?}",
