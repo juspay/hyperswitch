@@ -1,3 +1,5 @@
+use std::num::NonZeroI32;
+
 use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -53,7 +55,7 @@ pub struct PaymentsRequest {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
-    Value(i32),
+    Value(NonZeroI32),
     #[default]
     Zero,
 }
@@ -61,17 +63,14 @@ pub enum Amount {
 impl From<Amount> for i32 {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(v) => v,
+            Amount::Value(val) => val.get(),
             Amount::Zero => 0,
         }
     }
 }
 impl From<i32> for Amount {
     fn from(val: i32) -> Self {
-        match val {
-            0 => Amount::Zero,
-            amount => Amount::Value(amount),
-        }
+        NonZeroI32::new(val).map_or(Amount::Zero, Amount::Value)
     }
 }
 
@@ -803,10 +802,7 @@ mod amount {
         where
             E: de::Error,
         {
-            Ok(match v {
-                0 => Amount::Zero,
-                amount => Amount::Value(amount as i32),
-            })
+            Ok(Amount::from(v as i32))
         }
     }
 
