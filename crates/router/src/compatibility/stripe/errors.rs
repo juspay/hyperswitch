@@ -58,6 +58,9 @@ pub(crate) enum ErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "active_mandate", message = "Customer has active mandate")]
     MandateActive,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_redacted", message = "Customer has redacted")]
+    CustomerRedacted,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such refund")]
     RefundNotFound,
 
@@ -344,6 +347,7 @@ impl From<ApiErrorResponse> for ErrorCode {
 
             ApiErrorResponse::InternalServerError => ErrorCode::InternalServerError, // not a stripe code
             ApiErrorResponse::MandateActive => ErrorCode::MandateActive, //not a stripe code
+            ApiErrorResponse::CustomerRedacted => ErrorCode::CustomerRedacted, //not a stripe code
             ApiErrorResponse::DuplicateRefundRequest => ErrorCode::DuplicateRefundRequest,
             ApiErrorResponse::RefundNotFound => ErrorCode::RefundNotFound,
             ApiErrorResponse::CustomerNotFound => ErrorCode::CustomerNotFound,
@@ -437,9 +441,10 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::ResourceIdNotFound
             | ErrorCode::PaymentIntentMandateInvalid { .. }
             | ErrorCode::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
-            ErrorCode::RefundFailed | ErrorCode::InternalServerError | ErrorCode::MandateActive => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            ErrorCode::RefundFailed
+            | ErrorCode::InternalServerError
+            | ErrorCode::MandateActive
+            | ErrorCode::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,
             ErrorCode::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
