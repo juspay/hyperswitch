@@ -96,7 +96,6 @@ pub enum HsetnxReply {
 
 impl fred::types::FromRedis for HsetnxReply {
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
-        dbg!(&value);
         match value {
             fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
             fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
