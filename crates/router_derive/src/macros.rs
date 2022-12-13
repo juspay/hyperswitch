@@ -18,6 +18,7 @@ pub(crate) fn debug_as_display_inner(ast: &DeriveInput) -> syn::Result<TokenStre
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
 
     Ok(quote! {
+        #[automatically_derived]
         impl #impl_generics ::core::fmt::Display for #name #ty_generics #where_clause {
             fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::result::Result<(), ::core::fmt::Error> {
                 f.write_str(&format!("{:?}", self))
