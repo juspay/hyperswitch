@@ -1,7 +1,6 @@
-use structopt::StructOpt;
-
 use drainer::{errors::DrainerError, start_drainer};
 use router::configs::settings;
+use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> Result<(), DrainerError> {
@@ -14,7 +13,9 @@ async fn main() -> Result<(), DrainerError> {
     let store = std::sync::Arc::new(store);
 
     let number_of_drainers = conf.drainer.num_partitions;
+    let max_read_count = conf.drainer.max_read_count;
 
-    start_drainer(&store,&number_of_drainers,&200).await?;
+    start_drainer(store, number_of_drainers, max_read_count).await?;
+
     Ok(())
 }

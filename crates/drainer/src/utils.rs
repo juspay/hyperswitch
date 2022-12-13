@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use fred::types as fred;
-
 use redis_interface as redis;
 
 use crate::errors::DrainerError;
@@ -10,26 +8,28 @@ use crate::errors::DrainerError;
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
-pub async fn is_stream_available(stream_index: &u8, store: Arc<router::services::Store>) -> bool {
-    let stream_key = store.drainer_stream(stream_index.to_string().as_str());
-    let stream_key = format!("check_{}", stream_key.as_str());
+pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::Store>) -> bool {
+    let stream_key_flag = get_steam_key_flag(store.clone(), stream_index.to_string());
     let value = fred::RedisValue::Boolean(true);
 
     match store
         .redis_conn
-        .set_key_if_not_exist(stream_key.as_str(), value)
+        .set_key_if_not_exist(stream_key_flag.as_str(), value)
         .await
     {
         Ok(resp) => {
             if resp == redis::SetNXReply::KeySet {
                 true
             } else {
-                println!("is_stream_available Ok False {}",stream_key);
+                println!("is_stream_available Ok False {}", stream_key_flag);
                 false
             }
         }
         Err(e) => {
-            println!("is_stream_available Error stream_key {} {:?}",stream_key, e);
+            println!(
+                "is_stream_available Error stream_key {} {:?}",
+                stream_key_flag, e
+            );
             // Add metrics or logs
             false
         }
@@ -38,10 +38,13 @@ pub async fn is_stream_available(stream_index: &u8, store: Arc<router::services:
 
 pub async fn read_from_stream(
     stream_name: &str,
-    _read_count: usize,
+    read_count: usize,
     redis: &redis::RedisConnectionPool,
 ) -> Result<StreamReadResult, DrainerError> {
-    println!("read_from_stream stream_name :{} ,read_count:{}", stream_name, _read_count );
+    println!(
+        "read_from_stream stream_name :{} ,read_count:{}",
+        stream_name, read_count
+    );
     let stream_key = fred::MultipleKeys::from(stream_name);
     // "0-0" id gives first entry
     let stream_id = fred::XID::Manual("0-0".into());
@@ -85,13 +88,13 @@ pub async fn trim_from_stream(
 }
 
 pub async fn make_stream_available(
-    stream_name: &str,
+    stream_name_flag: &str,
     redis: &redis::RedisConnectionPool,
 ) -> Result<(), DrainerError> {
     redis
-        .delete_key(stream_name)
+        .delete_key(stream_name_flag)
         .await
-        .map_err(|_| DrainerError::DeleteKeyFailed(stream_name.to_owned()))
+        .map_err(|_| DrainerError::DeleteKeyFailed(stream_name_flag.to_owned()))
 }
 
 pub async fn get_stream_length(
@@ -122,18 +125,25 @@ pub fn parse_stream_entries<'a>(
     }
 }
 
-pub fn determine_read_count(stream_length: &usize, max_read_count: &usize) -> usize {
+pub fn determine_read_count(stream_length: usize, max_read_count: usize) -> usize {
     if stream_length > max_read_count {
-        max_read_count.clone()
+        max_read_count
     } else {
-        stream_length.clone()
+        stream_length
     }
 }
 
-pub fn increment_drainer_index(index: &mut u8, total_streams: &u8) {
-    if *index == total_streams - 1 {
-        *index = 0;
+pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
+    if index == total_streams - 1 {
+        0
     } else {
-        *index += 1;
+        index + 1
     }
+}
+
+pub fn get_steam_key_flag(store: Arc<router::services::Store>, stream_index: String) -> String {
+    format!(
+        "{}_in_use",
+        store.drainer_stream(stream_index.as_str()).as_str()
+    )
 }

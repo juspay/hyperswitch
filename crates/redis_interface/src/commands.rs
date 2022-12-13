@@ -375,6 +375,7 @@ impl super::RedisConnectionPool {
         &self,
         streams: K,
         ids: Ids,
+        read_count: Option<u64>,
     ) -> CustomResult<XReadResponse<String, String, String, String>, errors::RedisError>
     where
         K: Into<MultipleKeys> + Debug,
@@ -382,7 +383,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .xread_map(
-                Some(self.config.default_stream_read_count),
+                Some(read_count.unwrap_or(self.config.default_stream_read_count)),
                 None,
                 streams,
                 ids,

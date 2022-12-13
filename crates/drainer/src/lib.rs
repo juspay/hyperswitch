@@ -1,67 +1,59 @@
+use std::sync::Arc;
+
 use errors::DrainerError;
 use router::{connection::pg_connection, db::kv_gen::DBOperation, services::Store};
-use std::sync::Arc;
 pub mod errors;
 pub mod utils;
 
 use utils::*;
 
 pub async fn start_drainer(
-    store: &Arc<Store>,
-    number_of_streams: &u8,
-    max_read_count: &usize,
+    store: Arc<Store>,
+    number_of_streams: u8,
+    max_read_count: usize,
 ) -> Result<(), errors::DrainerError> {
-    let mut drainer_index: u8 = 10;
-
-    tokio::spawn(drainer_handler(store.clone(), 42, max_read_count.clone()));
-
+    let mut stream_index: u8 = 0;
+    tokio::spawn(drainer_handler(store.clone(), 18, max_read_count));
     loop {
-        // if is_stream_available(&drainer_index, store.clone()).await {
-        //     println!("start_drainer {}", drainer_index);
-        //     tokio::spawn(drainer_handler(
-        //         store.clone(),
-        //         drainer_index.clone(),
-        //         max_read_count.clone(),
-        //     ));
+        // if is_stream_available(stream_index, store.clone()).await {
+        //     println!("start_drainer {}", stream_index);
+
         // }
-        // increment_drainer_index(&mut drainer_index, &number_of_streams);
-        // // if drainer_index == 61 {
-        // //     break Ok(());
-        // // }
+        // stream_index = increment_stream_index(stream_index, number_of_streams);
     }
 }
 
-async fn drainer_handler(store: Arc<Store>, stream_index: u8, max_read_count: usize) {
+async fn drainer_handler(
+    store: Arc<Store>,
+    stream_index: u8,
+    max_read_count: usize,
+) -> Result<(), DrainerError> {
     println!(
         "drainer_handler start stream_index{} max_read_count{}",
         stream_index, max_read_count
     );
+
     let stream_name = store.drainer_stream(stream_index.to_string().as_str());
-    let flag_stream_name = format!("{}_in_use", stream_name.as_str());
-    let drainer_result = drainer(&store, max_read_count, stream_name.as_str()).await;
 
-    if let Err(_e) = drainer_result {
-        //TODO: LOG ERRORs
-        // println!("ERROR {:?}",_e);
-        if let DrainerError::StreamReadError(e) = _e {
-            println!("ERROR drainer_handler {:?}", e);
-        }
-    }
+    drainer(store.clone(), max_read_count, stream_name.as_str()).await?;
 
+    // if let Err(e) = drainer_result {
+    //     //TODO: LOG ERRORs
+    //     // println!("ERROR {:?}",_e);
+    //     println!("ERROR drainer_handler {:?}", e);
+    // }
+
+    let flag_stream_name = get_steam_key_flag(store.clone(), stream_index.to_string());
     //TODO: USE THE RESULT FOR LOGGING
-    let p = make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await;
-    match p {
-        Ok(i) => println!("succcess del {}", stream_name),
-        Err(e) => println!("delete {:?} {}", e, stream_name),
-    }
+    make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await
 }
 
 async fn drainer(
-    store: &Arc<Store>,
+    store: Arc<Store>,
     max_read_count: usize,
     stream_name: &str,
 ) -> Result<(), DrainerError> {
-    let stream_length = get_stream_length(store.redis_conn.as_ref(), stream_name).await?;
+    let stream_length = get_stream_length(store.redis_conn.as_ref(), stream_name).await?; // y to get stream length, directly get stream right
     println!("drainer {}, len -> {}", &stream_name, stream_length);
     if stream_length == 0 {
         return Ok(());
@@ -69,7 +61,7 @@ async fn drainer(
 
     println!("drainer {}, len -> {}", &stream_name, stream_length);
 
-    let read_count = determine_read_count(&stream_length, &max_read_count);
+    let read_count = determine_read_count(stream_length, max_read_count);
     let stream_read = read_from_stream(&stream_name, read_count, store.redis_conn.as_ref()).await?; // this returns the error.
     println!("drainer stream_read  {:?}", stream_read);
     // parse_stream_entries returns error if no entries is found

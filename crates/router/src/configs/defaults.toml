@@ -55,6 +55,7 @@ batch_size = 200
 stream_name = "DRAINER_STREAM"
 num_partitions = 64
 batch_size = 200
+max_read_count = 100
 
 [connectors.supported]
 wallets = ["klarna", "braintree"]

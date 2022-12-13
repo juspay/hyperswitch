@@ -41,7 +41,9 @@ impl Store {
 
     #[cfg(feature = "kv_store")]
     pub fn drainer_stream(&self, shard_key: &str) -> String {
-        // "{shard_key}_stream_name"
-        format!("{{shard_{}}}_{}", shard_key, self.config.drainer_stream_name,)
+        format!(
+            "{{shard_{}}}_{}",
+            shard_key, self.config.drainer_stream_name,
+        )
     }
 }

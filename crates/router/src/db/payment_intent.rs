@@ -45,8 +45,8 @@ mod storage {
 
     use super::PaymentIntentInterface;
     use crate::{
-        connection::pg_connection,
         core::errors::{self, CustomResult},
+        connection::pg_connection,
         db::kv_gen::{
             DBOperation, InsertData, Insertables, PaymentIntentUpdateMems, TypedSql, UpdateData,
             Updateables,

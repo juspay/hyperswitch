@@ -9,7 +9,7 @@ use router_env::{
 };
 use time::PrimitiveDateTime;
 
-use super::generics::{self, ExecuteQuery};
+use super::generics::{self};
 use crate::{
     enums, errors,
     process_tracker::{
@@ -25,7 +25,7 @@ impl ProcessTrackerNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<ProcessTracker, errors::DatabaseError> {
-        generics::generic_insert::<_, _, ProcessTracker, _>(conn, self, ExecuteQuery::new()).await
+        generics::generic_insert::<_, _, ProcessTracker>(conn, self).await
     }
 }
 
@@ -36,11 +36,10 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         process: ProcessTrackerUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id.clone(),
             ProcessTrackerUpdateInternal::from(process),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -60,11 +59,10 @@ impl ProcessTracker {
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         // TODO: Possible optimization: Instead of returning updated values from database, update
         // the values in code and return them, if database query executed successfully.
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::id.eq_any(task_ids),
             ProcessTrackerUpdateInternal::from(task_update),
-            ExecuteQuery::new(),
         )
         .await
     }
@@ -130,7 +128,7 @@ impl ProcessTracker {
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::DatabaseError> {
-        generics::generic_update::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_update::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::status
                 .eq(enums::ProcessTrackerStatus::ProcessStarted)
@@ -139,7 +137,6 @@ impl ProcessTracker {
                 dsl::status.eq(enums::ProcessTrackerStatus::Processing),
                 dsl::schedule_time.eq(schedule_time),
             ),
-            ExecuteQuery::<Self>::new(),
         )
         .await
     }

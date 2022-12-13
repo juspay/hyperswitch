@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
+use super::generics::{self};
 use crate::{
     errors,
     payment_intent::{
@@ -17,15 +17,7 @@ impl PaymentIntentNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentIntent, errors::DatabaseError> {
-        generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, ExecuteQuery::new()).await
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn insert_query(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
-        generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, RawQuery).await
+        generics::generic_insert::<_, _, _>(conn, self).await
     }
 }
 
@@ -36,11 +28,10 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent: PaymentIntentUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self>(
             conn,
             self.id,
             PaymentIntentUpdateInternal::from(payment_intent),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -50,21 +41,6 @@ impl PaymentIntent {
             },
             result => result,
         }
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn update_query(
-        self,
-        conn: &PgPooledConn,
-        payment_intent: PaymentIntentUpdate,
-    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
-            conn,
-            self.id,
-            PaymentIntentUpdateInternal::from(payment_intent),
-            RawQuery,
-        )
-        .await
     }
 
     #[instrument(skip(conn))]
