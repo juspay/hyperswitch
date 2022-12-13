@@ -33,7 +33,8 @@ use crate::{
     types::{
         self,
         api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
-        storage::{self, enums},
+        storage::{self, enums, ProcessTrackerExt},
+        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -397,16 +398,19 @@ where
                 CallConnectorAction::Trigger,
                 merchant_account.storage_scheme,
             )
-            .await?;
+            .await?; //FIXME: remove this error propogation
 
         match res.response {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse { session_token } =
-                    connector_response
+                if let types::PaymentsResponseData::SessionResponse {
+                    session_token,
+                    session_id,
+                } = connector_response
                 {
                     payment_data
                         .sessions_token
                         .push(api::ConnectorSessionToken {
+                            session_id,
                             connector_name,
                             session_token,
                         });
@@ -557,6 +561,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 enums::IntentStatus::RequiresCapture
             )
         }
+        "PaymentSession" => true,
         _ => false,
     }
 }
@@ -573,7 +578,10 @@ pub async fn list_payments(
             .await
             .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
-    let data: Vec<api::PaymentsResponse> = payment_intent.into_iter().map(From::from).collect();
+    let data: Vec<api::PaymentsResponse> = payment_intent
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect();
     utils::when(
         data.is_empty(),
         Err(errors::ApiErrorResponse::PaymentNotFound),

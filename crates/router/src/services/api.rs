@@ -229,6 +229,7 @@ async fn send_request(
             .await
         }
 
+        Method::Put => client.put(url).add_headers(headers).send().await,
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
     .into_report()

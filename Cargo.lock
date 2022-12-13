@@ -2651,6 +2651,7 @@ dependencies = [
  "serde_path_to_error",
  "serde_qs",
  "serde_urlencoded",
+ "storage_models",
  "structopt",
  "strum",
  "thiserror",
@@ -2996,6 +2997,22 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "storage_models"
 version = "0.1.0"
+dependencies = [
+ "async-bb8-diesel",
+ "async-trait",
+ "common_utils",
+ "diesel",
+ "error-stack",
+ "hex",
+ "masking",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum",
+ "thiserror",
+ "time",
+]
 
 [[package]]
 name = "strsim"

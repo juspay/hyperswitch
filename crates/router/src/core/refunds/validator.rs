@@ -102,12 +102,16 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
         .await;
     logger::debug!(?refund);
     match refund {
-        Err(err) => match err.current_context() {
-            // Empty vec should be returned by query in case of no results, this check exists just
-            // to be on the safer side. Fixed this, now vector is not returned but should check the flow in detail later.
-            errors::StorageError::DatabaseError(errors::DatabaseError::NotFound) => Ok(None),
-            _ => Err(err.change_context(errors::ApiErrorResponse::InternalServerError)),
-        },
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                // Empty vec should be returned by query in case of no results, this check exists just
+                // to be on the safer side. Fixed this, now vector is not returned but should check the flow in detail later.
+                Ok(None)
+            } else {
+                Err(err.change_context(errors::ApiErrorResponse::InternalServerError))
+            }
+        }
+
         Ok(refund) => {
             if refund.payment_id == payment_id {
                 Ok(Some(refund))

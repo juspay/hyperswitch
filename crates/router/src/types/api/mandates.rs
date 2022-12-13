@@ -13,6 +13,7 @@ use crate::{
     types::{
         api,
         storage::{self, enums as storage_enums},
+        transformers::ForeignInto,
     },
 };
 
@@ -67,7 +68,7 @@ impl MandateResponseExt for MandateResponse {
                 }),
             }),
             card,
-            status: mandate.mandate_status.into(),
+            status: mandate.mandate_status.foreign_into(),
             payment_method: payment_method.payment_method.to_string(),
             payment_method_id: mandate.payment_method_id,
         })

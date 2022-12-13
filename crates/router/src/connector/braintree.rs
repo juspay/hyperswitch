@@ -61,7 +61,99 @@ impl
         types::PaymentsResponseData,
     > for Braintree
 {
-    //TODO: implement sessions flow
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsSessionType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string()),
+            (headers::ACCEPT.to_string(), "application/json".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(format!(
+            "{}/merchants/{}/client_token",
+            self.base_url(connectors),
+            auth_type.merchant_account,
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsSessionType::get_headers(self, req)?)
+                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .build(),
+        );
+
+        logger::debug!(session_request=?request);
+        Ok(request)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: braintree::ErrorResponse = res
+            .parse_struct("Error Response")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: response.api_error_response.message,
+            reason: None,
+        })
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsSessionRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSessionRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        logger::debug!(payment_session_response_braintree=?res);
+        let response: braintree::BraintreeSessionTokenResponse = res
+            .response
+            .parse_struct("braintree SessionTokenReponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
 }
 
 impl api::PreVerify for Braintree {}
@@ -154,7 +246,7 @@ impl
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
-            .parse_struct("Error Response")
+            .parse_struct("Braintree Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
@@ -179,7 +271,7 @@ impl
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
-            .parse_struct("braintree PaymentsResponse")
+            .parse_struct("Braintree PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -264,7 +356,7 @@ impl
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: braintree::BraintreePaymentsResponse = res
             .response
-            .parse_struct("Braintree Payments Response")
+            .parse_struct("Braintree PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(braintreepayments_create_response=?response);
         types::ResponseRouterData {
@@ -283,7 +375,7 @@ impl
         logger::debug!(braintreepayments_create_response=?res);
 
         let response: braintree::ErrorResponse = res
-            .parse_struct("ErrorResponse")
+            .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
@@ -302,50 +394,94 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string()),
+            (headers::ACCEPT.to_string(), "application/json".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
-        ""
+        "application/json"
     }
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: Connectors,
+        req: &types::PaymentsCancelRouterData,
+        connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(format!(
+            "{}merchants/{}/transactions/{}/void",
+            self.base_url(connectors),
+            auth_type.merchant_account,
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Put)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: braintree::ErrorResponse = res
+            .parse_struct("Braintree ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: response.api_error_response.message,
+            reason: None,
+        })
     }
 
     fn get_request_body(
         &self,
         _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
-    }
-    fn build_request(
-        &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Ok(None)
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsCancelRouterData,
-        _res: Response,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
-    }
-
-    fn get_error_response(
-        &self,
-        _res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        logger::debug!(payment_sync_response=?res);
+        let response: braintree::BraintreePaymentsResponse = res
+            .response
+            .parse_struct("Braintree PaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
 
@@ -375,23 +511,32 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 
     fn get_content_type(&self) -> &'static str {
-        ""
+        "application/json"
     }
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        let auth_type = BraintreeAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}merchants/{}/transactions/{}",
+            self.base_url(connectors),
+            auth_type.merchant_account,
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_req = utils::Encode::<braintree::RefundRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let braintree_req =
+            utils::Encode::<braintree::BraintreeRefundRequest>::convert_and_url_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(braintree_req))
     }
 
@@ -417,7 +562,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
-            .parse_struct("braintree RefundResponse")
+            .parse_struct("Braintree RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
@@ -492,7 +637,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
-            .parse_struct("braintree RefundResponse")
+            .parse_struct("Braintree RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,

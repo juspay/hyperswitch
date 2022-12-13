@@ -58,6 +58,8 @@ pub trait PaymentAttemptInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use error_stack::IntoReport;
+
     use super::PaymentAttemptInterface;
     use crate::{
         connection::pg_connection,
@@ -74,7 +76,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            payment_attempt.insert_diesel(&conn).await
+            payment_attempt
+                .insert_diesel(&conn)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn update_payment_attempt(
@@ -84,7 +90,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            this.update(&conn, payment_attempt).await
+            this.update(&conn, payment_attempt)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn find_payment_attempt_by_payment_id_merchant_id(
@@ -94,7 +103,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
+            PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
@@ -112,6 +124,8 @@ mod storage {
                 merchant_id,
             )
             .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -127,6 +141,8 @@ mod storage {
                 merchant_id,
             )
             .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -144,6 +160,8 @@ mod storage {
                 connector_txn_id,
             )
             .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_by_merchant_id_txn_id(
@@ -154,7 +172,10 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
 
-            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id).await
+            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
     }
 }
@@ -305,7 +326,11 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    payment_attempt.insert_diesel(&conn).await
+                    payment_attempt
+                        .insert_diesel(&conn)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -394,7 +419,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    this.update(&conn, payment_attempt).await
+                    this.update(&conn, payment_attempt)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -445,6 +473,8 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                         .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -534,6 +564,8 @@ mod storage {
                         connector_txn_id,
                     )
                     .await
+                    .map_err(Into::into)
+                    .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -553,6 +585,8 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
                         .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {

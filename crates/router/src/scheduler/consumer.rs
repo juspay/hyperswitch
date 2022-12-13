@@ -23,7 +23,7 @@ use crate::{
     logger::{error, info},
     routes::AppState,
     scheduler::utils as pt_utils,
-    types::storage::{self, enums},
+    types::storage::{self, enums, ProcessTrackerExt},
 };
 
 // Valid consumer business statuses
