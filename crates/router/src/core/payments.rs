@@ -464,6 +464,7 @@ where
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionTokens>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Debug)]
