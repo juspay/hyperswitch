@@ -31,7 +31,17 @@ pub struct PaymentIntent {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    Serialize,
+    Deserialize,
+)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
@@ -57,7 +67,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
