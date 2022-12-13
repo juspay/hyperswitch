@@ -287,9 +287,9 @@ impl<F, T>
             .transaction_response
             .errors
             .and_then(|errors| {
-                errors.first().map(|error| types::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
+                errors.into_iter().next().map(|error| types::ErrorResponse {
+                    code: error.error_code,
+                    message: error.error_text,
                     reason: None,
                 })
             });
