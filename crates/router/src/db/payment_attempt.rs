@@ -441,11 +441,16 @@ mod storage {
                         .map(|_| updated_attempt)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let conn = pg_connection(&self.master_pool).await;
-                    let query = this
-                        .update_query(&conn, payment_attempt)
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
+                    let redis_entry = TypedSql {
+                        op: DBOperation::Update(UpdateData {
+                            updateable: Updateables::PaymentAttemptUpdate(
+                                PaymentAttemptUpdateMems {
+                                    orig: this,
+                                    update_data: payment_attempt,
+                                },
+                            ),
+                        }),
+                    };
 
                     let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(
                         crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
