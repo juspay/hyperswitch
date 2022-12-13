@@ -463,7 +463,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
-    pub sessions_token: Vec<api::SessionTokens>,
+    pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
 }
 

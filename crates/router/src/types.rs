@@ -167,7 +167,7 @@ pub enum PaymentsResponseData {
         mandate_reference: Option<String>,
     },
     SessionResponse {
-        session_token: api::SessionTokens,
+        session_token: api::SessionToken,
     },
 }
 

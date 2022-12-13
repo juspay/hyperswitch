@@ -7,8 +7,8 @@ pub use api_models::payments::{
     PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
     PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionTokens, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;

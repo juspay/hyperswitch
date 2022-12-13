@@ -664,16 +664,16 @@ pub struct PaymentsSessionRequest {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(untagged)]
-pub enum SessionTokens {
-    GpaySessionToken {
+pub enum SessionToken {
+    Gpay {
         connector_name: String,
     },
-    KlarnaSessionToken {
+    Klarna {
         connector_name: String,
         session_token: String,
         session_id: String,
     },
-    PaypalSessionToken {
+    Paypal {
         connector_name: String,
         session_token: String,
     },
@@ -681,7 +681,7 @@ pub enum SessionTokens {
 
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
-    pub session_token: Vec<SessionTokens>,
+    pub session_token: Vec<SessionToken>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
