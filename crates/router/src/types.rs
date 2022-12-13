@@ -134,9 +134,12 @@ pub struct PaymentsSessionData {
     pub initiative: Option<String>,
 }
 
-#[derive(serde::Serialize, Debug)]
-pub struct PaymentsSessionResponseData {
-    pub client_token: Option<String>,
+#[derive(Debug, Default, masking::Serialize, masking::Deserialize)]
+pub struct SessionObject {
+    pub initiative_context: Option<String>,
+    pub merchant_identifier: Option<String>,
+    pub display_name: Option<String>,
+    pub initiative: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -274,13 +277,6 @@ pub enum ConnectorAuthType {
     NoKey,
 }
 
-// impl Default for ConnectorAuthType {
-//     fn default() -> Self {
-//         Self::HeaderKey {
-//             api_key: "".to_string(),
-//         }
-//     }
-// }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,

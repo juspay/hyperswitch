@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::{Deserialize, Serialize};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -52,7 +51,7 @@ impl
                 .attach_printable("Failed to obtain certificate key")?;
 
             let applepay_session = "applepay_session";
-            let session_value: SessionObject = crate::db::get_and_deserialize_key(
+            let session_value: types::SessionObject = crate::db::get_and_deserialize_key(
                 &*state.store,
                 applepay_session,
                 "SessionObject",
@@ -84,14 +83,6 @@ impl
 
         Ok(router_info)
     }
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct SessionObject {
-    pub initiative_context: Option<String>,
-    pub merchant_identifier: Option<String>,
-    pub display_name: Option<String>,
-    pub initiative: Option<String>,
 }
 
 #[async_trait]

@@ -48,9 +48,8 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone + Debug,
+    F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync,
-    FData: Debug,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
@@ -180,9 +179,8 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Debug,
+    F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync + Clone,
-    FData: Debug,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
     // To create connector flow specific interface data
@@ -369,8 +367,7 @@ async fn call_multiple_connectors_service<F, Op, Req>(
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
-    F: Send + Clone + Debug,
-    Req: Debug,
+    F: Send + Clone,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
@@ -446,7 +443,7 @@ pub struct PaymentAddress {
     pub billing: Option<api::Address>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PaymentData<F>
 where
     F: Clone,

@@ -67,7 +67,6 @@ base_url = "https://api-na.playground.klarna.com/"
 [connectors.applepay]
 base_url = "https://apple-pay-gateway.apple.com/"
 
-
 [scheduler]
 stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"
