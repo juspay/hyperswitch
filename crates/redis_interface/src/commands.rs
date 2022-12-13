@@ -20,7 +20,7 @@ use router_env::{tracing, tracing::instrument};
 
 use crate::{
     errors,
-    types::{RedisEntryId, SetNXReply},
+    types::{HsetnxReply, RedisEntryId, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
@@ -142,7 +142,7 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         value: V,
-    ) -> CustomResult<SetNXReply, errors::RedisError>
+    ) -> CustomResult<SetnxReply, errors::RedisError>
     where
         V: TryInto<RedisValue> + Debug,
         V::Error: Into<fred::error::RedisError>,
@@ -204,27 +204,12 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn serialize_and_set_hash_fields<V>(
-        &self,
-        key: &str,
-        values: V,
-    ) -> CustomResult<(), errors::RedisError>
-    where
-        V: serde::Serialize + Debug,
-    {
-        let serialized = Encode::<V>::encode_to_value(&values)
-            .change_context(errors::RedisError::JsonSerializationFailed)?;
-
-        self.set_hash_fields(key, serialized).await
-    }
-
-    #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_hash_field_if_not_exist<V>(
         &self,
         key: &str,
         field: &str,
         value: V,
-    ) -> CustomResult<SetNXReply, errors::RedisError>
+    ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
         V: TryInto<RedisValue> + Debug,
         V::Error: Into<fred::error::RedisError>,
@@ -242,7 +227,7 @@ impl super::RedisConnectionPool {
         key: &str,
         field: &str,
         value: V,
-    ) -> CustomResult<SetNXReply, errors::RedisError>
+    ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
         V: serde::Serialize + Debug,
     {

@@ -1,4 +1,4 @@
-use redis_interface::{errors::RedisError, RedisEntryId, SetNXReply};
+use redis_interface::{errors::RedisError, RedisEntryId, SetnxReply};
 use router_env::logger;
 
 use super::{MockDb, Store};
@@ -70,7 +70,7 @@ impl QueueInterface for Store {
         let conn = self.redis_conn.clone();
         let is_lock_acquired = conn.set_key_if_not_exist(lock_key, lock_val).await;
         match is_lock_acquired {
-            Ok(SetNXReply::KeySet) => match conn.set_expiry(lock_key, ttl).await {
+            Ok(SetnxReply::KeySet) => match conn.set_expiry(lock_key, ttl).await {
                 Ok(()) => true,
 
                 #[allow(unused_must_use)]
@@ -80,7 +80,7 @@ impl QueueInterface for Store {
                     false
                 }
             },
-            Ok(SetNXReply::KeyNotSet) => {
+            Ok(SetnxReply::KeyNotSet) => {
                 logger::error!(%tag, "Lock not acquired, previous fetch still in progress");
                 false
             }
