@@ -1,30 +1,30 @@
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
-    types::storage::{enums, PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
+    types::storage::{self as types, enums},
 };
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
     async fn insert_payment_attempt(
         &self,
-        payment_attempt: PaymentAttemptNew,
+        payment_attempt: types::PaymentAttemptNew,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn update_payment_attempt(
         &self,
-        this: PaymentAttempt,
-        payment_attempt: PaymentAttemptUpdate,
+        this: types::PaymentAttempt,
+        payment_attempt: types::PaymentAttemptUpdate,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
         &self,
@@ -32,28 +32,28 @@ pub trait PaymentAttemptInterface {
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
         connector_txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_txn_id(
         &self,
         merchant_id: &str,
         txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -77,7 +77,7 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
             payment_attempt
-                .insert_diesel(&conn)
+                .insert(&conn)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -187,7 +187,7 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
@@ -196,21 +196,21 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _connector_txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
     #[allow(clippy::panic)]
     async fn insert_payment_attempt(
         &self,
-        payment_attempt: PaymentAttemptNew,
+        payment_attempt: types::PaymentAttemptNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
         let id = payment_attempts.len() as i32;
         let time = common_utils::date_time::now();
 
-        let payment_attempt = PaymentAttempt {
+        let payment_attempt = types::PaymentAttempt {
             id,
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
@@ -247,10 +247,10 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn update_payment_attempt(
         &self,
-        this: PaymentAttempt,
-        payment_attempt: PaymentAttemptUpdate,
+        this: types::PaymentAttempt,
+        payment_attempt: types::PaymentAttemptUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
 
         let item = payment_attempts
@@ -268,7 +268,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
@@ -278,7 +278,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
     }
 
@@ -287,7 +287,7 @@ impl PaymentAttemptInterface for MockDb {
         payment_id: &str,
         merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         let payment_attempts = self.payment_attempts.lock().await;
 
         Ok(payment_attempts
@@ -327,7 +327,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
                     payment_attempt
-                        .insert_diesel(&conn)
+                        .insert(&conn)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -384,7 +384,7 @@ mod storage {
                         Ok(SetNXReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = payment_attempt
-                                .insert_diesel_query(&conn)
+                                .insert_query(&conn)
                                 .await
                                 .change_context(errors::StorageError::KVError)?;
                             let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(

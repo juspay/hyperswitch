@@ -13,7 +13,7 @@ use crate::{
 
 impl MerchantAccountNew {
     #[instrument(skip(conn))]
-    pub async fn insert_diesel(
+    pub async fn insert(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<MerchantAccount, errors::DatabaseError> {

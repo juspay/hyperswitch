@@ -11,7 +11,7 @@ use crate::{
 
 impl TempCardNew {
     #[instrument(skip(conn))]
-    pub async fn insert_diesel(
+    pub async fn insert(
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<TempCard, errors::DatabaseError> {
