@@ -406,18 +406,10 @@ where
         let connector_name = connector.connector_name.to_string();
         match connector_res?.response {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse {
-                    session_token,
-                    session_id,
-                } = connector_response
+                if let types::PaymentsResponseData::SessionResponse { session_token } =
+                    connector_response
                 {
-                    payment_data
-                        .sessions_token
-                        .push(api::ConnectorSessionToken {
-                            session_id,
-                            connector_name,
-                            session_token,
-                        });
+                    payment_data.sessions_token.push(session_token);
                 }
             }
 
@@ -471,7 +463,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
-    pub sessions_token: Vec<api::ConnectorSessionToken>,
+    pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
 }
 
