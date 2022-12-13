@@ -23,6 +23,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
+        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -107,8 +108,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         {
             Ok(payment_attempt) => Ok(payment_attempt),
 
-            Err(err) => match err.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => {
+            Err(err) => {
+                if err.current_context().is_db_unique_violation() {
                     is_update = true;
                     db.find_payment_attempt_by_payment_id_merchant_id(
                         &payment_id,
@@ -119,10 +120,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .map_err(|error| {
                         error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                     })
+                } else {
+                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-                _ => Err(err).change_context(errors::ApiErrorResponse::InternalServerError),
-            },
+            }
         }?;
+
         payment_intent = match db
             .insert_payment_intent(
                 Self::make_payment_intent(
@@ -139,8 +142,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         {
             Ok(payment_intent) => Ok(payment_intent),
 
-            Err(err) => match err.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => {
+            Err(err) => {
+                if err.current_context().is_db_unique_violation() {
                     is_update = true;
                     db.find_payment_intent_by_payment_id_merchant_id(
                         &payment_id,
@@ -151,9 +154,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .map_err(|error| {
                         error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                     })
+                } else {
+                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-                _ => Err(err).change_context(errors::ApiErrorResponse::InternalServerError),
-            },
+            }
         }?;
 
         connector_response = match db
@@ -164,16 +168,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
         {
             Ok(connector_resp) => Ok(connector_resp),
-            Err(err) => match err.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => {
+            Err(err) => {
+                if err.current_context().is_db_unique_violation() {
                     Err(err)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Duplicate connector response in the database")
+                } else {
+                    Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error occured when inserting connector response")
                 }
-                _ => Err(err)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error occured when inserting connector response")?,
-            },
+            }
         }?;
 
         let operation = payments::if_not_create_change_operation::<_, F>(
@@ -194,8 +199,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 setup_mandate,
                 token,
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.into()),
-                    billing: billing_address.as_ref().map(|a| a.into()),
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
                 confirm: request.confirm,
                 payment_method_data: request.payment_method_data.clone(),
@@ -341,13 +346,13 @@ impl PaymentCreate {
             amount: amount.into(),
             currency,
             payment_method,
-            capture_method: request.capture_method.map(Into::into),
+            capture_method: request.capture_method.map(ForeignInto::foreign_into),
             capture_on: request.capture_on,
             confirm: request.confirm.unwrap_or(false),
             created_at,
             modified_at,
             last_synced,
-            authentication_type: request.authentication_type.map(Into::into),
+            authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
             ..storage::PaymentAttemptNew::default()
         }
@@ -379,7 +384,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(Into::into),
+            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
             return_url: request.return_url.clone(),
             shipping_address_id,

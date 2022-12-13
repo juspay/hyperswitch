@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
@@ -29,7 +31,7 @@ impl ConfigInterface for Store {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        config.insert(&conn).await
+        config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
     async fn find_config_by_key(
@@ -37,7 +39,10 @@ impl ConfigInterface for Store {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Config::find_by_key(&conn, key).await
+        storage::Config::find_by_key(&conn, key)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_config_by_key(
@@ -46,7 +51,10 @@ impl ConfigInterface for Store {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Config::update_by_key(&conn, key, config_update).await
+        storage::Config::update_by_key(&conn, key, config_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

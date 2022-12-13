@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
@@ -40,7 +42,10 @@ impl MandateInterface for Store {
         mandate_id: &str,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id).await
+        storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -49,7 +54,10 @@ impl MandateInterface for Store {
         customer_id: &str,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id).await
+        storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -61,6 +69,8 @@ impl MandateInterface for Store {
         let conn = pg_connection(&self.master_pool).await;
         storage::Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
             .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_mandate(
@@ -68,7 +78,11 @@ impl MandateInterface for Store {
         mandate: storage::MandateNew,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        mandate.insert(&conn).await
+        mandate
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

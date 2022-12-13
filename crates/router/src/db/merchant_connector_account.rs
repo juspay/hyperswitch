@@ -1,3 +1,4 @@
+use error_stack::IntoReport;
 use masking::ExposeInterface;
 
 use super::{MockDb, Store};
@@ -58,6 +59,8 @@ impl MerchantConnectorAccountInterface for Store {
             connector,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -72,6 +75,8 @@ impl MerchantConnectorAccountInterface for Store {
             merchant_connector_id,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_merchant_connector_account(
@@ -79,7 +84,7 @@ impl MerchantConnectorAccountInterface for Store {
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        t.insert(&conn).await
+        t.insert(&conn).await.map_err(Into::into).into_report()
     }
 
     async fn find_merchant_connector_account_by_merchant_id_list(
@@ -87,7 +92,10 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id).await
+        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_merchant_connector_account(
@@ -96,7 +104,10 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, merchant_connector_account).await
+        this.update(&conn, merchant_connector_account)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -111,6 +122,8 @@ impl MerchantConnectorAccountInterface for Store {
             merchant_connector_id,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 }
 

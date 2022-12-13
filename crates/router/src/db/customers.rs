@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
@@ -48,6 +50,8 @@ impl CustomerInterface for Store {
         let conn = pg_connection(&self.master_pool).await;
         storage::Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -64,6 +68,8 @@ impl CustomerInterface for Store {
             customer,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn find_customer_by_customer_id_merchant_id(
@@ -72,7 +78,10 @@ impl CustomerInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
+        storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_customer(
@@ -80,7 +89,11 @@ impl CustomerInterface for Store {
         customer_data: storage::CustomerNew,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        customer_data.insert(&conn).await
+        customer_data
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn delete_customer_by_customer_id_merchant_id(
@@ -89,7 +102,10 @@ impl CustomerInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
+        storage::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

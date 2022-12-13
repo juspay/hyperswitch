@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
@@ -20,7 +22,7 @@ impl EventInterface for Store {
         event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        event.insert(&conn).await
+        event.insert(&conn).await.map_err(Into::into).into_report()
     }
 }
 

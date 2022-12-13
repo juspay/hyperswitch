@@ -3,15 +3,18 @@ use router_env::{tracing, tracing::instrument};
 
 use super::generics::{self, ExecuteQuery};
 use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult},
+    customers::{Customer, CustomerNew, CustomerUpdate, CustomerUpdateInternal},
+    errors,
     schema::customers::dsl,
-    types::storage::{Customer, CustomerNew, CustomerUpdate, CustomerUpdateInternal},
+    CustomResult, PgPooledConn,
 };
 
 impl CustomerNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Customer, errors::StorageError> {
+    pub async fn insert(
+        self,
+        conn: &PgPooledConn,
+    ) -> CustomResult<Customer, errors::DatabaseError> {
         generics::generic_insert::<_, _, Customer, _>(conn, self, ExecuteQuery::new()).await
     }
 }
@@ -23,7 +26,7 @@ impl Customer {
         customer_id: String,
         merchant_id: String,
         customer: CustomerUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             (customer_id.clone(), merchant_id.clone()),
@@ -33,7 +36,7 @@ impl Customer {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                errors::DatabaseError::NoFieldsToUpdate => {
                     generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
                         conn,
                         (customer_id, merchant_id),
@@ -51,7 +54,7 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<bool, errors::DatabaseError> {
         generics::generic_delete::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::customer_id
@@ -67,7 +70,7 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
             conn,
             (customer_id.to_owned(), merchant_id.to_owned()),
@@ -80,7 +83,7 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<Self>, errors::StorageError> {
+    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             (customer_id.to_owned(), merchant_id.to_owned()),
