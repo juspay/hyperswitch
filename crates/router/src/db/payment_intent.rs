@@ -65,7 +65,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    new.insert_diesel(&conn).await
+                    new.insert_diesel(&conn)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -142,7 +145,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    this.update(&conn, payment_intent).await
+                    this.update(&conn, payment_intent)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -193,6 +199,8 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                         .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -225,7 +233,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
+                    PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
@@ -239,6 +250,8 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use error_stack::IntoReport;
+
     use super::PaymentIntentInterface;
     use crate::{
         connection::pg_connection,
@@ -258,7 +271,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            new.insert_diesel(&conn).await
+            new.insert_diesel(&conn)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn update_payment_intent(
@@ -268,7 +284,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            this.update(&conn, payment_intent).await
+            this.update(&conn, payment_intent)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn find_payment_intent_by_payment_id_merchant_id(
@@ -278,7 +297,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
+            PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
 
         async fn filter_payment_intent_by_constraints(
@@ -288,7 +310,10 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentIntent::filter_by_constraints(&conn, merchant_id, pc).await
+            PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
     }
 }

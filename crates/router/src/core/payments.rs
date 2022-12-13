@@ -33,7 +33,8 @@ use crate::{
     types::{
         self,
         api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
-        storage::{self, enums},
+        storage::{self, enums, ProcessTrackerExt},
+        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -573,7 +574,10 @@ pub async fn list_payments(
             .await
             .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
-    let data: Vec<api::PaymentsResponse> = payment_intent.into_iter().map(From::from).collect();
+    let data: Vec<api::PaymentsResponse> = payment_intent
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect();
     utils::when(
         data.is_empty(),
         Err(errors::ApiErrorResponse::PaymentNotFound),

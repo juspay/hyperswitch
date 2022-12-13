@@ -3,21 +3,19 @@ use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{IntoReport, ResultExt};
-use router_env::tracing::{self, instrument};
+use router_env::{
+    logger::debug,
+    tracing::{self, instrument},
+};
 
-#[cfg(not(feature = "kv_store"))]
-use super::generics::{self, ExecuteQuery};
-#[cfg(feature = "kv_store")]
 use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
 use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult},
-    logger::debug,
-    schema::payment_attempt::dsl,
-    types::storage::{
-        enums, PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
-        PaymentAttemptUpdateInternal,
+    enums, errors,
+    payment_attempt::{
+        PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
+    schema::payment_attempt::dsl,
+    CustomResult, PgPooledConn,
 };
 
 impl PaymentAttemptNew {
@@ -25,16 +23,15 @@ impl PaymentAttemptNew {
     pub async fn insert_diesel(
         self,
         conn: &PgPooledConn,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> CustomResult<PaymentAttempt, errors::DatabaseError> {
         generics::generic_insert::<_, _, PaymentAttempt, _>(conn, self, ExecuteQuery::new()).await
     }
 
-    #[cfg(feature = "kv_store")]
     #[instrument(skip(conn))]
     pub async fn insert_diesel_query(
         self,
         conn: &PgPooledConn,
-    ) -> CustomResult<RawSqlQuery, errors::StorageError> {
+    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
         generics::generic_insert::<_, _, PaymentAttempt, _>(conn, self, RawQuery).await
     }
 }
@@ -45,7 +42,7 @@ impl PaymentAttempt {
         self,
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
@@ -55,22 +52,19 @@ impl PaymentAttempt {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
-                    Ok(self)
-                }
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
         }
     }
 
-    #[cfg(feature = "kv_store")]
     #[instrument(skip(conn))]
     pub async fn update_query(
         self,
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
-    ) -> CustomResult<RawSqlQuery, errors::StorageError> {
+    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
         generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
@@ -85,7 +79,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -100,7 +94,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<Self>, errors::StorageError> {
+    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -116,7 +110,7 @@ impl PaymentAttempt {
         transaction_id: &str,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::connector_transaction_id
@@ -133,7 +127,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         let query = Self::table()
             .filter(
                 dsl::payment_id
@@ -148,9 +142,7 @@ impl PaymentAttempt {
             .get_result_async(conn)
             .await
             .into_report()
-            .change_context(errors::StorageError::DatabaseError(
-                errors::DatabaseError::NotFound,
-            ))
+            .change_context(errors::DatabaseError::NotFound)
             .attach_printable("Error while finding last successful payment attempt")
     }
 
@@ -159,7 +151,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         merchant_id: &str,
         connector_txn_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -174,7 +166,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         merchant_id: &str,
         txn_id: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -184,6 +176,3 @@ impl PaymentAttempt {
         .await
     }
 }
-
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}

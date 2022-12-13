@@ -24,6 +24,7 @@ use crate::{
         self,
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
+        transformers::ForeignInto,
     },
     utils::{
         self,
@@ -44,7 +45,7 @@ pub async fn get_address_for_payment_request(
         Some(address) => {
             match address_id {
                 Some(id) => Some(
-                    db.update_address(id.to_owned(), address.into())
+                    db.update_address(id.to_owned(), address.foreign_into())
                         .await
                         .map_err(|err| {
                             err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
@@ -119,7 +120,7 @@ pub async fn get_token_pm_type_mandate_details(
                 .get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
-                request.payment_method.map(Into::into),
+                request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
             ))
         }
@@ -130,7 +131,7 @@ pub async fn get_token_pm_type_mandate_details(
         }
         None => Ok((
             request.payment_token.to_owned(),
-            request.payment_method.map(Into::into),
+            request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
         )),
     }
@@ -184,7 +185,7 @@ pub async fn get_token_for_recurring_mandate(
     let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
-        let pm: storage_enums::PaymentMethodType = payment_method_from_request.into();
+        let pm: storage_enums::PaymentMethodType = payment_method_from_request.foreign_into();
         if pm != payment_method.payment_method {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "payment method in request does not match previously provided payment \
@@ -464,7 +465,7 @@ pub(crate) async fn call_payment_method(
                             let customer_id = customer.customer_id.clone();
                             let payment_method_request = api::CreatePaymentMethod {
                                 merchant_id: Some(merchant_id.to_string()),
-                                payment_method: payment_method_type.into(),
+                                payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
                                 payment_method_issuer: None,
                                 payment_method_issuer_code: None,
@@ -496,7 +497,7 @@ pub(crate) async fn call_payment_method(
                 _ => {
                     let payment_method_request = api::CreatePaymentMethod {
                         merchant_id: Some(merchant_id.to_string()),
-                        payment_method: payment_method_type.into(),
+                        payment_method: payment_method_type.foreign_into(),
                         payment_method_type: None,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
@@ -1160,14 +1161,14 @@ pub fn generate_mandate(
             Some(match data.mandate_type {
                 api::MandateType::SingleUse(data) => new_mandate
                     .set_mandate_amount(Some(data.amount))
-                    .set_mandate_currency(Some(data.currency.into()))
+                    .set_mandate_currency(Some(data.currency.foreign_into()))
                     .set_mandate_type(storage_enums::MandateType::SingleUse)
                     .to_owned(),
 
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.into())),
+                        .set_mandate_currency(Some(data.currency.foreign_into())),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
