@@ -198,10 +198,10 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
 #[repr(u8)]
 pub enum AuthorizedotnetPaymentStatus {
     Approved = 1,
-    Declined,
-    Error,
+    Declined = 2,
+    Error = 3,
     #[default]
-    HeldForReview,
+    HeldForReview = 4,
 }
 
 pub type AuthorizedotnetRefundStatus = AuthorizedotnetPaymentStatus;
