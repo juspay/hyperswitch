@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{PeekInterface, PeekOptionInterface};
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -24,6 +24,7 @@ use crate::{
         self,
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
+        transformers::ForeignInto,
     },
     utils::{
         self,
@@ -44,7 +45,7 @@ pub async fn get_address_for_payment_request(
         Some(address) => {
             match address_id {
                 Some(id) => Some(
-                    db.update_address(id.to_owned(), address.into())
+                    db.update_address(id.to_owned(), address.foreign_into())
                         .await
                         .map_err(|err| {
                             err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
@@ -119,7 +120,7 @@ pub async fn get_token_pm_type_mandate_details(
                 .get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
-                request.payment_method.map(Into::into),
+                request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
             ))
         }
@@ -130,7 +131,7 @@ pub async fn get_token_pm_type_mandate_details(
         }
         None => Ok((
             request.payment_token.to_owned(),
-            request.payment_method.map(Into::into),
+            request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
         )),
     }
@@ -184,7 +185,7 @@ pub async fn get_token_for_recurring_mandate(
     let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
-        let pm: storage_enums::PaymentMethodType = payment_method_from_request.into();
+        let pm: storage_enums::PaymentMethodType = payment_method_from_request.foreign_into();
         if pm != payment_method.payment_method {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "payment method in request does not match previously provided payment \
@@ -464,7 +465,7 @@ pub(crate) async fn call_payment_method(
                             let customer_id = customer.customer_id.clone();
                             let payment_method_request = api::CreatePaymentMethod {
                                 merchant_id: Some(merchant_id.to_string()),
-                                payment_method: payment_method_type.into(),
+                                payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
                                 payment_method_issuer: None,
                                 payment_method_issuer_code: None,
@@ -496,7 +497,7 @@ pub(crate) async fn call_payment_method(
                 _ => {
                     let payment_method_request = api::CreatePaymentMethod {
                         merchant_id: Some(merchant_id.to_string()),
-                        payment_method: payment_method_type.into(),
+                        payment_method: payment_method_type.foreign_into(),
                         payment_method_type: None,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
@@ -530,14 +531,17 @@ pub(crate) async fn call_payment_method(
     }
 }
 
-pub(crate) fn client_secret_auth(
-    payload: api::PaymentsRequest,
+pub(crate) fn client_secret_auth<P>(
+    payload: P,
     auth_type: &services::api::MerchantAuthentication,
-) -> RouterResult<api::PaymentsRequest> {
+) -> RouterResult<P>
+where
+    P: services::Authenticate,
+{
     match auth_type {
         services::MerchantAuthentication::PublishableKey => {
             payload
-                .client_secret
+                .get_client_secret()
                 .check_value_present("client_secret")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "client_secret".to_owned(),
@@ -545,7 +549,7 @@ pub(crate) fn client_secret_auth(
             Ok(payload)
         }
         services::api::MerchantAuthentication::ApiKey => {
-            if payload.client_secret.is_some() {
+            if payload.get_client_secret().is_some() {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "client_secret is not a valid parameter".to_owned(),
                 }))
@@ -632,7 +636,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                     let new_customer = storage::CustomerNew {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
-                        name: req.name.peek_cloning(),
+                        name: req.name.expose_option(),
                         email: req.email.clone(),
                         phone: req.phone.clone(),
                         phone_country_code: req.phone_country_code.clone(),
@@ -724,17 +728,17 @@ impl Vault {
         let card = resp.card;
         let card_number = card
             .card_number
-            .peek_cloning()
+            .expose_option()
             .get_required_value("card_number")?;
         let card_exp_month = card
             .card_exp_month
-            .peek_cloning()
+            .expose_option()
             .get_required_value("expiry_month")?;
         let card_exp_year = card
             .card_exp_year
-            .peek_cloning()
+            .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card.name_on_card.peek_cloning().unwrap_or_default();
+        let card_holder_name = card.name_on_card.expose_option().unwrap_or_default();
         let card = api::PaymentMethod::Card(api::CCard {
             card_number: card_number.into(),
             card_exp_month: card_exp_month.into(),
@@ -1160,14 +1164,14 @@ pub fn generate_mandate(
             Some(match data.mandate_type {
                 api::MandateType::SingleUse(data) => new_mandate
                     .set_mandate_amount(Some(data.amount))
-                    .set_mandate_currency(Some(data.currency.into()))
+                    .set_mandate_currency(Some(data.currency.foreign_into()))
                     .set_mandate_type(storage_enums::MandateType::SingleUse)
                     .to_owned(),
 
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.into())),
+                        .set_mandate_currency(Some(data.currency.foreign_into())),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
@@ -1175,5 +1179,58 @@ pub fn generate_mandate(
             })
         }
         (_, _) => None,
+    }
+}
+
+// A function to manually authenticate the client secret
+pub(crate) fn authenticate_client_secret(
+    request_client_secret: Option<&String>,
+    payment_intent_client_secret: Option<&String>,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (request_client_secret, payment_intent_client_secret) {
+        (Some(req_cs), Some(pi_cs)) => utils::when(
+            req_cs.ne(pi_cs),
+            Err(errors::ApiErrorResponse::ClientSecretInvalid),
+        ),
+        _ => Ok(()),
+    }
+}
+
+// A function to perform database lookup and then verify the client secret
+pub(crate) async fn verify_client_secret(
+    db: &dyn StorageInterface,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+    client_secret: Option<String>,
+    merchant_id: &str,
+) -> error_stack::Result<(), errors::ApiErrorResponse> {
+    match client_secret {
+        None => Ok(()),
+        Some(cs) => {
+            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+
+            let payment_intent = db
+                .find_payment_intent_by_payment_id_merchant_id(
+                    &payment_id,
+                    merchant_id,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
+                .map_err(|err| err.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_authenticate_client_secret() {
+        let req_cs = Some("1".to_string());
+        let pi_cs = Some("2".to_string());
+        assert!(authenticate_client_secret(req_cs.as_ref(), pi_cs.as_ref()).is_err())
     }
 }

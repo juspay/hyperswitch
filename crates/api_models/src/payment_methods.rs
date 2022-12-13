@@ -1,11 +1,9 @@
 use common_utils::pii;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+use serde::de;
 
 use crate::enums as api_enums;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CreatePaymentMethod {
     pub merchant_id: Option<String>,
@@ -18,16 +16,16 @@ pub struct CreatePaymentMethod {
     pub customer_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetail {
-    pub card_number: Secret<String, pii::CardNumber>,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_number: masking::Secret<String, pii::CardNumber>,
+    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_year: masking::Secret<String>,
+    pub card_holder_name: Option<masking::Secret<String>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodResponse {
     pub payment_method_id: String,
     pub payment_method: api_enums::PaymentMethodType,
@@ -45,27 +43,28 @@ pub struct PaymentMethodResponse {
     pub payment_experience: Option<Vec<String>>, //TODO change it to enum
     pub metadata: Option<serde_json::Value>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
+    pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
     pub issuer_country: Option<String>,
     pub last4_digits: Option<String>,
     #[serde(skip)]
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
-    pub expiry_month: Option<Secret<String>>,
-    pub expiry_year: Option<Secret<String>>,
-    pub card_token: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
-    pub card_fingerprint: Option<Secret<String>>,
+    pub card_number: Option<masking::Secret<String, pii::CardNumber>>,
+    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_year: Option<masking::Secret<String>>,
+    pub card_token: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_fingerprint: Option<masking::Secret<String>>,
 }
 
 //List Payment Method
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ListPaymentMethodRequest {
+    pub client_secret: Option<String>,
     pub accepted_countries: Option<Vec<String>>,
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     pub amount: Option<i32>,
@@ -73,7 +72,65 @@ pub struct ListPaymentMethodRequest {
     pub installment_payment_enabled: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct FieldVisitor;
+
+        impl<'de> de::Visitor<'de> for FieldVisitor {
+            type Value = ListPaymentMethodRequest;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Failed while deserializing as map")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut output = ListPaymentMethodRequest::default();
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "client_secret" => {
+                            output.client_secret = Some(map.next_value()?);
+                        }
+                        "accepted_countries" => match output.accepted_countries.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_countries = Some(vec![map.next_value()?]);
+                            }
+                        },
+                        "accepted_currencies" => match output.accepted_currencies.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_currencies = Some(vec![map.next_value()?]);
+                            }
+                        },
+                        "amount" => {
+                            output.amount = Some(map.next_value()?);
+                        }
+                        "recurring_enabled" => {
+                            output.recurring_enabled = Some(map.next_value()?);
+                        }
+                        "installment_payment_enabled" => {
+                            output.installment_payment_enabled = Some(map.next_value()?);
+                        }
+                        _ => {}
+                    }
+                }
+
+                Ok(output)
+            }
+        }
+
+        deserializer.deserialize_identifier(FieldVisitor)
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ListPaymentMethodResponse {
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
@@ -89,19 +146,19 @@ pub struct ListPaymentMethodResponse {
     pub payment_experience: Option<Vec<String>>, //TODO change it to enum
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct ListCustomerPaymentMethodsResponse {
     pub enabled_payment_methods: Vec<ListPaymentMethodResponse>,
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct DeletePaymentMethodResponse {
     pub payment_method_id: String,
     pub deleted: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct CustomerPaymentMethod {
     pub payment_token: String,
     pub customer_id: String,
@@ -120,23 +177,23 @@ pub struct CustomerPaymentMethod {
     pub card: Option<CardDetailFromLocker>,
     pub metadata: Option<serde_json::Value>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
+    pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizePayloadEncrypted {
     pub payload: String,
     pub key_id: String,
     pub version: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizePayloadRequest {
     pub value1: String,
     pub value2: String,
@@ -144,30 +201,30 @@ pub struct TokenizePayloadRequest {
     pub service_name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct GetTokenizePayloadRequest {
     pub lookup_key: String,
     pub get_value2: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
 }
 
-#[derive(Debug, Serialize)] //FIXME yet to be implemented
+#[derive(Debug, serde::Serialize)] //FIXME yet to be implemented
 pub struct DeleteTokenizeByDateRequest {
     pub buffer_minutes: i32,
     pub service_name: String,
     pub max_rows: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 pub struct GetTokenizePayloadResponse {
     pub lookup_key: String,
     pub get_value2: Option<bool>,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue1 {
     pub card_number: String,
@@ -179,7 +236,7 @@ pub struct TokenizedCardValue1 {
     pub card_token: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue2 {
     pub card_security_code: Option<String>,

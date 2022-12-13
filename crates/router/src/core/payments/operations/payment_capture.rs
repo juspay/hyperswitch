@@ -15,6 +15,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt, PaymentsCaptureRequest},
         storage::{self, enums},
+        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -128,8 +129,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 setup_mandate: None,
                 token: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.into()),
-                    billing: billing_address.as_ref().map(|a| a.into()),
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
                 confirm: None,
                 payment_method_data: None,

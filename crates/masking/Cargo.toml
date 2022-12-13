@@ -16,6 +16,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+subtle = "2.4.1"
 bytes = { version = "1", optional = true }
 diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "serde_json", "time"], optional = true, rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
 serde = { version = "1", features = ["derive"], optional = true }

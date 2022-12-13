@@ -35,14 +35,17 @@ pub async fn create_customer(
 
     let customer = match db.insert_customer(new_customer).await {
         Ok(customer) => customer,
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(errors::DatabaseError::UniqueViolation) => db
-                .find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            _ => Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?,
-        },
+        Err(error) => {
+            if error.current_context().is_db_unique_violation() {
+                db.find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            } else {
+                Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?
+            }
+        }
     };
+
     Ok(services::BachResponse::Json(customer.into()))
 }
 

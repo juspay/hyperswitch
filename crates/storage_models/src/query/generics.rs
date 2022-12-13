@@ -20,25 +20,19 @@ use diesel::{
     Insertable, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{logger, tracing, tracing::instrument};
 
-use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult},
-    logger,
-};
+use crate::{errors, CustomResult, PgPooledConn};
 
-#[cfg(feature = "kv_store")]
 #[derive(Debug)]
 pub struct RawSqlQuery {
-    pub(crate) sql: String,
+    pub sql: String,
     // The inner `Vec<u8>` can be considered to be byte array
-    pub(crate) binds: Vec<Option<Vec<u8>>>,
+    pub binds: Vec<Option<Vec<u8>>>,
 }
 
-#[cfg(feature = "kv_store")]
 impl RawSqlQuery {
-    pub(crate) fn to_field_value_pairs(&self) -> Vec<(&str, String)> {
+    pub fn to_field_value_pairs(&self) -> Vec<(&str, String)> {
         vec![
             ("sql", self.sql.clone()),
             (
@@ -56,19 +50,24 @@ impl RawSqlQuery {
     }
 }
 
-pub(super) struct ExecuteQuery<R>(PhantomData<R>);
+pub struct ExecuteQuery<R>(PhantomData<R>);
 
 impl<R> ExecuteQuery<R> {
-    pub(super) fn new() -> Self {
+    pub fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-#[cfg(feature = "kv_store")]
-pub(super) struct RawQuery;
+impl<R> Default for ExecuteQuery<R> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct RawQuery;
 
 #[async_trait]
-pub(super) trait QueryExecutionMode<Q>
+pub trait QueryExecutionMode<Q>
 where
     Q: QueryFragment<Pg> + Send + 'static,
 {
@@ -85,7 +84,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::InsertOutput, errors::StorageError>
+    ) -> CustomResult<Self::InsertOutput, errors::DatabaseError>
     where
         Q: AsQuery + QueryFragment<Pg> + RunQueryDsl<PgConnection>;
 
@@ -94,7 +93,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateOutput, errors::StorageError>
+    ) -> CustomResult<Self::UpdateOutput, errors::DatabaseError>
     where
         Q: QueryId;
 
@@ -103,14 +102,14 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::StorageError>;
+    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::DatabaseError>;
 
     async fn update_by_id(
         &self,
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateByIdOutput, errors::StorageError>
+    ) -> CustomResult<Self::UpdateByIdOutput, errors::DatabaseError>
     where
         Q: Clone;
 
@@ -118,7 +117,7 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOutput, errors::StorageError>
+    ) -> CustomResult<Self::DeleteOutput, errors::DatabaseError>
     where
         Q: QueryId;
 
@@ -126,13 +125,13 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::StorageError>;
+    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::DatabaseError>;
 
     async fn delete_one_with_result(
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::StorageError>;
+    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::DatabaseError>;
 }
 
 #[async_trait]
@@ -154,7 +153,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::InsertOutput, errors::StorageError>
+    ) -> CustomResult<Self::InsertOutput, errors::DatabaseError>
     where
         Q: AsQuery + QueryFragment<Pg> + RunQueryDsl<PgConnection>,
     {
@@ -164,9 +163,8 @@ where
                 ConnectionError::Query(DieselError::DatabaseError(
                     diesel::result::DatabaseErrorKind::UniqueViolation,
                     _,
-                )) => Err(report!(error))
-                    .change_context(errors::DatabaseError::UniqueViolation.into()),
-                _ => Err(report!(error)).change_context(errors::DatabaseError::Others.into()),
+                )) => Err(report!(error)).change_context(errors::DatabaseError::UniqueViolation),
+                _ => Err(report!(error)).change_context(errors::DatabaseError::Others),
             }
             .attach_printable_lazy(|| format!("Error while inserting {}", debug_values)),
         }
@@ -177,7 +175,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateOutput, errors::StorageError>
+    ) -> CustomResult<Self::UpdateOutput, errors::DatabaseError>
     where
         Q: QueryId,
     {
@@ -185,7 +183,7 @@ where
             .execute_async(conn)
             .await
             .into_report()
-            .change_context(errors::DatabaseError::Others.into())
+            .change_context(errors::DatabaseError::Others)
             .attach_printable_lazy(|| format!("Error while updating {}", debug_values))
     }
 
@@ -194,12 +192,12 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::StorageError> {
+    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::DatabaseError> {
         query
             .get_results_async(conn)
             .await
             .into_report()
-            .change_context(errors::DatabaseError::Others.into())
+            .change_context(errors::DatabaseError::Others)
             .attach_printable_lazy(|| format!("Error while updating {}", debug_values))
     }
 
@@ -208,7 +206,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateByIdOutput, errors::StorageError>
+    ) -> CustomResult<Self::UpdateByIdOutput, errors::DatabaseError>
     where
         Q: Clone,
     {
@@ -220,12 +218,13 @@ where
             }
             Err(error) => match error {
                 // Failed to generate query, no fields were provided to be updated
-                ConnectionError::Query(DieselError::QueryBuilderError(_)) => Err(report!(error))
-                    .change_context(errors::DatabaseError::NoFieldsToUpdate.into()),
-                ConnectionError::Query(DieselError::NotFound) => {
-                    Err(report!(error)).change_context(errors::DatabaseError::NotFound.into())
+                ConnectionError::Query(DieselError::QueryBuilderError(_)) => {
+                    Err(report!(error)).change_context(errors::DatabaseError::NoFieldsToUpdate)
                 }
-                _ => Err(report!(error)).change_context(errors::DatabaseError::Others.into()),
+                ConnectionError::Query(DieselError::NotFound) => {
+                    Err(report!(error)).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => Err(report!(error)).change_context(errors::DatabaseError::Others),
             }
             .attach_printable_lazy(|| format!("Error while updating by ID {}", debug_values)),
         }
@@ -235,7 +234,7 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOutput, errors::StorageError>
+    ) -> CustomResult<Self::DeleteOutput, errors::DatabaseError>
     where
         Q: QueryId,
     {
@@ -243,17 +242,17 @@ where
             .execute_async(conn)
             .await
             .into_report()
-            .change_context(errors::DatabaseError::Others.into())
+            .change_context(errors::DatabaseError::Others)
             .attach_printable("Error while deleting")
             .and_then(|result| match result {
                 n if n > 0 => {
                     logger::debug!("{n} records deleted");
                     Ok(true)
                 }
-                0 => Err(report!(errors::StorageError::DatabaseError(
-                    errors::DatabaseError::NotFound
-                ))
-                .attach_printable("No records deleted")),
+                0 => {
+                    Err(report!(errors::DatabaseError::NotFound)
+                        .attach_printable("No records deleted"))
+                }
                 _ => Ok(true), // n is usize, rustc requires this for exhaustive check
             })
     }
@@ -262,12 +261,12 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::StorageError> {
+    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::DatabaseError> {
         query
             .get_results_async(conn)
             .await
             .into_report()
-            .change_context(errors::DatabaseError::Others.into())
+            .change_context(errors::DatabaseError::Others)
             .attach_printable("Error while deleting")
     }
 
@@ -275,21 +274,20 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::StorageError> {
+    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::DatabaseError> {
         match query.get_result_async(conn).await {
             Ok(value) => Ok(value),
             Err(error) => match error {
                 ConnectionError::Query(DieselError::NotFound) => {
-                    Err(report!(error)).change_context(errors::DatabaseError::NotFound.into())
+                    Err(report!(error)).change_context(errors::DatabaseError::NotFound)
                 }
-                _ => Err(report!(error)).change_context(errors::DatabaseError::Others.into()),
+                _ => Err(report!(error)).change_context(errors::DatabaseError::Others),
             }
             .attach_printable("Error while deleting"),
         }
     }
 }
 
-#[cfg(feature = "kv_store")]
 #[async_trait]
 impl<Q> QueryExecutionMode<Q> for RawQuery
 where
@@ -308,7 +306,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::InsertOutput, errors::StorageError>
+    ) -> CustomResult<Self::InsertOutput, errors::DatabaseError>
     where
         Q: AsQuery + QueryFragment<Pg> + RunQueryDsl<PgConnection>,
     {
@@ -320,7 +318,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::UpdateOutput, errors::StorageError>
+    ) -> CustomResult<Self::UpdateOutput, errors::DatabaseError>
     where
         Q: QueryId,
     {
@@ -332,7 +330,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::StorageError> {
+    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::DatabaseError> {
         generate_raw_query(query)
     }
 
@@ -341,7 +339,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::UpdateByIdOutput, errors::StorageError>
+    ) -> CustomResult<Self::UpdateByIdOutput, errors::DatabaseError>
     where
         Q: Clone,
     {
@@ -352,7 +350,7 @@ where
         &self,
         _conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOutput, errors::StorageError>
+    ) -> CustomResult<Self::DeleteOutput, errors::DatabaseError>
     where
         Q: QueryId,
     {
@@ -363,7 +361,7 @@ where
         &self,
         _conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::StorageError> {
+    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::DatabaseError> {
         generate_raw_query(query)
     }
 
@@ -371,19 +369,18 @@ where
         &self,
         _conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::StorageError> {
+    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::DatabaseError> {
         generate_raw_query(query)
     }
 }
 
-#[cfg(feature = "kv_store")]
-fn generate_raw_query<Q>(query: Q) -> CustomResult<RawSqlQuery, errors::StorageError>
+pub fn generate_raw_query<Q>(query: Q) -> CustomResult<RawSqlQuery, errors::DatabaseError>
 where
     Q: QueryFragment<Pg>,
 {
     let raw_query = diesel::query_builder::raw_query(&query)
         .into_report()
-        .change_context(errors::DatabaseError::QueryGenerationFailed.into())?;
+        .change_context(errors::DatabaseError::QueryGenerationFailed)?;
 
     Ok(RawSqlQuery {
         sql: raw_query.raw_sql,
@@ -392,11 +389,11 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_insert<T, V, R, Q>(
+pub async fn generic_insert<T, V, R, Q>(
     conn: &PgPooledConn,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::InsertOutput, errors::StorageError>
+) -> CustomResult<Q::InsertOutput, errors::DatabaseError>
 where
     T: HasTable<Table = T> + Table + 'static,
     V: Debug + Insertable<T>,
@@ -417,12 +414,12 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_update<T, V, P, Q>(
+pub async fn generic_update<T, V, P, Q>(
     conn: &PgPooledConn,
     predicate: P,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::UpdateOutput, errors::StorageError>
+) -> CustomResult<Q::UpdateOutput, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug,
@@ -450,12 +447,12 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_update_with_results<T, V, P, R, Q>(
+pub async fn generic_update_with_results<T, V, P, R, Q>(
     conn: &PgPooledConn,
     predicate: P,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::UpdateWithResultsOutput, errors::StorageError>
+) -> CustomResult<Q::UpdateWithResultsOutput, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug + 'static,
@@ -486,12 +483,12 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_update_by_id<T, V, Pk, R, Q>(
+pub async fn generic_update_by_id<T, V, Pk, R, Q>(
     conn: &PgPooledConn,
     id: Pk,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::UpdateByIdOutput, errors::StorageError>
+) -> CustomResult<Q::UpdateByIdOutput, errors::DatabaseError>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     V: AsChangeset<Target = <<T as FindDsl<Pk>>::Output as HasTable>::Table> + Debug,
@@ -529,11 +526,11 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_delete<T, P, Q>(
+pub async fn generic_delete<T, P, Q>(
     conn: &PgPooledConn,
     predicate: P,
     execution_mode: Q,
-) -> CustomResult<Q::DeleteOutput, errors::StorageError>
+) -> CustomResult<Q::DeleteOutput, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -557,11 +554,11 @@ where
 
 #[allow(dead_code)]
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_delete_with_results<T, P, R, Q>(
+pub async fn generic_delete_with_results<T, P, R, Q>(
     conn: &PgPooledConn,
     predicate: P,
     execution_mode: Q,
-) -> CustomResult<Q::DeleteWithResultsOutput, errors::StorageError>
+) -> CustomResult<Q::DeleteWithResultsOutput, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -585,11 +582,11 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_delete_one_with_result<T, P, R, Q>(
+pub async fn generic_delete_one_with_result<T, P, R, Q>(
     conn: &PgPooledConn,
     predicate: P,
     execution_mode: Q,
-) -> CustomResult<Q::DeleteOneWithResultOutput, errors::StorageError>
+) -> CustomResult<Q::DeleteOneWithResultOutput, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -616,7 +613,7 @@ where
 async fn generic_find_by_id_core<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
-) -> CustomResult<R, errors::StorageError>
+) -> CustomResult<R, errors::DatabaseError>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -631,22 +628,20 @@ where
     match query.first_async(conn).await.into_report() {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => Err(err).change_context(
-                errors::StorageError::DatabaseError(errors::DatabaseError::NotFound),
-            ),
-            _ => Err(err).change_context(errors::StorageError::DatabaseError(
-                errors::DatabaseError::Others,
-            )),
+            ConnectionError::Query(DieselError::NotFound) => {
+                Err(err).change_context(errors::DatabaseError::NotFound)
+            }
+            _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error finding record by primary key: {:?}", id))
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_by_id<T, Pk, R>(
+pub async fn generic_find_by_id<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
-) -> CustomResult<R, errors::StorageError>
+) -> CustomResult<R, errors::DatabaseError>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -659,10 +654,10 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_by_id_optional<T, Pk, R>(
+pub async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
-) -> CustomResult<Option<R>, errors::StorageError>
+) -> CustomResult<Option<R>, errors::DatabaseError>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as HasTable>::Table: FindDsl<Pk>,
@@ -680,7 +675,7 @@ where
 async fn generic_find_one_core<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
-) -> CustomResult<R, errors::StorageError>
+) -> CustomResult<R, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -695,21 +690,19 @@ where
         .await
         .into_report()
         .map_err(|err| match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => err.change_context(
-                errors::StorageError::DatabaseError(errors::DatabaseError::NotFound),
-            ),
-            _ => err.change_context(errors::StorageError::DatabaseError(
-                errors::DatabaseError::Others,
-            )),
+            ConnectionError::Query(DieselError::NotFound) => {
+                err.change_context(errors::DatabaseError::NotFound)
+            }
+            _ => err.change_context(errors::DatabaseError::Others),
         })
         .attach_printable_lazy(|| "Error finding record by predicate")
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_one<T, P, R>(
+pub async fn generic_find_one<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
-) -> CustomResult<R, errors::StorageError>
+) -> CustomResult<R, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -720,10 +713,10 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_one_optional<T, P, R>(
+pub async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
-) -> CustomResult<Option<R>, errors::StorageError>
+) -> CustomResult<Option<R>, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -734,11 +727,11 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_filter<T, P, R>(
+pub async fn generic_filter<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
-) -> CustomResult<Vec<R>, errors::StorageError>
+) -> CustomResult<Vec<R>, errors::DatabaseError>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg>,
@@ -762,19 +755,17 @@ where
     }
     .await
     .into_report()
-    .change_context(errors::StorageError::DatabaseError(
-        errors::DatabaseError::NotFound,
-    ))
+    .change_context(errors::DatabaseError::NotFound)
     .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
-fn to_optional<T>(
-    arg: CustomResult<T, errors::StorageError>,
-) -> CustomResult<Option<T>, errors::StorageError> {
+pub fn to_optional<T>(
+    arg: CustomResult<T, errors::DatabaseError>,
+) -> CustomResult<Option<T>, errors::DatabaseError> {
     match arg {
         Ok(value) => Ok(Some(value)),
         Err(err) => match err.current_context() {
-            errors::StorageError::DatabaseError(errors::DatabaseError::NotFound) => Ok(None),
+            errors::DatabaseError::NotFound => Ok(None),
             _ => Err(err),
         },
     }

@@ -1,10 +1,10 @@
 use redis_interface::{errors::RedisError, RedisEntryId, SetNXReply};
 use router_env::logger;
 
-use super::MockDb;
+use super::{MockDb, Store};
 use crate::{
     core::errors::{CustomResult, ProcessTrackerError},
-    types::storage::ProcessTracker,
+    types::storage,
 };
 
 #[async_trait::async_trait]
@@ -14,7 +14,7 @@ pub trait QueueInterface {
         stream_name: &str,
         group_name: &str,
         consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError>;
+    ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError>;
 
     async fn consumer_group_create(
         &self,
@@ -38,13 +38,13 @@ pub trait QueueInterface {
 }
 
 #[async_trait::async_trait]
-impl QueueInterface for super::Store {
+impl QueueInterface for Store {
     async fn fetch_consumer_tasks(
         &self,
         stream_name: &str,
         group_name: &str,
         consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
+    ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         crate::scheduler::consumer::fetch_consumer_tasks(
             self,
             &self.redis_conn.clone(),
@@ -125,7 +125,7 @@ impl QueueInterface for MockDb {
         _stream_name: &str,
         _group_name: &str,
         _consumer_name: &str,
-    ) -> CustomResult<Vec<ProcessTracker>, ProcessTrackerError> {
+    ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         todo!()
     }
 

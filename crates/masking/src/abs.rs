@@ -10,16 +10,10 @@ pub trait PeekInterface<S> {
     fn peek(&self) -> &S;
 }
 
-/// Interface to expose a clone of secret
-pub trait PeekOptionInterface<S> {
-    // FIXME(kos): That should be improved.
-    // Yes, of course, it improves ergonomics for the cases where we
-    // want to clone the inner value. Doing so, we simplify the way to accidentally leak the
-    // secret value: if it's easy to clone it, the user will tend to
-    // do it more often, and quite probably without care about the
-    // exposed secret to be handled properly (zeroizing memory, etc).
+/// Interface that consumes a option secret and returns the value.
+pub trait ExposeOptionInterface<S> {
     /// Expose option.
-    fn peek_cloning(&self) -> S;
+    fn expose_option(self) -> S;
 }
 
 /// Interface that consumes a secret and returns the inner value.
@@ -28,23 +22,13 @@ pub trait ExposeInterface<S> {
     fn expose(self) -> S;
 }
 
-impl<S, I> PeekOptionInterface<Option<S>> for Option<Secret<S, I>>
+impl<S, I> ExposeOptionInterface<Option<S>> for Option<Secret<S, I>>
 where
     S: Clone,
     I: crate::Strategy<S>,
 {
-    fn peek_cloning(&self) -> Option<S> {
-        self.as_ref().map(|val| val.peek().clone())
-    }
-}
-
-impl<S, I> PeekOptionInterface<S> for Secret<S, I>
-where
-    S: Clone,
-    I: crate::Strategy<S>,
-{
-    fn peek_cloning(&self) -> S {
-        self.peek().clone()
+    fn expose_option(self) -> Option<S> {
+        self.map(ExposeInterface::expose)
     }
 }
 

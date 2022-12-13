@@ -36,6 +36,9 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsSessionResponseRouterData<R> =
+    ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 
@@ -51,6 +54,8 @@ pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
+pub type PaymentsSessionType =
+    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
@@ -118,12 +123,15 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    //TODO: Add the fields here as required
+    pub amount: i32,
+    pub currency: storage_enums::Currency,
 }
 
-#[derive(serde::Serialize, Debug)]
-pub struct PaymentsSessionResponseData {
-    pub client_token: Option<String>,
+#[derive(Debug, Clone)]
+pub struct ConnectorSessionToken {
+    pub connector_name: String,
+    pub session_id: Option<String>,
+    pub session_token: String,
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +146,19 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentsTransactionResponse {
+    pub resource_id: ResponseId,
+    pub redirection_data: Option<services::RedirectForm>,
+    pub redirect: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsSessionResponse {
+    pub session_id: Option<String>,
+    pub session_token: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -147,6 +168,7 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: String,
+        session_id: Option<String>,
     },
 }
 

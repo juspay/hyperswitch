@@ -1,12 +1,5 @@
-// FIXME(kos): Feature `doc_cfg` does require explicit attributes
-// `#[doc(cfg(feature = ...))]` for the badges to appear.
-// https://doc.rust-lang.org/stable/unstable-book/language-features/doc-cfg.html
-// Rather use `doc_auto_cfg` feature, which generates badges from
-// the `#[cfg(feature = ...)]` attributes directly:
-// https://doc.rust-lang.org/stable/unstable-book/language-features/doc-auto-cfg.html
-// https://github.com/rust-lang/rust/pull/90502
-
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
+#![cfg_attr(docsrs, doc(cfg_hide(doc)))]
 #![forbid(unsafe_code)]
 #![warn(
     missing_docs,
@@ -19,7 +12,8 @@
     clippy::panicking_unwrap,
     clippy::unreachable,
     clippy::unwrap_in_result,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    clippy::use_self
 )]
 
 //!
@@ -35,7 +29,7 @@ mod strategy;
 
 pub use strategy::{Strategy, WithType, WithoutType};
 mod abs;
-pub use abs::{ExposeInterface, PeekInterface, PeekOptionInterface};
+pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 
 mod secret;
 mod strong_secret;
@@ -68,7 +62,7 @@ pub use crate::serde::{Deserialize, SerializableSecret, Serialize};
 /// `use masking::prelude::*;`
 ///
 pub mod prelude {
-    pub use super::{ExposeInterface, PeekInterface, PeekOptionInterface};
+    pub use super::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 }
 
 #[cfg(feature = "diesel")]

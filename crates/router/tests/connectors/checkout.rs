@@ -99,7 +99,7 @@ async fn test_checkout_payment_success() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
@@ -131,7 +131,7 @@ async fn test_checkout_refund_success() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -196,7 +196,7 @@ async fn test_checkout_payment_failure() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -227,7 +227,7 @@ async fn test_checkout_refund_failure() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::DieselPostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
