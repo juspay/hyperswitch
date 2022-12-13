@@ -39,6 +39,7 @@ pub struct PaymentsRequest {
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_method: Option<api_enums::PaymentMethodType>,
     pub payment_token: Option<String>,
+    pub card_cvc: Option<Secret<String>>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub statement_descriptor_name: Option<String>,
@@ -148,6 +149,7 @@ pub struct MandateAmountData {
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum MandateType {
     SingleUse(MandateAmountData),
     MultiUse(Option<MandateAmountData>),
@@ -655,22 +657,29 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ConnectorSessionToken {
-    pub connector_name: String,
-    pub session_token: String,
-    pub session_id: Option<String>,
-}
-
 #[derive(Default, Debug, serde::Deserialize, Clone)]
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "connector_name")]
+#[serde(rename_all = "lowercase")]
+pub enum SessionToken {
+    Gpay {},
+    Klarna {
+        session_token: String,
+        session_id: String,
+    },
+    Paypal {
+        session_token: String,
+    },
+}
+
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
-    pub session_token: Vec<ConnectorSessionToken>,
+    pub session_token: Vec<SessionToken>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -835,5 +844,19 @@ mod amount {
         D: de::Deserializer<'de>,
     {
         deserializer.deserialize_option(OptionalAmountVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mandate_type() {
+        let mandate_type = MandateType::default();
+        assert_eq!(
+            serde_json::to_string(&mandate_type).unwrap(),
+            r#"{"multi_use":null}"#
+        )
     }
 }

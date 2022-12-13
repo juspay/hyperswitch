@@ -143,6 +143,7 @@ where
             payment_data.address,
             server,
             payment_data.connector_response.authentication_data,
+            payment_data.token,
             operation,
         )
     }
@@ -226,6 +227,7 @@ pub fn payments_to_payments_response<R, Op>(
     address: PaymentAddress,
     server: &Server,
     redirection_data: Option<serde_json::Value>,
+    payment_token: Option<String>,
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
@@ -305,6 +307,7 @@ where
                             payment_method_data.map(api::PaymentMethodDataResponse::from),
                             auth_flow == services::AuthFlow::Merchant,
                         )
+                        .set_payment_token(payment_token)
                         .set_error_message(payment_attempt.error_message)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)

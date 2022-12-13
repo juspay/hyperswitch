@@ -27,6 +27,7 @@ use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
+    pii::Secret,
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
     types::{
@@ -118,8 +119,13 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        card_cvc: Option<Secret<String>>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
+    ) -> RouterResult<(
+        BoxedOperation<'a, F, R>,
+        Option<api::PaymentMethod>,
+        Option<String>,
+    )>;
 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
@@ -203,10 +209,12 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        card_cvc: Option<Secret<String>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -216,6 +224,7 @@ where
             payment_attempt,
             request,
             token,
+            card_cvc,
         )
         .await
     }
@@ -313,10 +322,12 @@ where
         payment_attempt: &storage::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
+        card_cvc: Option<Secret<String>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -326,6 +337,7 @@ where
             payment_attempt,
             request,
             token,
+            card_cvc,
         )
         .await
     }
@@ -370,12 +382,14 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _card_cvc: Option<Secret<String>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -427,12 +441,14 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _card_cvc: Option<Secret<String>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(

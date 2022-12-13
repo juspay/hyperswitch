@@ -95,7 +95,11 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
                 while let Some(key) = map.next_key()? {
                     match key {
                         "client_secret" => {
-                            output.client_secret = Some(map.next_value()?);
+                            set_or_reject_duplicate(
+                                &mut output.client_secret,
+                                "client_secret",
+                                map.next_value()?,
+                            )?;
                         }
                         "accepted_countries" => match output.accepted_countries.as_mut() {
                             Some(inner) => inner.push(map.next_value()?),
@@ -110,13 +114,25 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
                             }
                         },
                         "amount" => {
-                            output.amount = Some(map.next_value()?);
+                            set_or_reject_duplicate(
+                                &mut output.amount,
+                                "amount",
+                                map.next_value()?,
+                            )?;
                         }
                         "recurring_enabled" => {
-                            output.recurring_enabled = Some(map.next_value()?);
+                            set_or_reject_duplicate(
+                                &mut output.recurring_enabled,
+                                "recurring_enabled",
+                                map.next_value()?,
+                            )?;
                         }
                         "installment_payment_enabled" => {
-                            output.installment_payment_enabled = Some(map.next_value()?);
+                            set_or_reject_duplicate(
+                                &mut output.installment_payment_enabled,
+                                "installment_payment_enabled",
+                                map.next_value()?,
+                            )?;
                         }
                         _ => {}
                     }
@@ -127,6 +143,21 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
         }
 
         deserializer.deserialize_identifier(FieldVisitor)
+    }
+}
+
+// Try to set the provided value to the data otherwise throw an error
+fn set_or_reject_duplicate<T, E: de::Error>(
+    data: &mut Option<T>,
+    name: &'static str,
+    value: T,
+) -> Result<(), E> {
+    match data {
+        Some(_inner) => Err(de::Error::duplicate_field(name)),
+        None => {
+            *data = Some(value);
+            Ok(())
+        }
     }
 }
 

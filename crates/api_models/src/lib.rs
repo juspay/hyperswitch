@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 pub mod admin;
 pub mod bank_accounts;
 pub mod cards;

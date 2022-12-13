@@ -1,4 +1,21 @@
-// TODO: Add crate & modules documentation for this crate
+//! Intermediate module for encapsulate all the redis related functionality
+//!
+//! Provides structs to represent redis connection and all functions that redis provides and
+//! are used in the `router` crate. Abstractions for creating a new connection while also facilitating
+//! redis connection pool and configuration based types.
+//!
+//!  # Examples
+//! ```
+//! pub mod types;
+//! use self::types;
+//!
+//! #[tokio::main]
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let redis_conn = RedisConnectionPool::new(types::RedisSettings::default()).await;
+//!     // ... redis_conn ready to use
+//! }
+//! ```
+#![forbid(unsafe_code)]
 
 pub mod commands;
 pub mod errors;
