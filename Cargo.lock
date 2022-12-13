@@ -1292,7 +1292,6 @@ dependencies = [
  "rand",
  "redis-protocol",
  "semver",
- "serde_json",
  "sha-1",
  "tokio",
  "tokio-native-tls",
