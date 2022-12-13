@@ -62,6 +62,8 @@ time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
+frunk = "0.4.1"
+frunk_core = "0.4.1"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
