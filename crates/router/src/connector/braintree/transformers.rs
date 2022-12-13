@@ -178,7 +178,6 @@ impl<F, T>
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Paypal {
-                    connector_name: "paypal".to_string(),
                     session_token: item.response.client_token.value.authorization_fingerprint,
                 },
             }),

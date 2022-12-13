@@ -664,18 +664,15 @@ pub struct PaymentsSessionRequest {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(untagged)]
+#[serde(tag = "connector_name")]
+#[serde(rename_all = "lowercase")]
 pub enum SessionToken {
-    Gpay {
-        connector_name: String,
-    },
+    Gpay {},
     Klarna {
-        connector_name: String,
         session_token: String,
         session_id: String,
     },
     Paypal {
-        connector_name: String,
         session_token: String,
     },
 }

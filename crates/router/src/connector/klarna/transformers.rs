@@ -55,7 +55,6 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Klarna {
-                    connector_name: "klarna".to_string(),
                     session_token: response.client_token.clone(),
                     session_id: response.session_id.clone(),
                 },
