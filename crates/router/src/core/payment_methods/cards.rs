@@ -493,17 +493,24 @@ impl BasiliskCardSupport {
     ) -> RouterResult<api::CardDetailFromLocker> {
         let card_number = card
             .card_number
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("expiry_month")?;
         let card_exp_year = card
             .expiry_year
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card.card_holder_name.peek_cloning().unwrap_or_default();
+        let card_holder_name = card
+            .card_holder_name
+            .clone()
+            .expose_option()
+            .unwrap_or_default();
         let card_detail = api::CardDetail {
             card_number: card_number.into(),
             card_exp_month: card_exp_month.into(),
@@ -529,20 +536,28 @@ impl BasiliskCardSupport {
     ) -> RouterResult<api::CardDetailFromLocker> {
         let card_number = card
             .card_number
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("expiry_month")?;
         let card_exp_year = card
             .expiry_year
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card.card_holder_name.peek_cloning().unwrap_or_default();
+        let card_holder_name = card
+            .card_holder_name
+            .clone()
+            .expose_option()
+            .unwrap_or_default();
         let card_fingerprint = card
             .card_fingerprint
-            .peek_cloning()
+            .clone()
+            .expose_option()
             .get_required_value("card_fingerprint")?;
         let value1 = payment_methods::mk_card_value1(
             card_number,

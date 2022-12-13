@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     core::errors,
-    pii::{self, PeekOptionInterface, Secret},
+    pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
 };
@@ -200,8 +200,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 name: shipping.address.as_mut().map(|a| {
                     format!(
                         "{} {}",
-                        a.first_name.peek_cloning().unwrap_or_default(),
-                        a.last_name.peek_cloning().unwrap_or_default()
+                        a.first_name.clone().expose_option().unwrap_or_default(),
+                        a.last_name.clone().expose_option().unwrap_or_default()
                     )
                     .into()
                 }),
@@ -209,7 +209,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     format!(
                         "{}{}",
                         p.country_code.unwrap_or_default(),
-                        p.number.peek_cloning().unwrap_or_default()
+                        p.number.expose_option().unwrap_or_default()
                     )
                     .into()
                 }),
