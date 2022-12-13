@@ -39,6 +39,7 @@ pub struct PaymentsRequest {
     pub payment_method_data: Option<PaymentMethod>,
     pub payment_method: Option<api_enums::PaymentMethodType>,
     pub payment_token: Option<String>,
+    pub card_cvc: Option<Secret<String>>,
     pub shipping: Option<Address>,
     pub billing: Option<Address>,
     pub statement_descriptor_name: Option<String>,
