@@ -78,6 +78,8 @@ where
         &merchant_connector_account.connector_name,
     ));
 
+    let connector_meta_data = merchant_connector_account.metadata;
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -95,7 +97,7 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-
+        connector_meta_data,
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
@@ -464,14 +466,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
-            currency: Some(payment_data.currency),
-            certificate: None,
-            certificate_keys: None,
-            requestor_domain: None,
-            merchant_identifier: None,
-            display_name: None,
-            initiative: None,
+            amount: payment_data.amount.into(),
+            currency: payment_data.currency,
         })
     }
 }

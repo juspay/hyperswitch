@@ -175,6 +175,7 @@ diesel::table! {
         merchant_connector_id -> Int4,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
+        metadata -> Nullable<Jsonb>,
     }
 }
 

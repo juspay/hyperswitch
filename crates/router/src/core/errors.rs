@@ -297,6 +297,8 @@ pub enum ConnectorError {
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
     FailedToObtainCertificate,
+    #[error("Connector meta data not found")]
+    NoConnectorMetaData,
     #[error("Failed to obtain certificate key")]
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]

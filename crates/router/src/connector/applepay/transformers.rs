@@ -1,6 +1,7 @@
+use error_stack::{IntoReport, ResultExt};
 use masking::{Deserialize, Serialize};
 
-use crate::{core::errors, types};
+use crate::{core::errors, types, utils::OptionExt};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,38 +35,34 @@ pub struct ErrorResponse {
     pub status_message: String,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SessionObject {
+    pub certificate: String,
+    pub certificate_keys: String,
+    pub merchant_identifier: String,
+    pub display_name: String,
+    pub initiative: String,
+    pub initiative_context: String,
+}
+
 impl TryFrom<&types::PaymentsSessionRouterData> for ApplepaySessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
-        let merchant_identifier = item
-            .request
-            .merchant_identifier
+        let metadata = item
+            .connector_meta_data
             .to_owned()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+            .get_required_value("connector_meta_data")
+            .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let display_name = item
-            .request
-            .display_name
-            .to_owned()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let initiative = item
-            .request
-            .initiative
-            .to_owned()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let initiative_context = item
-            .request
-            .requestor_domain
-            .to_owned()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let session_object: SessionObject = serde_json::from_value(metadata)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Self {
-            merchant_identifier,
-            display_name,
-            initiative,
-            initiative_context,
+            merchant_identifier: session_object.merchant_identifier,
+            display_name: session_object.display_name,
+            initiative: session_object.initiative,
+            initiative_context: session_object.initiative_context,
         })
     }
 }

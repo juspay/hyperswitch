@@ -173,23 +173,35 @@ impl
     fn get_certificate(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        req.request
-            .certificate
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let metadata = req
+            .connector_meta_data
             .to_owned()
-            .get_required_value("certificate")
-            .change_context(errors::ConnectorError::FailedToObtainCertificate)
+            .get_required_value("connector_meta_data")
+            .change_context(errors::ConnectorError::NoConnectorMetaData)?;
+
+        let session_object: transformers::SessionObject = serde_json::from_value(metadata)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(session_object.certificate)
     }
 
     fn get_certificate_key(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        req.request
-            .certificate_keys
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let metadata = req
+            .connector_meta_data
             .to_owned()
-            .get_required_value("certificate_keys")
-            .change_context(errors::ConnectorError::FailedToObtainCertificateKey)
+            .get_required_value("connector_meta_data")
+            .change_context(errors::ConnectorError::NoConnectorMetaData)?;
+
+        let session_object: transformers::SessionObject = serde_json::from_value(metadata)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(session_object.certificate_keys)
     }
 }
 

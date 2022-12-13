@@ -37,8 +37,8 @@ pub struct Request {
     pub payload: Option<Secret<String>>,
     pub method: Method,
     pub content_type: Option<ContentType>,
-    pub certificate: Option<Vec<u8>>,
-    pub certificate_key: Option<Vec<u8>>,
+    pub certificate: Option<String>,
+    pub certificate_key: Option<String>,
 }
 
 impl Request {
@@ -67,11 +67,11 @@ impl Request {
         self.content_type = Some(content_type);
     }
 
-    pub fn add_certificate(&mut self, certificate: Vec<u8>) {
+    pub fn add_certificate(&mut self, certificate: String) {
         self.certificate = Some(certificate);
     }
 
-    pub fn add_certificate_key(&mut self, certificate_key: Vec<u8>) {
+    pub fn add_certificate_key(&mut self, certificate_key: String) {
         self.certificate = Some(certificate_key);
     }
 }
@@ -82,8 +82,8 @@ pub struct RequestBuilder {
     pub payload: Option<Secret<String>>,
     pub method: Method,
     pub content_type: Option<ContentType>,
-    pub certificate: Option<Vec<u8>>,
-    pub certificate_key: Option<Vec<u8>>,
+    pub certificate: Option<String>,
+    pub certificate_key: Option<String>,
 }
 
 impl RequestBuilder {
@@ -131,12 +131,12 @@ impl RequestBuilder {
         self
     }
 
-    pub fn add_certificate(mut self, certificate: Vec<u8>) -> RequestBuilder {
+    pub fn add_certificate(mut self, certificate: String) -> RequestBuilder {
         self.certificate = Some(certificate);
         self
     }
 
-    pub fn add_certificate_key(mut self, certificate_key: Vec<u8>) -> RequestBuilder {
+    pub fn add_certificate_key(mut self, certificate_key: String) -> RequestBuilder {
         self.certificate_key = Some(certificate_key);
         self
     }

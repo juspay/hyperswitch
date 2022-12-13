@@ -1,10 +1,8 @@
-use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
     types::{self, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize)]
@@ -33,26 +31,14 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
         Ok(Self {
             intent: KlarnaSessionIntent::Buy,
             purchase_country: "US".to_string(),
-            purchase_currency: request
-                .currency
-                .get_required_value("purchase_currency")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            order_amount: request
-                .amount
-                .get_required_value("order_amount")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            purchase_currency: request.currency,
+            order_amount: request.amount,
             locale: "en-US".to_string(),
             order_lines: vec![OrderLines {
                 name: "Battery Power Pack".to_string(),
                 quantity: 1,
-                unit_price: request
-                    .amount
-                    .get_required_value("order_amount")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                total_amount: request
-                    .amount
-                    .get_required_value("total_amount")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                unit_price: request.amount,
+                total_amount: request.amount,
             }],
         })
     }

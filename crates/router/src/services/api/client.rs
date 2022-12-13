@@ -37,8 +37,8 @@ pub(super) fn create_client(
     proxy: &Proxy,
     should_bypass_proxy: bool,
     request_time_out: u64,
-    client_certificate: Option<Vec<u8>>,
-    client_certificate_key: Option<Vec<u8>>,
+    client_certificate: Option<String>,
+    client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
     let mut client_builder = reqwest::Client::builder();
 
@@ -62,23 +62,15 @@ pub(super) fn create_client(
     }
 
     if client_certificate.is_some() && client_certificate_key.is_some() {
-        let encoded_cert = String::from_utf8(
-            client_certificate
-                .get_required_value("client_certificate")
-                .change_context(errors::ApiClientError::InternalServerErrorReceived)
-                .attach_printable("Failed to get certificate")?,
-        )
-        .into_report()
-        .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+        let encoded_cert = client_certificate
+            .get_required_value("client_certificate")
+            .change_context(errors::ApiClientError::InternalServerErrorReceived)
+            .attach_printable("Failed to get certificate")?;
 
-        let encoded_cert_key = String::from_utf8(
-            client_certificate_key
-                .get_required_value("client_certificate_key")
-                .change_context(errors::ApiClientError::InternalServerErrorReceived)
-                .attach_printable("Failed to get certificate key")?,
-        )
-        .into_report()
-        .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+        let encoded_cert_key = client_certificate_key
+            .get_required_value("client_certificate_key")
+            .change_context(errors::ApiClientError::InternalServerErrorReceived)
+            .attach_printable("Failed to get certificate key")?;
 
         let decoded_cert = base64::decode(encoded_cert)
             .into_report()

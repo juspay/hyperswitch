@@ -73,6 +73,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub orca_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
+    pub connector_meta_data: Option<serde_json::Value>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -124,22 +125,8 @@ pub struct PaymentsCancelData {
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
     //TODO: Add the fields here as required
-    pub amount: Option<i32>,
-    pub currency: Option<storage_enums::Currency>,
-    pub certificate: Option<Vec<u8>>,
-    pub certificate_keys: Option<Vec<u8>>,
-    pub requestor_domain: Option<String>,
-    pub merchant_identifier: Option<String>,
-    pub display_name: Option<String>,
-    pub initiative: Option<String>,
-}
-
-#[derive(Debug, Default, masking::Serialize, masking::Deserialize)]
-pub struct SessionObject {
-    pub initiative_context: Option<String>,
-    pub merchant_identifier: Option<String>,
-    pub display_name: Option<String>,
-    pub initiative: Option<String>,
+    pub amount: i32,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone)]
