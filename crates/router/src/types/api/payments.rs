@@ -1,14 +1,14 @@
 use api_models::payments;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, CCard,
-    ConnectorSessionToken, CustomerAcceptance, MandateData, MandateTxnType, MandateType,
-    MandateValidationFields, NextAction, NextActionType, OnlineMandate, PayLaterData,
-    PaymentIdType, PaymentListConstraints, PaymentListResponse, PaymentMethod,
-    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
+    NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
+    PaymentListResponse, PaymentMethod, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;

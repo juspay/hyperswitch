@@ -657,22 +657,42 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ConnectorSessionToken {
-    pub connector_name: String,
-    pub session_token: String,
-    pub session_id: Option<String>,
-}
-
 #[derive(Default, Debug, serde::Deserialize, Clone)]
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "connector_name")]
+#[serde(rename_all = "lowercase")]
+pub enum SessionToken {
+    Gpay {},
+    Klarna {
+        session_token: String,
+        session_id: String,
+    },
+    Paypal {
+        session_token: String,
+    },
+    Applepay {
+        epoch_timestamp: u64,
+        expires_at: u64,
+        merchant_session_identifier: String,
+        nonce: String,
+        merchant_identifier: String,
+        domain_name: String,
+        display_name: String,
+        signature: String,
+        operational_analytics_identifier: String,
+        retries: u8,
+        psp_id: String,
+    },
+}
+
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
-    pub session_token: Vec<ConnectorSessionToken>,
+    pub session_token: Vec<SessionToken>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

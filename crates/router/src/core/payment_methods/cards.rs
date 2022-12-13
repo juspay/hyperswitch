@@ -205,6 +205,23 @@ pub async fn mock_get_card<'a>(
 }
 
 #[instrument(skip_all)]
+pub async fn mock_delete_card<'a>(
+    db: &dyn db::StorageInterface,
+    card_id: &'a str,
+) -> errors::CustomResult<payment_methods::DeleteCardResponse, errors::CardVaultError> {
+    let locker_mock_up = db
+        .delete_locker_mock_up(card_id)
+        .await
+        .change_context(errors::CardVaultError::FetchCardFailed)?;
+    Ok(payment_methods::DeleteCardResponse {
+        card_id: locker_mock_up.card_id,
+        external_id: locker_mock_up.external_id,
+        card_isin: None,
+        status: "SUCCESS".to_string(),
+    })
+}
+
+#[instrument(skip_all)]
 pub async fn get_card_from_legacy_locker<'a>(
     state: &'a routes::AppState,
     merchant_id: &'a str,
@@ -245,17 +262,25 @@ pub async fn delete_card<'a>(
     merchant_id: &'a str,
     card_id: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResponse> {
+    let locker = &state.conf.locker;
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
     // FIXME use call_api 2. Serde's handle should be inside the generic function
-    let delete_card_resp = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
-        .response
-        .parse_struct("DeleteCardResponse")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let delete_card_resp = if !locker.mock_locker {
+        services::call_connector_api(state, request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
+            .response
+            .parse_struct("DeleteCardResponse")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+    } else {
+        mock_delete_card(&*state.store, card_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+    };
+
     Ok(delete_card_resp)
 }
 

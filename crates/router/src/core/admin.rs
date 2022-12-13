@@ -17,10 +17,11 @@ use crate::{
 
 #[inline]
 fn create_merchant_api_key() -> String {
+    let id = Uuid::new_v4().simple();
     match env::which() {
-        Env::Development => format!("dev_{}", &Uuid::new_v4().simple().to_string()),
-        Env::Production => format!("prd_{}", &Uuid::new_v4().simple().to_string()),
-        Env::Sandbox => format!("snd_{}", &Uuid::new_v4().simple().to_string()),
+        Env::Development => format!("dev_{id}"),
+        Env::Production => format!("prd_{id}"),
+        Env::Sandbox => format!("snd_{id}"),
     }
 }
 

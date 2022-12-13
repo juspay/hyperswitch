@@ -41,7 +41,7 @@ pub trait PaymentIntentInterface {
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use redis_interface::{RedisEntryId, SetNXReply};
+    use redis_interface::{HsetnxReply, RedisEntryId};
 
     use super::PaymentIntentInterface;
     use crate::{
@@ -100,11 +100,11 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
                     {
-                        Ok(SetNXReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
                             format!("Payment Intent already exists for payment_id: {key}"),
                         ))
                         .into_report(),
-                        Ok(SetNXReply::KeySet) => {
+                        Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = new
                                 .insert_query(&conn)
@@ -153,9 +153,12 @@ mod storage {
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
+                    let redis_value = serde_json::to_string(&updated_intent)
+                        .into_report()
+                        .change_context(errors::StorageError::KVError)?;
                     let updated_intent = self
                         .redis_conn
-                        .serialize_and_set_hash_fields(&key, ("pi", &updated_intent))
+                        .set_hash_fields(&key, ("pi", &redis_value))
                         .await
                         .map(|_| updated_intent)
                         .change_context(errors::StorageError::KVError)?;

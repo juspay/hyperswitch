@@ -176,6 +176,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     });
     let output = quote::quote! {
+    #[automatically_derived]
     impl #ident {
             #(#build_methods)*
         }

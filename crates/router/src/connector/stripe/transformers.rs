@@ -273,11 +273,12 @@ pub struct StripeMetadata {
     pub txn_uuid: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
     #[serde(rename = "requires_action")]
     RequiresCustomerAction,
@@ -286,13 +287,6 @@ pub enum StripePaymentStatus {
     RequiresConfirmation,
     Canceled,
     RequiresCapture,
-}
-
-// Default should be Processing
-impl Default for StripePaymentStatus {
-    fn default() -> Self {
-        StripePaymentStatus::Processing
-    }
 }
 
 impl From<StripePaymentStatus> for enums::AttemptStatus {

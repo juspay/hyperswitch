@@ -94,7 +94,7 @@ pub async fn customers_delete(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| delete_customer(&*state.store, merchant_account, req),
+        delete_customer,
         api::MerchantAuthentication::ApiKey,
     )
     .await

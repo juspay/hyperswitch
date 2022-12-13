@@ -81,8 +81,23 @@ impl<F, T>
         Ok(types::RouterData {
             //TODO : change in session response to fit apple pay session object
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: ("".to_string()),
-                session_id: None,
+                session_token: {
+                    api_models::payments::SessionToken::Applepay {
+                        epoch_timestamp: item.response.epoch_timestamp,
+                        expires_at: item.response.expires_at,
+                        merchant_session_identifier: item.response.merchant_session_identifier,
+                        nonce: item.response.nonce,
+                        merchant_identifier: item.response.merchant_identifier,
+                        domain_name: item.response.domain_name,
+                        display_name: item.response.display_name,
+                        signature: item.response.signature,
+                        operational_analytics_identifier: item
+                            .response
+                            .operational_analytics_identifier,
+                        retries: item.response.retries,
+                        psp_id: item.response.psp_id,
+                    }
+                },
             }),
             ..item.data
         })
