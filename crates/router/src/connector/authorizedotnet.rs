@@ -564,6 +564,7 @@ impl api::IncomingWebhook for Authorizedotnet {
 
 impl services::ConnectorRedirectResponse for Authorizedotnet {}
 
+#[inline]
 fn get_error_response(bytes: Bytes) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: authorizedotnet::AuthorizedotnetPaymentsResponse = bytes
         .parse_struct("AuthorizedotnetPaymentsResponse")
