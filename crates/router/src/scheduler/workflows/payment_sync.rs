@@ -1,10 +1,12 @@
+use router_env::logger;
+
 use super::{PaymentsSyncWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::payments::{self as payment_flows, operations},
     db::{get_and_deserialize_key, StorageInterface},
     errors,
     routes::AppState,
-    scheduler::{consumer, process_data},
+    scheduler::{consumer, process_data, utils},
     types::{
         api,
         storage::{self, enums},
@@ -102,48 +104,14 @@ pub async fn get_sync_process_schedule_time(
         .await;
     let mapping = match redis_mapping {
         Ok(x) => x,
-        Err(_) => process_data::ConnectorPTMapping::default(),
-    };
-    let time_delta = get_sync_schedule_time(mapping, merchant_id, retry_count + 1);
-
-    Ok(crate::scheduler::utils::get_time_from_delta(time_delta))
-}
-
-pub fn get_sync_schedule_time(
-    mapping: process_data::ConnectorPTMapping,
-    merchant_name: &str,
-    retry_count: i32,
-) -> Option<i32> {
-    let mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
-        Some(map) => map.clone(),
-        None => mapping.default_mapping,
-    };
-
-    if retry_count == 0 {
-        Some(mapping.start_after)
-    } else {
-        get_delay(
-            retry_count,
-            mapping.count.iter().zip(mapping.frequency.iter()),
-        )
-    }
-}
-
-fn get_delay<'a>(
-    retry_count: i32,
-    mut array: impl Iterator<Item = (&'a i32, &'a i32)>,
-) -> Option<i32> {
-    match array.next() {
-        Some(ele) => {
-            let v = retry_count - ele.0;
-            if v <= 0 {
-                Some(*ele.1)
-            } else {
-                get_delay(v, array)
-            }
+        Err(err) => {
+            logger::error!("Redis Mapping Error: {}", err);
+            process_data::ConnectorPTMapping::default()
         }
-        None => None,
-    }
+    };
+    let time_delta = utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+
+    Ok(utils::get_time_from_delta(time_delta))
 }
 
 pub async fn retry_sync_task(
@@ -172,9 +140,9 @@ mod tests {
     #[test]
     fn test_get_default_schedule_time() {
         let schedule_time_delta =
-            get_sync_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0).unwrap();
+            utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0).unwrap();
         let first_retry_time_delta =
-            get_sync_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1).unwrap();
+            utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1).unwrap();
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],

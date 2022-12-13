@@ -113,6 +113,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub braintree: ConnectorParams,
     pub supported: SupportedConnectors,
+    pub applepay: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]

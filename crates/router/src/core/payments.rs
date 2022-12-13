@@ -32,7 +32,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentsResponse, PaymentsRetrieveRequest},
+        api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
         storage::{self, enums},
     },
     utils::{self, OptionExt},
@@ -47,8 +47,9 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
+    F: Send + Clone + Debug,
     Op: Operation<F, Req> + Send + Sync,
+    FData: Debug,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
@@ -174,11 +175,11 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
+    F: Send + Clone + Debug,
     Op: Operation<F, Req> + Send + Sync + Clone,
+    FData: Debug,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
-
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -363,7 +364,8 @@ async fn call_multiple_connectors_service<F, Op, Req>(
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
-    F: Send + Clone,
+    F: Send + Clone + Debug,
+    Req: Debug,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
@@ -406,7 +408,7 @@ where
                 {
                     payment_data
                         .sessions_token
-                        .push(types::ConnectorSessionToken {
+                        .push(api::ConnectorSessionToken {
                             connector_name,
                             session_token,
                         });
@@ -443,7 +445,7 @@ pub struct PaymentAddress {
     pub billing: Option<api::Address>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentData<F>
 where
     F: Clone,
@@ -462,7 +464,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
-    pub sessions_token: Vec<types::ConnectorSessionToken>,
+    pub sessions_token: Vec<api::ConnectorSessionToken>,
 }
 
 #[derive(Debug)]
@@ -557,6 +559,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 enums::IntentStatus::RequiresCapture
             )
         }
+        "PaymentSession" => true,
         _ => false,
     }
 }

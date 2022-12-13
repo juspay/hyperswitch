@@ -68,6 +68,7 @@ where
             resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
             redirection_data: None,
             redirect: false,
+            mandate_reference: None,
         });
 
     let orca_return_url = Some(helpers::create_redirect_url(
@@ -439,7 +440,14 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
     type Error = errors::ApiErrorResponse;
 
     fn try_from(_payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {})
+        Ok(Self {
+            certificate: None,
+            certificate_keys: None,
+            requestor_domain: None,
+            merchant_identifier: None,
+            display_name: None,
+            initiative: None,
+        })
     }
 }
 

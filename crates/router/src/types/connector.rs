@@ -7,6 +7,7 @@ pub enum Connector {
     Aci,
     Authorizedotnet,
     Braintree,
+    Applepay,
     #[default]
     Dummy,
 }

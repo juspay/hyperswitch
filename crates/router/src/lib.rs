@@ -27,6 +27,7 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
+pub(crate) mod macros;
 pub mod routes;
 pub mod scheduler;
 

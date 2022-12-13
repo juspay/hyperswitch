@@ -17,7 +17,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        self, api,
+        self,
+        api::{self, PaymentIdTypeExt},
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -61,11 +62,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
                 .await?;
 
-        let shipping_address =
-            helpers::get_address_for_payment_request(db, request.shipping.as_ref(), None).await?;
+        let shipping_address = helpers::get_address_for_payment_request(
+            db,
+            request.shipping.as_ref(),
+            None,
+            merchant_id,
+            &request.customer_id,
+        )
+        .await?;
 
-        let billing_address =
-            helpers::get_address_for_payment_request(db, request.billing.as_ref(), None).await?;
+        let billing_address = helpers::get_address_for_payment_request(
+            db,
+            request.billing.as_ref(),
+            None,
+            merchant_id,
+            &request.customer_id,
+        )
+        .await?;
 
         let browser_info = request
             .browser_info

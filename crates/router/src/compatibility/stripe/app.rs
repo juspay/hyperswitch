@@ -1,6 +1,6 @@
 use actix_web::{web, Scope};
 
-use super::{customers::*, payment_intents::*, refunds::*};
+use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*};
 use crate::routes::AppState;
 
 pub struct PaymentIntents;
@@ -14,6 +14,19 @@ impl PaymentIntents {
             .service(payment_intents_update)
             .service(payment_intents_confirm)
             .service(payment_intents_capture)
+    }
+}
+
+pub struct SetupIntents;
+
+impl SetupIntents {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/setup_intents")
+            .app_data(web::Data::new(state))
+            .service(setup_intents_create)
+            .service(setup_intents_retrieve)
+            .service(setup_intents_update)
+            .service(setup_intents_confirm)
     }
 }
 

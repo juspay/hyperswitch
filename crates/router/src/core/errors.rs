@@ -284,6 +284,10 @@ pub enum ConnectorError {
     MissingRequiredField { field_name: String },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
+    #[error("Failed to obtain certificate")]
+    FailedToObtainCertificate,
+    #[error("Failed to obtain certificate key")]
+    FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
     #[error("Missing connector transaction ID")]
@@ -356,6 +360,8 @@ pub enum ProcessTrackerError {
     FlowExecutionError { flow: String },
     #[error("Not Implemented")]
     NotImplemented,
+    #[error("Job not found")]
+    JobNotFound,
     #[error("Recieved Error ApiResponseError: {0}")]
     EApiErrorResponse(error_stack::Report<ApiErrorResponse>),
     #[error("Recieved Error StorageError: {0}")]

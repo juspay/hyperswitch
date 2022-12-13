@@ -14,7 +14,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
     },
     utils::OptionExt,
@@ -82,6 +82,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -89,6 +91,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
         )
         .await?;
 
@@ -109,6 +113,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Database error when finding connector response")
             })?;
+
+        let customer_details = payments::CustomerDetails {
+            customer_id: payment_intent.customer_id.clone(),
+            name: None,
+            email: None,
+            phone: None,
+            phone_country_code: None,
+        };
 
         Ok((
             Box::new(self),
@@ -132,7 +144,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 sessions_token: vec![],
                 connector_response,
             },
-            None,
+            Some(customer_details),
         ))
     }
 }
@@ -169,10 +181,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
-        let given_payment_id = request
-            .payment_id
-            .get_payment_intent_id()
-            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        // let given_payment_id = request
+        //     .payment_id
+        //     .get_payment_intent_id()
+        //     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let given_payment_id = request.payment_id.to_string();
 
         Ok((
             Box::new(self),

@@ -45,6 +45,8 @@ pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
     dyn services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsSessionType =
+    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type RefundExecuteType =
@@ -119,12 +121,12 @@ pub struct PaymentsCancelData {
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
     //TODO: Add the fields here as required
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ConnectorSessionToken {
-    pub connector_name: String,
-    pub session_token: String,
+    pub certificate: Option<Vec<u8>>,
+    pub certificate_keys: Option<Vec<u8>>,
+    pub requestor_domain: Option<String>,
+    pub merchant_identifier: Option<String>,
+    pub display_name: Option<String>,
+    pub initiative: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -149,6 +151,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
         redirect: bool,
+        mandate_reference: Option<String>,
     },
     SessionResponse {
         session_token: String,
@@ -234,7 +237,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 }
 
 // Different patterns of authentication.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     HeaderKey {
@@ -249,15 +252,17 @@ pub enum ConnectorAuthType {
         key1: String,
         api_secret: String,
     },
+    #[default]
+    NoKey,
 }
 
-impl Default for ConnectorAuthType {
-    fn default() -> Self {
-        Self::HeaderKey {
-            api_key: "".to_string(),
-        }
-    }
-}
+// impl Default for ConnectorAuthType {
+//     fn default() -> Self {
+//         Self::HeaderKey {
+//             api_key: "".to_string(),
+//         }
+//     }
+// }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
