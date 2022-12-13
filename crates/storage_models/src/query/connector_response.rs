@@ -3,13 +3,13 @@ use router_env::{tracing, tracing::instrument};
 
 use super::generics::{self, ExecuteQuery};
 use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult},
-    schema::connector_response::dsl,
-    types::storage::{
+    connector_response::{
         ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate,
         ConnectorResponseUpdateInternal,
     },
+    errors,
+    schema::connector_response::dsl,
+    CustomResult, PgPooledConn,
 };
 
 impl ConnectorResponseNew {
@@ -17,7 +17,7 @@ impl ConnectorResponseNew {
     pub async fn insert(
         self,
         conn: &PgPooledConn,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
         generics::generic_insert::<_, _, ConnectorResponse, _>(conn, self, ExecuteQuery::new())
             .await
     }
@@ -29,7 +29,7 @@ impl ConnectorResponse {
         self,
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
@@ -39,9 +39,7 @@ impl ConnectorResponse {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
-                    Ok(self)
-                }
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
@@ -54,7 +52,7 @@ impl ConnectorResponse {
         payment_id: &str,
         merchant_id: &str,
         transaction_id: &str,
-    ) -> CustomResult<ConnectorResponse, errors::StorageError> {
+    ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()).and(

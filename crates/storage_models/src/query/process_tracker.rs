@@ -3,19 +3,20 @@ use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{IntoReport, ResultExt};
-use router_env::tracing::{self, instrument};
+use router_env::{
+    logger::debug,
+    tracing::{self, instrument},
+};
 use time::PrimitiveDateTime;
 
 use super::generics::{self, ExecuteQuery};
 use crate::{
-    connection::{PgPool, PgPooledConn},
-    core::errors::{self, CustomResult},
-    logger::debug,
-    schema::process_tracker::dsl,
-    types::storage::{
-        enums, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate,
-        ProcessTrackerUpdateInternal,
+    enums, errors,
+    process_tracker::{
+        ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate, ProcessTrackerUpdateInternal,
     },
+    schema::process_tracker::dsl,
+    CustomResult, PgPooledConn,
 };
 
 impl ProcessTrackerNew {
@@ -23,7 +24,7 @@ impl ProcessTrackerNew {
     pub async fn insert_process(
         self,
         conn: &PgPooledConn,
-    ) -> CustomResult<ProcessTracker, errors::StorageError> {
+    ) -> CustomResult<ProcessTracker, errors::DatabaseError> {
         generics::generic_insert::<_, _, ProcessTracker, _>(conn, self, ExecuteQuery::new()).await
     }
 }
@@ -34,7 +35,7 @@ impl ProcessTracker {
         self,
         conn: &PgPooledConn,
         process: ProcessTrackerUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id.clone(),
@@ -44,9 +45,7 @@ impl ProcessTracker {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
-                    Ok(self)
-                }
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
@@ -58,7 +57,7 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         task_ids: Vec<String>,
         task_update: ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<Self>, errors::StorageError> {
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         // TODO: Possible optimization: Instead of returning updated values from database, update
         // the values in code and return them, if database query executed successfully.
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
@@ -74,7 +73,7 @@ impl ProcessTracker {
     pub async fn find_process_by_id(
         conn: &PgPooledConn,
         id: &str,
-    ) -> CustomResult<Option<Self>, errors::StorageError> {
+    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             id.to_owned(),
@@ -89,7 +88,7 @@ impl ProcessTracker {
         time_upper_limit: PrimitiveDateTime,
         status: enums::ProcessTrackerStatus,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<Self>, errors::StorageError> {
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::schedule_time
@@ -103,12 +102,12 @@ impl ProcessTracker {
     // FIXME with generics
     #[instrument(skip(pool))]
     pub async fn find_processes_to_clean(
-        pool: &PgPool,
+        pool: &PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         runner: &str,
         limit: i64,
-    ) -> CustomResult<Vec<Self>, errors::StorageError> {
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let query = Self::table()
             .filter(dsl::schedule_time.between(time_lower_limit, time_upper_limit))
             .filter(dsl::status.eq(enums::ProcessTrackerStatus::ProcessStarted))
@@ -121,9 +120,7 @@ impl ProcessTracker {
             .get_results_async(pool)
             .await
             .into_report()
-            .change_context(errors::StorageError::DatabaseError(
-                errors::DatabaseError::NotFound,
-            ))
+            .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error finding processes to clean")
     }
 
@@ -132,7 +129,7 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
-    ) -> CustomResult<usize, errors::StorageError> {
+    ) -> CustomResult<usize, errors::DatabaseError> {
         generics::generic_update::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::status

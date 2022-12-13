@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::MockDb;
 use crate::{
     connection::pg_connection,
@@ -37,7 +39,11 @@ impl ConnectorResponseInterface for super::Store {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        connector_response.insert(&conn).await
+        connector_response
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_connector_response_by_payment_id_merchant_id_txn_id(
@@ -55,6 +61,8 @@ impl ConnectorResponseInterface for super::Store {
             txn_id,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn update_connector_response(
@@ -64,7 +72,10 @@ impl ConnectorResponseInterface for super::Store {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, connector_response_update).await
+        this.update(&conn, connector_response_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

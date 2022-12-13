@@ -1,3 +1,4 @@
+use error_stack::IntoReport;
 use time::PrimitiveDateTime;
 
 use super::MockDb;
@@ -58,7 +59,10 @@ impl ProcessTrackerInterface for super::Store {
         id: &str,
     ) -> CustomResult<Option<ProcessTracker>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        ProcessTracker::find_process_by_id(&conn, id).await
+        ProcessTracker::find_process_by_id(&conn, id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn reinitialize_limbo_processes(
@@ -67,7 +71,10 @@ impl ProcessTrackerInterface for super::Store {
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time).await
+        ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_processes_by_time_status(
@@ -86,6 +93,8 @@ impl ProcessTrackerInterface for super::Store {
             limit,
         )
         .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_process(
@@ -93,7 +102,10 @@ impl ProcessTrackerInterface for super::Store {
         new: ProcessTrackerNew,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        new.insert_process(&conn).await
+        new.insert_process(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_process(
@@ -102,7 +114,10 @@ impl ProcessTrackerInterface for super::Store {
         process: ProcessTrackerUpdate,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, process).await
+        this.update(&conn, process)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_process_tracker(
@@ -111,7 +126,10 @@ impl ProcessTrackerInterface for super::Store {
         process: ProcessTrackerUpdate,
     ) -> CustomResult<ProcessTracker, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, process).await
+        this.update(&conn, process)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn process_tracker_update_process_status_by_ids(
@@ -120,7 +138,10 @@ impl ProcessTrackerInterface for super::Store {
         task_update: ProcessTrackerUpdate,
     ) -> CustomResult<Vec<ProcessTracker>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update).await
+        ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 

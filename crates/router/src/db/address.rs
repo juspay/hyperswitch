@@ -1,3 +1,5 @@
+use error_stack::IntoReport;
+
 use super::MockDb;
 use crate::{
     connection::pg_connection,
@@ -24,7 +26,10 @@ pub trait AddressInterface {
 impl AddressInterface for super::Store {
     async fn find_address(&self, address_id: &str) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Address::find_by_address_id(&conn, address_id).await
+        Address::find_by_address_id(&conn, address_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_address(
@@ -33,7 +38,10 @@ impl AddressInterface for super::Store {
         address: AddressUpdate,
     ) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Address::update_by_address_id(&conn, address_id, address).await
+        Address::update_by_address_id(&conn, address_id, address)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn insert_address(
@@ -41,7 +49,11 @@ impl AddressInterface for super::Store {
         address: AddressNew,
     ) -> CustomResult<Address, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        address.insert(&conn).await
+        address
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 
