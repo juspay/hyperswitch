@@ -12,7 +12,7 @@ pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
     #[deny(clippy::invalid_regex)]
     static EMAIL_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
         match Regex::new(
-            r"^(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$",
+            r"^(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
         ) {
             Ok(regex) => Some(regex),
             Err(error) => {
@@ -92,11 +92,9 @@ mod tests {
             prop_assert!(validate_email(&email).is_err());
         }
 
-        // TODO: make maybe unit test working
-        // minimal failing input: email = "+@a"
-        // #[test]
-        // fn proptest_invalid_email(email in "[.+]@(.+)") {
-        //     prop_assert!(validate_email(&email).is_err());
-        // }
+        #[test]
+        fn proptest_invalid_email(email in "[.+]@(.+)") {
+            prop_assert!(validate_email(&email).is_err());
+        }
     }
 }
