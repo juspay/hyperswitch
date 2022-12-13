@@ -16,6 +16,7 @@ use crate::{
     types::{
         api,
         storage::{self, enums},
+        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -201,14 +202,15 @@ async fn get_tracker_for_sync<
             setup_mandate: None,
             token: None,
             address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
+                shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                billing: billing_address.as_ref().map(|a| a.foreign_into()),
             },
             confirm: Some(request.force_sync),
             payment_method_data: None,
             force_sync: Some(request.force_sync),
             refunds,
             sessions_token: vec![],
+            card_cvc: None,
         },
         None,
     ))

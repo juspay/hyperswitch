@@ -1,10 +1,11 @@
-use error_stack::Report;
+use error_stack::{IntoReport, Report};
+use storage_models::errors::DatabaseError;
 
 use super::MockDb;
 use crate::{
     connection::pg_connection,
-    core::errors::{self, CustomResult, DatabaseError, StorageError},
-    types::storage::{enums, Refund, RefundNew, RefundUpdate},
+    core::errors::{self, CustomResult, StorageError},
+    types::storage::{self, enums},
 };
 
 #[async_trait::async_trait]
@@ -14,14 +15,14 @@ pub trait RefundInterface {
         internal_reference_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError>;
+    ) -> CustomResult<storage::Refund, errors::StorageError>;
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError>;
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError>;
 
     // async fn find_refund_by_payment_id_merchant_id_refund_id(
     //     &self,
@@ -35,27 +36,27 @@ pub trait RefundInterface {
         merchant_id: &str,
         refund_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError>;
+    ) -> CustomResult<storage::Refund, errors::StorageError>;
 
     async fn update_refund(
         &self,
-        this: Refund,
-        refund: RefundUpdate,
+        this: storage::Refund,
+        refund: storage::RefundUpdate,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError>;
+    ) -> CustomResult<storage::Refund, errors::StorageError>;
 
     async fn find_refund_by_merchant_id_transaction_id(
         &self,
         merchant_id: &str,
         txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError>;
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError>;
 
     async fn insert_refund(
         &self,
-        new: RefundNew,
+        new: storage::RefundNew,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError>;
+    ) -> CustomResult<storage::Refund, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -65,38 +66,50 @@ impl RefundInterface for super::Store {
         internal_reference_id: &str,
         merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Refund::find_by_internal_reference_id_merchant_id(&conn, internal_reference_id, merchant_id)
-            .await
+        storage::Refund::find_by_internal_reference_id_merchant_id(
+            &conn,
+            internal_reference_id,
+            merchant_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_refund(
         &self,
-        new: RefundNew,
+        new: storage::RefundNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        new.insert(&conn).await
+        new.insert(&conn).await.map_err(Into::into).into_report()
     }
     async fn find_refund_by_merchant_id_transaction_id(
         &self,
         merchant_id: &str,
         txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Refund::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id).await
+        storage::Refund::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_refund(
         &self,
-        this: Refund,
-        refund: RefundUpdate,
+        this: storage::Refund,
+        refund: storage::RefundUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, refund).await
+        this.update(&conn, refund)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_refund_by_merchant_id_refund_id(
@@ -104,9 +117,12 @@ impl RefundInterface for super::Store {
         merchant_id: &str,
         refund_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id).await
+        storage::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     // async fn find_refund_by_payment_id_merchant_id_refund_id(
@@ -125,9 +141,12 @@ impl RefundInterface for super::Store {
         payment_id: &str,
         merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id).await
+        storage::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 
@@ -138,19 +157,19 @@ impl RefundInterface for MockDb {
         _internal_reference_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         todo!()
     }
 
     async fn insert_refund(
         &self,
-        new: RefundNew,
+        new: storage::RefundNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         let mut refunds = self.refunds.lock().await;
         let current_time = common_utils::date_time::now();
 
-        let refund = Refund {
+        let refund = storage::Refund {
             id: refunds.len() as i32,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,
@@ -181,7 +200,7 @@ impl RefundInterface for MockDb {
         merchant_id: &str,
         txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
         let refunds = self.refunds.lock().await;
 
         Ok(refunds
@@ -195,10 +214,10 @@ impl RefundInterface for MockDb {
 
     async fn update_refund(
         &self,
-        _this: Refund,
-        _refund: RefundUpdate,
+        _this: storage::Refund,
+        _refund: storage::RefundUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         todo!()
     }
 
@@ -207,14 +226,18 @@ impl RefundInterface for MockDb {
         merchant_id: &str,
         refund_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Refund, errors::StorageError> {
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
         let refunds = self.refunds.lock().await;
 
         refunds
             .iter()
             .find(|refund| refund.merchant_id == merchant_id && refund.refund_id == refund_id)
             .cloned()
-            .ok_or_else(|| Report::from(StorageError::DatabaseError(DatabaseError::NotFound)))
+            .ok_or_else(|| {
+                Report::from(StorageError::DatabaseError(Report::from(
+                    DatabaseError::NotFound,
+                )))
+            })
     }
 
     async fn find_refund_by_payment_id_merchant_id(
@@ -222,7 +245,7 @@ impl RefundInterface for MockDb {
         _payment_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<Refund>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
         todo!()
     }
 }

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -12,10 +12,12 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
+    pii::Secret,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
         storage::{self, enums},
+        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -72,11 +74,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let amount = payment_intent.amount.into();
 
-        if let Some(ref payment_intent_client_secret) = payment_intent.client_secret {
-            if request.client_secret.ne(payment_intent_client_secret) {
-                return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
-            }
-        }
+        helpers::authenticate_client_secret(
+            Some(&request.client_secret),
+            payment_intent.client_secret.as_ref(),
+        )?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -134,8 +135,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 token: None,
                 setup_mandate: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.into()),
-                    billing: billing_address.as_ref().map(|a| a.into()),
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
                 confirm: None,
                 payment_method_data: None,
@@ -143,6 +144,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 refunds: vec![],
                 sessions_token: vec![],
                 connector_response,
+                card_cvc: None,
             },
             Some(customer_details),
         ))
@@ -181,11 +183,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
-        // let given_payment_id = request
-        //     .payment_id
-        //     .get_payment_intent_id()
-        //     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-        let given_payment_id = request.payment_id.to_string();
+        let given_payment_id = request.payment_id.clone();
 
         Ok((
             Box::new(self),
@@ -238,13 +236,15 @@ where
         _payment_attempt: &storage::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
+        _card_cvc: Option<Secret<String>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
+        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(

@@ -19,9 +19,9 @@ pub struct AppState {
 
 impl AppState {
     pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> AppState {
-        let testable = storage_impl == StorageImpl::DieselPostgresqlTest;
+        let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::DieselPostgresql | StorageImpl::DieselPostgresqlTest => {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
                 Box::new(Store::new(&conf, testable).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
@@ -36,7 +36,7 @@ impl AppState {
 
     #[allow(unused_variables)]
     pub async fn new(conf: Settings) -> AppState {
-        AppState::with_storage(conf, StorageImpl::DieselPostgresql).await
+        AppState::with_storage(conf, StorageImpl::Postgresql).await
     }
 }
 

@@ -82,6 +82,7 @@ impl<F, T>
             //TODO : change in session response to fit apple pay session object
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: ("".to_string()),
+                session_id: None,
             }),
             ..item.data
         })

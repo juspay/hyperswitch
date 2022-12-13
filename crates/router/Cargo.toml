@@ -47,7 +47,6 @@ mime = "0.3.16"
 nanoid = "0.4.0"
 once_cell = "1.16.0"
 rand = "0.8.5"
-regex = "1.6.0"
 reqwest = { version = "0.11.12", features = ["json", "native-tls"] }
 ring = "0.16.20"
 serde = { version = "1.0.149", features = ["derive"] }
@@ -70,6 +69,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+storage_models = { version = "0.1.0", path = "../storage_models" }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }

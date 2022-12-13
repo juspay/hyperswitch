@@ -20,6 +20,7 @@ pub(crate) type Headers = Vec<(String, String)>;
 pub enum Method {
     Get,
     Post,
+    Put,
     Delete,
 }
 

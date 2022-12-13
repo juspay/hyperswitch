@@ -2,7 +2,7 @@
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     address (address_id) {
         id -> Int4,
@@ -27,7 +27,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     configs (key) {
         id -> Int4,
@@ -38,7 +38,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     connector_response (id) {
         id -> Int4,
@@ -56,7 +56,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     customers (customer_id, merchant_id) {
         id -> Int4,
@@ -74,7 +74,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     events (id) {
         id -> Int4,
@@ -91,7 +91,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     locker_mock_up (id) {
         id -> Int4,
@@ -107,12 +107,13 @@ diesel::table! {
         nickname -> Nullable<Varchar>,
         customer_id -> Nullable<Varchar>,
         duplicate -> Nullable<Bool>,
+        card_cvc -> Nullable<Varchar>,
     }
 }
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     mandate (id) {
         id -> Int4,
@@ -138,7 +139,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     merchant_account (id) {
         id -> Int4,
@@ -162,7 +163,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     merchant_connector_account (id) {
         id -> Int4,
@@ -179,7 +180,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     payment_attempt (id) {
         id -> Int4,
@@ -216,7 +217,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     payment_intent (id) {
         id -> Int4,
@@ -246,7 +247,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     payment_methods (id) {
         id -> Int4,
@@ -275,7 +276,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     process_tracker (id) {
         id -> Varchar,
@@ -296,7 +297,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     refund (id) {
         id -> Int4,
@@ -325,7 +326,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use crate::types::storage::enums::diesel_exports::*;
+    use crate::enums::diesel_exports::*;
 
     temp_card (id) {
         id -> Int4,

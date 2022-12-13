@@ -1829,6 +1829,7 @@ dependencies = [
  "diesel",
  "serde",
  "serde_json",
+ "subtle",
  "zeroize",
 ]
 
@@ -2642,7 +2643,6 @@ dependencies = [
  "once_cell",
  "rand",
  "redis_interface",
- "regex",
  "reqwest",
  "ring",
  "router_derive",
@@ -2652,6 +2652,7 @@ dependencies = [
  "serde_path_to_error",
  "serde_qs",
  "serde_urlencoded",
+ "storage_models",
  "structopt",
  "strum",
  "thiserror",
@@ -2997,6 +2998,22 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "storage_models"
 version = "0.1.0"
+dependencies = [
+ "async-bb8-diesel",
+ "async-trait",
+ "common_utils",
+ "diesel",
+ "error-stack",
+ "hex",
+ "masking",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum",
+ "thiserror",
+ "time",
+]
 
 [[package]]
 name = "strsim"
@@ -3049,6 +3066,12 @@ dependencies = [
  "rustversion",
  "syn",
 ]
+
+[[package]]
+name = "subtle"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "supports-color"

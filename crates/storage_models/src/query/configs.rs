@@ -3,14 +3,13 @@ use router_env::tracing::{self, instrument};
 
 use super::generics::{self, ExecuteQuery};
 use crate::{
-    connection::PgPooledConn,
-    core::errors::{self, CustomResult},
-    types::storage::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal},
+    configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal},
+    errors, CustomResult, PgPooledConn,
 };
 
 impl ConfigNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Config, errors::StorageError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Config, errors::DatabaseError> {
         generics::generic_insert::<_, _, Config, _>(conn, self, ExecuteQuery::new()).await
     }
 }
@@ -20,7 +19,7 @@ impl Config {
     pub async fn find_by_key(
         conn: &PgPooledConn,
         key: &str,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, key.to_owned()).await
     }
 
@@ -29,7 +28,7 @@ impl Config {
         conn: &PgPooledConn,
         key: &str,
         config_update: ConfigUpdate,
-    ) -> CustomResult<Self, errors::StorageError> {
+    ) -> CustomResult<Self, errors::DatabaseError> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             key.to_owned(),
@@ -39,7 +38,7 @@ impl Config {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::StorageError::DatabaseError(errors::DatabaseError::NoFieldsToUpdate) => {
+                errors::DatabaseError::NoFieldsToUpdate => {
                     generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
                         conn,
                         key.to_owned(),

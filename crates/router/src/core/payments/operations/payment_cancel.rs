@@ -105,6 +105,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                     refunds: vec![],
                     connector_response,
                     sessions_token: vec![],
+                    card_cvc: None,
                 },
                 None,
             )),

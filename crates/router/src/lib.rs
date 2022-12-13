@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 // FIXME: I strongly advise to add this worning.
 // #![warn(missing_docs)]
 
@@ -31,8 +32,6 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod scheduler;
 
-#[allow(unused_imports)] // Allow unused imports only for schema module
-pub mod schema;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -64,7 +63,7 @@ pub mod headers {
 pub mod pii {
     //! Personal Identifiable Information protection.
 
-    pub(crate) use common_utils::pii::{CardNumber, Email, IpAddress};
+    pub(crate) use common_utils::pii::{CardNumber, Email};
     #[doc(inline)]
     pub use masking::*;
 }

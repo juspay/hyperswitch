@@ -36,6 +36,9 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsSessionResponseRouterData<R> =
+    ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 
@@ -121,6 +124,8 @@ pub struct PaymentsCancelData {
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
     //TODO: Add the fields here as required
+    pub amount: Option<i32>,
+    pub currency: Option<storage_enums::Currency>,
     pub certificate: Option<Vec<u8>>,
     pub certificate_keys: Option<Vec<u8>>,
     pub requestor_domain: Option<String>,
@@ -146,6 +151,19 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentsTransactionResponse {
+    pub resource_id: ResponseId,
+    pub redirection_data: Option<services::RedirectForm>,
+    pub redirect: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsSessionResponse {
+    pub session_id: Option<String>,
+    pub session_token: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -155,6 +173,7 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: String,
+        session_id: Option<String>,
     },
 }
 

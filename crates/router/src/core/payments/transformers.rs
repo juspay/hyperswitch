@@ -16,6 +16,7 @@ use crate::{
         self,
         api::{self, NextAction, PaymentsResponse},
         storage::{self, enums},
+        transformers::ForeignInto,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -142,6 +143,7 @@ where
             payment_data.address,
             server,
             payment_data.connector_response.authentication_data,
+            payment_data.token,
             operation,
         )
     }
@@ -196,7 +198,10 @@ where
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
             mandate_id: data.mandate_id,
-            payment_method: data.payment_attempt.payment_method.map(Into::into),
+            payment_method: data
+                .payment_attempt
+                .payment_method
+                .map(ForeignInto::foreign_into),
             payment_method_data: data
                 .payment_method_data
                 .map(api::PaymentMethodDataResponse::from),
@@ -222,6 +227,7 @@ pub fn payments_to_payments_response<R, Op>(
     address: PaymentAddress,
     server: &Server,
     redirection_data: Option<serde_json::Value>,
+    payment_token: Option<String>,
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
@@ -237,7 +243,7 @@ where
     let refunds_response = if refunds.is_empty() {
         None
     } else {
-        Some(refunds.into_iter().map(From::from).collect())
+        Some(refunds.into_iter().map(ForeignInto::foreign_into).collect())
     };
 
     Ok(match payment_request {
@@ -265,7 +271,7 @@ where
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
-                        .set_status(payment_intent.status.into())
+                        .set_status(payment_intent.status.foreign_into())
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
@@ -292,13 +298,16 @@ where
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_payment_method(
-                            payment_attempt.payment_method.map(Into::into),
+                            payment_attempt
+                                .payment_method
+                                .map(ForeignInto::foreign_into),
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_method_data(
                             payment_method_data.map(api::PaymentMethodDataResponse::from),
                             auth_flow == services::AuthFlow::Merchant,
                         )
+                        .set_payment_token(payment_token)
                         .set_error_message(payment_attempt.error_message)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
@@ -306,12 +315,22 @@ where
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
                         .set_authentication_type(
-                            payment_attempt.authentication_type.map(Into::into),
+                            payment_attempt
+                                .authentication_type
+                                .map(ForeignInto::foreign_into),
                         )
                         .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
-                        .set_setup_future_usage(payment_intent.setup_future_usage.map(Into::into))
-                        .set_capture_method(payment_attempt.capture_method.map(Into::into))
+                        .set_setup_future_usage(
+                            payment_intent
+                                .setup_future_usage
+                                .map(ForeignInto::foreign_into),
+                        )
+                        .set_capture_method(
+                            payment_attempt
+                                .capture_method
+                                .map(ForeignInto::foreign_into),
+                        )
                         .to_owned(),
                 )
             }
@@ -319,7 +338,7 @@ where
         None => services::BachResponse::Json(PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
-            status: payment_intent.status.into(),
+            status: payment_intent.status.foreign_into(),
             amount: payment_attempt.amount,
             amount_capturable: None,
             amount_received: payment_intent.amount_captured,
@@ -329,8 +348,12 @@ where
             customer_id: payment_intent.customer_id,
             description: payment_intent.description,
             refunds: refunds_response,
-            payment_method: payment_attempt.payment_method.map(Into::into),
-            capture_method: payment_attempt.capture_method.map(Into::into),
+            payment_method: payment_attempt
+                .payment_method
+                .map(ForeignInto::foreign_into),
+            capture_method: payment_attempt
+                .capture_method
+                .map(ForeignInto::foreign_into),
             error_message: payment_attempt.error_message,
             payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
             email: customer
@@ -439,8 +462,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
 impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(_payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
             certificate: None,
             certificate_keys: None,
             requestor_domain: None,

@@ -67,3 +67,13 @@ base_url = "https://api.stripe.com/"
 
 [connectors.braintree]
 base_url = "https://api.sandbox.braintreegateway.com/"
+
+[connectors.klarna]
+base_url = "https://api-na.playground.klarna.com/"
+
+[connectors.applepay]
+base_url = "https://apple-pay-gateway.apple.com/"
+
+[connectors.supported]
+wallets = ["klarna","braintree","applepay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]

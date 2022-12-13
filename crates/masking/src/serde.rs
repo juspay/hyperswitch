@@ -17,7 +17,7 @@ use crate::{PeekInterface, Secret, Strategy, StrongSecret, ZeroizableSecret};
 /// via `serde` serialization.
 ///
 
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
+#[cfg_attr(docsrs, cfg(feature = "serde"))]
 pub trait SerializableSecret: Serialize {}
 // #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 // pub trait NonSerializableSecret: Serialize {}
@@ -33,7 +33,7 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(Secret::new)
+        T::deserialize(deserializer).map(Self::new)
     }
 }
 
@@ -59,7 +59,7 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(StrongSecret::new)
+        T::deserialize(deserializer).map(Self::new)
     }
 }
 
