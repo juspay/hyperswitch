@@ -690,16 +690,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                let pm = &Vault::get_payment_method_data_from_locker(state, token).await?;
-                let updated_pm = match (pm, card_cvc) {
+                let pm = Vault::get_payment_method_data_from_locker(state, token).await?;
+                let updated_pm = match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
-                        let mut updated_card = card.clone();
+                        let mut updated_card = card;
                         updated_card.card_cvc = card_cvc;
                         Vault::store_payment_method_data_in_locker(state, txn_id, &updated_card)
                             .await?;
                         Some(api::PaymentMethod::Card(updated_card))
                     }
-                    (_, _) => pm.clone(),
+                    (_, _) => pm,
                 };
                 (updated_pm, Some(token.to_string()))
             } else {
