@@ -2,6 +2,7 @@ import http from "k6/http";
 import { sleep, check } from "k6";
 import { Counter } from "k6/metrics";
 import { setup_merchant_apikey } from "./helper/setup.js";
+import { random_string } from "./helper/misc.js";
 import { readBaseline, storeResult } from "./helper/compare-result.js";
 
 export const requests = new Counter("http_reqs");
@@ -31,7 +32,7 @@ export default function (data) {
         "capture_method": "automatic",
         "capture_on": "2022-09-10T10:11:12Z",
         "amount_to_capture": 6540,
-        "customer_id": "StripeCustomer",
+        "customer_id": random_string(),
         "email": "guest@example.com",
         "name": "John Doe",
         "phone": "999999999",

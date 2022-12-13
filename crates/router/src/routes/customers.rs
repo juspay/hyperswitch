@@ -5,20 +5,24 @@ use router_env::{
 };
 
 use super::app::AppState;
-use crate::{core::customers::*, services::api, types::api::customers};
+use crate::{
+    core::customers::*,
+    services::{self, api},
+    types::api::customers,
+};
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 // #[post("")]
 pub async fn customers_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<customers::CreateCustomerRequest>,
+    json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     api::server_wrap(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| create_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| create_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await
@@ -35,12 +39,22 @@ pub async fn customers_retrieve(
         customer_id: path.into_inner(),
     })
     .into_inner();
+    let auth_type = match services::authenticate_eph_key(
+        &req,
+        &*state.store,
+        payload.customer_id.clone(),
+    )
+    .await
+    {
+        Ok(auth_type) => auth_type,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     api::server_wrap(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| retrieve_customer(&state.store, merchant_account, req),
-        api::MerchantAuthentication::ApiKey,
+        |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
+        auth_type,
     )
     .await
 }
@@ -51,7 +65,7 @@ pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    mut json_payload: web::Json<customers::CustomerUpdateRequest>,
+    mut json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     let customer_id = path.into_inner();
     json_payload.customer_id = customer_id;
@@ -59,7 +73,7 @@ pub async fn customers_update(
         &state,
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| update_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| update_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await
@@ -80,7 +94,7 @@ pub async fn customers_delete(
         &state,
         &req,
         payload,
-        |state, merchant_account, req| delete_customer(&state.store, merchant_account, req),
+        |state, merchant_account, req| delete_customer(&*state.store, merchant_account, req),
         api::MerchantAuthentication::ApiKey,
     )
     .await

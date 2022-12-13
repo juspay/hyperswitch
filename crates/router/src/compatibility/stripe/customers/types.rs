@@ -2,12 +2,8 @@ use std::{convert::From, default::Default};
 
 use masking::{Secret, WithType};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
-use crate::{
-    pii::Email,
-    types::{api::customers, storage},
-};
+use crate::{pii::Email, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct CustomerAddress {
@@ -42,7 +38,6 @@ pub(crate) struct CustomerUpdateRequest {
 pub(crate) struct CreateCustomerResponse {
     id: String,
     object: String,
-    address: Option<Secret<serde_json::Value>>,
     created: u64,
     description: Option<String>,
     email: Option<Secret<String, Email>>,
@@ -60,47 +55,26 @@ pub(crate) struct CustomerDeleteResponse {
     pub(crate) deleted: bool,
 }
 
-impl From<CreateCustomerRequest> for customers::CreateCustomerRequest {
+impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
-            customer_id: storage::generate_customer_id(),
+            customer_id: api_models::customers::generate_customer_id(),
             name: req.name,
             phone: req.phone,
             email: req.email,
             description: req.invoice_prefix,
-            address: req.address.map(|addr| {
-                Secret::new(json!({
-                    "city": addr.city,
-                    "country": addr.country,
-                    "line1": addr.line1,
-                    "line2": addr.line2,
-                    "postal_code": addr.postal_code,
-                    "state": addr.state
-                }))
-            }),
             ..Default::default()
         }
     }
 }
 
-impl From<CustomerUpdateRequest> for customers::CustomerUpdateRequest {
+impl From<CustomerUpdateRequest> for api::CustomerRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
             name: req.name,
             phone: req.phone,
             email: req.email,
             description: req.description,
-            address: req.address.map(|addr| {
-                Secret::new(json!({
-                    "city": addr.city,
-                    "country": addr.country,
-                    "line1": addr.line1,
-                    "line2": addr.line2,
-                    "postal_code": addr.postal_code,
-                    "state": addr.state
-                }))
-            }),
-
             metadata: req
                 .metadata
                 .map(|v| serde_json::from_str(&v).ok())
@@ -110,12 +84,12 @@ impl From<CustomerUpdateRequest> for customers::CustomerUpdateRequest {
     }
 }
 
-impl From<customers::CustomerResponse> for CreateCustomerResponse {
-    fn from(cust: customers::CustomerResponse) -> Self {
+impl From<api::CustomerResponse> for CreateCustomerResponse {
+    fn from(cust: api::CustomerResponse) -> Self {
+        let cust = cust.into_inner();
         Self {
             id: cust.customer_id,
             object: "customer".to_owned(),
-            address: cust.address,
             created: cust.created_at.assume_utc().unix_timestamp() as u64,
             description: cust.description,
             email: cust.email,
@@ -126,8 +100,8 @@ impl From<customers::CustomerResponse> for CreateCustomerResponse {
     }
 }
 
-impl From<customers::CustomerDeleteResponse> for CustomerDeleteResponse {
-    fn from(cust: customers::CustomerDeleteResponse) -> Self {
+impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
+    fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
             id: cust.customer_id,
             deleted: cust.deleted,

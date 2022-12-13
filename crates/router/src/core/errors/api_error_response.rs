@@ -28,6 +28,8 @@ pub enum ApiErrorResponse {
                     the Dashboard Settings section."
     )]
     BadCredentials,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Invalid Ephemeral Key for the customer")]
+    InvalidEphermeralKey,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
@@ -42,17 +44,16 @@ pub enum ApiErrorResponse {
         field_name: String,
         expected_format: String,
     },
-    #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_07",
-        message = "{message}"
-    )]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "{message}")]
     InvalidRequestData { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Refund amount exceeds the payment amount.")]
     RefundAmountExceedsPaymentAmount,
+    /// Typically used when a field has invalid value, or deserialization of the value contained in
+    /// a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}.")]
     InvalidDataValue { field_name: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Reached maximum refund attempts")]
-    MaxiumumRefundCount,
+    MaximumRefundCount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_09", message = "This PaymentIntent could not be {current_flow} because it has a {field_name} of {current_value}. The expected state is {states}.")]
     PaymentUnexpectedState {
         current_flow: String,
@@ -60,12 +61,16 @@ pub enum ApiErrorResponse {
         current_value: String,
         states: String,
     },
+    /// Typically used when information involving multiple fields or previously provided
+    /// information doesn't satisfy a condition.
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "{message}")]
+    PreconditionFailed { message: String },
 
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "The client_secret provided does not match the client_secret associated with the Payment.")]
     ClientSecretInvalid,
 
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed while processing with connector. Retry payment.")]
-    PaymentAuthorizationFailed { data: Option<serde_json::Value> }, //
+    PaymentAuthorizationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_02", message = "Payment failed while processing with connector. Retry payment.")]
     PaymentAuthenticationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_03", message = "Capture attempt failed while processing with connector.")]
@@ -76,6 +81,8 @@ pub enum ApiErrorResponse {
     CardExpired { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_06", message = "Refund failed while processing with connector. Retry refund.")]
     RefundFailed { data: Option<serde_json::Value> },
+    #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Verification failed while processing with connector. Retry operation.")]
+    VerificationFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "RE_00", message = "Something went wrong.")]
     InternalServerError,
@@ -93,6 +100,8 @@ pub enum ApiErrorResponse {
     MerchantAccountNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Merchant connector account does not exist in our records.")]
     MerchantConnectorAccountNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Resource ID does not exist in our records.")]
+    ResourceIdNotFound,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID.")]
     DuplicateMandate,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Mandate does not exist in our records.")]
@@ -111,6 +120,8 @@ pub enum ApiErrorResponse {
     SuccessfulPaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_05", message = "Address does not exist in our records.")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Mandate Validation Failed" )]
+    MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
     NotImplemented,
 }
@@ -130,9 +141,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            ApiErrorResponse::Unauthorized | ApiErrorResponse::BadCredentials => {
-                StatusCode::UNAUTHORIZED
-            } // 401
+            ApiErrorResponse::Unauthorized
+            | ApiErrorResponse::BadCredentials
+            | ApiErrorResponse::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
             ApiErrorResponse::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             ApiErrorResponse::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             ApiErrorResponse::MissingRequiredField { .. }
@@ -140,7 +151,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             ApiErrorResponse::InvalidDataFormat { .. }
             | ApiErrorResponse::InvalidRequestData { .. } => StatusCode::UNPROCESSABLE_ENTITY, // 422
             ApiErrorResponse::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            ApiErrorResponse::MaxiumumRefundCount => StatusCode::BAD_REQUEST,
+            ApiErrorResponse::MaximumRefundCount => StatusCode::BAD_REQUEST,               // 400
+            ApiErrorResponse::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,        // 400
 
             ApiErrorResponse::PaymentAuthorizationFailed { .. }
             | ApiErrorResponse::PaymentAuthenticationFailed { .. }
@@ -148,7 +160,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::InvalidCardData { .. }
             | ApiErrorResponse::CardExpired { .. }
             | ApiErrorResponse::RefundFailed { .. }
-            | ApiErrorResponse::PaymentUnexpectedState { .. } => StatusCode::BAD_REQUEST, // 400
+            | ApiErrorResponse::VerificationFailed { .. }
+            | ApiErrorResponse::PaymentUnexpectedState { .. }
+            | ApiErrorResponse::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             ApiErrorResponse::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             ApiErrorResponse::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
@@ -161,14 +175,15 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::MandateNotFound
             | ApiErrorResponse::ClientSecretInvalid
             | ApiErrorResponse::SuccessfulPaymentNotFound
+            | ApiErrorResponse::ResourceIdNotFound
             | ApiErrorResponse::AddressNotFound => StatusCode::BAD_REQUEST, // 400
             ApiErrorResponse::DuplicateMerchantAccount
             | ApiErrorResponse::DuplicateMerchantConnectorAccount
             | ApiErrorResponse::DuplicatePaymentMethod
             | ApiErrorResponse::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
             ApiErrorResponse::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,  // 503
-            ApiErrorResponse::PaymentNotSucceeded => StatusCode::BAD_REQUEST,
-            ApiErrorResponse::NotImplemented => StatusCode::NOT_IMPLEMENTED,
+            ApiErrorResponse::PaymentNotSucceeded => StatusCode::BAD_REQUEST,           // 400
+            ApiErrorResponse::NotImplemented => StatusCode::NOT_IMPLEMENTED,            // 501
         }
     }
 

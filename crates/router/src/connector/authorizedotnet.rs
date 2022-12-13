@@ -43,44 +43,53 @@ impl api::PaymentAuthorize for Authorizedotnet {}
 impl api::PaymentSync for Authorizedotnet {}
 impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
+impl api::PaymentSession for Authorizedotnet {}
 
-#[allow(dead_code)]
-type PCapture = dyn services::ConnectorIntegration<
-    api::PCapture,
-    types::PaymentsRequestCaptureData,
-    types::PaymentsResponseData,
->;
 impl
     services::ConnectorIntegration<
-        api::PCapture,
-        types::PaymentsRequestCaptureData,
+        api::Session,
+        types::PaymentsSessionData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
     // Not Implemented (R)
 }
 
-type PSync = dyn services::ConnectorIntegration<
-    api::PSync,
-    types::PaymentsRequestSyncData,
-    types::PaymentsResponseData,
->;
+impl api::PreVerify for Authorizedotnet {}
+
 impl
     services::ConnectorIntegration<
-        api::PSync,
-        types::PaymentsRequestSyncData,
+        api::Verify,
+        types::VerifyRequestData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
+    // TODO: Critical Implement
+}
+
+impl
+    services::ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // Not Implemented (R)
+}
+
+impl
+    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Authorizedotnet
+{
     fn get_headers(
         &self,
-        _req: &types::PaymentsRouterSyncData,
+        _req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                PSync::get_content_type(self).to_string(),
+                types::PaymentsSyncType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ])
@@ -92,7 +101,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterSyncData,
+        _req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -100,7 +109,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let sync_request =
             utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::convert_and_encode(
@@ -112,23 +121,23 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsRouterSyncData,
+        req: &types::PaymentsSyncRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            .url(&PSync::get_url(self, req, connectors)?)
-            .headers(PSync::get_headers(self, req)?)
-            .body(PSync::get_request_body(self, req)?)
+            .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsSyncType::get_headers(self, req)?)
+            .body(types::PaymentsSyncType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterSyncData,
+        data: &types::PaymentsSyncRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterSyncData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         use bytes::Buf;
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
@@ -177,28 +186,22 @@ impl
     }
 }
 
-type Authorize = dyn services::ConnectorIntegration<
-    api::Authorize,
-    types::PaymentsRequestData,
-    types::PaymentsResponseData,
->;
-
 impl
     services::ConnectorIntegration<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ])
@@ -210,7 +213,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -218,7 +221,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         logger::debug!(request=?req);
         let authorizedotnet_req =
@@ -231,7 +234,7 @@ impl
         &self,
         req: &types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: Connectors,
@@ -239,20 +242,21 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
-                .url(&Authorize::get_url(self, req, connectors)?)
-                .headers(Authorize::get_headers(self, req)?)
+                .url(&types::PaymentsAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(Authorize::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsRouterData,
+        data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         use bytes::Buf;
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
@@ -302,27 +306,21 @@ impl
     }
 }
 
-type Void = dyn services::ConnectorIntegration<
-    api::Void,
-    types::PaymentRequestCancelData,
-    types::PaymentsResponseData,
->;
-
 impl
     services::ConnectorIntegration<
         api::Void,
-        types::PaymentRequestCancelData,
+        types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ])
@@ -334,7 +332,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentRouterCancelData,
+        _req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors))
@@ -342,7 +340,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let authorizedotnet_req =
             utils::Encode::<authorizedotnet::CancelTransactionRequest>::convert_and_encode(req)
@@ -351,26 +349,25 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::PaymentRouterCancelData,
+        req: &types::PaymentsCancelRouterData,
         connectors: Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
-                .url(&Void::get_url(self, req, connectors)?)
-                .headers(Void::get_headers(self, req)?)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
-                .body(Void::get_request_body(self, req)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentRouterCancelData,
+        data: &types::PaymentsCancelRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentRouterCancelData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         use bytes::Buf;
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
@@ -424,18 +421,8 @@ impl api::Refund for Authorizedotnet {}
 impl api::RefundExecute for Authorizedotnet {}
 impl api::RefundSync for Authorizedotnet {}
 
-type Execute = dyn services::ConnectorIntegration<
-    api::Execute,
-    types::RefundsRequestData,
-    types::RefundsResponseData,
->;
-
-impl
-    services::ConnectorIntegration<
-        api::Execute,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Authorizedotnet
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Authorizedotnet
 {
     fn get_headers(
         &self,
@@ -445,7 +432,7 @@ impl
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Authorize::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ])
@@ -481,9 +468,9 @@ impl
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            .url(&Execute::get_url(self, req, connectors)?)
-            .headers(Execute::get_headers(self, req)?)
-            .body(Execute::get_request_body(self, req)?)
+            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .headers(types::RefundExecuteType::get_headers(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }
@@ -544,18 +531,8 @@ impl
     }
 }
 
-type RSync = dyn services::ConnectorIntegration<
-    api::RSync,
-    types::RefundsRequestData,
-    types::RefundsResponseData,
->;
-
-impl
-    services::ConnectorIntegration<
-        api::RSync,
-        types::RefundsRequestData,
-        types::RefundsResponseData,
-    > for Authorizedotnet
+impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Authorizedotnet
 {
     fn get_headers(
         &self,
@@ -565,7 +542,7 @@ impl
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                RSync::get_content_type(self).to_string(),
+                types::RefundSyncType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ])
@@ -602,9 +579,9 @@ impl
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            .url(&RSync::get_url(self, req, connectors)?)
-            .headers(RSync::get_headers(self, req)?)
-            .body(RSync::get_request_body(self, req)?)
+            .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+            .headers(types::RefundSyncType::get_headers(self, req)?)
+            .body(types::RefundSyncType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }

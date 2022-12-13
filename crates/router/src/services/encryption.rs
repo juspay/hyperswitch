@@ -1,12 +1,14 @@
 use std::{num::Wrapping, str};
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
+use josekit::jwe;
 use rand;
 use ring::{aead::*, error::Unspecified};
 
 use crate::{
-    configs::settings::Keys,
+    configs::settings::{Jwekey, Keys},
     core::errors::{self, CustomResult},
+    utils,
 };
 
 struct NonceGen {
@@ -53,13 +55,51 @@ pub struct KeyHandler {}
 use aws_config::meta::region::RegionProviderChain;
 #[cfg(feature = "kms")]
 use aws_sdk_kms::{types::Blob, Client, Region};
-#[cfg(feature = "kms")]
-use error_stack::report;
+
 #[cfg(feature = "kms")]
 impl KeyHandler {
     // Fetching KMS decrypted key
     // | Amazon KMS decryption
     //This expect a base64 encoded input but we values are set via aws cli in env than cli already does that so we don't need to
+    pub async fn get_kms_decrypted_key(
+        aws_keys: &Jwekey,
+        kms_enc_key: String,
+    ) -> CustomResult<String, errors::EncryptionError> {
+        let region = aws_keys.aws_region.to_string();
+        let key_id = aws_keys.aws_key_id.clone();
+        let region_provider = RegionProviderChain::first_try(Region::new(region));
+        let shared_config = aws_config::from_env().region(region_provider).load().await;
+        let client = Client::new(&shared_config);
+        let data = base64::decode(kms_enc_key)
+            .into_report()
+            .change_context(errors::EncryptionError)
+            .attach_printable("Error decoding from base64")?;
+        let blob = Blob::new(data);
+        let resp = client
+            .decrypt()
+            .key_id(key_id)
+            .ciphertext_blob(blob)
+            .send()
+            .await
+            .into_report()
+            .change_context(errors::EncryptionError)
+            .attach_printable("Error decrypting kms encrypted data")?;
+        match resp.plaintext() {
+            Some(inner) => {
+                let bytes = inner.as_ref().to_vec();
+                let res = String::from_utf8(bytes)
+                    .into_report()
+                    .change_context(errors::EncryptionError)
+                    .attach_printable("Could not convert to UTF-8")?;
+                Ok(res)
+            }
+            None => {
+                Err(report!(errors::EncryptionError)
+                    .attach_printable("Missing plaintext in response"))
+            }
+        }
+    }
+
     pub async fn get_encryption_key(keys: &Keys) -> CustomResult<String, errors::EncryptionError> {
         let kms_enc_key = keys.temp_card_key.to_string();
         let region = keys.aws_region.to_string();
@@ -133,6 +173,13 @@ impl KeyHandler {
     pub async fn get_encryption_key(keys: &Keys) -> CustomResult<String, errors::EncryptionError> {
         Ok(keys.temp_card_key.clone())
     }
+
+    pub async fn get_kms_decrypted_key(
+        _aws_keys: &Jwekey,
+        key: String,
+    ) -> CustomResult<String, errors::EncryptionError> {
+        Ok(key)
+    }
 }
 
 pub fn encrypt(msg: &String, key: &[u8]) -> CustomResult<Vec<u8>, errors::EncryptionError> {
@@ -186,14 +233,87 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
     Ok(response.to_string())
 }
 
+pub fn get_key_id(keys: &Jwekey) -> &str {
+    let key_identifier = "1"; //TODO https://github.com/juspay/orca/issues/46
+    if key_identifier == "1" {
+        &keys.locker_key_identifier1
+    } else {
+        &keys.locker_key_identifier2
+    }
+}
+
+pub async fn encrypt_jwe(
+    keys: &Jwekey,
+    msg: &str,
+) -> CustomResult<String, errors::EncryptionError> {
+    let alg = jwe::RSA_OAEP_256;
+    let key_id = get_key_id(keys);
+    let public_key = if key_id == keys.locker_key_identifier1 {
+        KeyHandler::get_kms_decrypted_key(keys, keys.locker_encryption_key1.to_string()).await?
+    } else {
+        KeyHandler::get_kms_decrypted_key(keys, keys.locker_encryption_key2.to_string()).await?
+    };
+    let payload = msg.as_bytes();
+    let enc = "A256GCM";
+    let mut src_header = jwe::JweHeader::new();
+    src_header.set_content_encryption(enc);
+    src_header.set_token_type("JWT");
+    let encrypter = alg
+        .encrypter_from_pem(public_key)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting JweEncryptor")?;
+    let jwt = jwe::serialize_compact(payload, &src_header, &encrypter)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting jwt string")?;
+    Ok(jwt)
+}
+
+pub async fn decrypt_jwe(
+    keys: &Jwekey,
+    jwt: &str,
+    resp_key_id: &str,
+) -> CustomResult<String, errors::EncryptionError> {
+    let alg = jwe::RSA_OAEP_256;
+    let key_id = get_key_id(keys);
+    let private_key = if key_id == keys.locker_key_identifier1 {
+        KeyHandler::get_kms_decrypted_key(keys, keys.locker_decryption_key1.to_string()).await?
+    } else {
+        KeyHandler::get_kms_decrypted_key(keys, keys.locker_decryption_key2.to_string()).await?
+    };
+
+    let decrypter = alg
+        .decrypter_from_pem(private_key)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting JweDecryptor")?;
+
+    let (dst_payload, _dst_header) = jwe::deserialize_compact(jwt, &decrypter)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting Decrypted jwe")?;
+    utils::when(
+        resp_key_id.ne(key_id),
+        Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
+            .attach_printable("key_id mismatch, Error authenticating response"),
+    )?;
+    let resp = String::from_utf8(dst_payload)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Could not convert to UTF-8")?;
+    Ok(resp)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
-    use crate::utils::{self, ValueExt};
-    #[cfg(feature = "kms")]
-    use crate::Settings;
+    use crate::{
+        configs::settings,
+        utils::{self, ValueExt},
+    };
 
     fn generate_key() -> [u8; 32] {
         let key: [u8; 32] = rand::random();
@@ -214,7 +334,7 @@ mod tests {
     #[actix_rt::test]
     #[ignore]
     async fn test_kms() {
-        let conf = Settings::new().unwrap();
+        let conf = settings::Settings::new().unwrap();
         let kms_encrypted = KeyHandler::get_encryption_key(&conf.keys)
             .await
             .expect("Error encode_kms");
@@ -222,5 +342,15 @@ mod tests {
             .await
             .expect("error decode_kms");
         assert_eq!("Testing KMS".to_string(), kms_decrypted)
+    }
+
+    #[actix_rt::test]
+    async fn test_jwe() {
+        let conf = settings::Settings::new().unwrap();
+        let jwt = encrypt_jwe(&conf.jwekey, "request_payload").await.unwrap();
+        let payload = decrypt_jwe(&conf.jwekey, &jwt, &conf.jwekey.locker_key_identifier1)
+            .await
+            .unwrap();
+        assert_eq!("request_payload".to_string(), payload)
     }
 }

@@ -3,7 +3,7 @@
 [server]
 port = 8080
 host = "127.0.0.1"
-request_body_limit = 16_384 # Post request body is limited to 16k.
+request_body_limit = 16_384        # Post request body is limited to 16k.
 base_url = "http://localhost:8080"
 
 [proxy]
@@ -34,8 +34,11 @@ cluster_urls = []
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
 
 [locker]
-mock_locker = true
-host = ""
+
+[jwekey]
+
+[eph_key]
+validity = 1
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -52,3 +55,7 @@ batch_size = 200
 stream_name = "DRAINER_STREAM"
 num_partitions = 64
 batch_size = 200
+
+[connectors.supported]
+wallets = ["klarna", "braintree"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree"]

@@ -8,86 +8,69 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, PaymentRouterCancelData, PaymentsResponseData},
+    types::{
+        self, api,
+        storage::{self, enums},
+        PaymentsCancelRouterData, PaymentsResponseData,
+    },
 };
 
 #[async_trait]
-impl
-    ConstructFlowSpecificData<
-        api::Void,
-        types::PaymentRequestCancelData,
-        types::PaymentsResponseData,
-    > for PaymentData<api::Void>
+impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for PaymentData<api::Void>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<PaymentRouterCancelData> {
-        let output = transformers::construct_payment_router_data::<
-            api::Void,
-            types::PaymentRequestCancelData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+    ) -> RouterResult<PaymentsCancelRouterData> {
+        transformers::construct_payment_router_data::<api::Void, types::PaymentsCancelData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::Void, types::PaymentRequestCancelData>
-    for types::RouterData<api::Void, types::PaymentRequestCancelData, types::PaymentsResponseData>
+impl Feature<api::Void, types::PaymentsCancelData>
+    for types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::Void>,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::Void>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Void,
-            types::PaymentRequestCancelData,
-            types::PaymentsResponseData,
-        >,
-    {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        (resp, payment_data)
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<Self> {
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 
-impl PaymentRouterCancelData {
+impl PaymentsCancelRouterData {
     #[allow(clippy::too_many_arguments)]
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &AppState,
-        connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        connector: &api::ConnectorData,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentRouterCancelData>
-    where
-        // P: 'a,
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Void,
-            types::PaymentRequestCancelData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsCancelRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Void,
-            types::PaymentRequestCancelData,
+            types::PaymentsCancelData,
             PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(

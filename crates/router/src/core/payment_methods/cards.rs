@@ -1,46 +1,41 @@
-use std::{collections::HashSet, hash::Hash};
+use std::collections;
 
 use error_stack::{report, ResultExt};
-use rand::Rng;
 use router_env::{tracing, tracing::instrument};
-use serde_json::Value;
-use uuid::Uuid;
 
 use crate::{
-    configs::settings::Keys,
+    configs::settings,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, StorageErrorExt},
         payment_methods::transformers as payment_methods,
+        payments::helpers,
     },
-    db::{
-        merchant_connector_account::IMerchantConnectorAccount, payment_method::IPaymentMethod,
-        temp_card::ITempCard, Db,
-    },
+    db,
     pii::prelude::*,
-    routes::AppState,
-    services,
+    routes, services,
     types::{
-        api,
+        api::{self, CreatePaymentMethodExt},
         storage::{self, enums},
+        transformers::ForeignInto,
     },
-    utils::{self, BytesExt, OptionExt, ValueExt},
+    utils::{self, BytesExt, OptionExt, StringExt, ValueExt},
 };
 
 #[instrument(skip_all)]
 pub async fn create_payment_method(
-    db: &dyn Db,
+    db: &dyn db::StorageInterface,
     req: &api::CreatePaymentMethod,
     customer_id: String,
     payment_method_id: String,
     merchant_id: &str,
-) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id,
             merchant_id: merchant_id.to_string(),
             payment_method_id,
-            payment_method: req.payment_method,
-            payment_method_type: req.payment_method_type,
+            payment_method: req.payment_method.foreign_into(),
+            payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: req.payment_method_issuer.clone(),
             ..storage::PaymentMethodNew::default()
         })
@@ -51,10 +46,10 @@ pub async fn create_payment_method(
 
 #[instrument(skip_all)]
 pub async fn add_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     req: api::CreatePaymentMethod,
     merchant_id: String,
-) -> RouterResponse<api::PaymentMethodResponse> {
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
 
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -65,7 +60,7 @@ pub async fn add_payment_method(
             .attach_printable("Add Card Failed"),
         None => {
             create_payment_method(
-                &state.store,
+                &*state.store,
                 &req,
                 customer_id,
                 "payment_method_id".to_owned(),
@@ -95,14 +90,14 @@ pub async fn add_payment_method(
 
 #[instrument(skip_all)]
 pub async fn add_card(
-    state: &AppState,
+    state: &routes::AppState,
     req: api::CreatePaymentMethod,
     card: api::CardDetail,
     customer_id: String,
     merchant_id: &str,
-) -> CustomResult<api::PaymentMethodResponse, errors::CardVaultError> {
+) -> errors::CustomResult<api::PaymentMethodResponse, errors::CardVaultError> {
     let locker = &state.conf.locker;
-    let db = &state.store;
+    let db = &*state.store;
     let request = payment_methods::mk_add_card_request(locker, &card, &customer_id, &req)?;
     // FIXME use call_api 2. Serde's handle should be inside the generic function
     let response = if !locker.mock_locker {
@@ -121,7 +116,8 @@ pub async fn add_card(
         }?;
         response
     } else {
-        mock_add_card(db, &card).await?
+        let card_id = uuid::Uuid::new_v4().to_string();
+        mock_add_card(db, &card_id, &card).await?
     };
 
     create_payment_method(
@@ -139,14 +135,15 @@ pub async fn add_card(
 
 #[instrument(skip_all)]
 pub async fn mock_add_card(
-    db: &dyn Db,
+    db: &dyn db::StorageInterface,
+    card_id: &str,
     card: &api::CardDetail,
-) -> CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
+) -> errors::CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
     let locker_mock_up = storage::LockerMockUpNew {
-        card_id: Uuid::new_v4().to_string(),
-        external_id: Uuid::new_v4().to_string(),
-        card_fingerprint: Uuid::new_v4().to_string(),
-        card_global_fingerprint: Uuid::new_v4().to_string(),
+        card_id: card_id.to_string(),
+        external_id: uuid::Uuid::new_v4().to_string(),
+        card_fingerprint: uuid::Uuid::new_v4().to_string(),
+        card_global_fingerprint: uuid::Uuid::new_v4().to_string(),
         merchant_id: "mm01".to_string(),
         card_number: card.card_number.peek().to_string(),
         card_exp_year: card.card_exp_year.peek().to_string(),
@@ -175,9 +172,9 @@ pub async fn mock_add_card(
 
 #[instrument(skip_all)]
 pub async fn mock_get_card<'a>(
-    db: &dyn Db,
+    db: &dyn db::StorageInterface,
     card_id: &'a str,
-) -> CustomResult<payment_methods::GetCardResponse, errors::CardVaultError> {
+) -> errors::CustomResult<payment_methods::GetCardResponse, errors::CardVaultError> {
     let locker_mock_up = db
         .find_locker_by_card_id(card_id)
         .await
@@ -202,11 +199,11 @@ pub async fn mock_get_card<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn get_card<'a>(
-    state: &'a AppState,
+pub async fn get_card_from_legacy_locker<'a>(
+    state: &'a routes::AppState,
     merchant_id: &'a str,
     card_id: &'a str,
-) -> RouterResult<payment_methods::GetCardResponse> {
+) -> errors::RouterResult<payment_methods::GetCardResponse> {
     let locker = &state.conf.locker;
     let request = payment_methods::mk_get_card_request(locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -227,7 +224,7 @@ pub async fn get_card<'a>(
                 .attach_printable(format!("Got 4xx from the locker: {err:?}"))),
         }?
     } else {
-        mock_get_card(&state.store, card_id)
+        mock_get_card(&*state.store, card_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?
     };
@@ -237,10 +234,10 @@ pub async fn get_card<'a>(
 
 #[instrument(skip_all)]
 pub async fn delete_card<'a>(
-    state: &'a AppState,
+    state: &'a routes::AppState,
     merchant_id: &'a str,
     card_id: &'a str,
-) -> RouterResult<payment_methods::DeleteCardResponse> {
+) -> errors::RouterResult<payment_methods::DeleteCardResponse> {
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
@@ -256,10 +253,18 @@ pub async fn delete_card<'a>(
 }
 
 pub async fn list_payment_methods(
-    db: &dyn Db,
+    db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
-) -> RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+) -> errors::RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+    helpers::verify_client_secret(
+        db,
+        merchant_account.storage_scheme,
+        req.client_secret.clone(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
         .await
@@ -284,7 +289,7 @@ pub async fn list_payment_methods(
 }
 
 fn filter_payment_methods(
-    payment_methods: Vec<Value>,
+    payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
     resp: &mut Vec<api::ListPaymentMethodResponse>,
 ) {
@@ -326,14 +331,14 @@ fn filter_payment_methods(
     }
 }
 
-fn filter_accepted_enum_based<T: Eq + Hash + Clone>(
+fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
     left: &Option<Vec<T>>,
     right: &Option<Vec<T>>,
 ) -> (Option<Vec<T>>, Option<Vec<T>>, bool) {
     match (left, right) {
         (Some(ref l), Some(ref r)) => {
-            let a: HashSet<&T> = HashSet::from_iter(l.iter());
-            let b: HashSet<&T> = HashSet::from_iter(r.iter());
+            let a: collections::HashSet<&T> = collections::HashSet::from_iter(l.iter());
+            let b: collections::HashSet<&T> = collections::HashSet::from_iter(r.iter());
 
             let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
             (Some(y), Some(r.to_vec()), true)
@@ -382,11 +387,11 @@ fn filter_installment_based(
 }
 
 pub async fn list_customer_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     customer_id: &str,
-) -> RouterResponse<api::ListCustomerPaymentMethodsResponse> {
-    let db = &state.store;
+) -> errors::RouterResponse<api::ListCustomerPaymentMethodsResponse> {
+    let db = &*state.store;
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
         .await
@@ -428,10 +433,9 @@ pub async fn list_customer_payment_method(
     }
     let mut vec = Vec::new();
     for pm in resp.into_iter() {
-        let mut rng = rand::thread_rng();
-        let payment_token = rng.gen::<i32>();
+        let payment_token = uuid::Uuid::new_v4().to_string();
         let card = if pm.payment_method == enums::PaymentMethodType::Card {
-            Some(get_tempcard_from_payment_method(state, payment_token, &pm).await?)
+            Some(get_lookup_key_from_locker(state, &payment_token, &pm).await?)
         } else {
             None
         };
@@ -439,12 +443,14 @@ pub async fn list_customer_payment_method(
         let pma = api::CustomerPaymentMethod {
             payment_token: payment_token.to_string(),
             customer_id: pm.customer_id,
-            payment_method: pm.payment_method,
-            payment_method_type: pm.payment_method_type,
+            payment_method: pm.payment_method.foreign_into(),
+            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: pm.payment_method_issuer,
             card,
             metadata: None,
-            payment_method_issuer_code: pm.payment_method_issuer_code,
+            payment_method_issuer_code: pm
+                .payment_method_issuer_code
+                .map(ForeignInto::foreign_into),
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO chnage to enum
@@ -461,12 +467,12 @@ pub async fn list_customer_payment_method(
     Ok(services::BachResponse::Json(response))
 }
 
-pub async fn get_tempcard_from_payment_method(
-    state: &AppState,
-    payment_token: i32,
+pub async fn get_lookup_key_from_locker(
+    state: &routes::AppState,
+    payment_token: &str,
     pm: &storage::PaymentMethod,
-) -> RouterResult<api::CardDetailFromLocker> {
-    let get_card_resp = get_card(
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let get_card_resp = get_card_from_legacy_locker(
         state,
         pm.merchant_id.as_str(),
         pm.payment_method_id.as_str(),
@@ -476,53 +482,112 @@ pub async fn get_tempcard_from_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Get Card Details Failed")?;
     let card = card_detail.clone();
-    let mut card_info = card_detail
-        .card_number
-        .peek_cloning()
-        .get_required_value("card_number")?;
-    card_info.push_str(":::");
-    card_info.push_str(
-        &card_detail
-            .expiry_month
-            .peek_cloning()
-            .get_required_value("expiry_month")?,
-    );
-    card_info.push_str(":::");
-    card_info.push_str(
-        &card_detail
-            .expiry_year
-            .peek_cloning()
-            .get_required_value("expiry_year")?,
-    );
-    card_info.push_str(":::");
-    card_info.push_str(
-        &card_detail
-            .card_holder_name
-            .peek_cloning()
-            .unwrap_or_default(),
-    );
-    let card_info_val = get_card_info_value(&state.conf.keys, card_info).await?;
-    let temp_card = storage::TempCard {
-        card_info: Some(card_info_val),
-        date_created: common_utils::date_time::now(),
-        txn_id: None,
-        id: payment_token,
-    };
+    let resp =
+        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card)
+            .await?;
+    Ok(resp)
+}
 
-    state
-        .store
-        .insert_tempcard_with_token(temp_card)
-        .await
-        .map_err(|error| {
-            error.to_duplicate_response(errors::ApiErrorResponse::DuplicatePaymentMethod)
-        })?;
-    Ok(card)
+pub struct BasiliskCardSupport;
+
+#[cfg(not(feature = "basilisk"))]
+impl BasiliskCardSupport {
+    async fn create_payment_method_data_in_locker(
+        state: &routes::AppState,
+        payment_token: &str,
+        card: api::CardDetailFromLocker,
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
+        let card_number = card
+            .card_number
+            .clone()
+            .expose_option()
+            .get_required_value("card_number")?;
+        let card_exp_month = card
+            .expiry_month
+            .clone()
+            .expose_option()
+            .get_required_value("expiry_month")?;
+        let card_exp_year = card
+            .expiry_year
+            .clone()
+            .expose_option()
+            .get_required_value("expiry_year")?;
+        let card_holder_name = card
+            .card_holder_name
+            .clone()
+            .expose_option()
+            .unwrap_or_default();
+        let card_detail = api::CardDetail {
+            card_number: card_number.into(),
+            card_exp_month: card_exp_month.into(),
+            card_exp_year: card_exp_year.into(),
+            card_holder_name: Some(card_holder_name.into()),
+        };
+        let db = &*state.store;
+        mock_add_card(db, payment_token, &card_detail)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")?;
+        Ok(card)
+    }
+}
+
+#[cfg(feature = "basilisk")]
+impl BasiliskCardSupport {
+    #[instrument(skip_all)]
+    async fn create_payment_method_data_in_locker(
+        state: &routes::AppState,
+        payment_token: &str,
+        card: api::CardDetailFromLocker,
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
+        let card_number = card
+            .card_number
+            .clone()
+            .expose_option()
+            .get_required_value("card_number")?;
+        let card_exp_month = card
+            .expiry_month
+            .clone()
+            .expose_option()
+            .get_required_value("expiry_month")?;
+        let card_exp_year = card
+            .expiry_year
+            .clone()
+            .expose_option()
+            .get_required_value("expiry_year")?;
+        let card_holder_name = card
+            .card_holder_name
+            .clone()
+            .expose_option()
+            .unwrap_or_default();
+        let card_fingerprint = card
+            .card_fingerprint
+            .clone()
+            .expose_option()
+            .get_required_value("card_fingerprint")?;
+        let value1 = payment_methods::mk_card_value1(
+            card_number,
+            card_exp_year,
+            card_exp_month,
+            Some(card_holder_name),
+            None,
+            None,
+            None,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value1 for locker")?;
+        let value2 = payment_methods::mk_card_value2(None, Some(card_fingerprint), None, None)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Value2 for locker")?;
+        create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        Ok(card)
+    }
 }
 
 pub async fn get_card_info_value(
-    keys: &Keys,
+    keys: &settings::Keys,
     card_info: String,
-) -> RouterResult<serde_json::Value> {
+) -> errors::RouterResult<serde_json::Value> {
     let key = services::KeyHandler::get_encryption_key(keys)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -534,9 +599,9 @@ pub async fn get_card_info_value(
 }
 
 pub async fn get_card_info_from_value(
-    keys: &Keys,
+    keys: &settings::Keys,
     card_info: serde_json::Value,
-) -> RouterResult<String> {
+) -> errors::RouterResult<String> {
     let key = services::KeyHandler::get_encryption_key(keys)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -549,10 +614,10 @@ pub async fn get_card_info_from_value(
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     pm: api::PaymentMethodId,
-) -> RouterResponse<api::PaymentMethodResponse> {
-    let db = &state.store;
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let db = &*state.store;
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await
@@ -560,7 +625,8 @@ pub async fn retrieve_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
     let card = if pm.payment_method == enums::PaymentMethodType::Card {
-        let get_card_resp = get_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
+        let get_card_resp =
+            get_card_from_legacy_locker(state, &pm.merchant_id, &pm.payment_method_id).await?;
         let card_detail = payment_methods::get_card_detail(&pm, get_card_resp.card)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Some(card_detail)
@@ -569,13 +635,13 @@ pub async fn retrieve_payment_method(
     };
     Ok(services::BachResponse::Json(api::PaymentMethodResponse {
         payment_method_id: pm.payment_method_id,
-        payment_method: pm.payment_method,
-        payment_method_type: pm.payment_method_type,
+        payment_method: pm.payment_method.foreign_into(),
+        payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
         payment_method_issuer: pm.payment_method_issuer,
         card,
         metadata: None, // TODO add in addCard api
         created: Some(pm.created_at),
-        payment_method_issuer_code: pm.payment_method_issuer_code,
+        payment_method_issuer_code: pm.payment_method_issuer_code.map(ForeignInto::foreign_into),
         recurring_enabled: false,                                      //TODO
         installment_payment_enabled: false,                            //TODO
         payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO,
@@ -584,10 +650,10 @@ pub async fn retrieve_payment_method(
 
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
-    state: &AppState,
+    state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     pm: api::PaymentMethodId,
-) -> RouterResponse<api::DeletePaymentMethodResponse> {
+) -> errors::RouterResponse<api::DeletePaymentMethodResponse> {
     let pm = state
         .store
         .delete_payment_method_by_merchant_id_payment_method_id(
@@ -614,4 +680,175 @@ pub async fn delete_payment_method(
             deleted: true,
         },
     ))
+}
+
+//------------------------------------------------TokenizeService------------------------------------------------
+pub async fn create_tokenize(
+    state: &routes::AppState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+) -> errors::RouterResult<String> {
+    let payload_to_be_encrypted = api::TokenizePayloadRequest {
+        value1,
+        value2: value2.unwrap_or_default(),
+        lookup_key,
+        service_name: "CARD".to_string(),
+    };
+    let payload = serde_json::to_string(&payload_to_be_encrypted)
+        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
+    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encrypt JWE response")?;
+
+    let create_tokenize_request = api::TokenizePayloadEncrypted {
+        payload: encrypted_payload,
+        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        version: Some("0".to_string()),
+    };
+    let request = payment_methods::mk_crud_locker_request(
+        &state.conf.locker,
+        "/tokenize",
+        create_tokenize_request,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Making tokenize request failed")?;
+    let response = services::call_connector_api(state, request)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    match response {
+        Ok(r) => {
+            let resp: api::TokenizePayloadEncrypted = r
+                .response
+                .parse_struct("TokenizePayloadEncrypted")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+            let decrypted_payload =
+                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
+            let get_response: api::GetTokenizePayloadResponse = decrypted_payload
+                .parse_struct("GetTokenizePayloadResponse")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Error getting GetTokenizePayloadResponse from tokenize response",
+                )?;
+            Ok(get_response.lookup_key)
+        }
+        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))),
+    }
+}
+
+pub async fn get_tokenized_data(
+    state: &routes::AppState,
+    lookup_key: &str,
+    should_get_value2: bool,
+) -> errors::RouterResult<api::TokenizePayloadRequest> {
+    let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
+        lookup_key: lookup_key.to_string(),
+        get_value2: should_get_value2,
+    };
+    let payload = serde_json::to_string(&payload_to_be_encrypted)
+        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
+    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encrypt JWE response")?;
+    let create_tokenize_request = api::TokenizePayloadEncrypted {
+        payload: encrypted_payload,
+        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        version: Some("0".to_string()),
+    };
+    let request = payment_methods::mk_crud_locker_request(
+        &state.conf.locker,
+        "/tokenize/get",
+        create_tokenize_request,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Making Get Tokenized request failed")?;
+    let response = services::call_connector_api(state, request)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    match response {
+        Ok(r) => {
+            let resp: api::TokenizePayloadEncrypted = r
+                .response
+                .parse_struct("TokenizePayloadEncrypted")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+            let decrypted_payload =
+                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
+                    )?;
+            let get_response: api::TokenizePayloadRequest = decrypted_payload
+                .parse_struct("TokenizePayloadRequest")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
+            Ok(get_response)
+        }
+        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))),
+    }
+}
+
+pub async fn delete_tokenized_data(
+    state: &routes::AppState,
+    lookup_key: &str,
+) -> errors::RouterResult<String> {
+    let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
+        lookup_key: lookup_key.to_string(),
+    };
+    let payload = serde_json::to_string(&payload_to_be_encrypted)
+        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
+    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encrypt JWE response")?;
+    let create_tokenize_request = api::TokenizePayloadEncrypted {
+        payload: encrypted_payload,
+        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        version: Some("0".to_string()),
+    };
+    let request = payment_methods::mk_crud_locker_request(
+        &state.conf.locker,
+        "/tokenize/delete/token",
+        create_tokenize_request,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Making Delete Tokenized request failed")?;
+    let response = services::call_connector_api(state, request)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    match response {
+        Ok(r) => {
+            let resp: api::TokenizePayloadEncrypted = r
+                .response
+                .parse_struct("TokenizePayloadEncrypted")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+            let decrypted_payload =
+                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "DeleteTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
+                    )?;
+            let delete_response = decrypted_payload
+                .parse_struct("Delete")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Error getting TokenizePayloadEncrypted from tokenize response",
+                )?;
+            Ok(delete_response)
+        }
+        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))),
+    }
 }

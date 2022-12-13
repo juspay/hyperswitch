@@ -1,17 +1,13 @@
-use common_utils::custom_serde;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     core::errors,
     pii::Secret,
-    types::{
-        api::{
-            Address, AddressDetails, CCard, PaymentListConstraints, PaymentListResponse,
-            PaymentMethod, PaymentsCancelRequest, PaymentsRequest, PaymentsResponse, PhoneDetails,
-            RefundResponse,
-        },
-        storage::enums::{self, FutureUsage, IntentStatus, PaymentMethodType},
+    types::api::{
+        enums as api_enums, Address, AddressDetails, CCard, PaymentListConstraints,
+        PaymentListResponse, PaymentMethod, PaymentsCancelRequest, PaymentsRequest,
+        PaymentsResponse, PhoneDetails, RefundResponse,
     },
 };
 
@@ -50,10 +46,10 @@ pub(crate) enum StripePaymentMethodType {
     Card,
 }
 
-impl From<StripePaymentMethodType> for PaymentMethodType {
+impl From<StripePaymentMethodType> for api_enums::PaymentMethodType {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
-            StripePaymentMethodType::Card => PaymentMethodType::Card,
+            StripePaymentMethodType::Card => api_enums::PaymentMethodType::Card,
         }
     }
 }
@@ -122,13 +118,13 @@ pub(crate) struct StripePaymentIntentRequest {
     #[serde(rename = "amount_to_capture")]
     pub(crate) amount_capturable: Option<i32>,
     pub(crate) confirm: Option<bool>,
-    pub(crate) capture_method: Option<enums::CaptureMethod>,
+    pub(crate) capture_method: Option<api_enums::CaptureMethod>,
     pub(crate) customer: Option<String>,
     pub(crate) description: Option<String>,
     pub(crate) payment_method_data: Option<StripePaymentMethodData>,
     pub(crate) receipt_email: Option<String>,
     pub(crate) return_url: Option<String>,
-    pub(crate) setup_future_usage: Option<FutureUsage>,
+    pub(crate) setup_future_usage: Option<api_enums::FutureUsage>,
     pub(crate) shipping: Option<Shipping>,
     pub(crate) billing_details: Option<StripeBillingDetails>,
     pub(crate) statement_descriptor: Option<String>,
@@ -140,7 +136,7 @@ pub(crate) struct StripePaymentIntentRequest {
 impl From<StripePaymentIntentRequest> for PaymentsRequest {
     fn from(item: StripePaymentIntentRequest) -> Self {
         PaymentsRequest {
-            amount: item.amount,
+            amount: item.amount.map(|amount| amount.into()),
             currency: item.currency.as_ref().map(|c| c.to_uppercase()),
             capture_method: item.capture_method,
             amount_to_capture: item.amount_capturable,
@@ -165,7 +161,7 @@ impl From<StripePaymentIntentRequest> for PaymentsRequest {
             payment_method: item
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| PaymentMethodType::from(pmd.stype.to_owned())),
+                .map(|pmd| api_enums::PaymentMethodType::from(pmd.stype.to_owned())),
             shipping: item.shipping.as_ref().map(|s| Address::from(s.to_owned())),
             billing: item
                 .billing_details
@@ -194,17 +190,21 @@ pub(crate) enum StripePaymentStatus {
 }
 
 // TODO: Verigy if the status are correct
-impl From<IntentStatus> for StripePaymentStatus {
-    fn from(item: IntentStatus) -> Self {
+impl From<api_enums::IntentStatus> for StripePaymentStatus {
+    fn from(item: api_enums::IntentStatus) -> Self {
         match item {
-            IntentStatus::Succeeded => StripePaymentStatus::Succeeded,
-            IntentStatus::Failed => StripePaymentStatus::Canceled, // TODO: should we show canceled or  processing
-            IntentStatus::Processing => StripePaymentStatus::Processing,
-            IntentStatus::RequiresCustomerAction => StripePaymentStatus::RequiresAction,
-            IntentStatus::RequiresPaymentMethod => StripePaymentStatus::RequiresPaymentMethod,
-            IntentStatus::RequiresConfirmation => StripePaymentStatus::RequiresConfirmation,
-            IntentStatus::RequiresCapture => StripePaymentStatus::RequiresCapture,
-            IntentStatus::Cancelled => StripePaymentStatus::Canceled,
+            api_enums::IntentStatus::Succeeded => StripePaymentStatus::Succeeded,
+            api_enums::IntentStatus::Failed => StripePaymentStatus::Canceled, // TODO: should we show canceled or  processing
+            api_enums::IntentStatus::Processing => StripePaymentStatus::Processing,
+            api_enums::IntentStatus::RequiresCustomerAction => StripePaymentStatus::RequiresAction,
+            api_enums::IntentStatus::RequiresPaymentMethod => {
+                StripePaymentStatus::RequiresPaymentMethod
+            }
+            api_enums::IntentStatus::RequiresConfirmation => {
+                StripePaymentStatus::RequiresConfirmation
+            }
+            api_enums::IntentStatus::RequiresCapture => StripePaymentStatus::RequiresCapture,
+            api_enums::IntentStatus::Cancelled => StripePaymentStatus::Canceled,
         }
     }
 }
@@ -257,7 +257,7 @@ pub(crate) struct StripePaymentIntentResponse {
     pub(crate) currency: String,
     pub(crate) status: StripePaymentStatus,
     pub(crate) client_secret: Option<Secret<String>>,
-    #[serde(with = "custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub(crate) created: Option<time::PrimitiveDateTime>,
     pub(crate) customer: Option<String>,
     pub(crate) refunds: Option<Vec<RefundResponse>>,

@@ -30,12 +30,14 @@ pub struct Settings {
     pub replica_database: Database,
     pub redis: RedisSettings,
     pub log: Log,
-    pub keys: Keys,
+    pub keys: Keys, //remove this during refactoring
     pub locker: Locker,
     pub connectors: Connectors,
+    pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
+    pub jwekey: Jwekey,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -51,6 +53,26 @@ pub struct Keys {
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
+    pub basilisk_host: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct EphemeralConfig {
+    pub validity: i64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Jwekey {
+    #[cfg(feature = "kms")]
+    pub aws_key_id: String,
+    #[cfg(feature = "kms")]
+    pub aws_region: String,
+    pub locker_key_identifier1: String,
+    pub locker_key_identifier2: String,
+    pub locker_encryption_key1: String,
+    pub locker_encryption_key2: String,
+    pub locker_decryption_key1: String,
+    pub locker_decryption_key2: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -78,12 +100,20 @@ pub struct Database {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SupportedConnectors {
+    pub wallets: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub checkout: ConnectorParams,
     pub stripe: ConnectorParams,
+    pub braintree: ConnectorParams,
+    pub klarna: ConnectorParams,
+    pub supported: SupportedConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -145,14 +175,15 @@ impl Settings {
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
-                    .with_list_parse_key("redis.cluster_urls"),
+                    .with_list_parse_key("redis.cluster_urls")
+                    .with_list_parse_key("connectors.supported.wallets"),
             )
             .build()?;
 
-        config.try_deserialize().map_err(|e| {
-            logger::error!("Unable to source config file");
-            eprintln!("Unable to source config file");
-            BachError::from(e)
+        serde_path_to_error::deserialize(config).map_err(|error| {
+            logger::error!(%error, "Unable to deserialize application configuration");
+            eprintln!("Unable to deserialize application configuration: {error}");
+            BachError::from(error.into_inner())
         })
     }
 }

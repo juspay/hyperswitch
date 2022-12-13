@@ -2,15 +2,10 @@
 resolver = "2"
 members = ["crates/*", "examples/*"]
 
-# note: all profiles should be here, not in crates
-# https://doc.rust-lang.org/cargo/reference/profiles.html
-
 [profile.release]
 strip = true
 lto = true
 codegen-units = 1
 
-# [workspace.metadata.dylint]
-# libraries = [
-#     { git = "https://github.com/trailofbits/dylint", pattern = "examples/general/*" },
-# ]
+[patch.crates-io]
+opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658" }

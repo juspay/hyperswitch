@@ -5,11 +5,12 @@ pub(crate) mod utils;
 use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
-pub use common_utils::errors::{CustomResult, ParsingError};
+pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
 use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
+use storage_models::errors as storage_errors;
 
 pub use self::api_error_response::ApiErrorResponse;
 pub(crate) use self::utils::{ApiClientErrorExt, ConnectorErrorExt, StorageErrorExt};
@@ -25,10 +26,11 @@ macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
         impl std::fmt::Display for $st {
             fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                fmt.write_str(&format!(
+                write!(
+                    fmt,
                     "{{ error_type: {:?}, error_description: {} }}",
                     self, $arg
-                ))
+                )
             }
         }
     };
@@ -67,8 +69,7 @@ macro_rules! router_error_error_stack_specific {
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("DatabaseError: {0}")]
-    DatabaseError(#[from] DatabaseError),
-
+    DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
     #[error("DuplicateValue: {0}")]
@@ -77,28 +78,38 @@ pub enum StorageError {
     KVError,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum DatabaseError {
-    #[error("An error occurred when obtaining database connection")]
-    DatabaseConnectionError,
-    #[error("The requested resource was not found in the database")]
-    NotFound,
-    #[error("A unique constraint violation occurred")]
-    UniqueViolation,
-    #[error("No fields were provided to be updated")]
-    NoFieldsToUpdate,
-    #[error("An error occurred when generating raw SQL query")]
-    QueryGenerationFailed,
-    // InsertFailed,
-    #[error("An unknown error occurred")]
-    Others,
+impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
+    fn from(err: error_stack::Report<storage_errors::DatabaseError>) -> Self {
+        Self::DatabaseError(err)
+    }
+}
+
+impl StorageError {
+    pub fn is_db_not_found(&self) -> bool {
+        match self {
+            Self::DatabaseError(err) => matches!(
+                err.current_context(),
+                storage_errors::DatabaseError::NotFound
+            ),
+            _ => false,
+        }
+    }
+
+    pub fn is_db_unique_violation(&self) -> bool {
+        match self {
+            Self::DatabaseError(err) => matches!(
+                err.current_context(),
+                storage_errors::DatabaseError::UniqueViolation,
+            ),
+            _ => false,
+        }
+    }
 }
 
 impl_error_type!(AuthenticationError, "Authentication error");
 impl_error_type!(AuthorisationError, "Authorisation error");
 impl_error_type!(EncryptionError, "Encryption error");
 impl_error_type!(UnexpectedError, "Unexpected error");
-impl_error_type!(ValidateError, "validation failed");
 
 #[derive(Debug, thiserror::Error)]
 pub enum BachError {
@@ -119,14 +130,11 @@ pub enum BachError {
     #[error("{{ error_description: Error while parsing, error_message: {0} }}")]
     EParsingError(error_stack::Report<ParsingError>),
 
-    #[error("Environment configuration error: {0}")]
+    #[error("Application configuration error: {0}")]
     ConfigurationError(ConfigError),
 
-    #[error("{{ error_description: Error while validating, error_message: {0} }}")]
-    EValidationError(error_stack::Report<ValidateError>), // Parsing error actually
-
     #[error("{{ error_description: Database operation failed, error_message: {0} }}")]
-    EDatabaseError(error_stack::Report<DatabaseError>),
+    EDatabaseError(error_stack::Report<storage_errors::DatabaseError>),
 
     #[error("{{ error_description: Encryption module operation failed, error_message: {0} }}")]
     EEncryptionError(error_stack::Report<EncryptionError>),
@@ -139,11 +147,7 @@ pub enum BachError {
 }
 
 router_error_error_stack_specific!(
-    error_stack::Report<ValidateError>,
-    BachError::EValidationError(error_stack::Report<ValidateError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<DatabaseError>,
+    error_stack::Report<storage_errors::DatabaseError>,
     BachError::EDatabaseError(error_stack::Report<DatabaseError>)
 );
 router_error_error_stack_specific!(
@@ -201,8 +205,7 @@ impl ResponseError for BachError {
         match self {
             BachError::EParsingError(_)
             | BachError::EAuthenticationError(_)
-            | BachError::EAuthorisationError(_)
-            | BachError::EValidationError(_) => StatusCode::BAD_REQUEST,
+            | BachError::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
 
             BachError::EDatabaseError(_)
             | BachError::NotImplementedByConnector(_)
@@ -294,6 +297,8 @@ pub enum ConnectorError {
     FailedToObtainAuthType,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+    #[error("Missing connector transaction ID")]
+    MissingConnectorTransactionID,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]
@@ -362,6 +367,8 @@ pub enum ProcessTrackerError {
     FlowExecutionError { flow: String },
     #[error("Not Implemented")]
     NotImplemented,
+    #[error("Job not found")]
+    JobNotFound,
     #[error("Recieved Error ApiResponseError: {0}")]
     EApiErrorResponse(error_stack::Report<ApiErrorResponse>),
     #[error("Recieved Error StorageError: {0}")]
@@ -416,14 +423,6 @@ error_to_process_tracker_error!(
     error_stack::Report<ValidationError>,
     ProcessTrackerError::EValidationError(error_stack::Report<ValidationError>)
 );
-
-#[derive(Debug, thiserror::Error)]
-pub enum ValidationError {
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: String },
-    #[error("Incorrect value provided for field: {field_name}")]
-    IncorrectValueProvided { field_name: &'static str },
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebhooksFlowError {

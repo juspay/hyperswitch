@@ -9,91 +9,69 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, storage, PaymentsRequestCaptureData, PaymentsResponseData,
-        PaymentsRouterCaptureData,
+        self, api,
+        storage::{self, enums},
+        PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
 
 #[async_trait]
 impl
-    ConstructFlowSpecificData<
-        api::PCapture,
-        types::PaymentsRequestCaptureData,
-        types::PaymentsResponseData,
-    > for PaymentData<api::PCapture>
+    ConstructFlowSpecificData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for PaymentData<api::Capture>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<PaymentsRouterCaptureData> {
-        let output = transformers::construct_payment_router_data::<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+    ) -> RouterResult<PaymentsCaptureRouterData> {
+        transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::PCapture, types::PaymentsRequestCaptureData>
-    for types::RouterData<
-        api::PCapture,
-        types::PaymentsRequestCaptureData,
-        types::PaymentsResponseData,
-    >
+impl Feature<api::Capture, types::PaymentsCaptureData>
+    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::PCapture>,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::PCapture>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::PCapture,
-            types::PaymentsRequestCaptureData,
-            types::PaymentsResponseData,
-        >,
-    {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        (resp, payment_data)
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<Self> {
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 
-impl PaymentsRouterCaptureData {
+impl PaymentsCaptureRouterData {
     #[allow(clippy::too_many_arguments)]
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
-        connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        connector: &api::ConnectorData,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsRouterCaptureData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::PCapture,
-            PaymentsRequestCaptureData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsCaptureRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
-            api::PCapture,
-            PaymentsRequestCaptureData,
+            api::Capture,
+            PaymentsCaptureData,
             PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(

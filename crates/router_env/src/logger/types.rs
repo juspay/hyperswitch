@@ -80,6 +80,10 @@ pub enum Flow {
     CustomersDelete,
     /// Customers get mandates flow.
     CustomersGetMandates,
+    /// Create an Ephemeral Key.
+    EphemeralKeyCreate,
+    /// Delete an Ephemeral Key.
+    EphemeralKeyDelete,
     /// Mandates retrieve flow.
     MandatesRetrieve,
     /// Mandates revoke flow.
@@ -108,6 +112,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments Session Token flow
+    PaymentsSessionToken,
     /// Payments start flow.
     PaymentsStart,
     /// Payments list flow.
@@ -134,6 +140,8 @@ pub enum Flow {
     RefundsList,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Validate payment method flow
+    ValidatePaymentMethod,
 }
 
 /// Category of log event.
@@ -144,7 +152,7 @@ pub enum Category {
     /// API: general.
     Api,
     /// Database: general.
-    Db,
+    Store,
     /// Event: general.
     Event,
     /// General: general.

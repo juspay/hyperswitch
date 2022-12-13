@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     core::errors,
-    pii::{self, PeekOptionInterface, Secret},
+    pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
 };
@@ -18,14 +18,14 @@ pub struct StripeAuthType {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
                 api_key: api_key.to_string(),
             })
         } else {
-            Err(errors::ValidateError.into())
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
     }
 }
@@ -79,12 +79,29 @@ pub struct PaymentIntentRequest {
     pub confirm: bool,
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
+    pub mandate: Option<String>,
     pub description: Option<String>,
     #[serde(flatten)]
     pub shipping: Address,
     #[serde(flatten)]
-    pub payment_data: StripePaymentMethodData,
+    pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct SetupIntentRequest {
+    pub statement_descriptor_suffix: Option<String>,
+    #[serde(rename = "metadata[order_id]")]
+    pub metadata_order_id: String,
+    #[serde(rename = "metadata[txn_id]")]
+    pub metadata_txn_id: String,
+    #[serde(rename = "metadata[txn_uuid]")]
+    pub metadata_txn_uuid: String,
+    pub confirm: bool,
+    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub off_session: Option<bool>,
+    #[serde(flatten)]
+    pub payment_data: StripePaymentMethodData,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -126,43 +143,52 @@ pub enum StripePaymentMethodData {
     Paypal,
 }
 
-impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string(); //Fetch autogenrated txn_uuid from Database.
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
 
-        let payment_data = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
-                let payment_method_auth_type = match item.auth_type {
-                    enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                    enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-                };
-                StripeCardData {
-                    payment_method_types: "card".to_string(),
-                    payment_method_data_type: "card".to_string(),
-                    payment_method_data_card_number: ccard.card_number.clone(),
-                    payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
-                    payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
-                    payment_method_data_card_cvc: ccard.card_cvc.clone(),
-                    payment_method_auth_type,
-                }
-            }),
-            api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
-            api::PaymentMethod::PayLater(ref klarna_data) => {
-                StripePaymentMethodData::Klarna(StripeKlarnaData {
-                    payment_method_types: "klarna".to_string(),
-                    payment_method_data_type: "klarna".to_string(),
-                    billing_email: klarna_data.billing_email.clone(),
-                    billing_country: klarna_data.country.clone(),
-                })
+        let (payment_data, mandate) = {
+            match item.request.mandate_id.clone() {
+                None => (
+                    Some(match item.request.payment_method_data {
+                        api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
+                            let payment_method_auth_type = match item.auth_type {
+                                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+                                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+                            };
+                            StripeCardData {
+                                payment_method_types: "card".to_string(),
+                                payment_method_data_type: "card".to_string(),
+                                payment_method_data_card_number: ccard.card_number.clone(),
+                                payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
+                                payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
+                                payment_method_data_card_cvc: ccard.card_cvc.clone(),
+                                payment_method_auth_type,
+                            }
+                        }),
+                        api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
+                        api::PaymentMethod::PayLater(ref klarna_data) => {
+                            StripePaymentMethodData::Klarna(StripeKlarnaData {
+                                payment_method_types: "klarna".to_string(),
+                                payment_method_data_type: "klarna".to_string(),
+                                billing_email: klarna_data.billing_email.clone(),
+                                billing_country: klarna_data.country.clone(),
+                            })
+                        }
+                        api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
+                        api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
+                    }),
+                    None,
+                ),
+                Some(mandate_id) => (None, Some(mandate_id)),
             }
-            api::PaymentMethod::Wallet => StripePaymentMethodData::Wallet,
-            api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
         };
+
         let shipping_address = match item.address.shipping.clone() {
             Some(mut shipping) => Address {
                 city: shipping.address.as_mut().and_then(|a| a.city.take()),
@@ -174,8 +200,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
                 name: shipping.address.as_mut().map(|a| {
                     format!(
                         "{} {}",
-                        a.first_name.peek_cloning().unwrap_or_default(),
-                        a.last_name.peek_cloning().unwrap_or_default()
+                        a.first_name.clone().expose_option().unwrap_or_default(),
+                        a.last_name.clone().expose_option().unwrap_or_default()
                     )
                     .into()
                 }),
@@ -183,7 +209,7 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
                     format!(
                         "{}{}",
                         p.country_code.unwrap_or_default(),
-                        p.number.peek_cloning().unwrap_or_default()
+                        p.number.expose_option().unwrap_or_default()
                     )
                     .into()
                 }),
@@ -192,8 +218,8 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
         };
 
         Ok(PaymentIntentRequest {
-            amount: item.amount,                 //hopefully we don't loose some cents here
-            currency: item.currency.to_string(), //we need to copy the value and not transfer ownership
+            amount: item.request.amount, //hopefully we don't loose some cents here
+            currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             metadata_order_id,
             metadata_txn_id,
@@ -210,6 +236,30 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentIntentRequest {
             shipping: shipping_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
+            mandate,
+        })
+    }
+}
+
+impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+        let metadata_order_id = item.payment_id.to_string();
+        let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
+        let metadata_txn_uuid = Uuid::new_v4().to_string();
+
+        let payment_data: StripePaymentMethodData =
+            (item.request.payment_method_data.clone(), item.auth_type).into();
+
+        Ok(Self {
+            confirm: true,
+            metadata_order_id,
+            metadata_txn_id,
+            metadata_txn_uuid,
+            payment_data,
+            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
+            off_session: item.request.off_session,
+            setup_future_usage: item.request.setup_future_usage,
         })
     }
 }
@@ -279,6 +329,21 @@ pub struct PaymentIntentResponse {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct SetupIntentResponse {
+    pub id: String,
+    pub object: String,
+    pub status: StripePaymentStatus, // Change to SetupStatus
+    pub client_secret: Secret<String>,
+    pub customer: Option<String>,
+    pub statement_descriptor: Option<String>,
+    pub statement_descriptor_suffix: Option<String>,
+    pub metadata: StripeMetadata,
+    pub next_action: Option<StripeNextActionResponse>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 
 impl<F, T>
@@ -307,18 +372,74 @@ impl<F, T>
             },
         );
 
+        let mandate_reference =
+            item.response
+                .payment_method_options
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        mandate_options, ..
+                    } => mandate_options.map(|mandate_options| mandate_options.reference),
+                });
+
         Ok(types::RouterData {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
+                mandate_reference,
             }),
-            error_response: None,
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item.response.next_action.as_ref().map(
+            |StripeNextActionResponse::RedirectToUrl(response)| {
+                let mut base_url = response.url.clone();
+                base_url.set_query(None);
+                services::RedirectForm {
+                    url: base_url.to_string(),
+                    method: services::Method::Get,
+                    form_fields: std::collections::HashMap::from_iter(
+                        response
+                            .url
+                            .query_pairs()
+                            .map(|(k, v)| (k.to_string(), v.to_string())),
+                    ),
+                }
+            },
+        );
+
+        let mandate_reference =
+            item.response
+                .payment_method_options
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        mandate_options, ..
+                    } => mandate_options.map(|mandate_option| mandate_option.reference),
+                });
+
+        Ok(types::RouterData {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirect: redirection_data.is_some(),
+                redirection_data,
+                mandate_reference,
+            }),
             ..item.data
         })
     }
@@ -435,11 +556,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -453,11 +573,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -511,9 +630,9 @@ pub struct CancelRequest {
     cancellation_reason: Option<CancellationReason>,
 }
 
-impl TryFrom<&types::PaymentRouterCancelData> for CancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let cancellation_reason = match &item.request.cancellation_reason {
             Some(c) => Some(
                 CancellationReason::from_str(c)
@@ -540,6 +659,36 @@ pub enum CancellationReason {
     Fraudulent,
     RequestedByCustomer,
     Abandoned,
+}
+
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[non_exhaustive]
+#[serde(rename_all = "snake_case")]
+pub enum StripePaymentMethodOptions {
+    Card {
+        mandate_options: Option<StripeMandateOptions>,
+    },
+}
+// #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+// pub struct Card
+#[derive(serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+pub struct StripeMandateOptions {
+    reference: String, // Extendable, But only important field to be captured
+}
+/// Represents the capture request body for stripe connector.
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct CaptureRequest {
+    /// If amount_to_capture is None stripe captures the amount in the payment intent.
+    amount_to_capture: Option<i32>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount_to_capture: item.request.amount_to_capture,
+        })
+    }
 }
 
 // #[cfg(test)]
@@ -608,4 +757,37 @@ pub struct StripeWebhookObjectEventType {
 #[derive(Debug, Deserialize)]
 pub struct StripeWebhookObjectId {
     pub data: StripeWebhookDataId,
+}
+
+impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
+    fn from((pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType)) -> Self {
+        match pm_data {
+            api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
+                let payment_method_auth_type = match auth_type {
+                    enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+                    enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+                };
+                StripeCardData {
+                    payment_method_types: "card".to_string(),
+                    payment_method_data_type: "card".to_string(),
+                    payment_method_data_card_number: ccard.card_number.clone(),
+                    payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
+                    payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
+                    payment_method_data_card_cvc: ccard.card_cvc.clone(),
+                    payment_method_auth_type,
+                }
+            }),
+            api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
+            api::PaymentMethod::PayLater(ref klarna_data) => {
+                StripePaymentMethodData::Klarna(StripeKlarnaData {
+                    payment_method_types: "klarna".to_string(),
+                    payment_method_data_type: "klarna".to_string(),
+                    billing_email: klarna_data.billing_email.clone(),
+                    billing_country: klarna_data.country.clone(),
+                })
+            }
+            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
+            api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
+        }
+    }
 }

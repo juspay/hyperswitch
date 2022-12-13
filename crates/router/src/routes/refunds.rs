@@ -42,7 +42,7 @@ pub async fn refunds_retrieve(
         &req,
         refund_id,
         |state, merchant_account, refund_id| {
-            refund_retrieve_core(state, merchant_account, refund_id)
+            refund_response_wrapper(state, merchant_account, refund_id, refund_retrieve_core)
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -63,7 +63,7 @@ pub async fn refunds_update(
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| {
-            refund_update_core(&state.store, merchant_account, &refund_id, req)
+            refund_update_core(&*state.store, merchant_account, &refund_id, req)
         },
         api::MerchantAuthentication::ApiKey,
     )

@@ -1,12 +1,12 @@
 mod client;
 pub(crate) mod request;
 
-use std::{collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::PeekOptionInterface;
+use masking::ExposeOptionInterface;
 use router_env::{
     tracing::{self, instrument},
     Tag,
@@ -23,12 +23,15 @@ use crate::{
         },
         payments,
     },
-    db::merchant_account::IMerchantAccount,
+    db::StorageInterface,
     logger, routes,
     routes::AppState,
-    services::Store,
-    types::{self, api, storage, ErrorResponse, Response},
-    utils::OptionExt,
+    types::{
+        self, api,
+        storage::{self, enums},
+        ErrorResponse, Response,
+    },
+    utils::{self, OptionExt},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -129,6 +132,7 @@ where
                 response: res.into(),
                 status_code: 200,
             };
+
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
@@ -147,7 +151,7 @@ where
                                 Err(body) => {
                                     let error =
                                         connector_integration.get_error_response(body.response)?;
-                                    router_data.error_response = Some(error);
+                                    router_data.response = Err(error);
 
                                     router_data
                                 }
@@ -219,12 +223,13 @@ async fn send_request(
                     client.body(url_encoded_payload).send()
                 }
                 None => client
-                    .body(request.payload.peek_cloning().unwrap_or_default())
+                    .body(request.payload.expose_option().unwrap_or_default())
                     .send(),
             }
             .await
         }
 
+        Method::Put => client.put(url).add_headers(headers).send().await,
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
     .into_report()
@@ -360,7 +365,7 @@ pub enum ApiAuthentication<'a> {
 #[derive(Clone, Debug)]
 pub enum MerchantAuthentication<'a> {
     ApiKey,
-    MerchantId(&'a str),
+    MerchantId(Cow<'a, str>),
     AdminApiKey,
     PublishableKey,
 }
@@ -420,10 +425,10 @@ where
 {
     let merchant_account = match api_authentication {
         ApiAuthentication::Merchant(merchant_auth) => {
-            authenticate_merchant(request, &state.store, merchant_auth).await?
+            authenticate_merchant(request, &*state.store, merchant_auth).await?
         }
         ApiAuthentication::Connector(connector_auth) => {
-            authenticate_connector(request, &state.store, connector_auth).await?
+            authenticate_connector(request, &*state.store, connector_auth).await?
         }
     };
     logger::debug!(request=?payload);
@@ -509,7 +514,7 @@ where
 
 pub async fn authenticate_merchant<'a>(
     request: &HttpRequest,
-    store: &Store,
+    store: &dyn StorageInterface,
     merchant_authentication: MerchantAuthentication<'a>,
 ) -> RouterResult<storage::MerchantAccount> {
     match merchant_authentication {
@@ -521,7 +526,7 @@ pub async fn authenticate_merchant<'a>(
 
         MerchantAuthentication::MerchantId(merchant_id) => {
             store
-                .find_merchant_account_by_merchant_id(merchant_id)
+                .find_merchant_account_by_merchant_id(&merchant_id)
                 .await
                 .map_err(|error| {
                     // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
@@ -534,11 +539,10 @@ pub async fn authenticate_merchant<'a>(
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
             if admin_api_key != "test_admin" {
-                Err(report!(errors::ValidateError)
-                    .attach_printable("Admin Authentication Failure")
-                    // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
-                    // https://juspay.atlassian.net/browse/ORCA-366
-                    .change_context(errors::ApiErrorResponse::BadCredentials))?;
+                // TODO: The BadCredentials error is too specific for api keys, and inappropriate
+                // for AdminApiKey/MerchantID
+                Err(report!(errors::ApiErrorResponse::BadCredentials)
+                    .attach_printable("Admin Authentication Failure"))?;
             }
 
             Ok(storage::MerchantAccount {
@@ -557,6 +561,7 @@ pub async fn authenticate_merchant<'a>(
                 payment_response_hash_key: None,
                 redirect_to_merchant_with_http_post: false,
                 publishable_key: None,
+                storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             })
         }
 
@@ -570,7 +575,7 @@ pub async fn authenticate_merchant<'a>(
 
 pub async fn authenticate_connector<'a>(
     _request: &HttpRequest,
-    store: &Store,
+    store: &dyn StorageInterface,
     connector_authentication: ConnectorAuthentication<'a>,
 ) -> RouterResult<storage::MerchantAccount> {
     match connector_authentication {
@@ -581,15 +586,41 @@ pub async fn authenticate_connector<'a>(
     }
 }
 
-pub(crate) fn get_auth_type_and_check_client_secret(
+pub(crate) fn get_auth_type_and_check_client_secret<P>(
     req: &actix_web::HttpRequest,
-    payload: types::api::PaymentsRequest,
-) -> RouterResult<(types::api::PaymentsRequest, MerchantAuthentication)> {
+    payload: P,
+) -> RouterResult<(P, MerchantAuthentication)>
+where
+    P: Authenticate,
+{
     let auth_type = get_auth_type(req)?;
     Ok((
         payments::helpers::client_secret_auth(payload, &auth_type)?,
         auth_type,
     ))
+}
+
+pub(crate) async fn authenticate_eph_key<'a>(
+    req: &'a actix_web::HttpRequest,
+    store: &dyn StorageInterface,
+    customer_id: String,
+) -> RouterResult<MerchantAuthentication<'a>> {
+    let api_key = get_api_key(req)?;
+    if api_key.starts_with("epk") {
+        let ek = store
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::BadCredentials)?;
+        utils::when(
+            ek.customer_id.ne(&customer_id),
+            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey)),
+        )?;
+        Ok(MerchantAuthentication::MerchantId(Cow::Owned(
+            ek.merchant_id,
+        )))
+    } else {
+        Ok(MerchantAuthentication::ApiKey)
+    }
 }
 
 fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {
@@ -603,7 +634,7 @@ fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {
 }
 
 pub async fn authenticate_by_api_key(
-    store: &Store,
+    store: &dyn StorageInterface,
     api_key: &str,
 ) -> RouterResult<storage::MerchantAccount> {
     store
@@ -614,7 +645,7 @@ pub async fn authenticate_by_api_key(
 }
 
 async fn authenticate_by_publishable_key(
-    store: &Store,
+    store: &dyn StorageInterface,
     publishable_key: &str,
 ) -> RouterResult<storage::MerchantAccount> {
     store
@@ -670,6 +701,22 @@ pub trait ConnectorRedirectResponse {
         _query_params: &str,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Avoid)
+    }
+}
+
+pub trait Authenticate {
+    fn get_client_secret(&self) -> Option<&String>;
+}
+
+impl Authenticate for api_models::payments::PaymentsRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl Authenticate for api_models::payment_methods::ListPaymentMethodRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
     }
 }
 

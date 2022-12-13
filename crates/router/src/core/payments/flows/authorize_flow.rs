@@ -1,70 +1,62 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::Secret;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         payments::{self, helpers, transformers, PaymentData},
     },
-    db::mandate::IMandate,
     routes::AppState,
     scheduler::metrics,
     services,
     types::{
         self, api,
-        storage::{self, enums},
-        PaymentsRequestData, PaymentsResponseData, PaymentsRouterData,
+        storage::{self, enums as storage_enums},
+        PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
-    utils,
 };
 
 #[async_trait]
 impl
     ConstructFlowSpecificData<
         api::Authorize,
-        types::PaymentsRequestData,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for PaymentData<api::Authorize>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<
-        types::RouterData<api::Authorize, types::PaymentsRequestData, types::PaymentsResponseData>,
-    > {
-        let output = transformers::construct_payment_router_data::<
+        types::RouterData<
             api::Authorize,
-            types::PaymentsRequestData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsRequestData>
-    for types::RouterData<api::Authorize, types::PaymentsRequestData, types::PaymentsResponseData>
-{
+impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::Authorize>,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::Authorize>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::Authorize,
-            types::PaymentsRequestData,
-            types::PaymentsResponseData,
-        >,
-    {
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
                 state,
@@ -72,36 +64,31 @@ impl Feature<api::Authorize, types::PaymentsRequestData>
                 customer,
                 Some(true),
                 call_connector_action,
+                storage_scheme,
             )
             .await;
 
-        metrics::PAYMENT_COUNT.add(1, &[]); // Metrics
+        metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        (resp, payment_data)
+        resp
     }
 }
 
-impl PaymentsRouterData {
+impl PaymentsAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
-        connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsRouterData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::Authorize,
-            PaymentsRequestData,
-            PaymentsResponseData,
-        >,
-    {
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentsAuthorizeRouterData> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     api::Authorize,
-                    PaymentsRequestData,
+                    PaymentsAuthorizeData,
                     PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
                 let mut resp = services::execute_connector_processing_step(
@@ -122,6 +109,34 @@ impl PaymentsRouterData {
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                        let mandate = match mandate.mandate_type {
+                            storage_enums::MandateType::SingleUse => state
+                                .store
+                                .update_mandate_by_merchant_id_mandate_id(
+                                    &resp.merchant_id,
+                                    mandate_id,
+                                    storage::MandateUpdate::StatusUpdate {
+                                        mandate_status: storage_enums::MandateStatus::Revoked,
+                                    },
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::MandateNotFound),
+                            storage_enums::MandateType::MultiUse => state
+                                .store
+                                .update_mandate_by_merchant_id_mandate_id(
+                                    &resp.merchant_id,
+                                    mandate_id,
+                                    storage::MandateUpdate::CaptureAmountUpdate {
+                                        amount_captured: Some(
+                                            mandate.amount_captured.unwrap_or(0)
+                                                + self.request.amount,
+                                        ),
+                                    },
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::MandateNotFound),
+                        }?;
+
                         resp.payment_method_id = Some(mandate.payment_method_id);
                     }
                     None => {
@@ -137,9 +152,24 @@ impl PaymentsRouterData {
                             .payment_method_id;
 
                             resp.payment_method_id = Some(payment_method_id.clone());
-                            if let Some(new_mandate_data) =
-                                self.generate_mandate(maybe_customer, payment_method_id)
-                            {
+
+                            resp.payment_method_id = Some(payment_method_id.clone());
+                            let mandate_reference = match resp.response.as_ref().ok() {
+                                Some(types::PaymentsResponseData::TransactionResponse {
+                                    mandate_reference,
+                                    ..
+                                }) => mandate_reference.clone(),
+                                _ => None,
+                            };
+
+                            if let Some(new_mandate_data) = helpers::generate_mandate(
+                                self.merchant_id.clone(),
+                                self.connector.clone(),
+                                None,
+                                maybe_customer,
+                                payment_method_id,
+                                mandate_reference,
+                            ) {
                                 resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
                                 state.store.insert_mandate(new_mandate_data).await.map_err(
                                     |err| {
@@ -156,33 +186,6 @@ impl PaymentsRouterData {
                 Ok(resp)
             }
             _ => Ok(self.clone()),
-        }
-    }
-
-    fn generate_mandate(
-        &self,
-        customer: &Option<api::CustomerResponse>,
-        payment_method_id: String,
-    ) -> Option<storage::MandateNew> {
-        match (self.request.setup_mandate_details.clone(), customer) {
-            (Some(data), Some(cus)) => {
-                let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
-                Some(storage::MandateNew {
-                    mandate_id,
-                    customer_id: cus.customer_id.clone(),
-                    merchant_id: self.merchant_id.clone(),
-                    payment_method_id,
-                    mandate_status: enums::MandateStatus::Active,
-                    mandate_type: enums::MandateType::MultiUse,
-                    customer_ip_address: data.customer_acceptance.get_ip_address().map(Secret::new),
-                    customer_user_agent: data.customer_acceptance.get_user_agent(),
-                    customer_accepted_at: Some(data.customer_acceptance.get_accepted_at()),
-                    ..Default::default() // network_transaction_id: Option<String>,
-                                         // previous_transaction_id: Option<String>,
-                                         // created_at: Option<PrimitiveDateTime>,
-                })
-            }
-            (_, _) => None,
         }
     }
 }

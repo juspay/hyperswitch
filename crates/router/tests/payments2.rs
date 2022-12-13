@@ -4,7 +4,8 @@ mod utils;
 
 use router::{
     core::payments,
-    types::{api, storage::enums},
+    db::StorageImpl,
+    types::api::{self, enums as api_enums},
     *,
 };
 use time::macros::datetime;
@@ -34,13 +35,9 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
-    let mut merchant_account = services::authenticate_by_api_key(&state.store, "MySecretApiKey")
+    let mut merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
         .await
         .unwrap();
     merchant_account.custom_routing_rules = Some(serde_json::json!([
@@ -52,9 +49,9 @@ async fn payments_create_core() {
             "pay_mbabizu24mvu3mela5njyhpit10".to_string(),
         )),
         merchant_id: Some("jarnura".to_string()),
-        amount: Some(6540),
+        amount: Some(6540.into()),
         currency: Some("USD".to_string()),
-        capture_method: Some(enums::CaptureMethod::Automatic),
+        capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
@@ -64,7 +61,7 @@ async fn payments_create_core() {
         description: Some("Its my first payment request".to_string()),
         return_url: Some("http://example.com/payments".to_string()),
         setup_future_usage: None,
-        authentication_type: Some(enums::AuthenticationType::NoThreeDs),
+        authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethod::Card(api::CCard {
             card_number: "4242424242424242".to_string().into(),
             card_exp_month: "10".to_string().into(),
@@ -72,7 +69,7 @@ async fn payments_create_core() {
             card_holder_name: "Arun Raj".to_string().into(),
             card_cvc: "123".to_string().into(),
         })),
-        payment_method: Some(enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethodType::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -83,20 +80,12 @@ async fn payments_create_core() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
-        payment_token: None,
-        phone: None,
-        phone_country_code: None,
-        metadata: None,
-        mandate_data: None,
-        mandate_id: None,
-        off_session: None,
-        client_secret: None,
-        browser_info: None,
+        ..<_>::default()
     };
 
     let expected_response = api::PaymentsResponse {
         payment_id: Some("pay_mbabizu24mvu3mela5njyhpit10".to_string()),
-        status: enums::IntentStatus::Succeeded,
+        status: api_enums::IntentStatus::Succeeded,
         amount: 6540,
         amount_capturable: None,
         amount_received: None,
@@ -110,16 +99,17 @@ async fn payments_create_core() {
         ..Default::default()
     };
     let expected_response = services::BachResponse::Json(expected_response);
-    let actual_response = router::core::payments::payments_core::<api::Authorize, _, _, _>(
-        &state,
-        merchant_account,
-        payments::PaymentCreate,
-        req,
-        services::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
+    let actual_response =
+        router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account,
+            payments::PaymentCreate,
+            req,
+            services::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .unwrap();
     assert_eq!(expected_response, actual_response);
 }
 
@@ -145,18 +135,18 @@ async fn payments_create_core() {
 //         ..api::CreateCustomerRequest::default()
 //     };
 //
-//     let _customer = customer_data.insert(&state.store).await.unwrap();
+//     let _customer = customer_data.insert(&*state.store).await.unwrap();
 //
 //     let merchant_account = services::authenticate(&state, "123").await.unwrap();
 //     let payment_attempt = storage::PaymentAttempt::find_by_payment_id_merchant_id(
-//         &state.store,
+//         &*state.store,
 //         &payment_id,
 //         &merchant_id,
 //     )
 //     .await
 //     .unwrap();
 //     let payment_intent = storage::PaymentIntent::find_by_payment_id_merchant_id(
-//         &state.store,
+//         &*state.store,
 //         &payment_id,
 //         &merchant_id,
 //     )
@@ -167,7 +157,7 @@ async fn payments_create_core() {
 //         status: None,
 //     };
 //     payment_intent
-//         .update(&state.store, payment_intent_update)
+//         .update(&*state.store, payment_intent_update)
 //         .await
 //         .unwrap();
 //
@@ -197,34 +187,30 @@ async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState {
-        flow_name: String::from("default"),
-        store: services::Store::new(&conf).await,
-        conf,
-    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
-    let merchant_account = services::authenticate_by_api_key(&state.store, "321")
+    let merchant_account = services::authenticate_by_api_key(&*state.store, "321")
         .await
         .unwrap();
 
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
         merchant_id: Some(merchant_id.clone()),
-        amount: Some(6540),
+        amount: Some(6540.into()),
         currency: Some("USD".to_string()),
-        capture_method: Some(enums::CaptureMethod::Automatic),
+        capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
         customer_id: Some(customer_id),
         description: Some("Its my first payment request".to_string()),
         return_url: Some("http://example.com/payments".to_string()),
-        setup_future_usage: Some(api::FutureUsage::OffSession),
-        authentication_type: Some(enums::AuthenticationType::NoThreeDs),
+        setup_future_usage: Some(api_enums::FutureUsage::OffSession),
+        authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethod::Card(api::CCard {
             card_number: "5555 3412 4444 1115".to_string().into(),
             card_exp_month: "03".to_string().into(),
@@ -232,7 +218,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "737".to_string().into(),
         })),
-        payment_method: Some(enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethodType::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -258,7 +244,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let expected_response = services::BachResponse::Json(api::PaymentsResponse {
         payment_id: Some(payment_id.clone()),
-        status: enums::IntentStatus::Processing,
+        status: api_enums::IntentStatus::Processing,
         amount: 6540,
         amount_capturable: None,
         amount_received: None,
@@ -271,15 +257,16 @@ async fn payments_create_core_adyen_no_redirect() {
         mandate_id: None,
         ..Default::default()
     });
-    let actual_response = router::core::payments::payments_core::<api::Authorize, _, _, _>(
-        &state,
-        merchant_account,
-        payments::PaymentCreate,
-        req,
-        services::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
+    let actual_response =
+        router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account,
+            payments::PaymentCreate,
+            req,
+            services::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .unwrap();
     assert_eq!(expected_response, actual_response);
 }

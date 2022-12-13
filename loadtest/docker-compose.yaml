@@ -1,4 +1,4 @@
-version: "3"
+version: "2"
 
 networks:
   loadtest_net:
@@ -33,8 +33,10 @@ services:
     build:
       context: ..
       dockerfile: ./loadtest/Dockerfile
+    cpuset: "0"
     volumes:
       - ./config:/config
+      - ./logs.tmp:/app/logs
     command:
       - /bin/bash
       - -c
@@ -42,7 +44,7 @@ services:
         ./diesel migration run
         ./router -f /config/Development.toml
     ports:
-      - "8080:8080"
+      - "8080"
     environment:
       DATABASE_URL: postgres://postgres:postgres@db/loadtest_router
       RUST_LOG: INFO
@@ -112,7 +114,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3000:3000"
+      - "3002:3000"
     networks:
       - loadtest_net
     environment:

@@ -6,7 +6,11 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{self, api, storage::enums},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{Foreign, ForeignFrom},
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -46,6 +50,7 @@ pub struct PaymentsRequest {
     pub three_ds: CheckoutThreeDS,
     #[serde(flatten)]
     pub return_url: ReturnUrl,
+    pub capture: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -55,7 +60,7 @@ pub struct CheckoutThreeDS {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
@@ -63,19 +68,19 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
                 processing_channel_id: key1.to_string(),
             })
         } else {
-            Err(errors::ValidateError.into())
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
     }
 }
-impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
-    type Error = error_stack::Report<errors::ValidateError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer => None,
-            api::PaymentMethod::Wallet => None,
-            api::PaymentMethod::PayLater(_) => None,
-            api::PaymentMethod::Paypal => None,
+            api::PaymentMethod::BankTransfer
+            | api::PaymentMethod::Wallet(_)
+            | api::PaymentMethod::PayLater(_)
+            | api::PaymentMethod::Paypal => None,
         };
 
         let three_ds = match item.auth_type {
@@ -100,6 +105,11 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
                 .map(|return_url| format!("{return_url}?status=failure")),
         };
 
+        let capture = matches!(
+            item.request.capture_method,
+            Some(enums::CaptureMethod::Automatic)
+        );
+
         let source_var = Source::Card(CardSource {
             source_type: Some("card".to_owned()),
             number: ccard.map(|x| x.card_number.clone()),
@@ -111,11 +121,12 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(PaymentsRequest {
             source: source_var,
-            amount: item.amount,
-            currency: item.currency.to_string(),
+            amount: item.request.amount,
+            currency: item.request.currency.to_string(),
             processing_channel_id,
             three_ds,
             return_url,
+            capture,
         })
     }
 }
@@ -131,16 +142,29 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<CheckoutPaymentStatus> for enums::AttemptStatus {
-    fn from(item: CheckoutPaymentStatus) -> Self {
-        match item {
-            CheckoutPaymentStatus::Authorized | CheckoutPaymentStatus::Captured => {
-                enums::AttemptStatus::Charged
+impl From<Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
+    for Foreign<enums::AttemptStatus>
+{
+    fn from(item: Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>) -> Self {
+        let item = item.0;
+        let status = item.0;
+        let capture_method = item.1;
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if capture_method == Some(enums::CaptureMethod::Automatic)
+                    || capture_method.is_none()
+                {
+                    enums::AttemptStatus::Charged
+                } else {
+                    enums::AttemptStatus::Authorized
+                }
             }
+            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
             CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
             CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
         }
+        .into()
     }
 }
 
@@ -161,13 +185,12 @@ pub struct PaymentsResponse {
     #[serde(rename = "_links")]
     links: Links,
 }
-impl<F, Req>
-    TryFrom<types::ResponseRouterData<F, PaymentsResponse, Req, types::PaymentsResponseData>>
-    for types::RouterData<F, Req, types::PaymentsResponseData>
+impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymentsResponse, Req, types::PaymentsResponseData>,
+        item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let redirection_url = item
             .response
@@ -188,14 +211,92 @@ impl<F, Req>
             ),
         });
         Ok(types::RouterData {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
+            status: enums::AttemptStatus::foreign_from((
+                item.response.status,
+                item.data.request.capture_method,
+            )),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
-            error_response: None,
             ..item.data
+        })
+    }
+}
+
+impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
+    for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(types::RouterData {
+            status: enums::AttemptStatus::foreign_from((item.response.status, None)),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                //TODO: Add redirection details here
+                redirection_data: None,
+                redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
+pub struct PaymentVoidRequest {
+    reference: String,
+}
+#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize)]
+pub struct PaymentVoidResponse {
+    #[serde(skip)]
+    pub(super) status: u16,
+    action_id: String,
+    reference: String,
+}
+impl From<&PaymentVoidResponse> for enums::AttemptStatus {
+    fn from(item: &PaymentVoidResponse) -> enums::AttemptStatus {
+        if item.status == 202 {
+            Self::Voided
+        } else {
+            Self::VoidFailed
+        }
+    }
+}
+
+impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
+    for types::PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsCancelResponseRouterData<PaymentVoidResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        Ok(types::RouterData {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
+                redirect: false,
+                redirection_data: None,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
+            }),
+            status: response.into(),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for PaymentVoidRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            reference: item.request.connector_transaction_id.clone(),
         })
     }
 }
@@ -207,7 +308,7 @@ pub struct RefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let reference = item.request.refund_id.clone();
@@ -243,17 +344,16 @@ impl From<&CheckoutRefundResponse> for enums::RefundStatus {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, CheckoutRefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, CheckoutRefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(&item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -262,17 +362,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CheckoutRefundRespon
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(&item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -336,17 +435,16 @@ pub struct CheckoutRedirectResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, &ActionResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -355,17 +453,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ValidateError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, &ActionResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response);
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
             }),
-            error_response: None,
             ..item.data
         })
     }

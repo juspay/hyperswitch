@@ -41,7 +41,9 @@ pub async fn revoke_mandate(
         &state,
         &req,
         mandate_id,
-        |state, merchant_account, req| mandate::revoke_mandate(&state.store, merchant_account, req),
+        |state, merchant_account, req| {
+            mandate::revoke_mandate(&*state.store, merchant_account, req)
+        },
         api::MerchantAuthentication::ApiKey,
     )
     .await

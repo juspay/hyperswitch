@@ -1,59 +1,16 @@
-use common_utils::custom_serde;
+pub use api_models::webhooks::{
+    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, OutgoingWebhook,
+    OutgoingWebhookContent, WebhookFlow,
+};
 use error_stack::ResultExt;
-use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
 
 use super::ConnectorCommon;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     services,
-    types::{api, storage::enums},
     utils::crypto,
 };
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum IncomingWebhookEvent {
-    PaymentIntentSuccess,
-}
-
-pub enum WebhookFlow {
-    Payment,
-    Refund,
-    Subscription,
-}
-
-impl From<IncomingWebhookEvent> for WebhookFlow {
-    fn from(evt: IncomingWebhookEvent) -> Self {
-        match evt {
-            IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
-        }
-    }
-}
-
-pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
-
-pub struct IncomingWebhookDetails {
-    pub object_reference_id: String,
-    pub resource_object: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct OutgoingWebhook {
-    pub merchant_id: String,
-    pub event_id: String,
-    pub event_type: enums::EventType,
-    pub content: OutgoingWebhookContent,
-    #[serde(default, with = "custom_serde::iso8601")]
-    pub timestamp: PrimitiveDateTime,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "object", rename_all = "snake_case")]
-pub enum OutgoingWebhookContent {
-    PaymentDetails(api::PaymentsResponse),
-}
 
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
@@ -67,8 +24,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_body_decoding_merchant_secret(
         &self,
+        _db: &dyn StorageInterface,
         _merchant_id: &str,
-        _redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -83,10 +40,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn decode_webhook_body(
         &self,
+        db: &dyn StorageInterface,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let algorithm = self.get_webhook_body_decoding_algorithm(headers, body)?;
 
@@ -94,7 +51,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_body_decoding_message(headers, body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let secret = self
-            .get_webhook_body_decoding_merchant_secret(merchant_id, redis_conn)
+            .get_webhook_body_decoding_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
@@ -113,8 +70,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
+        _db: &dyn StorageInterface,
         _merchant_id: &str,
-        _redis_conn: connection::RedisPool,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -137,10 +94,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source(
         &self,
+        db: &dyn StorageInterface,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         merchant_id: &str,
-        redis_conn: connection::RedisPool,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(headers, body)
@@ -153,7 +110,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_message(headers, body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(merchant_id, redis_conn)
+            .get_webhook_source_verification_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 

@@ -4,6 +4,7 @@ pub mod commands;
 pub mod errors;
 pub mod types;
 
+pub use fred::prelude::*;
 use router_env::logger;
 
 pub use self::{commands::*, types::*};
@@ -100,6 +101,6 @@ mod test {
     fn test_redis_error() {
         let x = errors::RedisError::ConsumerGroupClaimFailed.to_string();
 
-        assert_eq!(x, "Failed to set redis stream message owner".to_string())
+        assert_eq!(x, "Failed to set Redis stream message owner".to_string())
     }
 }

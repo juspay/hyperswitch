@@ -97,9 +97,9 @@ pub enum AciPaymentType {
     Refund,
 }
 
-impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => PaymentDetails::Card(CardDetails {
                 card_number: ccard.card_number.peek().clone(),
@@ -112,7 +112,7 @@ impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
                 account_holder: "xyz".to_string(),
             }),
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet => PaymentDetails::Wallet,
+            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
             api::PaymentMethod::Paypal => PaymentDetails::Paypal,
         };
 
@@ -120,17 +120,17 @@ impl TryFrom<&types::PaymentsRouterData> for AciPaymentsRequest {
         let aci_payment_request = AciPaymentsRequest {
             payment_method: payment_details,
             entity_id: auth.entity_id,
-            amount: item.amount,
-            currency: item.currency.to_string(),
+            amount: item.request.amount,
+            currency: item.request.currency.to_string(),
             payment_type: AciPaymentType::Debit,
         };
         Ok(aci_payment_request)
     }
 }
 
-impl TryFrom<&types::PaymentRouterCancelData> for AciCancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentRouterCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
         let aci_payment_request = AciCancelRequest {
             entity_id: auth.entity_id,
@@ -213,13 +213,13 @@ impl<F, T>
             status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
                 &item.response.result.code,
             )?),
-            response: Some(types::PaymentsResponseData {
-                connector_transaction_id: item.response.id,
-                //TODO: Add redirection details here
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
+                // TODO: Implement mandate fetch for other connectors
+                mandate_reference: None,
             }),
-            error_response: None,
             ..item.data
         })
     }
@@ -238,7 +238,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
-        let currency = item.currency;
+        let currency = item.request.currency;
         let payment_type = AciPaymentType::Refund;
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
 
@@ -306,13 +306,12 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
         item: types::RefundsResponseRouterData<F, AciRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            response: Some(types::RefundsResponseData {
+            response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(AciRefundStatus::from_str(
                     &item.response.result.code,
                 )?),
             }),
-            error_response: None,
             ..item.data
         })
     }

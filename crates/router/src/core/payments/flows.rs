@@ -2,20 +2,24 @@ mod authorize_flow;
 mod cancel_flow;
 mod capture_flow;
 mod psync_flow;
+mod session_flow;
+mod verfiy_flow;
 
 use async_trait::async_trait;
 
-use super::PaymentData;
 use crate::{
     core::{errors::RouterResult, payments},
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{
+        self, api,
+        storage::{self, enums},
+    },
 };
 
 #[async_trait]
 pub trait ConstructFlowSpecificData<F, Req, Res> {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
@@ -28,11 +32,11 @@ pub trait Feature<F, T> {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
-        maybe_customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<F>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<F>)
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<Self>
     where
         Self: std::marker::Sized,
         F: Clone,

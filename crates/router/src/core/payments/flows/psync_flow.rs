@@ -9,87 +9,69 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, storage, PaymentsRequestSyncData, PaymentsResponseData, PaymentsRouterSyncData,
+        self, api,
+        storage::{self, enums},
+        PaymentsResponseData, PaymentsSyncData, PaymentsSyncRouterData,
     },
 };
 
 #[async_trait]
-impl
-    ConstructFlowSpecificData<
-        api::PSync,
-        types::PaymentsRequestSyncData,
-        types::PaymentsResponseData,
-    > for PaymentData<api::PSync>
+impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for PaymentData<api::PSync>
 {
-    async fn construct_r_d<'a>(
+    async fn construct_router_data<'a>(
         &self,
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<
-        types::RouterData<api::PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>,
+        types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
-        let output = transformers::construct_payment_router_data::<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-        >(state, self.clone(), connector_id, merchant_account)
-        .await?;
-        Ok(output.1)
+        transformers::construct_payment_router_data::<api::PSync, types::PaymentsSyncData>(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl Feature<api::PSync, types::PaymentsRequestSyncData>
-    for types::RouterData<api::PSync, types::PaymentsRequestSyncData, types::PaymentsResponseData>
+impl Feature<api::PSync, types::PaymentsSyncData>
+    for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
-        connector: api::ConnectorData,
-        customer: &Option<api::CustomerResponse>,
-        payment_data: PaymentData<api::PSync>,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> (RouterResult<Self>, PaymentData<api::PSync>)
-    where
-        dyn api::Connector: services::ConnectorIntegration<
-            api::PSync,
-            types::PaymentsRequestSyncData,
-            types::PaymentsResponseData,
-        >,
-    {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-            )
-            .await;
-
-        (resp, payment_data)
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<Self> {
+        self.decide_flow(
+            state,
+            connector,
+            customer,
+            Some(true),
+            call_connector_action,
+        )
+        .await
     }
 }
 
-impl PaymentsRouterSyncData {
+impl PaymentsSyncRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
-        connector: api::ConnectorData,
-        _maybe_customer: &Option<api::CustomerResponse>,
+        connector: &api::ConnectorData,
+        _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsRouterSyncData>
-    where
-        dyn api::Connector + Sync: services::ConnectorIntegration<
-            api::PSync,
-            PaymentsRequestSyncData,
-            PaymentsResponseData,
-        >,
-    {
+    ) -> RouterResult<PaymentsSyncRouterData> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::PSync,
-            PaymentsRequestSyncData,
+            PaymentsSyncData,
             PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(

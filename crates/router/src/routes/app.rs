@@ -1,16 +1,43 @@
 use actix_web::{web, Scope};
 
 use super::{
-    admin::*, customers::*, health::*, mandates::*, payment_methods::*, payments::*, payouts::*,
-    refunds::*, webhooks::*,
+    admin::*, customers::*, ephemeral_key::*, health::*, mandates::*, payment_methods::*,
+    payments::*, payouts::*, refunds::*, webhooks::*,
 };
-use crate::{configs::settings::Settings, services::Store};
+use crate::{
+    configs::settings::Settings,
+    db::{MockDb, StorageImpl, StorageInterface},
+    services::Store,
+};
 
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub store: Store,
+    pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+}
+
+impl AppState {
+    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> AppState {
+        let testable = storage_impl == StorageImpl::PostgresqlTest;
+        let store: Box<dyn StorageInterface> = match storage_impl {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
+                Box::new(Store::new(&conf, testable).await)
+            }
+            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+        };
+
+        AppState {
+            flow_name: String::from("default"),
+            store,
+            conf,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub async fn new(conf: Settings) -> AppState {
+        AppState::with_storage(conf, StorageImpl::Postgresql).await
+    }
 }
 
 pub struct Health;
@@ -32,6 +59,9 @@ impl Payments {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(payments_create)))
             .service(web::resource("/list").route(web::get().to(payments_list)))
+            .service(
+                web::resource("/session_tokens").route(web::get().to(payments_connector_session)),
+            )
             .service(
                 web::resource("/{payment_id}")
                     .route(web::get().to(payments_retrieve))
@@ -159,6 +189,17 @@ impl MerchantConnectorAccount {
                     .route(web::post().to(payment_connector_update))
                     .route(web::delete().to(payment_connector_delete)),
             )
+    }
+}
+
+pub struct EphemeralKey;
+
+impl EphemeralKey {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/ephemeral_keys")
+            .app_data(web::Data::new(config))
+            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
+            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
     }
 }
 

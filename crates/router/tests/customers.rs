@@ -5,6 +5,7 @@ mod utils;
 // When test-connector feature is enabled, you can pass the connector name in description
 
 #[actix_web::test]
+#[ignore]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn customer_success() {
     utils::setup().await;
@@ -73,6 +74,7 @@ async fn customer_success() {
 }
 
 #[actix_web::test]
+#[ignore]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn customer_failure() {
     utils::setup().await;

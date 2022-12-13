@@ -11,13 +11,14 @@ use crate::{
         errors::{self, CustomResult, RouterResponse},
         payments,
     },
-    db::Db,
+    db::StorageInterface,
     logger,
     routes::AppState,
     services,
     types::{
         api,
         storage::{self, enums},
+        transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{generate_id, Encode, OptionExt, ValueExt},
 };
@@ -37,7 +38,7 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
 
-    let payments_response = payments::payments_core::<api::PSync, _, _, _>(
+    let payments_response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         &state,
         merchant_account.clone(),
         payments::operations::PaymentStatus,
@@ -66,7 +67,7 @@ async fn payments_incoming_webhook_flow(
 
             let event_type: enums::EventType = payments_response
                 .status
-                .try_into()
+                .foreign_try_into()
                 .into_report()
                 .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
@@ -99,7 +100,7 @@ async fn create_event_and_trigger_outgoing_webhook(
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
-    db: services::Store,
+    db: Box<dyn StorageInterface>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let arbiter = actix::Arbiter::try_current()
         .ok_or(errors::WebhooksFlowError::ForkFlowFailed)
@@ -115,7 +116,7 @@ async fn create_event_and_trigger_outgoing_webhook(
         primary_object_type,
     };
 
-    let event = (&db as &dyn Db)
+    let event = db
         .insert_event(new_event)
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventCreationFailed)?;
@@ -123,12 +124,12 @@ async fn create_event_and_trigger_outgoing_webhook(
     let outgoing_webhook = api::OutgoingWebhook {
         merchant_id: merchant_account.merchant_id.clone(),
         event_id: event.event_id,
-        event_type: event.event_type,
+        event_type: event.event_type.foreign_into(),
         content,
         timestamp: event.created_at,
     };
 
-    arbiter.spawn(async {
+    arbiter.spawn(async move {
         let result = trigger_webhook_to_merchant(merchant_account, outgoing_webhook, db).await;
 
         if let Err(e) = result {
@@ -142,7 +143,7 @@ async fn create_event_and_trigger_outgoing_webhook(
 async fn trigger_webhook_to_merchant(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
-    _db: services::Store,
+    _db: Box<dyn StorageInterface>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = merchant_account
         .webhook_details
@@ -205,10 +206,10 @@ pub async fn webhooks_core(
 
     let source_verified = connector
         .verify_webhook_source(
+            &*state.store,
             req.headers(),
             &body,
             &merchant_account.merchant_id,
-            state.store.redis_conn.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -216,10 +217,10 @@ pub async fn webhooks_core(
 
     let decoded_body = connector
         .decode_webhook_body(
+            &*state.store,
             req.headers(),
             &body,
             &merchant_account.merchant_id,
-            state.store.redis_conn.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -231,10 +232,10 @@ pub async fn webhooks_core(
         .attach_printable("Could not find event type in incoming webhook body")?;
 
     let process_webhook_further = utils::lookup_webhook_event(
+        &*state.store,
         connector_name,
         &merchant_account.merchant_id,
         &event_type,
-        state.store.redis_conn.clone(),
     )
     .await;
 

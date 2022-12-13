@@ -1,0 +1,1 @@
+DROP INDEX merchant_connector_account_merchant_id_connector_name_index;

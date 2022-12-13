@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod customers;
+pub mod enums;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
@@ -10,23 +11,13 @@ use std::{fmt::Debug, marker, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
 
-pub use self::{
-    admin::*,
-    customers::{CreateCustomerRequest, CustomerResponse, CustomerUpdateRequest},
-    payment_methods::*,
-    payments::*,
-    refunds::*,
-    types::enums::FutureUsage,
-    webhooks::*,
-};
-use super::{storage, ConnectorsList};
+pub use self::{admin::*, customers::*, payment_methods::*, payments::*, refunds::*, webhooks::*};
 use crate::{
     configs::settings::Connectors,
     connector,
     core::errors::{self, CustomResult},
     services::ConnectorRedirectResponse,
-    types::{self, api},
-    utils::{OptionExt, ValueExt},
+    types,
 };
 
 pub trait ConnectorCommon {
@@ -78,45 +69,12 @@ pub struct ConnectorData {
     pub connector_name: types::Connector,
 }
 
+pub enum ConnectorCallType {
+    Single(ConnectorData),
+    Multiple(Vec<ConnectorData>),
+}
+
 impl ConnectorData {
-    pub fn construct(
-        connectors: &Connectors,
-        merchant_account: &storage::MerchantAccount,
-    ) -> CustomResult<ConnectorData, errors::ApiErrorResponse> {
-        // Add Validate also to ParseStruct
-        //FIXME: Need Proper Routing Logic
-        let vec_val: Vec<serde_json::Value> = merchant_account
-            .custom_routing_rules
-            .as_ref()
-            .cloned()
-            .parse_value("CustomRoutingRulesVec")
-            .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let custom_routing_rules: api::CustomRoutingRules = vec_val[0]
-            .clone()
-            .parse_value("CustomRoutingRules")
-            .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let connector_names = custom_routing_rules
-            .connectors_pecking_order
-            .unwrap_or_else(|| vec!["stripe".to_string()]);
-
-        //use routing rules if configured by merchant else query MCA as per PM
-        let connector_list: ConnectorsList = ConnectorsList {
-            connectors: connector_names,
-        };
-
-        let connector_name = connector_list
-            .connectors
-            .first()
-            .get_required_value("connectors")
-            .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .as_str();
-
-        Self::get_connector_by_name(connectors, connector_name)
-    }
-
     pub fn get_connector_by_name(
         connectors: &Connectors,
         name: &str,
@@ -125,7 +83,7 @@ impl ConnectorData {
         let connector_name = types::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable_lazy(|| format!("unable to parse connector name {:?}", connector))
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(ConnectorData {
             connector,
@@ -143,6 +101,8 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
+            "braintree" => Ok(Box::new(&connector::Braintree)),
+            "klarna" => Ok(Box::new(&connector::Klarna)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ConnectorError::InvalidConnectorName)
