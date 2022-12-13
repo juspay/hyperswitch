@@ -305,7 +305,7 @@ impl PaymentAttemptInterface for MockDb {
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use redis_interface::{RedisEntryId, SetNXReply};
+    use redis_interface::{HsetnxReply, RedisEntryId};
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -377,11 +377,11 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, "pa", &created_attempt)
                         .await
                     {
-                        Ok(SetNXReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
                             format!("Payment Attempt already exists for payment_id: {}", key),
                         ))
                         .into_report(),
-                        Ok(SetNXReply::KeySet) => {
+                        Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = payment_attempt
                                 .insert_query(&conn)
@@ -430,9 +430,12 @@ mod storage {
 
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
+                    let redis_value = serde_json::to_string(&updated_attempt)
+                        .into_report()
+                        .change_context(errors::StorageError::KVError)?;
                     let updated_attempt = self
                         .redis_conn
-                        .serialize_and_set_hash_fields(&key, ("pa", &updated_attempt))
+                        .set_hash_fields(&key, ("pa", &redis_value))
                         .await
                         .map(|_| updated_attempt)
                         .change_context(errors::StorageError::KVError)?;

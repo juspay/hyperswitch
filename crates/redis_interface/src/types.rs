@@ -67,22 +67,41 @@ impl From<&RedisEntryId> for fred::types::XID {
 }
 
 #[derive(Eq, PartialEq)]
-pub enum SetNXReply {
+pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
-impl fred::types::FromRedis for SetNXReply {
+impl fred::types::FromRedis for SetnxReply {
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
             // Returns String ( "OK" ) in case of success
-            fred::types::RedisValue::String(_) => Ok(SetNXReply::KeySet),
+            fred::types::RedisValue::String(_) => Ok(Self::KeySet),
             // Return Null in case of failure
-            fred::types::RedisValue::Null => Ok(SetNXReply::KeyNotSet),
+            fred::types::RedisValue::Null => Ok(Self::KeyNotSet),
             // Unexpected behaviour
             _ => Err(fred::error::RedisError::new(
                 fred::error::RedisErrorKind::Unknown,
                 "Unexpected SETNX command reply",
+            )),
+        }
+    }
+}
+
+#[derive(Eq, PartialEq)]
+pub enum HsetnxReply {
+    KeySet,
+    KeyNotSet, // Existing key
+}
+
+impl fred::types::FromRedis for HsetnxReply {
+    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+        match value {
+            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
+            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
+            _ => Err(fred::error::RedisError::new(
+                fred::error::RedisErrorKind::Unknown,
+                "Unexpected HSETNX command reply",
             )),
         }
     }
