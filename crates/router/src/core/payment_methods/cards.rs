@@ -117,7 +117,7 @@ pub async fn add_card(
         response
     } else {
         let card_id = uuid::Uuid::new_v4().to_string();
-        mock_add_card(db, &card_id, &card).await?
+        mock_add_card(db, &card_id, &card, None).await?
     };
 
     create_payment_method(
@@ -138,6 +138,7 @@ pub async fn mock_add_card(
     db: &dyn db::StorageInterface,
     card_id: &str,
     card: &api::CardDetail,
+    card_cvc: Option<String>,
 ) -> errors::CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
     let locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
@@ -148,6 +149,7 @@ pub async fn mock_add_card(
         card_number: card.card_number.peek().to_string(),
         card_exp_year: card.card_exp_year.peek().to_string(),
         card_exp_month: card.card_exp_month.peek().to_string(),
+        card_cvc,
     };
 
     let response = db
@@ -174,7 +176,8 @@ pub async fn mock_add_card(
 pub async fn mock_get_card<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
-) -> errors::CustomResult<payment_methods::GetCardResponse, errors::CardVaultError> {
+) -> errors::CustomResult<(payment_methods::GetCardResponse, Option<String>), errors::CardVaultError>
+{
     let locker_mock_up = db
         .find_locker_by_card_id(card_id)
         .await
@@ -193,8 +196,28 @@ pub async fn mock_get_card<'a>(
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
     };
-    Ok(payment_methods::GetCardResponse {
-        card: add_card_response,
+    Ok((
+        payment_methods::GetCardResponse {
+            card: add_card_response,
+        },
+        locker_mock_up.card_cvc,
+    ))
+}
+
+#[instrument(skip_all)]
+pub async fn mock_delete_card<'a>(
+    db: &dyn db::StorageInterface,
+    card_id: &'a str,
+) -> errors::CustomResult<payment_methods::DeleteCardResponse, errors::CardVaultError> {
+    let locker_mock_up = db
+        .delete_locker_mock_up(card_id)
+        .await
+        .change_context(errors::CardVaultError::FetchCardFailed)?;
+    Ok(payment_methods::DeleteCardResponse {
+        card_id: locker_mock_up.card_id,
+        external_id: locker_mock_up.external_id,
+        card_isin: None,
+        status: "SUCCESS".to_string(),
     })
 }
 
@@ -224,9 +247,10 @@ pub async fn get_card_from_legacy_locker<'a>(
                 .attach_printable(format!("Got 4xx from the locker: {err:?}"))),
         }?
     } else {
-        mock_get_card(&*state.store, card_id)
+        let (get_card_response, _) = mock_get_card(&*state.store, card_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        get_card_response
     };
 
     Ok(get_card_result)
@@ -238,17 +262,25 @@ pub async fn delete_card<'a>(
     merchant_id: &'a str,
     card_id: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResponse> {
+    let locker = &state.conf.locker;
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
     // FIXME use call_api 2. Serde's handle should be inside the generic function
-    let delete_card_resp = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
-        .response
-        .parse_struct("DeleteCardResponse")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let delete_card_resp = if !locker.mock_locker {
+        services::call_connector_api(state, request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
+            .response
+            .parse_struct("DeleteCardResponse")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+    } else {
+        mock_delete_card(&*state.store, card_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+    };
+
     Ok(delete_card_resp)
 }
 
@@ -524,7 +556,7 @@ impl BasiliskCardSupport {
             card_holder_name: Some(card_holder_name.into()),
         };
         let db = &*state.store;
-        mock_add_card(db, payment_token, &card_detail)
+        mock_add_card(db, payment_token, &card_detail, None)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed")?;

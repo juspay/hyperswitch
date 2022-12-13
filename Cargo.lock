@@ -1305,7 +1305,6 @@ dependencies = [
  "rand",
  "redis-protocol",
  "semver",
- "serde_json",
  "sha-1",
  "tokio",
  "tokio-native-tls",
@@ -2509,6 +2508,7 @@ dependencies = [
  "router_env",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -2664,6 +2664,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_qs",
+ "serde_repr",
  "serde_urlencoded",
  "storage_models",
  "structopt",
@@ -2921,6 +2922,17 @@ dependencies = [
  "percent-encoding",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "serde_repr"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fe39d9fbb0ebf5eb2c7cb7e2a47e4f462fad1379f1166b8ae49ad9eae89a7ca"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 //! Utility macros for the `router` crate.
-
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 mod macros;
@@ -176,6 +176,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     });
     let output = quote::quote! {
+    #[automatically_derived]
     impl #ident {
             #(#build_methods)*
         }

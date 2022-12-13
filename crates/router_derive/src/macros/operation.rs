@@ -50,6 +50,7 @@ impl Derives {
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
         quote! {
+            #[automatically_derived]
             impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
                 #(#fns)*
             }
@@ -63,6 +64,7 @@ impl Derives {
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
         quote! {
+            #[automatically_derived]
             impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
                 #(#ref_fns)*
             }

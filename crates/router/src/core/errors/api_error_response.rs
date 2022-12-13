@@ -28,8 +28,6 @@ pub enum ApiErrorResponse {
                     the Dashboard Settings section."
     )]
     BadCredentials,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Invalid Ephemeral Key for the customer")]
-    InvalidEphermeralKey,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
@@ -46,14 +44,20 @@ pub enum ApiErrorResponse {
     },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "{message}")]
     InvalidRequestData { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Refund amount exceeds the payment amount.")]
-    RefundAmountExceedsPaymentAmount,
     /// Typically used when a field has invalid value, or deserialization of the value contained in
     /// a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}.")]
     InvalidDataValue { field_name: &'static str },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "The client_secret provided does not match the client_secret associated with the Payment.")]
+    ClientSecretInvalid,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Customer has existing mandate/subsciption.")]
+    MandateActive,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Customer has already redacted.")]
+    CustomerRedacted,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Reached maximum refund attempts")]
     MaximumRefundCount,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Refund amount exceeds the payment amount.")]
+    RefundAmountExceedsPaymentAmount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_09", message = "This PaymentIntent could not be {current_flow} because it has a {field_name} of {current_value}. The expected state is {states}.")]
     PaymentUnexpectedState {
         current_flow: String,
@@ -61,13 +65,12 @@ pub enum ApiErrorResponse {
         current_value: String,
         states: String,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Invalid Ephemeral Key for the customer")]
+    InvalidEphermeralKey,
     /// Typically used when information involving multiple fields or previously provided
     /// information doesn't satisfy a condition.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "{message}")]
     PreconditionFailed { message: String },
-
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "The client_secret provided does not match the client_secret associated with the Payment.")]
-    ClientSecretInvalid,
 
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed while processing with connector. Retry payment.")]
     PaymentAuthorizationFailed { data: Option<serde_json::Value> },
@@ -168,6 +171,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             ApiErrorResponse::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
             ApiErrorResponse::RefundNotFound
             | ApiErrorResponse::CustomerNotFound
+            | ApiErrorResponse::MandateActive
+            | ApiErrorResponse::CustomerRedacted
             | ApiErrorResponse::PaymentNotFound
             | ApiErrorResponse::PaymentMethodNotFound
             | ApiErrorResponse::MerchantAccountNotFound

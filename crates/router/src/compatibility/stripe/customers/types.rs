@@ -104,7 +104,7 @@ impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
     fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
             id: cust.customer_id,
-            deleted: cust.deleted,
+            deleted: cust.customer_deleted,
         }
     }
 }

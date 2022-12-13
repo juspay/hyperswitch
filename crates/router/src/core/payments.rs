@@ -26,7 +26,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    pii::Email,
+    pii::{Email, Secret},
     routes::AppState,
     scheduler::utils as pt_utils,
     services,
@@ -93,7 +93,7 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (operation, payment_method_data) = operation
+    let (operation, payment_method_data, payment_token) = operation
         .to_domain()?
         .make_pm_data(
             state,
@@ -102,10 +102,14 @@ where
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
             &payment_data.token,
+            payment_data.card_cvc.clone(),
             validate_result.storage_scheme,
         )
         .await?;
     payment_data.payment_method_data = payment_method_data;
+    if let Some(token) = payment_token {
+        payment_data.token = Some(token)
+    }
 
     let connector_details = operation
         .to_domain()?
@@ -165,7 +169,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
+// #[instrument(skip_all)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -402,18 +406,10 @@ where
         let connector_name = connector.connector_name.to_string();
         match connector_res?.response {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse {
-                    session_token,
-                    session_id,
-                } = connector_response
+                if let types::PaymentsResponseData::SessionResponse { session_token } =
+                    connector_response
                 {
-                    payment_data
-                        .sessions_token
-                        .push(api::ConnectorSessionToken {
-                            session_id,
-                            connector_name,
-                            session_token,
-                        });
+                    payment_data.sessions_token.push(session_token);
                 }
             }
 
@@ -467,7 +463,8 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
-    pub sessions_token: Vec<api::ConnectorSessionToken>,
+    pub sessions_token: Vec<api::SessionToken>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Debug)]

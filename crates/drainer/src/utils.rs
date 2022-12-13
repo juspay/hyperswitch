@@ -18,7 +18,7 @@ pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::
         .await
     {
         Ok(resp) => {
-            if resp == redis::SetNXReply::KeySet {
+            if resp == redis::types::SetnxReply::KeySet {
                 true
             } else {
                 println!("is_stream_available Ok False {}", stream_key_flag);
@@ -49,7 +49,7 @@ pub async fn read_from_stream(
     // "0-0" id gives first entry
     let stream_id = fred::XID::Manual("0-0".into());
     let entries = redis
-        .stream_read_entries(stream_key, stream_id)
+        .stream_read_entries(stream_key, stream_id, Some(100))
         .await
         .map_err(|e| {
             println!("{:?}", e);

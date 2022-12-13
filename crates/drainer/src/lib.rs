@@ -13,7 +13,7 @@ pub async fn start_drainer(
     max_read_count: usize,
 ) -> Result<(), errors::DrainerError> {
     let mut stream_index: u8 = 0;
-    tokio::spawn(drainer_handler(store.clone(), 18, max_read_count));
+    tokio::spawn(drainer_handler(store.clone(), 52, max_read_count));
     loop {
         // if is_stream_available(stream_index, store.clone()).await {
         //     println!("start_drainer {}", stream_index);
@@ -78,7 +78,7 @@ async fn drainer(
             Err(err) => continue,
         };
 
-        let conn = pg_connection(&store.master_pool.conn).await;
+        let conn = pg_connection(&store.master_pool).await;
         let r = match dbop {
             DBOperation::Insert(a) => match a.insertable {
                 router::db::kv_gen::Insertables::PaymentIntent(a) => {

@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 // FIXME: I strongly advise to add this worning.
 // #![warn(missing_docs)]
 

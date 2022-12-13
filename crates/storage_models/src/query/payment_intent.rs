@@ -28,9 +28,11 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent: PaymentIntentUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self>(
+        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.id,
+            dsl::payment_id
+                .eq(self.payment_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             PaymentIntentUpdateInternal::from(payment_intent),
         )
         .await
@@ -39,7 +41,9 @@ impl PaymentIntent {
                 errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            result => result,
+            Ok(mut payment_intents) => payment_intents
+                .pop()
+                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
         }
     }
 
