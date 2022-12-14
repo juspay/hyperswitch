@@ -6,7 +6,7 @@ pub struct NewPayment {
     pub amount: BigDecimal,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Payment {
     pub id: u64,
     pub amount: BigDecimal,

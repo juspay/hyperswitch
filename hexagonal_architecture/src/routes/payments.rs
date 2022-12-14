@@ -10,8 +10,8 @@ async fn create(
     Json(connector.create_payment(payment).await)
 }
 
-async fn list() -> &'static str {
-    "list"
+async fn list() -> Json<Vec<types::Payment>> {
+    Json(vec![])
 }
 
 async fn confirm(
@@ -40,9 +40,12 @@ mod tests {
     #[actix_web::test]
     async fn payment_list() {
         let service = crate::mk_service().await;
-        let request = TestRequest::get().uri("/list").to_request();
+        let request = TestRequest::get().uri("/payments/list").to_request();
 
-        assert_eq!(&test::call_and_read_body(&service, request).await[..], b"");
+        assert_eq!(
+            &test::call_and_read_body_json::<_, _, Vec<Payment>>(&service, request).await[..],
+            Vec::new()
+        );
     }
 
     #[actix_web::test]
@@ -64,7 +67,7 @@ mod tests {
         let mut connector = MockConnector::new();
 
         connector.expect_create_payment().return_once(|new| Payment { id: 42, amount: new.amount });
-        connector.expect_verify_payment().return_once(move |_| Verify::Ok);
+        connector.expect_verify_payment().return_once(|_| Verify::Ok);
 
         let connector = Data::new(connector);
 
