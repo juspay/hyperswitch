@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
 use crate::{
     errors,
     refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
@@ -15,6 +15,14 @@ impl RefundNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Refund, errors::DatabaseError> {
         generics::generic_insert::<_, _, Refund, _>(conn, self, ExecuteQuery::new()).await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn insert_diesel_query(
+        self,
+        conn: &PgPooledConn,
+    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
+        generics::generic_insert::<_, _, Refund, _>(conn, self, RawQuery).await
     }
 }
 
@@ -39,6 +47,20 @@ impl Refund {
             },
             result => result,
         }
+    }
+
+    pub async fn update_query(
+        self,
+        conn: &PgPooledConn,
+        refund: RefundUpdate,
+    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
+        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+            conn,
+            self.id,
+            RefundUpdateInternal::from(refund),
+            RawQuery,
+        )
+        .await
     }
 
     // This is required to be changed for KV.
@@ -104,3 +126,6 @@ impl Refund {
         .await
     }
 }
+
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for Refund {}

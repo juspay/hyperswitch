@@ -4,7 +4,9 @@ use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::refund};
 
-#[derive(Clone, Debug, Eq, Identifiable, Queryable, PartialEq)]
+#[derive(
+    Clone, Debug, Eq, Identifiable, Queryable, PartialEq, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(table_name = refund)]
 pub struct Refund {
     pub id: i32,
@@ -55,7 +57,7 @@ pub struct RefundNew {
     pub description: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RefundUpdate {
     Update {
         pg_refund_id: String,
@@ -128,6 +130,21 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 ..Default::default()
             },
+        }
+    }
+}
+
+impl RefundUpdate {
+    pub fn apply_changeset(self, source: Refund) -> Refund {
+        let pa_update: RefundUpdateInternal = self.into();
+        Refund {
+            pg_refund_id: pa_update.pg_refund_id,
+            refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
+            sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
+            refund_error_message: pa_update.refund_error_message,
+            refund_arn: pa_update.refund_arn,
+            metadata: pa_update.metadata,
+            ..source
         }
     }
 }
