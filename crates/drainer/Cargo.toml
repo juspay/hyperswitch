@@ -8,6 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [dependencies]
+error-stack = "0.2.4"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
 serde_json = "1.0.85"
 structopt = "0.3.26"

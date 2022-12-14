@@ -1,9 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
+use error_stack::{report, IntoReport, ResultExt};
 use fred::types as fred;
 use redis_interface as redis;
 
-use crate::errors::DrainerError;
+use crate::errors;
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
@@ -29,14 +30,14 @@ pub async fn read_from_stream(
     stream_name: &str,
     max_read_count: u64,
     redis: &redis::RedisConnectionPool,
-) -> Result<StreamReadResult, DrainerError> {
+) -> errors::DrainerResult<StreamReadResult> {
     let stream_key = fred::MultipleKeys::from(stream_name);
     // "0-0" id gives first entry
     let stream_id = fred::XID::Manual("0-0".into());
     let entries = redis
         .stream_read_entries(stream_key, stream_id, Some(max_read_count))
         .await
-        .map_err(|_| DrainerError::StreamReadError(stream_name.to_owned()))?;
+        .map_err(|_| errors::DrainerError::StreamReadError(stream_name.to_owned()))?;
     Ok(entries)
 }
 
@@ -44,73 +45,54 @@ pub async fn trim_from_stream(
     stream_name: &str,
     minimum_entry_id: &str,
     redis: &redis::RedisConnectionPool,
-) -> Result<usize, DrainerError> {
+) -> errors::DrainerResult<usize> {
     let trim_kind = fred::XCapKind::MinID;
     let trim_type = fred::XCapTrim::Exact;
     let trim_id = fred::StringOrNumber::String(minimum_entry_id.into());
     let xcap = fred::XCap::try_from((trim_kind, trim_type, trim_id))
-        .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
+        .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
 
     let trim_result = redis
         .stream_trim_entries(stream_name, xcap)
         .await
-        .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
+        .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
 
     // Since xtrim deletes entires below given id excluding the given id.
     // Hence, deleting the minimum entry id
-    let redis_key = fred::RedisKey::from(minimum_entry_id);
-    let multiple_keys = fred::MultipleKeys::from(redis_key);
-    let _ = redis
-        .stream_delete_entries(stream_name, multiple_keys)
+    redis
+        .stream_delete_entries(stream_name, minimum_entry_id)
         .await
-        .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
-
+        .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
+    
+    // adding 1 because we are deleting the given id too 
     Ok(trim_result + 1)
 }
 
 pub async fn make_stream_available(
     stream_name_flag: &str,
     redis: &redis::RedisConnectionPool,
-) -> Result<(), DrainerError> {
+) -> errors::DrainerResult<()> {
     redis
         .delete_key(stream_name_flag)
         .await
-        .map_err(|_| DrainerError::DeleteKeyFailed(stream_name_flag.to_owned()))
-}
-
-pub async fn get_stream_length(
-    redis: &redis::RedisConnectionPool,
-    stream_name: &str,
-) -> Result<usize, DrainerError> {
-    let redis_key = fred::RedisKey::from(stream_name);
-    let length = redis
-        .stream_get_length(redis_key)
-        .await
-        .map_err(|_| DrainerError::StreamGetLengthError(stream_name.to_owned()))?;
-    Ok(length)
+        .change_context(errors::DrainerError::DeleteKeyFailed(
+            stream_name_flag.to_owned(),
+        ))
 }
 
 pub fn parse_stream_entries<'a>(
     read_result: &'a StreamReadResult,
     stream_name: &str,
-) -> Result<(&'a StreamEntries, String), DrainerError> {
-    if let Some(entries) = read_result.get(stream_name) {
-        if let Some(last_entry) = entries.last() {
-            Ok((entries, last_entry.0.clone()))
-        } else {
-            Err(DrainerError::NoStreamEntry(stream_name.to_owned()))
-        }
-    } else {
-        Err(DrainerError::NoStreamEntry(stream_name.to_owned()))
-    }
-}
-
-pub fn determine_read_count(stream_length: usize, max_read_count: usize) -> usize {
-    if stream_length > max_read_count {
-        max_read_count
-    } else {
-        stream_length
-    }
+) -> errors::DrainerResult<(&'a StreamEntries, String)> {
+    read_result
+        .get(stream_name)
+        .and_then(|entries| {
+            entries
+                .last()
+                .map(|last_entry| (entries, last_entry.0.clone()))
+        })
+        .ok_or(errors::DrainerError::NoStreamEntry(stream_name.to_owned()))
+        .into_report()
 }
 
 pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {

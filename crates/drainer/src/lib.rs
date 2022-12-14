@@ -1,6 +1,5 @@
 pub mod errors;
-pub mod utils;
-use self::errors::DrainerError;
+mod utils;
 use router::{connection::pg_connection, db::kv_gen, services::Store};
 use std::sync::Arc;
 
@@ -8,7 +7,7 @@ pub async fn start_drainer(
     store: Arc<Store>,
     number_of_streams: u8,
     max_read_count: u64,
-) -> Result<(), errors::DrainerError> {
+) -> errors::DrainerResult<()> {
     let mut stream_index: u8 = 0;
 
     loop {
@@ -23,7 +22,7 @@ async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
     max_read_count: u64,
-) -> Result<(), DrainerError> {
+) -> errors::DrainerResult<()> {
     let stream_name = store.drainer_stream(stream_index.to_string().as_str());
 
     let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
@@ -41,7 +40,7 @@ async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,
     stream_name: &str,
-) -> Result<(), DrainerError> {
+) -> errors::DrainerResult<()> {
     let stream_read =
         utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
 

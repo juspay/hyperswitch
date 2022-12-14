@@ -15,3 +15,5 @@ pub enum DrainerError {
     #[error("Error in making stream: {0} available")]
     DeleteKeyFailed(String),
 }
+
+pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;

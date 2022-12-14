@@ -1,13 +1,12 @@
-use drainer::{errors::DrainerError, start_drainer};
+use drainer::{errors::DrainerResult, start_drainer};
 use router::configs::settings;
 use structopt::StructOpt;
 
 #[tokio::main]
-async fn main() -> Result<(), DrainerError> {
+async fn main() -> DrainerResult<()> {
     // Get configuration
     let cmd_line = settings::CmdLineConf::from_args();
-    let conf = settings::Settings::with_config_path(cmd_line.config_path)
-        .map_err(|e| DrainerError::ConfigParsingError(e.to_string()))?;
+    let conf = settings::Settings::with_config_path(cmd_line.config_path).unwrap();
 
     let store = router::services::Store::new(&conf, false).await;
     let store = std::sync::Arc::new(store);
