@@ -1,5 +1,6 @@
 [workspace]
 members = ["."]
+resolver = "2"
 
 [package]
 name = "hexagonal_architecture"
