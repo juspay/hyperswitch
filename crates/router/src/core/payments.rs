@@ -39,6 +39,7 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[instrument(skip_all)]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -356,7 +357,6 @@ where
     Ok(response)
 }
 
-#[allow(dead_code)]
 async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
