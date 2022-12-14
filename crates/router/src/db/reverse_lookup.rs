@@ -1,5 +1,6 @@
 use storage_models::{errors, CustomResult};
 
+use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     types::storage::reverse_lookup::{ReverseLookup, ReverseLookupNew},
@@ -18,7 +19,7 @@ pub trait ReverseLookupInterface {
 }
 
 #[async_trait::async_trait]
-impl ReverseLookupInterface for super::Store {
+impl ReverseLookupInterface for Store {
     async fn insert_reverse_lookup(
         &self,
         new: ReverseLookupNew,
@@ -37,7 +38,7 @@ impl ReverseLookupInterface for super::Store {
 }
 
 #[async_trait::async_trait]
-impl ReverseLookupInterface for super::MockDb {
+impl ReverseLookupInterface for MockDb {
     async fn insert_reverse_lookup(
         &self,
         _new: ReverseLookupNew,
