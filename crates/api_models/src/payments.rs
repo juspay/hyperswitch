@@ -270,7 +270,16 @@ impl Default for PaymentIdType {
 //}
 //}
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    frunk::LabelledGeneric,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Address {
     pub address: Option<AddressDetails>,
@@ -278,7 +287,16 @@ pub struct Address {
 }
 
 // used by customers also, could be moved outside
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    frunk::LabelledGeneric,
+)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     pub city: Option<String>,
@@ -292,7 +310,16 @@ pub struct AddressDetails {
     pub last_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    frunk::LabelledGeneric,
+)]
 pub struct PhoneDetails {
     pub number: Option<Secret<String>>,
     pub country_code: Option<String>,
