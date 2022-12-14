@@ -328,10 +328,10 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    reverse_lookup (sk_id) {
-        sk_id -> Int4,
-        pk_id -> Varchar,
+    reverse_lookup (lookup_id) {
         lookup_id -> Varchar,
+        sk_id -> Varchar,
+        pk_id -> Varchar,
         result_id -> Varchar,
         source -> Varchar,
     }
