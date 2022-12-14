@@ -25,7 +25,7 @@ impl ProcessTrackerNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<ProcessTracker, errors::DatabaseError> {
-        generics::generic_insert::<_, _, ProcessTracker>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 }
 

@@ -17,7 +17,7 @@ impl PaymentIntentNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentIntent, errors::DatabaseError> {
-        generics::generic_insert::<_, _, _>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 }
 

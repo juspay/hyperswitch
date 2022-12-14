@@ -14,7 +14,7 @@ use crate::{
 impl RefundNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Refund, errors::DatabaseError> {
-        generics::generic_insert::<_, _, Refund>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 }
 

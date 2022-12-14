@@ -12,7 +12,7 @@ use crate::{
 impl AddressNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Address, errors::DatabaseError> {
-        generics::generic_insert::<_, _, _>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 }
 
