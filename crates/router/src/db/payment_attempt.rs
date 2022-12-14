@@ -393,15 +393,16 @@ mod storage {
                             if let Some(ref connector_transaction_id) =
                                 created_attempt.connector_transaction_id
                             {
-                                ReverseLookupNew::new(
-                                    created_attempt.payment_id.clone(),
-                                    format!(
+                                ReverseLookupNew {
+                                    pk_id: created_attempt.payment_id.clone(),
+                                    lookup_id: format!(
                                         "{connector_transaction_id}_{}",
                                         &created_attempt.merchant_id
                                     ),
-                                    key.clone(),
-                                    "pa".to_string(),
-                                )
+                                    result_id: key.clone(),
+                                    sk_id: "pa".to_string(),
+                                    source: "pa".to_string(),
+                                }
                                 .insert(&conn)
                                 .await
                                 .map_err(Into::<errors::StorageError>::into)
@@ -409,15 +410,16 @@ mod storage {
                             }
 
                             //Reverse lookup for txn_id
-                            ReverseLookupNew::new(
-                                created_attempt.payment_id.clone(),
-                                format!(
+                            ReverseLookupNew {
+                                pk_id: created_attempt.payment_id.clone(),
+                                lookup_id: format!(
                                     "{}_{}",
                                     &created_attempt.txn_id, &created_attempt.merchant_id
                                 ),
-                                key,
-                                "pa".to_string(),
-                            )
+                                result_id: key,
+                                sk_id: "pa".to_string(),
+                                source: "pa".to_string(),
+                            }
                             .insert(&conn)
                             .await
                             .map_err(Into::<errors::StorageError>::into)
