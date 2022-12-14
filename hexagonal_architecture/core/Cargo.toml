@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bigdecimal = { version = "0.3", features = ["serde"] }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
