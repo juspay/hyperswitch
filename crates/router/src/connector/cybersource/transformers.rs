@@ -1,3 +1,5 @@
+use common_utils::pii::Email;
+use masking::{ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,25 +8,25 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
-    order_information: OrderInformation,
+    order_information: OrderInformationWithBill,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ProcessingInformation {
     capture: bool,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PaymentInformation {
     card: Card,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Card {
     number: String,
     expiration_month: String,
@@ -32,15 +34,34 @@ pub struct Card {
     security_code: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct OrderInformationWithBill {
+    amount_details: Amount,
+    bill_to: BillTo,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct OrderInformation {
     amount_details: Amount,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Amount {
     total_amount: String,
     currency: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct BillTo {
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    address1: Option<Secret<String>>,
+    locality: Option<String>,
+    administrative_area: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
+    country: Option<String>,
+    email: Option<Secret<String, Email>>,
+    phone_number: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
@@ -48,10 +69,36 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let order_information = OrderInformation {
+                let order_information = OrderInformationWithBill {
                     amount_details: Amount {
                         total_amount: item.request.amount.to_string(),
                         currency: item.request.currency.to_string().to_uppercase(),
+                    },
+                    bill_to: match item
+                        .address
+                        .billing
+                        .clone()
+                        .map(|f| (f.address.unwrap_or_default(), f.phone))
+                    {
+                        Some((address, phone)) => BillTo {
+                            first_name: address.first_name,
+                            last_name: address.last_name,
+                            address1: address.line1,
+                            locality: address.city,
+                            administrative_area: address.line2,
+                            postal_code: address.zip,
+                            country: address.country,
+                            email: item.request.email.clone(),
+                            phone_number: phone.map(|p| {
+                                format!(
+                                    "{}{}",
+                                    p.country_code.unwrap_or_default(),
+                                    p.number.expose_option().unwrap_or_default()
+                                )
+                                .into()
+                            }),
+                        },
+                        None => BillTo::default(),
                     },
                 };
 
@@ -91,11 +138,11 @@ pub struct CybersourceAuthType {
 impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
-        } = item
+        } = auth_type
         {
             Ok(Self {
                 api_key: api_key.to_string(),
@@ -107,8 +154,8 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum CybersourcePaymentStatus {
     Authorized,
     Succeeded,
@@ -134,7 +181,7 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
 pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
@@ -153,36 +200,53 @@ impl TryFrom<types::PaymentsResponseRouterData<CybersourcePaymentsResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
+                mandate_reference: None,
             }),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorResponse {
+    pub error_information: Option<ErrorInformation>,
+    pub status: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct ErrorInformation {
+    pub message: String,
+    pub reason: String,
+}
+
 #[derive(Default, Debug, Serialize)]
-pub struct CybersourceRefundRequest {}
+pub struct CybersourceRefundRequest {
+    order_information: OrderInformation,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        todo!()
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(CybersourceRefundRequest {
+            order_information: OrderInformation {
+                amount_details: Amount {
+                    total_amount: item.request.amount.to_string(),
+                    currency: item.request.currency.to_string(),
+                },
+            },
+        })
     }
 }
 
-// Type definition for Refund Response
-
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
     Processing,
 }
 
-// Default should be Processing
 impl Default for RefundStatus {
     fn default() -> Self {
         RefundStatus::Processing
@@ -195,26 +259,29 @@ impl From<self::RefundStatus> for enums::RefundStatus {
             self::RefundStatus::Succeeded => enums::RefundStatus::Success,
             self::RefundStatus::Failed => enums::RefundStatus::Failure,
             self::RefundStatus::Processing => enums::RefundStatus::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct CybersourceRefundResponse {}
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct CybersourceRefundResponse {
+    pub id: String,
+    pub status: RefundStatus,
+}
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(types::RouterData {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
     }
 }
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CybersourceErrorResponse {}

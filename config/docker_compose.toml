@@ -76,4 +76,4 @@ base_url = "https://apple-pay-gateway.apple.com/"
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource"]

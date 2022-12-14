@@ -273,6 +273,7 @@ async fn get_tracker_for_sync<
             connector_response,
             currency,
             amount,
+            email: None,
             mandate_id: None,
             setup_mandate: None,
             token: None,
