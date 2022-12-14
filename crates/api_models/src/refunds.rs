@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::enums;
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
     pub refund_id: Option<String>,
@@ -10,9 +10,16 @@ pub struct RefundRequest {
     pub merchant_id: Option<String>,
     pub amount: Option<i32>,
     pub reason: Option<String>,
-    //FIXME: Make it refund_type instant or scheduled refund
-    pub force_process: Option<bool>,
+    pub refund_type: Option<RefundType>,
     pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefundType {
+    #[default]
+    Scheduled,
+    Instant,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]

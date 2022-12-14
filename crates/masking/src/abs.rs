@@ -40,18 +40,3 @@ where
         self.inner_secret
     }
 }
-
-// impl<S> ExposeInterface<Option<&S>> for Option<Secret<S>>
-// where
-//     S: ZeroizableSecret,
-//     Secret<S> : ExposeInterface<S>,
-// {
-//     fn expose(&self) -> &Option<&S> {
-//       if let Some( ref val ) = self {
-//           &Some( val.peek() )
-//       } else {
-//           &None
-//       }
-//       // &None
-//     }
-// }

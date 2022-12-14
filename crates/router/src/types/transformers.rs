@@ -110,6 +110,16 @@ impl From<F<storage_enums::ConnectorType>> for F<api_enums::ConnectorType> {
     }
 }
 
+impl From<F<api_models::refunds::RefundType>> for F<storage_enums::RefundType> {
+    fn from(item: F<api_models::refunds::RefundType>) -> Self {
+        match item.0 {
+            api_models::refunds::RefundType::Instant => storage_enums::RefundType::InstantRefund,
+            api_models::refunds::RefundType::Scheduled => storage_enums::RefundType::RegularRefund,
+        }
+        .into()
+    }
+}
+
 impl From<F<storage_enums::MandateStatus>> for F<api_enums::MandateStatus> {
     fn from(status: F<storage_enums::MandateStatus>) -> Self {
         Foreign(frunk::labelled_convert_from(status.0))

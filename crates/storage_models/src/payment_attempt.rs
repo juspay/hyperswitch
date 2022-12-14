@@ -36,6 +36,7 @@ pub struct PaymentAttempt {
     pub amount_to_capture: Option<i32>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+    pub error_code: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -70,6 +71,7 @@ pub struct PaymentAttemptNew {
     pub amount_to_capture: Option<i32>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +111,7 @@ pub enum PaymentAttemptUpdate {
     ErrorUpdate {
         connector: Option<String>,
         status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
         error_message: Option<String>,
     },
 }
@@ -130,6 +133,7 @@ pub struct PaymentAttemptUpdateInternal {
     redirect: Option<bool>,
     mandate_id: Option<String>,
     browser_info: Option<serde_json::Value>,
+    error_code: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -226,11 +230,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
+                error_code,
                 error_message,
             } => Self {
                 connector,
                 status: Some(status),
                 error_message,
+                error_code,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },

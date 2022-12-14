@@ -356,6 +356,7 @@ where
                 .capture_method
                 .map(ForeignInto::foreign_into),
             error_message: payment_attempt.error_message,
+            error_code: payment_attempt.error_code,
             payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
             email: customer
                 .as_ref()

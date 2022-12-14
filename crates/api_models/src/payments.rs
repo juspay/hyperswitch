@@ -399,7 +399,7 @@ pub struct PaymentsResponse {
     pub statement_descriptor_suffix: Option<String>,
     pub next_action: Option<NextAction>,
     pub cancellation_reason: Option<String>,
-    pub error_code: Option<String>, //TODO: Add error code column to the database
+    pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
 
