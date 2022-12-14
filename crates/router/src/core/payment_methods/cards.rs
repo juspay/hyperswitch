@@ -81,7 +81,9 @@ pub async fn add_payment_method(
                 payment_method_issuer_code: req.payment_method_issuer_code,
                 recurring_enabled: false,           //TODO
                 installment_payment_enabled: false, //TODO
-                payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO
+                payment_experience: Some(vec![
+                    api_models::payment_methods::PaymentExperience::RedirectToUrl,
+                ]), //TODO
             })
         }
     }
@@ -485,7 +487,9 @@ pub async fn list_customer_payment_method(
                 .map(ForeignInto::foreign_into),
             recurring_enabled: false,
             installment_payment_enabled: false,
-            payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO chnage to enum
+            payment_experience: Some(vec![
+                api_models::payment_methods::PaymentExperience::RedirectToUrl,
+            ]),
             created: Some(pm.created_at),
         };
         vec.push(pma);
@@ -674,9 +678,11 @@ pub async fn retrieve_payment_method(
         metadata: None, // TODO add in addCard api
         created: Some(pm.created_at),
         payment_method_issuer_code: pm.payment_method_issuer_code.map(ForeignInto::foreign_into),
-        recurring_enabled: false,                                      //TODO
-        installment_payment_enabled: false,                            //TODO
-        payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO,
+        recurring_enabled: false,           //TODO
+        installment_payment_enabled: false, //TODO
+        payment_experience: Some(vec![
+            api_models::payment_methods::PaymentExperience::RedirectToUrl,
+        ]), //TODO,
     }))
 }
 
