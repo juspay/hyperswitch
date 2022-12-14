@@ -6,10 +6,10 @@ pub trait Connector {
     async fn verify_payment(&self, payment_id: u64) -> types::Verify;
 }
 
-pub struct Stripe;
+pub struct FakeStripe;
 
 #[async_trait::async_trait]
-impl Connector for Stripe {
+impl Connector for FakeStripe {
     async fn create_payment(&self, payment: types::NewPayment) -> types::Payment {
         types::Payment { id: 0, amount: payment.amount }
     }
