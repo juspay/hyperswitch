@@ -131,7 +131,6 @@ where
         )
         .await?;
 
-    println!("hola {:?}", payment_data.payment_attempt);
     operation
         .to_domain()?
         .add_task_to_process_tracker(state, &payment_data.payment_attempt)
