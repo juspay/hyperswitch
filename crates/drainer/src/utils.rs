@@ -58,10 +58,8 @@ pub async fn trim_from_stream(
 
     // Since xtrim deletes entires below given id excluding the given id.
     // Hence, deleting the minimum entry id
-    let redis_key = fred::RedisKey::from(minimum_entry_id);
-    let multiple_keys = fred::MultipleKeys::from(redis_key);
-    let _ = redis
-        .stream_delete_entries(stream_name, multiple_keys)
+    redis
+        .stream_delete_entries(stream_name, minimum_entry_id)
         .await
         .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
 
@@ -82,9 +80,8 @@ pub async fn get_stream_length(
     redis: &redis::RedisConnectionPool,
     stream_name: &str,
 ) -> Result<usize, DrainerError> {
-    let redis_key = fred::RedisKey::from(stream_name);
     let length = redis
-        .stream_get_length(redis_key)
+        .stream_get_length(stream_name)
         .await
         .map_err(|_| DrainerError::StreamGetLengthError(stream_name.to_owned()))?;
     Ok(length)
