@@ -367,6 +367,7 @@ pub struct PaymentsResponse {
     pub amount: i32,
     pub amount_capturable: Option<i32>,
     pub amount_received: Option<i32>,
+    pub connector: Option<String>,
     pub client_secret: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
