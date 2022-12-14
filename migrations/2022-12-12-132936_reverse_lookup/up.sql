@@ -4,4 +4,6 @@ CREATE TABLE reverse_lookup (
     pk_id VARCHAR(255) NOT NULL, 
     result_id VARCHAR(255) NOT NULL,
     source VARCHAR(30) NOT NULL
-)
+);
+
+CREATE INDEX lookup_id_index ON reverse_lookup (lookup_id);
