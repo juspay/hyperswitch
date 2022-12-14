@@ -245,7 +245,7 @@ pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
 }
 
-#[derive(Debug, serde::Serialize)] //FIXME yet to be implemented
+#[derive(Debug, serde::Serialize)] // Requirement : basilisk
 pub struct DeleteTokenizeByDateRequest {
     pub buffer_minutes: i32,
     pub service_name: String,
