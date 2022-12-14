@@ -1,4 +1,4 @@
-use std::num::NonZeroI32;
+use std::num::NonZeroI64;
 
 use common_utils::pii;
 use masking::{PeekInterface, Secret};
@@ -55,7 +55,7 @@ pub struct PaymentsRequest {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
-    Value(NonZeroI32),
+    Value(NonZeroI64),
     #[default]
     Zero,
 }
@@ -63,14 +63,21 @@ pub enum Amount {
 impl From<Amount> for i32 {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(val) => val.get(),
+            Amount::Value(val) => val.get() as i32,
             Amount::Zero => 0,
         }
     }
 }
+
 impl From<i32> for Amount {
     fn from(val: i32) -> Self {
-        NonZeroI32::new(val).map_or(Amount::Zero, Amount::Value)
+        NonZeroI64::new(val as i64).map_or(Amount::Zero, Amount::Value)
+    }
+}
+
+impl From<i64> for Amount {
+    fn from(val: i64) -> Self {
+        NonZeroI64::new(val).map_or(Amount::Zero, Amount::Value)
     }
 }
 
@@ -802,7 +809,7 @@ mod amount {
         where
             E: de::Error,
         {
-            Ok(Amount::from(v as i32))
+            Ok(Amount::from(v))
         }
     }
 

@@ -235,7 +235,7 @@ pub fn validate_request_amount_and_amount_to_capture(
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
                     utils::when(
-                        !amount_to_capture.le(&amount_inner.get()),
+                        !amount_to_capture.le(&(amount_inner.get() as i32)),
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
                             "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
