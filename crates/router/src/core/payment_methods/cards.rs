@@ -26,17 +26,18 @@ pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::CreatePaymentMethod,
     customer_id: String,
-    payment_method_id: String,
+    payment_method_id: &str,
     merchant_id: &str,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id,
             merchant_id: merchant_id.to_string(),
-            payment_method_id,
+            payment_method_id: payment_method_id.to_string(),
             payment_method: req.payment_method.foreign_into(),
             payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: req.payment_method_issuer.clone(),
+            metadata: req.metadata.clone(),
             ..storage::PaymentMethodNew::default()
         })
         .await?;
@@ -59,19 +60,20 @@ pub async fn add_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
         None => {
+            let payment_method_id = uuid::Uuid::new_v4().to_string();
             create_payment_method(
                 &*state.store,
                 &req,
                 customer_id,
-                "payment_method_id".to_owned(),
+                &payment_method_id,
                 &merchant_id,
-            ) //TODO where will we get this for other payment_method
+            )
             .await
             .map_err(|error| {
                 error.to_duplicate_response(errors::ApiErrorResponse::DuplicatePaymentMethod)
             })?;
             Ok(api::PaymentMethodResponse {
-                payment_method_id: String::from("payment_method_id"),
+                payment_method_id: payment_method_id.to_string(),
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 payment_method_issuer: req.payment_method_issuer,
@@ -88,6 +90,39 @@ pub async fn add_payment_method(
         }
     }
     .map(services::BachResponse::Json)
+}
+
+#[instrument(skip_all)]
+pub async fn update_customer_payment_method(
+    state: &routes::AppState,
+    merchant_account: storage::MerchantAccount,
+    req: api::UpdatePaymentMethod,
+    payment_method_id: &str,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let db = &*state.store;
+    let pm = db
+        .delete_payment_method_by_merchant_id_payment_method_id(
+            &merchant_account.merchant_id,
+            payment_method_id,
+        )
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
+    if pm.payment_method == enums::PaymentMethodType::Card {
+        delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
+    };
+    let new_pm = api::CreatePaymentMethod {
+        merchant_id: Some(merchant_account.merchant_id.clone()),
+        payment_method: pm.payment_method.foreign_into(),
+        payment_method_type: pm.payment_method_type.map(|x| x.foreign_into()),
+        payment_method_issuer: pm.payment_method_issuer,
+        payment_method_issuer_code: pm.payment_method_issuer_code.map(|x| x.foreign_into()),
+        card: req.card,
+        metadata: req.metadata,
+        customer_id: Some(pm.customer_id),
+    };
+    add_payment_method(state, new_pm, merchant_account.merchant_id).await
 }
 
 #[instrument(skip_all)]
@@ -126,7 +161,7 @@ pub async fn add_card(
         db,
         &req,
         customer_id.to_string(),
-        response.card_id.to_owned(),
+        &response.card_id,
         merchant_id,
     )
     .await
@@ -481,7 +516,7 @@ pub async fn list_customer_payment_method(
             payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: pm.payment_method_issuer,
             card,
-            metadata: None,
+            metadata: pm.metadata,
             payment_method_issuer_code: pm
                 .payment_method_issuer_code
                 .map(ForeignInto::foreign_into),
@@ -675,7 +710,7 @@ pub async fn retrieve_payment_method(
         payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
         payment_method_issuer: pm.payment_method_issuer,
         card,
-        metadata: None, // TODO add in addCard api
+        metadata: pm.metadata,
         created: Some(pm.created_at),
         payment_method_issuer_code: pm.payment_method_issuer_code.map(ForeignInto::foreign_into),
         recurring_enabled: false,           //TODO
