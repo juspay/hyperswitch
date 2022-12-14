@@ -43,6 +43,7 @@ http = "0.2.8"
 josekit = "0.8.1"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
+mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
 nanoid = "0.4.0"
 once_cell = "1.16.0"
@@ -62,7 +63,6 @@ time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
-mimalloc = { version = "0.1", optional = true }
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
