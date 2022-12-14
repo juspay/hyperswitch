@@ -66,7 +66,7 @@ pub enum Auth3ds {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
-    pub amount: i32, //amount in cents, hence passed as integer
+    pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
     pub statement_descriptor_suffix: Option<String>,
     #[serde(rename = "metadata[order_id]")]
@@ -310,9 +310,9 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
-    pub amount: i32,
-    pub amount_received: i32,
-    pub amount_capturable: i32,
+    pub amount: i64,
+    pub amount_received: i64,
+    pub amount_capturable: i64,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Secret<String>,
@@ -476,7 +476,7 @@ pub struct StripeRedirectToUrlResponse {
 
 #[derive(Default, Debug, Serialize)]
 pub struct RefundRequest {
-    pub amount: Option<i32>, //amount in cents, hence passed as integer
+    pub amount: Option<i64>, //amount in cents, hence passed as integer
     pub payment_intent: String,
     #[serde(rename = "metadata[order_id]")]
     pub metadata_order_id: String,
@@ -535,7 +535,7 @@ impl From<self::RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     pub id: String,
     pub object: String,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: String,
     pub metadata: StripeMetadata,
     pub payment_intent: String,
@@ -673,7 +673,7 @@ pub struct StripeMandateOptions {
 #[derive(Debug, Serialize, Clone, Copy)]
 pub struct CaptureRequest {
     /// If amount_to_capture is None stripe captures the amount in the payment intent.
-    amount_to_capture: Option<i32>,
+    amount_to_capture: Option<i64>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {

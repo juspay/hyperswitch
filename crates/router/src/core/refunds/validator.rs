@@ -41,11 +41,11 @@ pub fn validate_success_transaction(
 //todo: max refund request count
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
-    payment_attempt_amount: i32, // &storage::PaymentAttempt,
+    payment_attempt_amount: i64, // &storage::PaymentAttempt,
     all_refunds: &[storage::Refund],
-    refund_amount: i32,
+    refund_amount: i64,
 ) -> CustomResult<(), RefundValidationError> {
-    let total_refunded_amount: i32 = all_refunds
+    let total_refunded_amount: i64 = all_refunds
         .iter()
         .filter_map(|refund| {
             if refund.refund_status != enums::RefundStatus::Failure

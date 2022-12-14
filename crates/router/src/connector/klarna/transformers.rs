@@ -14,7 +14,7 @@ pub struct KlarnaSessionRequest {
     purchase_country: String,
     purchase_currency: enums::Currency,
     locale: String,
-    order_amount: i32,
+    order_amount: i64,
     order_lines: Vec<OrderLines>,
 }
 
@@ -68,8 +68,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
 pub struct OrderLines {
     name: String,
     quantity: u64,
-    unit_price: i32,
-    total_amount: i32,
+    unit_price: i64,
+    total_amount: i64,
 }
 
 #[derive(Serialize)]

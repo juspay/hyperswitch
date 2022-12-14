@@ -168,6 +168,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             disabled: t.disabled,
             merchant_connector_id: t.merchant_connector_id.unwrap_or_default(),
             payment_methods_enabled: t.payment_methods_enabled,
+            metadata: t.metadata,
             connector_type: t
                 .connector_type
                 .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),

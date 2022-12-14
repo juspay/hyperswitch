@@ -113,10 +113,10 @@ impl From<Shipping> for Address {
 }
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
 pub(crate) struct StripePaymentIntentRequest {
-    pub(crate) amount: Option<i32>, //amount in cents, hence passed as integer
+    pub(crate) amount: Option<i64>, //amount in cents, hence passed as integer
     pub(crate) currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
-    pub(crate) amount_capturable: Option<i32>,
+    pub(crate) amount_capturable: Option<i64>,
     pub(crate) confirm: Option<bool>,
     pub(crate) capture_method: Option<api_enums::CaptureMethod>,
     pub(crate) customer: Option<String>,
@@ -244,16 +244,16 @@ impl From<StripePaymentCancelRequest> for PaymentsCancelRequest {
 
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
 pub(crate) struct StripeCaptureRequest {
-    pub(crate) amount_to_capture: Option<i32>,
+    pub(crate) amount_to_capture: Option<i64>,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
 pub(crate) struct StripePaymentIntentResponse {
     pub(crate) id: Option<String>,
     pub(crate) object: String,
-    pub(crate) amount: i32,
-    pub(crate) amount_received: Option<i32>,
-    pub(crate) amount_capturable: Option<i32>,
+    pub(crate) amount: i64,
+    pub(crate) amount_received: Option<i64>,
+    pub(crate) amount_capturable: Option<i64>,
     pub(crate) currency: String,
     pub(crate) status: StripePaymentStatus,
     pub(crate) client_secret: Option<Secret<String>>,
