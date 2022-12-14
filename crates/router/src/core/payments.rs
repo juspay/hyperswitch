@@ -39,7 +39,6 @@ use crate::{
     utils::{self, OptionExt},
 };
 
-#[instrument(skip_all)]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -132,6 +131,7 @@ where
         )
         .await?;
 
+    println!("hola {:?}", payment_data.payment_attempt);
     operation
         .to_domain()?
         .add_task_to_process_tracker(state, &payment_data.payment_attempt)
@@ -522,15 +522,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     payment_data: &PaymentData<F>,
 ) -> bool {
     match format!("{:?}", operation).as_str() {
-        "PaymentConfirm" => {
-            payment_data
-                .payment_attempt
-                .authentication_type
-                .unwrap_or_default()
-                == enums::AuthenticationType::NoThreeDs
-                || payment_data.payment_attempt.payment_method
-                    == Some(enums::PaymentMethodType::PayLater)
-        }
+        "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(
                 payment_data.payment_intent.status,
