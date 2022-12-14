@@ -63,9 +63,7 @@ mod tests {
     async fn payment_create2() {
         let mut connector = MockConnector::new();
 
-        connector
-            .expect_create_payment()
-            .return_once(move |new| Payment { id: 42, amount: new.amount });
+        connector.expect_create_payment().return_once(|new| Payment { id: 42, amount: new.amount });
         connector.expect_verify_payment().return_once(move |_| Verify::Ok);
 
         let connector = Data::new(connector);
