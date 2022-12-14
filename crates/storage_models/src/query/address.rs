@@ -70,7 +70,7 @@ impl Address {
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::customer_id.eq(customer_id.to_owned())),
-            AddressUpdateInternal::from(address)
+            AddressUpdateInternal::from(address),
         )
         .await
     }

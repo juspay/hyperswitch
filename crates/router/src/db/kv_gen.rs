@@ -31,17 +31,19 @@ pub struct TypedSql {
 
 impl TypedSql {
     pub fn to_field_value_pairs(&self) -> Vec<(&str, String)> {
-        vec![("typedsql", serde_json::to_string(self).unwrap())]
+        vec![("typed_sql", serde_json::to_string(self).unwrap())]
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "table", content = "data")]
 pub enum Insertables {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "table", content = "data")]
 pub enum Updateables {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),

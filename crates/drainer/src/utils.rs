@@ -17,19 +17,8 @@ pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::
         .set_key_if_not_exist(stream_key_flag.as_str(), value)
         .await
     {
-        Ok(resp) => {
-            if resp == redis::types::SetnxReply::KeySet {
-                true
-            } else {
-                println!("is_stream_available Ok False {}", stream_key_flag);
-                false
-            }
-        }
-        Err(e) => {
-            println!(
-                "is_stream_available Error stream_key {} {:?}",
-                stream_key_flag, e
-            );
+        Ok(resp) => resp == redis::types::SetnxReply::KeySet,
+        Err(_e) => {
             // Add metrics or logs
             false
         }
@@ -38,24 +27,16 @@ pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::
 
 pub async fn read_from_stream(
     stream_name: &str,
-    read_count: usize,
+    max_read_count: u64,
     redis: &redis::RedisConnectionPool,
 ) -> Result<StreamReadResult, DrainerError> {
-    println!(
-        "read_from_stream stream_name :{} ,read_count:{}",
-        stream_name, read_count
-    );
     let stream_key = fred::MultipleKeys::from(stream_name);
     // "0-0" id gives first entry
     let stream_id = fred::XID::Manual("0-0".into());
     let entries = redis
-        .stream_read_entries(stream_key, stream_id, Some(100))
+        .stream_read_entries(stream_key, stream_id, Some(max_read_count))
         .await
-        .map_err(|e| {
-            println!("{:?}", e);
-            DrainerError::StreamReadError(stream_name.to_owned())
-        })?;
-    println!("ENTRIES {:?}", entries);
+        .map_err(|_| DrainerError::StreamReadError(stream_name.to_owned()))?;
     Ok(entries)
 }
 
@@ -71,7 +52,7 @@ pub async fn trim_from_stream(
         .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
 
     let trim_result = redis
-        .stream_trim_entries(&stream_name, xcap)
+        .stream_trim_entries(stream_name, xcap)
         .await
         .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
 
@@ -80,7 +61,7 @@ pub async fn trim_from_stream(
     let redis_key = fred::RedisKey::from(minimum_entry_id);
     let multiple_keys = fred::MultipleKeys::from(redis_key);
     let _ = redis
-        .stream_delete_entries(&stream_name, multiple_keys)
+        .stream_delete_entries(stream_name, multiple_keys)
         .await
         .map_err(|_| DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
 
@@ -113,7 +94,6 @@ pub fn parse_stream_entries<'a>(
     read_result: &'a StreamReadResult,
     stream_name: &str,
 ) -> Result<(&'a StreamEntries, String), DrainerError> {
-    println!("parse_stream_entries");
     if let Some(entries) = read_result.get(stream_name) {
         if let Some(last_entry) = entries.last() {
             Ok((entries, last_entry.0.clone()))

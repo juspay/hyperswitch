@@ -35,7 +35,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _,_>(
+        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::payment_id
                 .eq(self.payment_id.to_owned())

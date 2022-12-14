@@ -38,7 +38,9 @@ pub struct PaymentAttempt {
     pub browser_info: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptNew {
     pub payment_id: String,
