@@ -60,18 +60,17 @@ pub trait RefundInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::{IntoReport, Report};
-    use storage_models::errors::DatabaseError;
+    use error_stack::IntoReport;
 
-    use super::MockDb;
     use crate::{
         connection::pg_connection,
-        core::errors::{self, CustomResult, StorageError},
+        core::errors::{self, CustomResult},
+        services::Store,
         types::storage::{self as storage_types, enums},
     };
 
     #[async_trait::async_trait]
-    impl super::RefundInterface for super::Store {
+    impl super::RefundInterface for Store {
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -155,7 +154,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+            storage_types::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -210,7 +209,7 @@ mod storage {
                         .split("_mer")
                         .next()
                         .ok_or(errors::StorageError::KVError)?;
-                    let field = format!("pa_{}_ref_{}", payment_id, refund_id);
+                    let field = format!("pa_{}_ref_{}", payment_id, &lookup.pk_id);
 
                     self.redis_conn
                         .pool
