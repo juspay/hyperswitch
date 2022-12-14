@@ -67,7 +67,7 @@ enum PaymentDetails {
 #[serde(rename_all = "camelCase")]
 struct TransactionRequest {
     transaction_type: TransactionType,
-    amount: i32,
+    amount: i64,
     currency_code: String,
     payment: PaymentDetails,
     authorization_indicator_type: Option<AuthorizationIndicator>,
@@ -315,7 +315,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 struct RefundTransactionRequest {
     transaction_type: TransactionType,
-    amount: i32,
+    amount: i64,
     currency_code: String,
     payment: PaymentDetails,
     #[serde(rename = "refTransId")]

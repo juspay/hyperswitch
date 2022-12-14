@@ -224,7 +224,7 @@ pub fn validate_merchant_id(
 #[instrument(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
-    op_amount_to_capture: Option<i32>,
+    op_amount_to_capture: Option<i64>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match (op_amount, op_amount_to_capture) {
         (None, _) => Ok(()),
@@ -235,7 +235,7 @@ pub fn validate_request_amount_and_amount_to_capture(
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
                     utils::when(
-                        !amount_to_capture.le(&amount_inner),
+                        !amount_to_capture.le(&amount_inner.get()),
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
                             "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
@@ -359,7 +359,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 }
 
 pub fn verify_mandate_details(
-    request_amount: i32,
+    request_amount: i64,
     request_currency: String,
     mandate: storage::Mandate,
 ) -> RouterResult<()> {
@@ -898,8 +898,8 @@ pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResu
 
 #[instrument(skip_all)]
 pub(crate) fn validate_amount_to_capture(
-    amount: i32,
-    amount_to_capture: Option<i32>,
+    amount: i64,
+    amount_to_capture: Option<i64>,
 ) -> RouterResult<()> {
     utils::when(
         amount_to_capture.is_some() && (Some(amount) < amount_to_capture),

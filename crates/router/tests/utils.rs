@@ -112,7 +112,7 @@ impl AppClient<User> {
     pub async fn create_payment<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
-        amount: i32,
+        amount: i64,
         amount_to_capture: i32,
     ) -> T
     where
@@ -353,7 +353,7 @@ fn mk_merchant_account(merchant_id: Option<String>) -> Value {
     })
 }
 
-fn mk_payment(amount: i32, amount_to_capture: i32) -> Value {
+fn mk_payment(amount: i64, amount_to_capture: i32) -> Value {
     json!({
       "amount": amount,
       "currency": "USD",

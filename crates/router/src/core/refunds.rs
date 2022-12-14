@@ -339,7 +339,7 @@ pub async fn validate_and_create_refund(
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    refund_amount: i32,
+    refund_amount: i64,
     req: refunds::RefundRequest,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
@@ -459,7 +459,7 @@ fn mk_new_refund(
     currency: enums::Currency,
     refund_id: &str,
     merchant_id: &str,
-    refund_amount: i32,
+    refund_amount: i64,
 ) -> storage::RefundNew {
     let current_time = common_utils::date_time::now();
     let connecter_transaction_id = match &payment_attempt.connector_transaction_id {

@@ -1,3 +1,5 @@
+use std::num::NonZeroI64;
+
 use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -22,7 +24,7 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
     pub currency: Option<String>,
     pub capture_method: Option<api_enums::CaptureMethod>,
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: Option<bool>,
@@ -53,25 +55,23 @@ pub struct PaymentsRequest {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
-    Value(i32),
+    Value(NonZeroI64),
     #[default]
     Zero,
 }
 
-impl From<Amount> for i32 {
+impl From<Amount> for i64 {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(v) => v,
+            Amount::Value(val) => val.get(),
             Amount::Zero => 0,
         }
     }
 }
-impl From<i32> for Amount {
-    fn from(val: i32) -> Self {
-        match val {
-            0 => Amount::Zero,
-            amount => Amount::Value(amount),
-        }
+
+impl From<i64> for Amount {
+    fn from(val: i64) -> Self {
+        NonZeroI64::new(val).map_or(Amount::Zero, Amount::Value)
     }
 }
 
@@ -138,13 +138,13 @@ pub struct MandateData {
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: api_enums::Currency,
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: api_enums::Currency,
 }
 
@@ -329,7 +329,7 @@ pub struct PhoneDetails {
 pub struct PaymentsCaptureRequest {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     pub refund_uncaptured_amount: Option<bool>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_prefix: Option<String>,
@@ -364,9 +364,9 @@ pub struct PaymentsResponse {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
     pub status: api_enums::IntentStatus,
-    pub amount: i32,
-    pub amount_capturable: Option<i32>,
-    pub amount_received: Option<i32>,
+    pub amount: i64,
+    pub amount_capturable: Option<i64>,
+    pub amount_received: Option<i64>,
     pub connector: Option<String>,
     pub client_secret: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -656,7 +656,7 @@ pub struct PgRedirectResponse {
     pub status: api_enums::IntentStatus,
     pub gateway_id: String,
     pub customer_id: Option<String>,
-    pub amount: Option<i32>,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
@@ -844,10 +844,7 @@ mod amount {
         where
             E: de::Error,
         {
-            Ok(match v {
-                0 => Amount::Zero,
-                amount => Amount::Value(amount as i32),
-            })
+            Ok(Amount::from(v))
         }
     }
 
