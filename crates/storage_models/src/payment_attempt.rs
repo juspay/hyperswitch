@@ -96,6 +96,7 @@ pub enum PaymentAttemptUpdate {
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
+        connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
@@ -106,6 +107,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
     },
     ErrorUpdate {
+        connector: Option<String>,
         status: storage_enums::AttemptStatus,
         error_message: Option<String>,
     },
@@ -203,6 +205,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
+                connector,
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -210,6 +213,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 mandate_id,
             } => Self {
                 status: Some(status),
+                connector,
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -219,9 +223,11 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
+                connector,
                 status,
                 error_message,
             } => Self {
+                connector,
                 status: Some(status),
                 error_message,
                 modified_at: Some(common_utils::date_time::now()),
