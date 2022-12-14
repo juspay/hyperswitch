@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self};
+use super::generics;
 use crate::{
     errors,
     locker_mock_up::{LockerMockUp, LockerMockUpNew},

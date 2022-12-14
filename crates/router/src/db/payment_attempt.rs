@@ -311,10 +311,7 @@ mod storage {
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        db::kv_gen::{
-            DBOperation, InsertData, Insertables, PaymentAttemptUpdateMems, TypedSql, UpdateData,
-            Updateables,
-        },
+        db::kv_gen,
         services::Store,
         types::storage::{enums, payment_attempt::*},
         utils::storage_partitioning::KvStorePartition,
@@ -386,9 +383,11 @@ mod storage {
                         ))
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
-                            let redis_entry = TypedSql {
-                                op: DBOperation::Insert(InsertData {
-                                    insertable: Insertables::PaymentAttempt(payment_attempt),
+                            let redis_entry = kv_gen::TypedSql {
+                                op: kv_gen::DBOperation::Insert(kv_gen::InsertData {
+                                    insertable: kv_gen::Insertables::PaymentAttempt(
+                                        payment_attempt,
+                                    ),
                                 }),
                             };
                             let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(
@@ -444,10 +443,10 @@ mod storage {
                         .map(|_| updated_attempt)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let redis_entry = TypedSql {
-                        op: DBOperation::Update(UpdateData {
-                            updateable: Updateables::PaymentAttemptUpdate(
-                                PaymentAttemptUpdateMems {
+                    let redis_entry = kv_gen::TypedSql {
+                        op: kv_gen::DBOperation::Update(kv_gen::UpdateData {
+                            updateable: kv_gen::Updateables::PaymentAttemptUpdate(
+                                kv_gen::PaymentAttemptUpdateMems {
                                     orig: this,
                                     update_data: payment_attempt,
                                 },

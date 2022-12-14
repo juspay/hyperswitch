@@ -163,7 +163,7 @@ impl Config {
         } else {
             let config_directory = std::env::var(CONFIG_DIR).unwrap_or_else(|_| "config".into());
             let config_file_name = match environment {
-                "Production" => "Development.toml",
+                "Production" => "Production.toml",
                 "Sandbox" => "Sandbox.toml",
                 _ => "Development.toml",
             };

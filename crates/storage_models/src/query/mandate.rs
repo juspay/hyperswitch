@@ -2,7 +2,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self};
+use super::generics;
 use crate::{errors, mandate::*, schema::mandate::dsl, CustomResult, PgPooledConn};
 
 impl MandateNew {

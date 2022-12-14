@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self};
+use super::generics;
 use crate::{
     address::{Address, AddressNew, AddressUpdate, AddressUpdateInternal},
     errors,

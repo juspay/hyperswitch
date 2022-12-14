@@ -47,10 +47,7 @@ mod storage {
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        db::kv_gen::{
-            DBOperation, InsertData, Insertables, PaymentIntentUpdateMems, TypedSql, UpdateData,
-            Updateables,
-        },
+        db::kv_gen,
         services::Store,
         types::{
             api,
@@ -109,9 +106,9 @@ mod storage {
                         ))
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
-                            let redis_entry = TypedSql {
-                                op: DBOperation::Insert(InsertData {
-                                    insertable: Insertables::PaymentIntent(new),
+                            let redis_entry = kv_gen::TypedSql {
+                                op: kv_gen::DBOperation::Insert(kv_gen::InsertData {
+                                    insertable: kv_gen::Insertables::PaymentIntent(new),
                                 }),
                             };
                             let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
@@ -167,12 +164,14 @@ mod storage {
                         .map(|_| updated_intent)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let redis_entry = TypedSql {
-                        op: DBOperation::Update(UpdateData {
-                            updateable: Updateables::PaymentIntentUpdate(PaymentIntentUpdateMems {
-                                orig: this,
-                                update_data: payment_intent,
-                            }),
+                    let redis_entry = kv_gen::TypedSql {
+                        op: kv_gen::DBOperation::Update(kv_gen::UpdateData {
+                            updateable: kv_gen::Updateables::PaymentIntentUpdate(
+                                kv_gen::PaymentIntentUpdateMems {
+                                    orig: this,
+                                    update_data: payment_intent,
+                                },
+                            ),
                         }),
                     };
 

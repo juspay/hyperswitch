@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self};
+use super::generics;
 use crate::{
     errors,
     merchant_connector_account::{

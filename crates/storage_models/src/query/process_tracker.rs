@@ -9,7 +9,7 @@ use router_env::{
 };
 use time::PrimitiveDateTime;
 
-use super::generics::{self};
+use super::generics;
 use crate::{
     enums, errors,
     process_tracker::{

@@ -1,7 +1,7 @@
 use diesel::associations::HasTable;
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self};
+use super::generics;
 use crate::{
     configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal},
     errors, CustomResult, PgPooledConn,
