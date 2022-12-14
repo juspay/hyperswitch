@@ -67,12 +67,12 @@ impl Request {
         self.content_type = Some(content_type);
     }
 
-    pub fn add_certificate(&mut self, certificate: String) {
-        self.certificate = Some(certificate);
+    pub fn add_certificate(&mut self, certificate: Option<String>) {
+        self.certificate = certificate;
     }
 
-    pub fn add_certificate_key(&mut self, certificate_key: String) {
-        self.certificate = Some(certificate_key);
+    pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
+        self.certificate = certificate_key;
     }
 }
 
@@ -131,13 +131,13 @@ impl RequestBuilder {
         self
     }
 
-    pub fn add_certificate(mut self, certificate: String) -> RequestBuilder {
-        self.certificate = Some(certificate);
+    pub fn add_certificate(mut self, certificate: Option<String>) -> RequestBuilder {
+        self.certificate = certificate;
         self
     }
 
-    pub fn add_certificate_key(mut self, certificate_key: String) -> RequestBuilder {
-        self.certificate_key = Some(certificate_key);
+    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> RequestBuilder {
+        self.certificate_key = certificate_key;
         self
     }
 

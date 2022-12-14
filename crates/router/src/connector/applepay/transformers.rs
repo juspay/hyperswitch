@@ -1,4 +1,5 @@
-use error_stack::{IntoReport, ResultExt};
+use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
 use masking::{Deserialize, Serialize};
 
 use crate::{core::errors, types, utils::OptionExt};
@@ -54,8 +55,8 @@ impl TryFrom<&types::PaymentsSessionRouterData> for ApplepaySessionRequest {
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let session_object: SessionObject = serde_json::from_value(metadata)
-            .into_report()
+        let session_object: SessionObject = metadata
+            .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Self {

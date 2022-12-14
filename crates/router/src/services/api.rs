@@ -108,15 +108,15 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationExt<T, Req, Re
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(String::new())
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
     }
 
     fn get_certificate_key(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(String::new())
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
     }
 }
 

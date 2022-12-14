@@ -5,7 +5,6 @@ use error_stack::{IntoReport, ResultExt};
 use crate::{
     configs::settings::{Locker, Proxy},
     core::errors::{self, CustomResult},
-    utils::OptionExt,
 };
 
 const HTTP_PROXY: &str = "ROUTER_HTTP_PROXY";
@@ -61,40 +60,36 @@ pub(super) fn create_client(
         }
     }
 
-    if client_certificate.is_some() && client_certificate_key.is_some() {
-        let encoded_cert = client_certificate
-            .get_required_value("client_certificate")
-            .change_context(errors::ApiClientError::InternalServerErrorReceived)
-            .attach_printable("Failed to get certificate")?;
-
-        let encoded_cert_key = client_certificate_key
-            .get_required_value("client_certificate_key")
-            .change_context(errors::ApiClientError::InternalServerErrorReceived)
-            .attach_printable("Failed to get certificate key")?;
-
-        let decoded_cert = base64::decode(encoded_cert)
-            .into_report()
-            .change_context(errors::ApiClientError::ClientConstructionFailed)?;
-
-        let decoded_cert_key = base64::decode(encoded_cert_key)
-            .into_report()
-            .change_context(errors::ApiClientError::ClientConstructionFailed)?;
-
-        let certificate = String::from_utf8(decoded_cert)
-            .into_report()
-            .change_context(errors::ApiClientError::ClientConstructionFailed)?;
-
-        let certificate_key = String::from_utf8(decoded_cert_key)
-            .into_report()
-            .change_context(errors::ApiClientError::ClientConstructionFailed)?;
-
-        let identity =
-            reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
+    client_builder = match (client_certificate, client_certificate_key) {
+        (Some(encoded_cert), Some(encoded_cert_key)) => {
+            let decoded_cert = base64::decode(encoded_cert)
                 .into_report()
                 .change_context(errors::ApiClientError::ClientConstructionFailed)?;
 
-        client_builder = client_builder.identity(identity);
-    }
+            let decoded_cert_key = base64::decode(encoded_cert_key)
+                .into_report()
+                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+
+            let certificate = String::from_utf8(decoded_cert)
+                .into_report()
+                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+
+            let certificate_key = String::from_utf8(decoded_cert_key)
+                .into_report()
+                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+
+            let identity = reqwest::Identity::from_pkcs8_pem(
+                certificate.as_bytes(),
+                certificate_key.as_bytes(),
+            )
+            .into_report()
+            .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+
+            client_builder.identity(identity)
+        }
+        _ => client_builder,
+    };
+
     let duration = Duration::from_secs(request_time_out);
     client_builder = client_builder.timeout(duration);
 

@@ -3,17 +3,17 @@ mod transformers;
 use std::fmt::Debug;
 
 use bytes::Bytes;
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as applepay;
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     core::errors::{self, CustomResult},
     headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
     },
     utils::{self, BytesExt, OptionExt},
 };
@@ -26,7 +26,7 @@ impl api::ConnectorCommon for Applepay {
         "applepay"
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.applepay.base_url
     }
 }
@@ -103,7 +103,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsSessionRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -124,7 +124,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSessionRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -141,7 +141,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSessionRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
         let response: applepay::ApplepaySessionResponse = res
             .response
@@ -159,11 +159,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: applepay::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.status_code,
             message: response.status_message,
             reason: None,
@@ -173,35 +173,35 @@ impl
     fn get_certificate(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let metadata = req
             .connector_meta_data
             .to_owned()
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let session_object: transformers::SessionObject = serde_json::from_value(metadata)
-            .into_report()
+        let session_object: transformers::SessionObject = metadata
+            .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(session_object.certificate)
+        Ok(Some(session_object.certificate))
     }
 
     fn get_certificate_key(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let metadata = req
             .connector_meta_data
             .to_owned()
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let session_object: transformers::SessionObject = serde_json::from_value(metadata)
-            .into_report()
+        let session_object: transformers::SessionObject = metadata
+            .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(session_object.certificate_keys)
+        Ok(Some(session_object.certificate_keys))
     }
 }
 
