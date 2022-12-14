@@ -13,7 +13,7 @@ use diesel::{
         QueryId, UpdateStatement,
     },
     query_dsl::{
-        methods::{FilterDsl, FindDsl, LimitDsl},
+        methods::{FilterDsl, FindDsl, LimitDsl, OrderDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
@@ -669,6 +669,37 @@ where
     R: Send + 'static,
 {
     to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await)
+}
+
+#[instrument(level = "DEBUG", skip_all)]
+pub async fn generic_find_one_by_order_core<T, P, R, O>(
+    conn: &PgPooledConn,
+    predicate: P,
+    order_predicate: O,
+) -> CustomResult<R, errors::DatabaseError>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    <T as FilterDsl<P>>::Output:
+        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static + OrderDsl<O>,
+    <<T as FilterDsl<P>>::Output as OrderDsl<O>>::Output:
+        Send + QueryFragment<Pg> + LoadQuery<'static, PgConnection, R> + 'static,
+    R: Send + 'static,
+    O: diesel::Expression,
+{
+    let query = <T as HasTable>::table().filter(predicate);
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+    query
+        .order(order_predicate)
+        .get_result_async(conn)
+        .await
+        .into_report()
+        .map_err(|err| match err.current_context() {
+            ConnectionError::Query(DieselError::NotFound) => {
+                err.change_context(errors::DatabaseError::NotFound)
+            }
+            _ => err.change_context(errors::DatabaseError::Others),
+        })
+        .attach_printable_lazy(|| "Error finding record by predicate")
 }
 
 #[instrument(level = "DEBUG", skip_all)]
