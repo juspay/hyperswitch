@@ -535,7 +535,6 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
 pub async fn schedule_refund_execution(
     state: &AppState,
     refund: storage::Refund,
-    //FIXME: change to refund_Type here
     refund_type: api_models::refunds::RefundType,
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
@@ -556,7 +555,7 @@ pub async fn schedule_refund_execution(
         enums::RefundStatus::Pending | enums::RefundStatus::ManualReview => {
             match (refund.sent_to_gateway, refund_process) {
                 (false, None) => {
-                    // Execute
+                    // Execute the refund task based on refund_type
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_execute_task(db, &refund, runner)
@@ -578,7 +577,7 @@ pub async fn schedule_refund_execution(
                     }
                 }
                 _ => {
-                    // Sync status
+                    // Sync the refund for status check
                     //TODO: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
@@ -588,6 +587,8 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
+                            // FIXME: This is not possible in schedule_refund_execution as it will always be scheduled
+                            // FIXME: as a part of refactoring
                             // sync_refund_with_gateway(data, &refund).await
                             Ok(refund)
                         }

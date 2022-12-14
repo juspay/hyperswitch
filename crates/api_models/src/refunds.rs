@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use storage_models::enums as storage_enums;
 
 use crate::enums;
 
@@ -21,15 +20,6 @@ pub enum RefundType {
     #[default]
     Scheduled,
     Instant,
-}
-
-impl From<RefundType> for storage_enums::RefundType {
-    fn from(item: RefundType) -> Self {
-        match item {
-            RefundType::Instant => storage_enums::RefundType::InstantRefund,
-            RefundType::Scheduled => storage_enums::RefundType::RegularRefund,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
