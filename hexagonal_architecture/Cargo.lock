@@ -592,6 +592,7 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
+ "async-trait",
  "core",
  "dotenv",
  "envconfig",

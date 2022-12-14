@@ -1,10 +1,12 @@
 mod config;
+mod connector;
 mod routes;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
 use actix_web::{App, HttpServer};
-use router_core::connector::FakeStripe;
+
+use crate::connector::Stripe;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -25,7 +27,7 @@ fn mk_app() -> App<
         InitError = (),
     >,
 > {
-    let connector = FakeStripe {};
+    let connector = Stripe {};
     App::new().service(routes::payments::mk_service(connector)).service(routes::mk_service())
 }
 
