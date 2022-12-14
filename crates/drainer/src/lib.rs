@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
-use errors::DrainerError;
-use router::{connection::pg_connection, db::kv_gen, services::Store};
 pub mod errors;
 pub mod utils;
-use utils::*;
+use self::errors::DrainerError;
+use router::{connection::pg_connection, db::kv_gen, services::Store};
+use std::sync::Arc;
 
 pub async fn start_drainer(
     store: Arc<Store>,
@@ -14,10 +12,10 @@ pub async fn start_drainer(
     let mut stream_index: u8 = 0;
 
     loop {
-        if is_stream_available(stream_index, store.clone()).await {
+        if utils::is_stream_available(stream_index, store.clone()).await {
             tokio::spawn(drainer_handler(store.clone(), stream_index, max_read_count));
         }
-        stream_index = increment_stream_index(stream_index, number_of_streams);
+        stream_index = utils::increment_stream_index(stream_index, number_of_streams);
     }
 }
 
@@ -34,9 +32,9 @@ async fn drainer_handler(
         //TODO: LOG ERRORs
     }
 
-    let flag_stream_name = get_steam_key_flag(store.clone(), stream_index.to_string());
+    let flag_stream_name = utils::get_steam_key_flag(store.clone(), stream_index.to_string());
     //TODO: USE THE RESULT FOR LOGGING
-    make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await
+    utils::make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await
 }
 
 async fn drainer(
@@ -45,10 +43,10 @@ async fn drainer(
     stream_name: &str,
 ) -> Result<(), DrainerError> {
     let stream_read =
-        read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
+        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
 
     // parse_stream_entries returns error if no entries is found, handle it
-    let (entries, last_entry_id) = parse_stream_entries(&stream_read, stream_name)?;
+    let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
 
     let read_count = entries.len();
 
@@ -85,7 +83,7 @@ async fn drainer(
     }
 
     let entries_trimmed =
-        trim_from_stream(stream_name, last_entry_id.as_str(), &store.redis_conn).await?;
+        utils::trim_from_stream(stream_name, last_entry_id.as_str(), &store.redis_conn).await?;
 
     if read_count != entries_trimmed {
         // TODO: log
