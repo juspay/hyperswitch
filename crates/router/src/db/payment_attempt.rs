@@ -306,7 +306,7 @@ impl PaymentAttemptInterface for MockDb {
 mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
-    use redis_interface::{HashesInterface, HsetnxReply, RedisEntryId};
+    use redis_interface::{HsetnxReply, RedisEntryId};
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -557,15 +557,15 @@ mod storage {
                 .into_report()?
                 .result_id;
             self.redis_conn
-                .pool
-                .hget::<String, String, &str>(key, "pa")
+                .get_hash_field_and_deserialize::<PaymentAttempt>(&key, "pa", "PaymentAttempt")
                 .await
-                .into_report()
-                .change_context(errors::StorageError::KVError)
-                .and_then(|redis_resp| {
-                    serde_json::from_str::<PaymentAttempt>(&redis_resp)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
+                .map_err(|error| match error.current_context() {
+                    errors::RedisError::NotFound => errors::StorageError::ValueNotFound(format!(
+                        "Payment Attempt does not exist for {}",
+                        key
+                    ))
+                    .into(),
+                    _ => error.change_context(errors::StorageError::KVError),
                 })
         }
 
@@ -622,15 +622,18 @@ mod storage {
                         .result_id;
 
                     self.redis_conn
-                        .pool
-                        .hget::<String, String, &str>(key, "pa")
+                        .get_hash_field_and_deserialize::<PaymentAttempt>(
+                            &key,
+                            "pa",
+                            "PaymentAttempt",
+                        )
                         .await
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<PaymentAttempt>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
+                                format!("Payment Attempt does not exist for {}", key),
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                 }
             }
@@ -660,15 +663,18 @@ mod storage {
                         .into_report()?
                         .result_id;
                     self.redis_conn
-                        .pool
-                        .hget::<String, String, &str>(key, "pa")
+                        .get_hash_field_and_deserialize::<PaymentAttempt>(
+                            &key,
+                            "pa",
+                            "PaymentAttempt",
+                        )
                         .await
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<PaymentAttempt>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
+                                format!("Payment Attempt does not exist for {}", key),
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                 }
             }
