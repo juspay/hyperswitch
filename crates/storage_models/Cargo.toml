@@ -10,14 +10,14 @@ async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "
 async-trait = "0.1.57"
 diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "serde_json", "time"], rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
 error-stack = "0.2.1"
+frunk = "0.4.1"
+frunk_core = "0.4.1"
 hex = "0.4.3"
 serde = { version = "1.0.145", features = ["derive"] }
 serde_json = "1.0.85"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.37"
 time = { version = "0.3.14", features = ["serde", "serde-well-known", "std"] }
-frunk = "0.4.1"
-frunk_core = "0.4.1"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
