@@ -20,9 +20,9 @@ pub struct ReverseLookup {
 )]
 #[diesel(table_name = reverse_lookup)]
 pub struct ReverseLookupNew {
-    pub pk_id: String,
     pub lookup_id: String,
     pub result_id: String,
     pub source: String,
+    pub pk_id: String,
     pub sk_id: String,
 }

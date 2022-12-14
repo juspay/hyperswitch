@@ -204,16 +204,10 @@ mod storage {
                         .await
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
-                    let key = &lookup.result_id;
-                    let payment_id = key
-                        .split("_mer")
-                        .next()
-                        .ok_or(errors::StorageError::KVError)?;
-                    let field = format!("pa_{}_ref_{}", payment_id, &lookup.pk_id);
 
                     self.redis_conn
                         .pool
-                        .hget::<String, &str, &str>(key, &field)
+                        .hget::<String, &str, &str>(&lookup.result_id, &lookup.sk_id)
                         .await
                         .into_report()
                         .change_context(errors::StorageError::KVError)
@@ -290,46 +284,49 @@ mod storage {
                                 .await
                                 .change_context(errors::StorageError::KVError)?;
 
-                            storage_types::ReverseLookupNew::new(
-                                created_refund.refund_id.clone(),
-                                format!(
+                            storage_types::ReverseLookupNew {
+                                pk_id: created_refund.refund_id.clone(),
+                                sk_id: field.clone(),
+                                lookup_id: format!(
                                     "{}_{}",
                                     created_refund.refund_id, created_refund.merchant_id
                                 ),
-                                key.clone(),
-                                "ref".to_string(),
-                            )
+                                result_id: key.clone(),
+                                source: "ref".to_string(),
+                            }
                             .insert(&conn)
                             .await
                             .map_err(Into::<errors::StorageError>::into)
                             .into_report()?;
 
                             //Reverse lookup for txn_id
-                            storage_types::ReverseLookupNew::new(
-                                created_refund.refund_id.clone(),
-                                format!(
+                            storage_types::ReverseLookupNew {
+                                pk_id: created_refund.refund_id.clone(),
+                                sk_id: field.clone(),
+                                lookup_id: format!(
                                     "{}_{}",
                                     created_refund.transaction_id, created_refund.merchant_id
                                 ),
-                                key.clone(),
-                                "ref".to_string(),
-                            )
+                                result_id: key.clone(),
+                                source: "ref".to_string(),
+                            }
                             .insert(&conn)
                             .await
                             .map_err(Into::<errors::StorageError>::into)
                             .into_report()?;
 
                             //Reverse lookup for internal_reference_id
-                            storage_types::ReverseLookupNew::new(
-                                created_refund.refund_id.clone(),
-                                format!(
+                            storage_types::ReverseLookupNew {
+                                pk_id: created_refund.refund_id.clone(),
+                                sk_id: field.clone(),
+                                lookup_id: format!(
                                     "{}_{}",
                                     created_refund.internal_reference_id,
                                     created_refund.merchant_id
                                 ),
-                                key,
-                                "ref".to_string(),
-                            )
+                                result_id: key,
+                                source: "ref".to_string(),
+                            }
                             .insert(&conn)
                             .await
                             .map_err(Into::<errors::StorageError>::into)
@@ -513,16 +510,10 @@ mod storage {
                         .await
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
-                    let key = &lookup.result_id;
-                    let payment_id = key
-                        .split("_mer")
-                        .next()
-                        .ok_or(errors::StorageError::KVError)?;
-                    let field = format!("pa_{}_ref_{}", payment_id, refund_id);
 
                     self.redis_conn
                         .pool
-                        .hget::<String, &str, &str>(key, &field)
+                        .hget::<String, &str, &str>(&lookup.result_id, &lookup.sk_id)
                         .await
                         .into_report()
                         .change_context(errors::StorageError::KVError)
@@ -572,7 +563,10 @@ mod storage {
                     };
 
                     let key = &lookup.result_id;
-                    let payment_id = key.split('_').next().ok_or(errors::StorageError::KVError)?;
+                    let payment_id = key
+                        .split("_mer")
+                        .next()
+                        .ok_or(errors::StorageError::KVError)?;
 
                     let field = format!("pa_{}_ref_*", payment_id);
 
