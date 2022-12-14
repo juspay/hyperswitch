@@ -1,0 +1,4 @@
+version = "Two"
+use_small_heuristics = "Max"
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"

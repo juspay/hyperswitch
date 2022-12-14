@@ -1,0 +1,18 @@
+[workspace]
+members = ["."]
+
+[package]
+name = "hexagonal_architecture"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+anyhow = "1.0.66"
+dotenv = "0.15"
+envconfig = "0.10"
+
+[dev-dependencies]
+actix-http = "3.2"
+
+router_core = { path = "./core", package = "core" }
