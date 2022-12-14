@@ -32,7 +32,9 @@ pub fn mk_service<C: Connector + 'static>(connector: C) -> Scope {
 #[cfg(test)]
 mod tests {
     use actix_web::test::{self, TestRequest};
-    use router_core::types::{NewPayment, Payment};
+    use actix_web::web::{Data, Json};
+    use router_core::connector::MockConnector;
+    use router_core::types::{NewPayment, Payment, Verify};
     use router_core::BigDecimal;
 
     #[actix_web::test]
@@ -55,5 +57,26 @@ mod tests {
 
         let payment: Payment = test::call_and_read_body_json(&service, request).await;
         assert_eq!(payment.amount, amount);
+    }
+
+    #[actix_web::test]
+    async fn payment_create2() {
+        let mut connector = MockConnector::new();
+
+        connector
+            .expect_create_payment()
+            .return_once(move |new| Payment { id: 42, amount: new.amount });
+        connector.expect_verify_payment().return_once(move |_| Verify::Ok);
+
+        let connector = Data::new(connector);
+
+        let json = Json(NewPayment { amount: BigDecimal::from(15) });
+        let payment = super::create(connector.clone(), json).await;
+
+        assert_eq!(payment.id, 42);
+        assert_eq!(payment.amount, BigDecimal::from(15));
+
+        let confirm = super::confirm(connector.clone(), Json(payment.id)).await;
+        assert_eq!(*confirm, Verify::Ok);
     }
 }

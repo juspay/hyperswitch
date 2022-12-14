@@ -1,5 +1,6 @@
 use crate::types;
 
+#[mockall::automock]
 #[async_trait::async_trait]
 pub trait Connector {
     async fn create_payment(&self, payment: types::NewPayment) -> types::Payment;

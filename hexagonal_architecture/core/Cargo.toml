@@ -7,3 +7,4 @@ edition = "2021"
 bigdecimal = { version = "0.3", features = ["serde"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
+mockall = "0.11"

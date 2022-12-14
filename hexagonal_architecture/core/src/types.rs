@@ -12,7 +12,7 @@ pub struct Payment {
     pub amount: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Verify {
     Ok,
     Error { message: String },

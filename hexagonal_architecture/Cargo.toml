@@ -17,4 +17,4 @@ dotenv = "0.15"
 envconfig = "0.10"
 
 [dev-dependencies]
-actix-http = "3.2"
+actix-http = "3"
