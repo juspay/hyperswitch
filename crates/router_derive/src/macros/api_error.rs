@@ -47,8 +47,10 @@ pub(crate) fn api_error_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStre
     );
 
     Ok(quote! {
+        #[automatically_derived]
         impl #impl_generics std::error::Error for #name #ty_generics #where_clause {}
 
+        #[automatically_derived]
         impl #impl_generics #name #ty_generics #where_clause {
             #error_type_fn
             #error_code_fn
@@ -226,6 +228,7 @@ fn implement_serialize(
         });
     }
     quote! {
+        #[automatically_derived]
         impl #impl_generics serde::Serialize for #enum_name #ty_generics #where_clause {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where

@@ -20,6 +20,7 @@ pub(crate) fn diesel_enum_derive_inner(ast: &DeriveInput) -> syn::Result<TokenSt
         #[diesel(postgres_type(name = #type_name))]
         pub struct #struct_name;
 
+        #[automatically_derived]
         impl #impl_generics ::diesel::serialize::ToSql<#struct_name, ::diesel::pg::Pg> for #name #ty_generics
         #where_clause
         {
@@ -31,6 +32,7 @@ pub(crate) fn diesel_enum_derive_inner(ast: &DeriveInput) -> syn::Result<TokenSt
             }
         }
 
+        #[automatically_derived]
         impl #impl_generics ::diesel::deserialize::FromSql<#struct_name, ::diesel::pg::Pg> for #name #ty_generics
         #where_clause
         {

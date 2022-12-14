@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
 use super::generics::{self, ExecuteQuery};
@@ -57,6 +57,23 @@ impl Address {
             conn,
             dsl::address_id.eq(address_id.to_owned()),
             ExecuteQuery::<Self>::new(),
+        )
+        .await
+    }
+
+    pub async fn update_by_merchant_id_customer_id(
+        conn: &PgPooledConn,
+        customer_id: &str,
+        merchant_id: &str,
+        address: AddressUpdate,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::customer_id.eq(customer_id.to_owned())),
+            AddressUpdateInternal::from(address),
+            ExecuteQuery::new(),
         )
         .await
     }

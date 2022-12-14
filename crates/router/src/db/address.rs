@@ -14,14 +14,23 @@ pub trait AddressInterface {
         address_id: String,
         address: storage::AddressUpdate,
     ) -> CustomResult<storage::Address, errors::StorageError>;
+
     async fn insert_address(
         &self,
         address: storage::AddressNew,
     ) -> CustomResult<storage::Address, errors::StorageError>;
+
     async fn find_address(
         &self,
         address_id: &str,
     ) -> CustomResult<storage::Address, errors::StorageError>;
+
+    async fn update_address_by_merchant_id_customer_id(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        address: storage::AddressUpdate,
+    ) -> CustomResult<Vec<storage::Address>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -60,6 +69,24 @@ impl AddressInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    async fn update_address_by_merchant_id_customer_id(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        address: storage::AddressUpdate,
+    ) -> CustomResult<Vec<storage::Address>, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        storage::Address::update_by_merchant_id_customer_id(
+            &conn,
+            customer_id,
+            merchant_id,
+            address,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -83,6 +110,15 @@ impl AddressInterface for MockDb {
         &self,
         _address: storage::AddressNew,
     ) -> CustomResult<storage::Address, errors::StorageError> {
+        todo!()
+    }
+
+    async fn update_address_by_merchant_id_customer_id(
+        &self,
+        _customer_id: &str,
+        _merchant_id: &str,
+        _address: storage::AddressUpdate,
+    ) -> CustomResult<Vec<storage::Address>, errors::StorageError> {
         todo!()
     }
 }
