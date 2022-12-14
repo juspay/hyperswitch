@@ -1,16 +1,18 @@
+use api_models::payments as payment_types;
 use async_trait::async_trait;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult},
         payments::{self, transformers, PaymentData},
     },
-    routes, services,
+    logger, routes, services,
     types::{
         self, api,
         storage::{self, enums},
     },
+    utils::OptionExt,
 };
 
 #[async_trait]
@@ -55,6 +57,49 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     }
 }
 
+fn create_gpay_session_token(
+    router_data: &types::PaymentsSessionRouterData,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let connector_metadata = router_data.connector_meta_data.clone();
+
+    let gpay_data: Result<payment_types::GpaySessionTokenData, _> =
+        error_stack::ResultExt::change_context(
+            connector_metadata.parse_value("GpaySessionTokenData"),
+            errors::ConnectorError::NoConnectorMetaData,
+        );
+
+    match gpay_data {
+        Ok(data) => {
+            let transaction_info = payment_types::GpayTransactionInfo {
+                country_code: "US".to_string(), //FIXME: take from router data
+                currency_code: router_data.request.currency.to_string(),
+                total_price_status: "Final".to_string(),
+                total_price: router_data.request.amount,
+            };
+
+            let response_router_data = types::PaymentsSessionRouterData {
+                response: Ok(types::PaymentsResponseData::SessionResponse {
+                    session_token: payment_types::SessionToken::Gpay {
+                        allowed_payment_methods: data.gpay.allowed_payment_methods,
+                        transaction_info,
+                    },
+                }),
+                ..router_data.clone()
+            };
+
+            Ok(response_router_data)
+        }
+
+        Err(error) => {
+            logger::debug!("cannot construct gpay for connector {:?}", error);
+            Err(error_stack::report!(
+                errors::ApiErrorResponse::InternalServerError //FIXME
+            )
+            .attach_printable("Cannot construct gpay session token"))
+        }
+    }
+}
+
 impl types::PaymentsSessionRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
@@ -64,20 +109,25 @@ impl types::PaymentsSessionRouterData {
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            api::Session,
-            types::PaymentsSessionData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            self,
-            call_connector_action,
-        )
-        .await
-        .map_err(|error| error.to_payment_failed_response())?;
+        match connector.connector_type {
+            api::ConnectorType::SessionTokenFromMetadata => create_gpay_session_token(self),
+            api::ConnectorType::NormalFlow => {
+                let connector_integration: services::BoxedConnectorIntegration<
+                    api::Session,
+                    types::PaymentsSessionData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    self,
+                    call_connector_action,
+                )
+                .await
+                .map_err(|error| error.to_payment_failed_response())?;
 
-        Ok(resp)
+                Ok(resp)
+            }
+        }
     }
 }

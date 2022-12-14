@@ -236,8 +236,11 @@ where
         },
     )?;
 
-    let connector_data =
-        api::ConnectorData::get_connector_by_name(&state.conf.connectors, &connector)?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector,
+        api::ConnectorType::NormalFlow,
+    )?;
 
     let flow_type = connector_data
         .connector

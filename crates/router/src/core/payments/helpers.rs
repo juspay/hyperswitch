@@ -610,7 +610,11 @@ pub async fn get_connector_default(
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .as_str();
 
-    let connector_data = api::ConnectorData::get_connector_by_name(connectors, connector_name)?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        connectors,
+        connector_name,
+        api::ConnectorType::NormalFlow,
+    )?;
 
     Ok(api::ConnectorCallType::Single(connector_data))
 }
