@@ -316,6 +316,7 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "storage_models",
  "strum",
  "time",
 ]
