@@ -176,6 +176,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                 status: storage::enums::AttemptStatus::Failure,
                 error_message: Some(err.message),
+                error_code: Some(err.code),
             }),
             None,
         ),
