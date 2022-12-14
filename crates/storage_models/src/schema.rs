@@ -175,6 +175,7 @@ diesel::table! {
         merchant_connector_id -> Int4,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -212,6 +213,7 @@ diesel::table! {
         amount_to_capture -> Nullable<Int8>,
         mandate_id -> Nullable<Varchar>,
         browser_info -> Nullable<Jsonb>,
+        error_code -> Nullable<Varchar>,
     }
 }
 

@@ -270,7 +270,16 @@ impl Default for PaymentIdType {
 //}
 //}
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    frunk::LabelledGeneric,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Address {
     pub address: Option<AddressDetails>,
@@ -278,7 +287,16 @@ pub struct Address {
 }
 
 // used by customers also, could be moved outside
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    frunk::LabelledGeneric,
+)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     pub city: Option<String>,
@@ -292,7 +310,16 @@ pub struct AddressDetails {
     pub last_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    frunk::LabelledGeneric,
+)]
 pub struct PhoneDetails {
     pub number: Option<Secret<String>>,
     pub country_code: Option<String>,
@@ -340,6 +367,7 @@ pub struct PaymentsResponse {
     pub amount: i64,
     pub amount_capturable: Option<i64>,
     pub amount_received: Option<i64>,
+    pub connector: Option<String>,
     pub client_secret: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
@@ -371,7 +399,7 @@ pub struct PaymentsResponse {
     pub statement_descriptor_suffix: Option<String>,
     pub next_action: Option<NextAction>,
     pub cancellation_reason: Option<String>,
-    pub error_code: Option<String>, //TODO: Add error code column to the database
+    pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
 
@@ -674,6 +702,19 @@ pub enum SessionToken {
     },
     Paypal {
         session_token: String,
+    },
+    Applepay {
+        epoch_timestamp: u64,
+        expires_at: u64,
+        merchant_session_identifier: String,
+        nonce: String,
+        merchant_identifier: String,
+        domain_name: String,
+        display_name: String,
+        signature: String,
+        operational_analytics_identifier: String,
+        retries: u8,
+        psp_id: String,
     },
 }
 

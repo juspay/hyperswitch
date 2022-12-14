@@ -48,6 +48,7 @@ pub enum AttemptStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -68,6 +69,7 @@ pub enum AuthenticationType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -89,6 +91,7 @@ pub enum CaptureMethod {
     strum::EnumString,
     serde::Deserialize,
     serde::Serialize,
+    frunk::LabelledGeneric,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -122,6 +125,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 pub enum Currency {
     AED,
@@ -240,6 +244,7 @@ pub enum Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -258,6 +263,7 @@ pub enum EventType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -284,6 +290,7 @@ pub enum IntentStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -304,6 +311,7 @@ pub enum FutureUsage {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -331,6 +339,7 @@ pub enum PaymentMethodIssuerCode {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -355,6 +364,7 @@ pub enum PaymentMethodSubType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -393,7 +403,17 @@ pub enum WalletIssuer {
     ApplePay,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, strum::Display, strum::EnumString)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
@@ -414,6 +434,7 @@ pub enum RefundStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -435,6 +456,7 @@ pub enum RoutingAlgorithm {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

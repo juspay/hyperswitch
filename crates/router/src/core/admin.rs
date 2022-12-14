@@ -321,6 +321,7 @@ pub async fn create_payment_connector(
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
+        metadata: req.metadata,
     };
 
     let mca = store
