@@ -196,7 +196,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
-            amount: Some(Amount::Value(200)),
+            amount: Some(Amount::from(200)),
             payment_method_data: Some(PaymentMethod::Card(card())),
             ..PaymentsRequest::default()
         }

@@ -16,6 +16,7 @@ pub struct MerchantConnectorAccount {
     #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -29,6 +30,7 @@ pub struct MerchantConnectorAccountNew {
     pub disabled: Option<bool>,
     pub merchant_connector_id: Option<i32>,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]

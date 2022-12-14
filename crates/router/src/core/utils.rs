@@ -21,7 +21,7 @@ pub async fn construct_refund_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-    money: (i32, enums::Currency),
+    money: (i64, enums::Currency),
     payment_method_data: Option<&'a api::PaymentMethod>,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
@@ -71,6 +71,7 @@ pub async fn construct_refund_router_data<'a, F>(
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: None,
 
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
