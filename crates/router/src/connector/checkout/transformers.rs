@@ -43,7 +43,7 @@ pub struct ReturnUrl {
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: Source,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: String,
     pub processing_channel_id: String,
     #[serde(rename = "3ds")]
@@ -303,7 +303,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PaymentVoidRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundRequest {
-    amount: Option<i32>,
+    amount: Option<i64>,
     reference: String,
 }
 
@@ -401,7 +401,7 @@ pub enum ActionType {
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
-    pub amount: i32,
+    pub amount: i64,
     #[serde(rename = "type")]
     pub action_type: ActionType,
     pub approved: Option<bool>,

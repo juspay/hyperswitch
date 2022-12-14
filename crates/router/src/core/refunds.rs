@@ -339,14 +339,14 @@ pub async fn validate_and_create_refund(
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    refund_amount: i32,
+    refund_amount: i64,
     req: refunds::RefundRequest,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
-    let force_process = req.force_process.unwrap_or(false);
+    let refund_type = req.refund_type.clone().unwrap_or_default();
 
     // If Refund Id not passed in request Generate one.
 
@@ -435,7 +435,7 @@ pub async fn validate_and_create_refund(
             schedule_refund_execution(
                 state,
                 refund,
-                force_process, // *force_process,
+                refund_type,
                 merchant_account,
                 payment_attempt,
                 payment_intent,
@@ -459,7 +459,7 @@ fn mk_new_refund(
     currency: enums::Currency,
     refund_id: &str,
     merchant_id: &str,
-    refund_amount: i32,
+    refund_amount: i64,
 ) -> storage::RefundNew {
     let current_time = common_utils::date_time::now();
     let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
@@ -535,8 +535,7 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
 pub async fn schedule_refund_execution(
     state: &AppState,
     refund: storage::Refund,
-    //FIXME: change to refund_Type here
-    force_process: bool,
+    refund_type: api_models::refunds::RefundType,
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
@@ -556,34 +555,43 @@ pub async fn schedule_refund_execution(
         enums::RefundStatus::Pending | enums::RefundStatus::ManualReview => {
             match (refund.sent_to_gateway, refund_process) {
                 (false, None) => {
-                    //execute
-                    if force_process {
-                        trigger_refund_to_gateway(
-                            state,
-                            &refund,
-                            merchant_account,
-                            payment_attempt,
-                            payment_intent,
-                        )
-                        .await
-                    } else {
-                        add_refund_execute_task(db, &refund, runner)
+                    // Execute the refund task based on refund_type
+                    match refund_type {
+                        api_models::refunds::RefundType::Scheduled => {
+                            add_refund_execute_task(db, &refund, runner)
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                            Ok(refund)
+                        }
+                        api_models::refunds::RefundType::Instant => {
+                            trigger_refund_to_gateway(
+                                state,
+                                &refund,
+                                merchant_account,
+                                payment_attempt,
+                                payment_intent,
+                            )
                             .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                        Ok(refund)
+                        }
                     }
                 }
                 _ => {
-                    //sync status
+                    // Sync the refund for status check
                     //TODO: return refund status response
-                    if force_process {
-                        // sync_refund_with_gateway(data, &refund).await
-                        Ok(refund)
-                    } else {
-                        add_refund_sync_task(db, &refund, runner)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                        Ok(refund)
+                    match refund_type {
+                        api_models::refunds::RefundType::Scheduled => {
+                            add_refund_sync_task(db, &refund, runner)
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                            Ok(refund)
+                        }
+                        api_models::refunds::RefundType::Instant => {
+                            // FIXME: This is not possible in schedule_refund_execution as it will always be scheduled
+                            // FIXME: as a part of refactoring
+                            // sync_refund_with_gateway(data, &refund).await
+                            Ok(refund)
+                        }
                     }
                 }
             }
