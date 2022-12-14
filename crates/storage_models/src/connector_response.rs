@@ -68,9 +68,9 @@ impl ConnectorResponseUpdate {
             connector_name: connector_response_update
                 .connector_name
                 .or(source.connector_name),
-            connector_transaction_id: connector_response_update
+            connector_transaction_id: source
                 .connector_transaction_id
-                .or(source.connector_transaction_id),
+                .or(connector_response_update.connector_transaction_id),
             authentication_data: connector_response_update
                 .authentication_data
                 .or(source.authentication_data),

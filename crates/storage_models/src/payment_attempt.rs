@@ -140,9 +140,9 @@ impl PaymentAttemptUpdate {
             currency: pa_update.currency.or(source.currency),
             status: pa_update.status.unwrap_or(source.status),
             connector: pa_update.connector.or(source.connector),
-            connector_transaction_id: pa_update
+            connector_transaction_id: source
                 .connector_transaction_id
-                .or(source.connector_transaction_id),
+                .or(pa_update.connector_transaction_id),
             authentication_type: pa_update.authentication_type.or(source.authentication_type),
             payment_method: pa_update.payment_method.or(source.payment_method),
             error_message: pa_update.error_message.or(source.error_message),
