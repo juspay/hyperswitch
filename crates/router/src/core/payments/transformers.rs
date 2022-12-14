@@ -78,8 +78,6 @@ where
         &merchant_connector_account.connector_name,
     ));
 
-    let connector_meta_data = merchant_connector_account.metadata;
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -97,7 +95,7 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-        connector_meta_data,
+        connector_meta_data: merchant_connector_account.metadata,
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };

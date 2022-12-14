@@ -234,6 +234,8 @@ pub enum ApiClientError {
     InvalidProxyConfiguration,
     #[error("Client construction failed")]
     ClientConstructionFailed,
+    #[error("Certificate decode failed")]
+    CertificateDecodeFailed,
 
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,

@@ -64,26 +64,26 @@ pub(super) fn create_client(
         (Some(encoded_cert), Some(encoded_cert_key)) => {
             let decoded_cert = base64::decode(encoded_cert)
                 .into_report()
-                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
             let decoded_cert_key = base64::decode(encoded_cert_key)
                 .into_report()
-                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
             let certificate = String::from_utf8(decoded_cert)
                 .into_report()
-                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
             let certificate_key = String::from_utf8(decoded_cert_key)
                 .into_report()
-                .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
             let identity = reqwest::Identity::from_pkcs8_pem(
                 certificate.as_bytes(),
                 certificate_key.as_bytes(),
             )
             .into_report()
-            .change_context(errors::ApiClientError::ClientConstructionFailed)?;
+            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
             client_builder.identity(identity)
         }

@@ -1,1 +1,1 @@
-ALTER TABLE merchant_connector_account ADD COLUMN metadata JSONB;
+ALTER TABLE merchant_connector_account ADD COLUMN metadata JSONB DEFAULT NULL;
