@@ -15,7 +15,7 @@ impl TempCardNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<TempCard, errors::DatabaseError> {
-        generics::generic_insert::<_, _, TempCard>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -25,7 +25,7 @@ impl TempCard {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        generics::generic_insert::<_, _, TempCard>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 
     #[instrument(skip(conn))]
