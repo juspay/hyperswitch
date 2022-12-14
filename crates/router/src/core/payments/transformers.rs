@@ -95,7 +95,7 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-
+        connector_meta_data: merchant_connector_account.metadata,
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };

@@ -703,6 +703,19 @@ pub enum SessionToken {
     Paypal {
         session_token: String,
     },
+    Applepay {
+        epoch_timestamp: u64,
+        expires_at: u64,
+        merchant_session_identifier: String,
+        nonce: String,
+        merchant_identifier: String,
+        domain_name: String,
+        display_name: String,
+        signature: String,
+        operational_analytics_identifier: String,
+        retries: u8,
+        psp_id: String,
+    },
 }
 
 #[derive(Default, Debug, serde::Serialize, Clone)]

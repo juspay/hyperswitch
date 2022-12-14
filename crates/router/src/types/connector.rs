@@ -8,6 +8,7 @@ pub enum Connector {
     Authorizedotnet,
     Braintree,
     Klarna,
+    Applepay,
     #[default]
     Dummy,
 }

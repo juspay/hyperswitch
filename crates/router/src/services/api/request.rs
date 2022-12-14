@@ -37,6 +37,8 @@ pub struct Request {
     pub payload: Option<Secret<String>>,
     pub method: Method,
     pub content_type: Option<ContentType>,
+    pub certificate: Option<String>,
+    pub certificate_key: Option<String>,
 }
 
 impl Request {
@@ -47,6 +49,8 @@ impl Request {
             headers: Vec::new(),
             payload: None,
             content_type: None,
+            certificate: None,
+            certificate_key: None,
         }
     }
 
@@ -62,6 +66,14 @@ impl Request {
     pub fn add_content_type(&mut self, content_type: ContentType) {
         self.content_type = Some(content_type);
     }
+
+    pub fn add_certificate(&mut self, certificate: Option<String>) {
+        self.certificate = certificate;
+    }
+
+    pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
+        self.certificate = certificate_key;
+    }
 }
 
 pub struct RequestBuilder {
@@ -70,6 +82,8 @@ pub struct RequestBuilder {
     pub payload: Option<Secret<String>>,
     pub method: Method,
     pub content_type: Option<ContentType>,
+    pub certificate: Option<String>,
+    pub certificate_key: Option<String>,
 }
 
 impl RequestBuilder {
@@ -80,6 +94,8 @@ impl RequestBuilder {
             headers: Vec::new(),
             payload: None,
             content_type: None,
+            certificate: None,
+            certificate_key: None,
         }
     }
 
@@ -115,6 +131,16 @@ impl RequestBuilder {
         self
     }
 
+    pub fn add_certificate(mut self, certificate: Option<String>) -> RequestBuilder {
+        self.certificate = certificate;
+        self
+    }
+
+    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> RequestBuilder {
+        self.certificate_key = certificate_key;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -122,6 +148,8 @@ impl RequestBuilder {
             headers: self.headers,
             payload: self.payload,
             content_type: self.content_type,
+            certificate: self.certificate,
+            certificate_key: self.certificate_key,
         }
     }
 }

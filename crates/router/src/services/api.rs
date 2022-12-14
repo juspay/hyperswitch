@@ -104,6 +104,20 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationExt<T, Req, Re
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse::get_not_implemented())
     }
+
+    fn get_certificate(
+        &self,
+        _req: &types::RouterData<T, Req, Resp>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    fn get_certificate_key(
+        &self,
+        _req: &types::RouterData<T, Req, Resp>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
 }
 
 #[instrument(skip_all)]
@@ -196,9 +210,10 @@ async fn send_request(
         &state.conf.proxy,
         should_bypass_proxy,
         crate::consts::REQUEST_TIME_OUT,
+        request.certificate,
+        request.certificate_key,
     )?;
     let headers = request.headers.construct_header_map()?;
-
     match request.method {
         Method::Get => client.get(url).add_headers(headers).send().await,
         Method::Post => {
