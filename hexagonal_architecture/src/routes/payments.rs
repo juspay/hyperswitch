@@ -7,7 +7,6 @@ async fn create(
     connector: Data<impl Connector>,
     Json(payment): Json<types::NewPayment>,
 ) -> Json<types::Payment> {
-    dbg!(1);
     Json(connector.create_payment(payment).await)
 }
 
@@ -15,8 +14,11 @@ async fn list() -> &'static str {
     "list"
 }
 
-async fn confirm(connector: Data<impl Connector>, Json(payment_id): Json<u64>) -> String {
-    format!("{:?}", connector.verify_payment(payment_id).await)
+async fn confirm(
+    connector: Data<impl Connector>,
+    Json(payment_id): Json<u64>,
+) -> Json<types::Verify> {
+    Json(connector.verify_payment(payment_id).await)
 }
 
 pub fn mk_service<C: Connector + 'static>(connector: C) -> Scope {
