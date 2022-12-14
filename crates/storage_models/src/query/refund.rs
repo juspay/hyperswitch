@@ -9,7 +9,7 @@ use crate::{
     CustomResult, PgPooledConn,
 };
 
-// FIXME: Find by partition key
+// FIXME: Find by partition key : Review
 
 impl RefundNew {
     #[instrument(skip(conn))]

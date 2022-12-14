@@ -1,12 +1,5 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
-};
-use error_stack::{IntoReport, ResultExt};
-use router_env::{
-    logger::debug,
-    tracing::{self, instrument},
-};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use router_env::tracing::{self, instrument};
 use time::PrimitiveDateTime;
 
 use super::generics::{self, ExecuteQuery};
@@ -57,14 +50,12 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         task_ids: Vec<String>,
         task_update: ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        // TODO: Possible optimization: Instead of returning updated values from database, update
-        // the values in code and return them, if database query executed successfully.
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
+    ) -> CustomResult<usize, errors::DatabaseError> {
+        generics::generic_update::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::id.eq_any(task_ids),
             ProcessTrackerUpdateInternal::from(task_update),
-            ExecuteQuery::new(),
+            ExecuteQuery::<Self>::new(),
         )
         .await
     }
@@ -99,29 +90,26 @@ impl ProcessTracker {
         .await
     }
 
-    // FIXME with generics
-    #[instrument(skip(pool))]
+    #[instrument(skip(conn))]
     pub async fn find_processes_to_clean(
-        pool: &PgPooledConn,
+        conn: &PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         runner: &str,
-        limit: i64,
+        limit: u64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        let query = Self::table()
-            .filter(dsl::schedule_time.between(time_lower_limit, time_upper_limit))
-            .filter(dsl::status.eq(enums::ProcessTrackerStatus::ProcessStarted))
-            .filter(dsl::runner.eq(runner.to_owned()))
-            .order(dsl::schedule_time.asc())
-            .limit(limit);
-        debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
-        query
-            .get_results_async(pool)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error finding processes to clean")
+        let mut x: Vec<Self> = generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::schedule_time
+                .between(time_lower_limit, time_upper_limit)
+                .and(dsl::status.eq(enums::ProcessTrackerStatus::ProcessStarted))
+                .and(dsl::runner.eq(runner.to_owned())),
+            None,
+        )
+        .await?;
+        x.sort_by(|a, b| a.schedule_time.cmp(&b.schedule_time));
+        x.truncate(limit as usize);
+        Ok(x)
     }
 
     #[instrument(skip(conn))]

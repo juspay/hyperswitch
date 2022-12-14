@@ -60,8 +60,7 @@ pub async fn update_status_and_append(
                 )
                 .await;
             match res {
-                Ok(trackers) => {
-                    let count = trackers.len();
+                Ok(count) => {
                     logger::debug!("Updated status of {count} processes");
                     Ok(())
                 }
