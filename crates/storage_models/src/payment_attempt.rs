@@ -139,6 +139,7 @@ impl PaymentAttemptUpdate {
             amount: pa_update.amount.unwrap_or(source.amount),
             currency: pa_update.currency.or(source.currency),
             status: pa_update.status.unwrap_or(source.status),
+            connector: pa_update.connector.or(source.connector),
             connector_transaction_id: pa_update
                 .connector_transaction_id
                 .or(source.connector_transaction_id),

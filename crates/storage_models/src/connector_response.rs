@@ -65,6 +65,9 @@ impl ConnectorResponseUpdate {
             modified_at: connector_response_update
                 .modified_at
                 .unwrap_or_else(common_utils::date_time::now),
+            connector_name: connector_response_update
+                .connector_name
+                .or(source.connector_name),
             connector_transaction_id: connector_response_update
                 .connector_transaction_id
                 .or(source.connector_transaction_id),
