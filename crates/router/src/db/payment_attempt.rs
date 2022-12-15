@@ -338,7 +338,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!(
                         "{}_{}",
-                        payment_attempt.payment_id, payment_attempt.merchant_id
+                        payment_attempt.merchant_id, payment_attempt.payment_id
                     );
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
@@ -446,7 +446,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.payment_id, this.merchant_id);
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
 
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -522,7 +522,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", payment_id, merchant_id);
+                    let key = format!("{}_{}", merchant_id, payment_id);
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
                         .await
@@ -646,7 +646,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{txn_id}_{merchant_id}");
+                    let lookup_id = format!("{merchant_id}_{txn_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await

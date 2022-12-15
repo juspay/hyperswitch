@@ -166,7 +166,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
+    use common_utils::{date_time, extract_payment_id_from_mid_pid};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::{HsetnxReply, RedisEntryId};
 
@@ -204,7 +204,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{}_{}", internal_reference_id, merchant_id);
+                    let lookup_id = format!("{}_{}", merchant_id, internal_reference_id);
                     let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
@@ -235,7 +235,7 @@ mod storage {
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", new.payment_id, new.merchant_id);
+                    let key = format!("{}_{}", new.merchant_id, new.payment_id);
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
                     let created_refund = storage_types::Refund {
@@ -289,7 +289,7 @@ mod storage {
                                 sk_id: field.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
-                                    created_refund.refund_id, created_refund.merchant_id
+                                    created_refund.merchant_id, created_refund.refund_id
                                 ),
                                 pk_id: key.clone(),
                                 source: "ref".to_string(),
@@ -304,7 +304,7 @@ mod storage {
                                 sk_id: field.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
-                                    created_refund.transaction_id, created_refund.merchant_id
+                                    created_refund.merchant_id, created_refund.transaction_id
                                 ),
                                 pk_id: key.clone(),
                                 source: "ref".to_string(),
@@ -319,8 +319,8 @@ mod storage {
                                 sk_id: field.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
-                                    created_refund.internal_reference_id,
-                                    created_refund.merchant_id
+                                    created_refund.merchant_id,
+                                    created_refund.internal_reference_id
                                 ),
                                 pk_id: key,
                                 source: "ref".to_string(),
@@ -373,7 +373,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{}_{}", txn_id, merchant_id);
+                    let lookup_id = format!("{merchant_id}_{txn_id}");
                     let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
                         Ok(l) => l,
                         Err(err) => {
@@ -382,9 +382,7 @@ mod storage {
                         }
                     };
                     let key = &lookup.pk_id;
-                    let payment_id = key
-                        .split("_mer")
-                        .next()
+                    let payment_id = extract_payment_id_from_mid_pid(key)
                         .ok_or(errors::StorageError::KVError)?;
 
                     let pattern = format!("pa_{}_ref_*", payment_id);
@@ -411,7 +409,7 @@ mod storage {
                         .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.payment_id, this.merchant_id);
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
 
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -478,7 +476,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{}_{}", refund_id, merchant_id);
+                    let lookup_id = format!("{merchant_id}_{refund_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
@@ -528,25 +526,11 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{}_{}", payment_id, merchant_id);
-                    let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
-                        Ok(l) => l,
-                        Err(err) => {
-                            logger::error!(?err);
-                            return Ok(vec![]);
-                        }
-                    };
-
-                    let key = &lookup.pk_id;
-                    let payment_id = key
-                        .split("_mer")
-                        .next()
-                        .ok_or(errors::StorageError::KVError)?;
-
+                    let key = format!("{}_{}", merchant_id, payment_id);
                     let pattern = format!("pa_{}_ref_*", payment_id);
 
                     self.redis_conn
-                        .hscan_and_deserialize(key, &pattern, None)
+                        .hscan_and_deserialize(&key, &pattern, None)
                         .await
                         .change_context(errors::StorageError::KVError)
                 }

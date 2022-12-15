@@ -44,3 +44,10 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
+
+/// Get payment_id from merchant_id_payment_id combination
+#[inline]
+pub fn extract_payment_id_from_mid_pid(id: &str) -> Option<String> {
+    let reg = regex::Regex::new(r"mer_\d+_").ok()?;
+    reg.split(id).last().map(|s| s.to_string())
+}

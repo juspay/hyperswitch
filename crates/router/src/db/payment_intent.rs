@@ -69,7 +69,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", new.payment_id, new.merchant_id);
+                    let key = format!("{}_{}", new.merchant_id, new.payment_id);
                     let created_intent = PaymentIntent {
                         id: 0i32,
                         payment_id: new.payment_id.clone(),
@@ -149,7 +149,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.payment_id, this.merchant_id);
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -204,7 +204,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", payment_id, merchant_id);
+                    let key = format!("{}_{}", merchant_id, payment_id);
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentIntent>(
                             &key,
