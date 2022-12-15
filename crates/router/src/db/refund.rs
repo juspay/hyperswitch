@@ -62,6 +62,7 @@ pub trait RefundInterface {
 mod storage {
     use error_stack::IntoReport;
 
+    use super::RefundInterface;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
@@ -71,7 +72,7 @@ mod storage {
     };
 
     #[async_trait::async_trait]
-    impl super::RefundInterface for Store {
+    impl RefundInterface for Store {
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
