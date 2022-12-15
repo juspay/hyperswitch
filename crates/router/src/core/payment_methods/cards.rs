@@ -61,7 +61,7 @@ pub async fn add_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
         None => {
-            let payment_method_id = generate_id(consts::ID_LENGTH, "pm_");
+            let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
             create_payment_method(
                 &*state.store,
                 &req,
