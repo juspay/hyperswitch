@@ -88,7 +88,7 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -105,7 +105,7 @@ pub struct PaymentsAuthorizeData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     pub connector_transaction_id: String,
 }
 
@@ -124,7 +124,7 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<String>,
 }
@@ -190,9 +190,9 @@ pub struct RefundsData {
     pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
-    pub amount: i32,
+    pub amount: i64,
     /// Amount to be refunded
-    pub refund_amount: i32,
+    pub refund_amount: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -227,7 +227,7 @@ pub struct ConnectorResponse {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
-    pub amount: i32,
+    pub amount: i64,
     pub connector_transaction_id: String,
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,

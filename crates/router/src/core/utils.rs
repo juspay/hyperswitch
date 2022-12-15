@@ -21,7 +21,7 @@ pub async fn construct_refund_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-    money: (i32, enums::Currency),
+    money: (i64, enums::Currency),
     payment_method_data: Option<&'a api::PaymentMethod>,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
