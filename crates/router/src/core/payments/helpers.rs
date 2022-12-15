@@ -433,8 +433,6 @@ where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-
         let connector_name = payment_attempt
             .connector
             .clone()
@@ -451,10 +449,13 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         match schedule_time {
-            Some(stime) => super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                .await
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError),
+            Some(stime) => {
+                metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                super::add_process_sync_task(&*state.store, payment_attempt, stime)
+                    .await
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+            }
             None => Ok(()),
         }
     } else {
