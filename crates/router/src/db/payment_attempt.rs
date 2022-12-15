@@ -375,9 +375,10 @@ mod storage {
                         error_code: payment_attempt.error_code.clone(),
                     };
 
+                    let field = format!("pa_{}", created_attempt.txn_id);
                     match self
                         .redis_conn
-                        .serialize_and_set_hash_field_if_not_exist(&key, "pa", &created_attempt)
+                        .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
                         .await
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
@@ -402,7 +403,7 @@ mod storage {
                                         &created_attempt.merchant_id, connector_transaction_id
                                     ),
                                     result_id: key.clone(),
-                                    sk_id: "pa".to_string(),
+                                    sk_id: field.clone(),
                                     source: "pa".to_string(),
                                 }
                                 .insert(&conn)
@@ -419,7 +420,7 @@ mod storage {
                                     &created_attempt.merchant_id, &created_attempt.txn_id,
                                 ),
                                 result_id: key,
-                                sk_id: "pa".to_string(),
+                                sk_id: field,
                                 source: "pa".to_string(),
                             }
                             .insert(&conn)
@@ -473,9 +474,10 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_attempt)
                         .into_report()
                         .change_context(errors::StorageError::KVError)?;
+                    let field = format!("pa_{}", updated_attempt.txn_id);
                     let updated_attempt = self
                         .redis_conn
-                        .set_hash_fields(&key, ("pa", &redis_value))
+                        .set_hash_fields(&key, (&field, &redis_value))
                         .await
                         .map(|_| updated_attempt)
                         .change_context(errors::StorageError::KVError)?;
@@ -522,10 +524,14 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", payment_id, merchant_id);
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&key)
+                        .await
+                        .change_context(errors::StorageError::KVError)?;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
                             &key,
-                            "pa",
+                            &lookup.sk_id,
                             "PaymentAttempt",
                         )
                         .await
@@ -550,19 +556,22 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
             let lookup_id = format!("{merchant_id}_{transaction_id}");
-            let key = self
+            let lookup = self
                 .get_lookup_by_lookup_id(&lookup_id)
                 .await
                 .map_err(Into::<errors::StorageError>::into)
-                .into_report()?
-                .result_id;
+                .into_report()?;
             self.redis_conn
-                .get_hash_field_and_deserialize::<PaymentAttempt>(&key, "pa", "PaymentAttempt")
+                .get_hash_field_and_deserialize::<PaymentAttempt>(
+                    &lookup.result_id,
+                    &lookup.sk_id,
+                    "PaymentAttempt",
+                )
                 .await
                 .map_err(|error| match error.current_context() {
                     errors::RedisError::NotFound => errors::StorageError::ValueNotFound(format!(
                         "Payment Attempt does not exist for {}",
-                        key
+                        lookup.result_id
                     ))
                     .into(),
                     _ => error.change_context(errors::StorageError::KVError),
@@ -614,23 +623,22 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_txn_id}");
-                    let key = self
+                    let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
                         .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?
-                        .result_id;
+                        .into_report()?;
 
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &key,
-                            "pa",
+                            &lookup.result_id,
+                            &lookup.sk_id,
                             "PaymentAttempt",
                         )
                         .await
                         .map_err(|error| match error.current_context() {
                             errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Attempt does not exist for {}", key),
+                                format!("Payment Attempt does not exist for {}", lookup.result_id),
                             )
                             .into(),
                             _ => error.change_context(errors::StorageError::KVError),
@@ -656,22 +664,21 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{txn_id}_{merchant_id}");
-                    let key = self
+                    let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
                         .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?
-                        .result_id;
+                        .into_report()?;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &key,
-                            "pa",
+                            &lookup.result_id,
+                            &lookup.sk_id,
                             "PaymentAttempt",
                         )
                         .await
                         .map_err(|error| match error.current_context() {
                             errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Attempt does not exist for {}", key),
+                                format!("Payment Attempt does not exist for {}", lookup.result_id),
                             )
                             .into(),
                             _ => error.change_context(errors::StorageError::KVError),
