@@ -398,8 +398,8 @@ mod storage {
                                 ReverseLookupNew {
                                     pk_id: created_attempt.payment_id.clone(),
                                     lookup_id: format!(
-                                        "{connector_transaction_id}_{}",
-                                        &created_attempt.merchant_id
+                                        "{}_{}",
+                                        &created_attempt.merchant_id, connector_transaction_id
                                     ),
                                     result_id: key.clone(),
                                     sk_id: "pa".to_string(),
@@ -416,7 +416,7 @@ mod storage {
                                 pk_id: created_attempt.payment_id.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
-                                    &created_attempt.txn_id, &created_attempt.merchant_id
+                                    &created_attempt.merchant_id, &created_attempt.txn_id,
                                 ),
                                 result_id: key,
                                 sk_id: "pa".to_string(),
@@ -549,7 +549,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-            let lookup_id = format!("{}_{}", transaction_id, merchant_id);
+            let lookup_id = format!("{merchant_id}_{transaction_id}");
             let key = self
                 .get_lookup_by_lookup_id(&lookup_id)
                 .await
@@ -613,7 +613,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{connector_txn_id}_{merchant_id}");
+                    let lookup_id = format!("{merchant_id}_{connector_txn_id}");
                     let key = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
