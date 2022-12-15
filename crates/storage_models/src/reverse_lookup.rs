@@ -2,6 +2,15 @@ use diesel::{Identifiable, Insertable, Queryable};
 
 use crate::schema::reverse_lookup;
 
+///
+/// This reverse lookup table basically looks up id's and get result_id that you want. This is
+/// useful for KV where you can't lookup without key
+/// ## Field
+/// * lookup_id: Primary key. The key id.
+/// * pk_id: the value id. i.e the id you want to access KV table.
+/// * sk_id: the `field` in KV database. Which is used to differentiate between two same keys
+/// * source: the source of insertion for reference
+///
 #[derive(
     Clone, Debug, serde::Serialize, serde::Deserialize, Identifiable, Queryable, Eq, PartialEq,
 )]
