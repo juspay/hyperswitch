@@ -250,23 +250,24 @@ impl super::RedisConnectionPool {
         pattern: &str,
         count: Option<u32>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        let hscan_result = self
+        Ok(self
             .pool
             .hscan::<&str, &str>(key, pattern, count)
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
                         let v = v.take_results()?;
+
                         let v: Vec<String> =
                             v.iter().filter_map(|(_, val)| val.as_string()).collect();
-                        Some(v)
+                        Some(futures::stream::iter(v))
                     }
                     Err(_) => None,
                 }
             })
+            .flatten()
             .collect::<Vec<_>>()
-            .await;
-        Ok(hscan_result.into_iter().flatten().collect())
+            .await)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
