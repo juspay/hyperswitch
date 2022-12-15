@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
 use crate::schema::reverse_lookup;
 
@@ -25,4 +25,37 @@ pub struct ReverseLookupNew {
     pub result_id: String,
     pub source: String,
     pub sk_id: String,
+}
+
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = reverse_lookup)]
+pub struct ReverseLookupUpdateInternal {
+    pub pk_id: Option<String>,
+    pub lookup_id: Option<String>,
+    pub result_id: Option<String>,
+    pub source: Option<String>,
+    pub sk_id: Option<String>,
+}
+
+#[derive(Debug)]
+pub enum ReverseLookupUpdate {
+    UpdateLookupResult {
+        lookup_id: String,
+        result_id: String,
+    },
+}
+
+impl From<ReverseLookupUpdate> for ReverseLookupUpdateInternal {
+    fn from(item: ReverseLookupUpdate) -> Self {
+        match item {
+            ReverseLookupUpdate::UpdateLookupResult {
+                lookup_id,
+                result_id,
+            } => Self {
+                lookup_id: Some(lookup_id),
+                result_id: Some(result_id),
+                ..Default::default()
+            },
+        }
+    }
 }
