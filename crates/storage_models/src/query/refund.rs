@@ -126,4 +126,4 @@ impl Refund {
 }
 
 #[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
+impl KvStorePartition for Refund {}
