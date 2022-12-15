@@ -48,6 +48,7 @@ maud = { version = "0.24", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
 nanoid = "0.4.0"
+num_cpus = "1.14.0"
 once_cell = "1.16.0"
 rand = "0.8.5"
 reqwest = { version = "0.11.12", features = ["json", "native-tls"] }
