@@ -392,26 +392,6 @@ mod storage {
                                 .await
                                 .change_context(errors::StorageError::KVError)?;
 
-                            // Reverse lookup for connector_transaction_id
-                            if let Some(ref connector_transaction_id) =
-                                created_attempt.connector_transaction_id
-                            {
-                                ReverseLookupNew {
-                                    pk_id: created_attempt.payment_id.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}",
-                                        &created_attempt.merchant_id, connector_transaction_id
-                                    ),
-                                    result_id: key.clone(),
-                                    sk_id: field.clone(),
-                                    source: "pa".to_string(),
-                                }
-                                .insert(&conn)
-                                .await
-                                .map_err(Into::<errors::StorageError>::into)
-                                .into_report()?;
-                            }
-
                             //Reverse lookup for txn_id
                             ReverseLookupNew {
                                 pk_id: created_attempt.payment_id.clone(),
@@ -483,6 +463,27 @@ mod storage {
                         .change_context(errors::StorageError::KVError)?;
 
                     let conn = pg_connection(&self.master_pool).await;
+                    // Reverse lookup for connector_transaction_id
+                    if let Some(ref connector_transaction_id) =
+                        updated_attempt.connector_transaction_id
+                    {
+                        let field = format!("pa_{}", updated_attempt.txn_id);
+                        ReverseLookupNew {
+                            pk_id: updated_attempt.payment_id.clone(),
+                            lookup_id: format!(
+                                "{}_{}",
+                                &updated_attempt.merchant_id, connector_transaction_id
+                            ),
+                            result_id: key.clone(),
+                            sk_id: field.clone(),
+                            source: "pa".to_string(),
+                        }
+                        .insert(&conn)
+                        .await
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
+                    }
+
                     let query = this
                         .update_query(&conn, payment_attempt)
                         .await
