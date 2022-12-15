@@ -4,9 +4,7 @@ use router_env::{tracing, tracing::instrument};
 use super::generics::{self, ExecuteQuery};
 use crate::{
     errors,
-    reverse_lookup::{
-        ReverseLookup, ReverseLookupNew, ReverseLookupUpdate, ReverseLookupUpdateInternal,
-    },
+    reverse_lookup::{ReverseLookup, ReverseLookupNew},
     schema::reverse_lookup::dsl,
     CustomResult, PgPooledConn,
 };
@@ -21,7 +19,6 @@ impl ReverseLookupNew {
     }
 }
 impl ReverseLookup {
-    #[instrument(skip(conn))]
     pub async fn find_by_lookup_id(
         lookup_id: &str,
         conn: &PgPooledConn,
@@ -31,26 +28,5 @@ impl ReverseLookup {
             dsl::lookup_id.eq(lookup_id.to_owned()),
         )
         .await
-    }
-    #[instrument(skip(conn))]
-    pub async fn update(
-        self,
-        conn: &PgPooledConn,
-        lookup: ReverseLookupUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
-            conn,
-            self.lookup_id.clone(),
-            ReverseLookupUpdateInternal::from(lookup),
-            ExecuteQuery::new(),
-        )
-        .await
-        {
-            Err(error) => match error.current_context() {
-                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
-                _ => Err(error),
-            },
-            result => result,
-        }
     }
 }
