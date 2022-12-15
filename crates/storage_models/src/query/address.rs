@@ -6,12 +6,12 @@ use crate::{
     address::{Address, AddressNew, AddressUpdate, AddressUpdateInternal},
     errors,
     schema::address::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl AddressNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Address, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert::<_, _, Address, _>(conn, self, ExecuteQuery::new()).await
     }
 }
@@ -22,7 +22,7 @@ impl Address {
         conn: &PgPooledConn,
         address_id: String,
         address: AddressUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             address_id.clone(),
@@ -52,7 +52,7 @@ impl Address {
     pub async fn delete_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
-    ) -> CustomResult<bool, errors::DatabaseError> {
+    ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::address_id.eq(address_id.to_owned()),
@@ -66,7 +66,7 @@ impl Address {
         customer_id: &str,
         merchant_id: &str,
         address: AddressUpdate,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             dsl::merchant_id
@@ -82,7 +82,7 @@ impl Address {
     pub async fn find_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
             .await
     }
@@ -91,7 +91,7 @@ impl Address {
     pub async fn find_optional_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
-    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             address_id.to_owned(),

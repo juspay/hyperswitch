@@ -22,7 +22,7 @@ use diesel::{
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{logger, tracing, tracing::instrument};
 
-use crate::{errors, CustomResult, PgPooledConn};
+use crate::{errors, PgPooledConn, StorageResult};
 
 #[derive(Debug)]
 pub struct RawSqlQuery {
@@ -84,7 +84,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::InsertOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::InsertOutput>
     where
         Q: AsQuery + QueryFragment<Pg> + RunQueryDsl<PgConnection>;
 
@@ -93,7 +93,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::UpdateOutput>
     where
         Q: QueryId;
 
@@ -102,22 +102,18 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::DatabaseError>;
+    ) -> StorageResult<Self::UpdateWithResultsOutput>;
 
     async fn update_by_id(
         &self,
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateByIdOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::UpdateByIdOutput>
     where
         Q: Clone;
 
-    async fn delete(
-        &self,
-        conn: &PgPooledConn,
-        query: Q,
-    ) -> CustomResult<Self::DeleteOutput, errors::DatabaseError>
+    async fn delete(&self, conn: &PgPooledConn, query: Q) -> StorageResult<Self::DeleteOutput>
     where
         Q: QueryId;
 
@@ -125,13 +121,13 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::DatabaseError>;
+    ) -> StorageResult<Self::DeleteWithResultsOutput>;
 
     async fn delete_one_with_result(
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::DatabaseError>;
+    ) -> StorageResult<Self::DeleteOneWithResultOutput>;
 }
 
 #[async_trait]
@@ -153,7 +149,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::InsertOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::InsertOutput>
     where
         Q: AsQuery + QueryFragment<Pg> + RunQueryDsl<PgConnection>,
     {
@@ -175,7 +171,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::UpdateOutput>
     where
         Q: QueryId,
     {
@@ -192,7 +188,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::DatabaseError> {
+    ) -> StorageResult<Self::UpdateWithResultsOutput> {
         query
             .get_results_async(conn)
             .await
@@ -206,7 +202,7 @@ where
         conn: &PgPooledConn,
         query: Q,
         debug_values: String,
-    ) -> CustomResult<Self::UpdateByIdOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::UpdateByIdOutput>
     where
         Q: Clone,
     {
@@ -230,11 +226,7 @@ where
         }
     }
 
-    async fn delete(
-        &self,
-        conn: &PgPooledConn,
-        query: Q,
-    ) -> CustomResult<Self::DeleteOutput, errors::DatabaseError>
+    async fn delete(&self, conn: &PgPooledConn, query: Q) -> StorageResult<Self::DeleteOutput>
     where
         Q: QueryId,
     {
@@ -261,7 +253,7 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::DatabaseError> {
+    ) -> StorageResult<Self::DeleteWithResultsOutput> {
         query
             .get_results_async(conn)
             .await
@@ -274,7 +266,7 @@ where
         &self,
         conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::DatabaseError> {
+    ) -> StorageResult<Self::DeleteOneWithResultOutput> {
         match query.get_result_async(conn).await {
             Ok(value) => Ok(value),
             Err(error) => match error {
@@ -306,7 +298,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::InsertOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::InsertOutput>
     where
         Q: AsQuery + QueryFragment<Pg> + RunQueryDsl<PgConnection>,
     {
@@ -318,7 +310,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::UpdateOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::UpdateOutput>
     where
         Q: QueryId,
     {
@@ -330,7 +322,7 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::UpdateWithResultsOutput, errors::DatabaseError> {
+    ) -> StorageResult<Self::UpdateWithResultsOutput> {
         generate_raw_query(query)
     }
 
@@ -339,18 +331,14 @@ where
         _conn: &PgPooledConn,
         query: Q,
         _debug_values: String,
-    ) -> CustomResult<Self::UpdateByIdOutput, errors::DatabaseError>
+    ) -> StorageResult<Self::UpdateByIdOutput>
     where
         Q: Clone,
     {
         generate_raw_query(query)
     }
 
-    async fn delete(
-        &self,
-        _conn: &PgPooledConn,
-        query: Q,
-    ) -> CustomResult<Self::DeleteOutput, errors::DatabaseError>
+    async fn delete(&self, _conn: &PgPooledConn, query: Q) -> StorageResult<Self::DeleteOutput>
     where
         Q: QueryId,
     {
@@ -361,7 +349,7 @@ where
         &self,
         _conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteWithResultsOutput, errors::DatabaseError> {
+    ) -> StorageResult<Self::DeleteWithResultsOutput> {
         generate_raw_query(query)
     }
 
@@ -369,12 +357,12 @@ where
         &self,
         _conn: &PgPooledConn,
         query: Q,
-    ) -> CustomResult<Self::DeleteOneWithResultOutput, errors::DatabaseError> {
+    ) -> StorageResult<Self::DeleteOneWithResultOutput> {
         generate_raw_query(query)
     }
 }
 
-pub fn generate_raw_query<Q>(query: Q) -> CustomResult<RawSqlQuery, errors::DatabaseError>
+pub fn generate_raw_query<Q>(query: Q) -> StorageResult<RawSqlQuery>
 where
     Q: QueryFragment<Pg>,
 {
@@ -393,7 +381,7 @@ pub async fn generic_insert<T, V, R, Q>(
     conn: &PgPooledConn,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::InsertOutput, errors::DatabaseError>
+) -> StorageResult<Q::InsertOutput>
 where
     T: HasTable<Table = T> + Table + 'static,
     V: Debug + Insertable<T>,
@@ -419,7 +407,7 @@ pub async fn generic_update<T, V, P, Q>(
     predicate: P,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::UpdateOutput, errors::DatabaseError>
+) -> StorageResult<Q::UpdateOutput>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug,
@@ -452,7 +440,7 @@ pub async fn generic_update_with_results<T, V, P, R, Q>(
     predicate: P,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::UpdateWithResultsOutput, errors::DatabaseError>
+) -> StorageResult<Q::UpdateWithResultsOutput>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug + 'static,
@@ -488,7 +476,7 @@ pub async fn generic_update_by_id<T, V, Pk, R, Q>(
     id: Pk,
     values: V,
     execution_mode: Q,
-) -> CustomResult<Q::UpdateByIdOutput, errors::DatabaseError>
+) -> StorageResult<Q::UpdateByIdOutput>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     V: AsChangeset<Target = <<T as FindDsl<Pk>>::Output as HasTable>::Table> + Debug,
@@ -530,7 +518,7 @@ pub async fn generic_delete<T, P, Q>(
     conn: &PgPooledConn,
     predicate: P,
     execution_mode: Q,
-) -> CustomResult<Q::DeleteOutput, errors::DatabaseError>
+) -> StorageResult<Q::DeleteOutput>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -558,7 +546,7 @@ pub async fn generic_delete_with_results<T, P, R, Q>(
     conn: &PgPooledConn,
     predicate: P,
     execution_mode: Q,
-) -> CustomResult<Q::DeleteWithResultsOutput, errors::DatabaseError>
+) -> StorageResult<Q::DeleteWithResultsOutput>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -586,7 +574,7 @@ pub async fn generic_delete_one_with_result<T, P, R, Q>(
     conn: &PgPooledConn,
     predicate: P,
     execution_mode: Q,
-) -> CustomResult<Q::DeleteOneWithResultOutput, errors::DatabaseError>
+) -> StorageResult<Q::DeleteOneWithResultOutput>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -610,10 +598,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-async fn generic_find_by_id_core<T, Pk, R>(
-    conn: &PgPooledConn,
-    id: Pk,
-) -> CustomResult<R, errors::DatabaseError>
+async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -638,10 +623,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub async fn generic_find_by_id<T, Pk, R>(
-    conn: &PgPooledConn,
-    id: Pk,
-) -> CustomResult<R, errors::DatabaseError>
+pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -657,7 +639,7 @@ where
 pub async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
-) -> CustomResult<Option<R>, errors::DatabaseError>
+) -> StorageResult<Option<R>>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as HasTable>::Table: FindDsl<Pk>,
@@ -672,10 +654,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-async fn generic_find_one_core<T, P, R>(
-    conn: &PgPooledConn,
-    predicate: P,
-) -> CustomResult<R, errors::DatabaseError>
+async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -699,10 +678,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub async fn generic_find_one<T, P, R>(
-    conn: &PgPooledConn,
-    predicate: P,
-) -> CustomResult<R, errors::DatabaseError>
+pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -716,7 +692,7 @@ where
 pub async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
-) -> CustomResult<Option<R>, errors::DatabaseError>
+) -> StorageResult<Option<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -731,7 +707,7 @@ pub async fn generic_filter<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
-) -> CustomResult<Vec<R>, errors::DatabaseError>
+) -> StorageResult<Vec<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg>,
@@ -759,9 +735,7 @@ where
     .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
-pub fn to_optional<T>(
-    arg: CustomResult<T, errors::DatabaseError>,
-) -> CustomResult<Option<T>, errors::DatabaseError> {
+pub fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
     match arg {
         Ok(value) => Ok(Some(value)),
         Err(err) => match err.current_context() {

@@ -9,15 +9,12 @@ use crate::{
     },
     errors,
     schema::connector_response::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl ConnectorResponseNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
         generics::generic_insert::<_, _, ConnectorResponse, _>(conn, self, ExecuteQuery::new())
             .await
     }
@@ -29,7 +26,7 @@ impl ConnectorResponse {
         self,
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id,
@@ -52,7 +49,7 @@ impl ConnectorResponse {
         payment_id: &str,
         merchant_id: &str,
         transaction_id: &str,
-    ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
+    ) -> StorageResult<ConnectorResponse> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()).and(

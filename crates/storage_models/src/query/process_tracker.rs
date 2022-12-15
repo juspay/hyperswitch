@@ -16,15 +16,12 @@ use crate::{
         ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate, ProcessTrackerUpdateInternal,
     },
     schema::process_tracker::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl ProcessTrackerNew {
     #[instrument(skip(conn))]
-    pub async fn insert_process(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<ProcessTracker, errors::DatabaseError> {
+    pub async fn insert_process(self, conn: &PgPooledConn) -> StorageResult<ProcessTracker> {
         generics::generic_insert::<_, _, ProcessTracker, _>(conn, self, ExecuteQuery::new()).await
     }
 }
@@ -35,7 +32,7 @@ impl ProcessTracker {
         self,
         conn: &PgPooledConn,
         process: ProcessTrackerUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
             conn,
             self.id.clone(),
@@ -57,7 +54,7 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         task_ids: Vec<String>,
         task_update: ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         // TODO: Possible optimization: Instead of returning updated values from database, update
         // the values in code and return them, if database query executed successfully.
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
@@ -70,10 +67,7 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_process_by_id(
-        conn: &PgPooledConn,
-        id: &str,
-    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
+    pub async fn find_process_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             id.to_owned(),
@@ -88,7 +82,7 @@ impl ProcessTracker {
         time_upper_limit: PrimitiveDateTime,
         status: enums::ProcessTrackerStatus,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::schedule_time
@@ -107,7 +101,7 @@ impl ProcessTracker {
         time_upper_limit: PrimitiveDateTime,
         runner: &str,
         limit: i64,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         let query = Self::table()
             .filter(dsl::schedule_time.between(time_lower_limit, time_upper_limit))
             .filter(dsl::status.eq(enums::ProcessTrackerStatus::ProcessStarted))
@@ -129,7 +123,7 @@ impl ProcessTracker {
         conn: &PgPooledConn,
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
-    ) -> CustomResult<usize, errors::DatabaseError> {
+    ) -> StorageResult<usize> {
         generics::generic_update::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::status
