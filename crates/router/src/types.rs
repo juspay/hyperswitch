@@ -148,12 +148,6 @@ pub struct PaymentsTransactionResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsSessionResponse {
-    pub session_id: Option<String>,
-    pub session_token: String,
-}
-
-#[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
