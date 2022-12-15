@@ -70,6 +70,8 @@ pub enum Flow {
     PaymentConnectorsUpdate,
     /// Payment connectors delete flow.
     PaymentConnectorsDelete,
+    /// Payment connectors list flow.
+    PaymentConnectorsList,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
