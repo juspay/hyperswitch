@@ -167,7 +167,7 @@ mod storage {
     use common_utils::{date_time, ext_traits::StringExt};
     use error_stack::{IntoReport, ResultExt};
     use futures::StreamExt;
-    use redis_interface::{HashesInterface, RedisEntryId};
+    use redis_interface::{HsetnxReply, RedisEntryId};
 
     use crate::{
         connection::pg_connection,
@@ -175,7 +175,7 @@ mod storage {
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{self as storage_types, enums},
-        utils::storage_partitioning::KvStorePartition,
+        utils::{self, storage_partitioning::KvStorePartition},
     };
     #[async_trait::async_trait]
     impl super::RefundInterface for Store {
@@ -206,15 +206,18 @@ mod storage {
                         .into_report()?;
 
                     self.redis_conn
-                        .pool
-                        .hget::<String, &str, &str>(&lookup.result_id, &lookup.sk_id)
+                        .get_hash_field_and_deserialize::<storage_types::Refund>(
+                            &lookup.result_id,
+                            &lookup.sk_id,
+                            "Refund",
+                        )
                         .await
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<storage_types::Refund>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
+                                format!("Refund does not exist for {}", &lookup.result_id),
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                 }
             }
@@ -257,10 +260,6 @@ mod storage {
                         updated_at: new.created_at.unwrap_or_else(date_time::now),
                         description: new.description.clone(),
                     };
-                    // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&created_refund)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
 
                     let field = format!(
                         "pa_{}_ref_{}",
@@ -268,16 +267,17 @@ mod storage {
                     );
                     match self
                         .redis_conn
-                        .pool
-                        .hsetnx::<u8, &str, &str, &str>(&key, &field, &redis_value)
+                        .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_refund)
                         .await
                     {
-                        Ok(0) => Err(errors::StorageError::DuplicateValue(format!(
-                            "Refund already exists refund_id: {}",
-                            &created_refund.refund_id
-                        )))
-                        .into_report(),
-                        Ok(1) => {
+                        Ok(HsetnxReply::KeyNotSet) => {
+                            Err(errors::StorageError::DuplicateValue(format!(
+                                "Refund already exists refund_id: {}",
+                                &created_refund.refund_id
+                            )))
+                            .into_report()
+                        }
+                        Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
                             let query = new
                                 .insert_diesel_query(&conn)
@@ -349,14 +349,7 @@ mod storage {
                                 .change_context(errors::StorageError::KVError)?;
                             Ok(created_refund)
                         }
-                        Ok(i) => Err(errors::StorageError::KVError)
-                            .into_report()
-                            .attach_printable_lazy(|| {
-                                format!("Invalid response for HSETNX: {}", i)
-                            }),
-                        Err(er) => Err(er)
-                            .into_report()
-                            .change_context(errors::StorageError::KVError),
+                        Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
             }
@@ -442,21 +435,21 @@ mod storage {
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
                     // TODO: Add a proper error for serialization failure
-                    let redis_value = serde_json::to_string(&updated_refund)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
                     let field = format!(
                         "pa_{}_ref_{}",
                         &updated_refund.payment_id, &updated_refund.refund_id
                     );
 
-                    let updated_refund = self
-                        .redis_conn
-                        .pool
-                        .hset::<u8, &str, (&str, String)>(&key, (&field, redis_value))
+                    let redis_value =
+                        utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
+                            &updated_refund,
+                        )
+                        .change_context(errors::StorageError::KVError)?;
+
+                    self.redis_conn
+                        .set_hash_fields(&key, (&field, redis_value))
                         .await
-                        .map(|_| updated_refund)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let conn = pg_connection(&self.master_pool).await;
@@ -512,15 +505,18 @@ mod storage {
                         .into_report()?;
 
                     self.redis_conn
-                        .pool
-                        .hget::<String, &str, &str>(&lookup.result_id, &lookup.sk_id)
+                        .get_hash_field_and_deserialize::<storage_types::Refund>(
+                            &lookup.result_id,
+                            &lookup.sk_id,
+                            "Refund",
+                        )
                         .await
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)
-                        .and_then(|redis_resp| {
-                            serde_json::from_str::<storage_types::Refund>(&redis_resp)
-                                .into_report()
-                                .change_context(errors::StorageError::KVError)
+                        .map_err(|error| match error.current_context() {
+                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
+                                format!("Refund does not exist for {}", &lookup.result_id),
+                            )
+                            .into(),
+                            _ => error.change_context(errors::StorageError::KVError),
                         })
                 }
             }
