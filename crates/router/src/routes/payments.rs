@@ -185,13 +185,14 @@ pub async fn payments_update(
         &req,
         payload,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                None,
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -230,13 +231,14 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                None,
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },

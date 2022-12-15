@@ -10,9 +10,9 @@ use crate::{
     routes::AppState,
     services::api,
     types::api::{
-        self as api_types, enums as api_enums, payments::PaymentsCaptureRequest, Authorize,
-        Capture, PSync, PaymentListConstraints, PaymentsCancelRequest, PaymentsRequest,
-        PaymentsRetrieveRequest, Void,
+        self as api_types, payments::PaymentsCaptureRequest, Authorize, Capture, PSync,
+        PaymentListConstraints, PaymentsCancelRequest, PaymentsRequest, PaymentsRetrieveRequest,
+        Void,
     },
 };
 
@@ -47,13 +47,14 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
-                Some(api_enums::Connector::Stripe),
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -102,7 +103,7 @@ pub async fn payment_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -151,13 +152,14 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -207,13 +209,14 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -261,7 +264,7 @@ pub async fn payment_intents_capture(
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
-                Some(api_enums::Connector::Stripe),
+                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -315,7 +318,7 @@ pub async fn payment_intents_cancel(
                 payments::PaymentCancel,
                 req,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
