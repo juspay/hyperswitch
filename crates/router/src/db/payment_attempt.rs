@@ -394,12 +394,11 @@ mod storage {
 
                             //Reverse lookup for txn_id
                             ReverseLookupNew {
-                                pk_id: created_attempt.payment_id.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
                                     &created_attempt.merchant_id, &created_attempt.txn_id,
                                 ),
-                                result_id: key,
+                                pk_id: key,
                                 sk_id: field,
                                 source: "pa".to_string(),
                             }
@@ -469,12 +468,11 @@ mod storage {
                     {
                         let field = format!("pa_{}", updated_attempt.txn_id);
                         ReverseLookupNew {
-                            pk_id: updated_attempt.payment_id.clone(),
                             lookup_id: format!(
                                 "{}_{}",
                                 &updated_attempt.merchant_id, connector_transaction_id
                             ),
-                            result_id: key.clone(),
+                            pk_id: key.clone(),
                             sk_id: field.clone(),
                             source: "pa".to_string(),
                         }
@@ -557,14 +555,15 @@ mod storage {
                 .await
                 .map_err(Into::<errors::StorageError>::into)
                 .into_report()?;
+            let key = &lookup.pk_id;
             self.redis_conn
                 .get_hash_field_and_deserialize::<PaymentAttempt>(
-                    &lookup.result_id,
+                    key,
                     &lookup.sk_id,
                     "PaymentAttempt",
                 )
                 .await
-                .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
+                .map_err(|error| error.to_redis_failed_response(key))
         }
 
         async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -618,14 +617,15 @@ mod storage {
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
 
+                    let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &lookup.result_id,
+                            key,
                             &lookup.sk_id,
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
+                        .map_err(|error| error.to_redis_failed_response(key))
                 }
             }
         }
@@ -652,14 +652,15 @@ mod storage {
                         .await
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
+                    let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &lookup.result_id,
+                            key,
                             &lookup.sk_id,
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
+                        .map_err(|error| error.to_redis_failed_response(key))
                 }
             }
         }
