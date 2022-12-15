@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use error_stack::{IntoReport, ResultExt};
 use fred::types as fred;
 use redis_interface as redis;
-use router::{scheduler::Milliseconds, services::Store};
+use router::services::Store;
 
 use crate::errors;
 
