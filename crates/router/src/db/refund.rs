@@ -171,7 +171,7 @@ mod storage {
 
     use crate::{
         connection::pg_connection,
-        core::errors::{self, CustomResult},
+        core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{self as storage_types, enums},
@@ -212,13 +212,7 @@ mod storage {
                             "Refund",
                         )
                         .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Refund does not exist for {}", &lookup.result_id),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
+                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
                 }
             }
         }
@@ -490,13 +484,7 @@ mod storage {
                             "Refund",
                         )
                         .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Refund does not exist for {}", &lookup.result_id),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
+                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
                 }
             }
         }
