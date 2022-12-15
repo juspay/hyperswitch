@@ -11,7 +11,7 @@ pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
 pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::Store>) -> bool {
-    let stream_key_flag = get_steam_key_flag(store.clone(), stream_index.to_string());
+    let stream_key_flag = get_steam_key_flag(store.clone(), stream_index);
     let value: fred::RedisValue = true.into();
 
     match store
@@ -113,10 +113,10 @@ pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
     }
 }
 
-pub fn get_steam_key_flag(store: Arc<router::services::Store>, stream_index: String) -> String {
+pub(crate) fn get_steam_key_flag(store: Arc<router::services::Store>, stream_index: u8) -> String {
     format!(
         "{}_in_use",
-        store.drainer_stream(stream_index.as_str()).as_str()
+        get_drainer_stream(store, stream_index)
     )
 }
 
