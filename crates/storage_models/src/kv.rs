@@ -1,8 +1,10 @@
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
-use crate::types::storage::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentIntent, PaymentIntentNew,
-    PaymentIntentUpdate,
+use crate::{
+    errors,
+    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
+    payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,8 +32,15 @@ pub struct TypedSql {
 }
 
 impl TypedSql {
-    pub fn to_field_value_pairs(&self) -> Vec<(&str, String)> {
-        vec![("typed_sql", serde_json::to_string(self).unwrap())]
+    pub fn to_field_value_pairs(
+        &self,
+    ) -> crate::CustomResult<Vec<(&str, String)>, errors::DatabaseError> {
+        Ok(vec![(
+            "typed_sql",
+            serde_json::to_string(self)
+                .into_report()
+                .change_context(errors::DatabaseError::QueryGenerationFailed)?,
+        )])
     }
 }
 

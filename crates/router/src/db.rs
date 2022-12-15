@@ -4,7 +4,6 @@ pub mod connector_response;
 pub mod customers;
 pub mod ephemeral_key;
 pub mod events;
-pub mod kv_gen;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
