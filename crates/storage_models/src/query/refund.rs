@@ -9,8 +9,6 @@ use crate::{
     CustomResult, PgPooledConn,
 };
 
-// FIXME: Find by partition key
-
 impl RefundNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Refund, errors::DatabaseError> {
