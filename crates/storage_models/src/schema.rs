@@ -213,8 +213,8 @@ diesel::table! {
         amount_to_capture -> Nullable<Int8>,
         mandate_id -> Nullable<Varchar>,
         browser_info -> Nullable<Jsonb>,
-        payment_token -> Nullable<Varchar>,
         error_code -> Nullable<Varchar>,
+        payment_token -> Nullable<Varchar>,
     }
 }
 
