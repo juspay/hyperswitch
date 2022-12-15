@@ -138,7 +138,7 @@ impl RedisErrorExt for error_stack::Report<errors::RedisError> {
                 errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",))
                     .into()
             }
-            _ => error.change_context(errors::StorageError::KVError),
+            _ => self.change_context(errors::StorageError::KVError),
         }
     }
 }

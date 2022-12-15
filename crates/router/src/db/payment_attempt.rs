@@ -623,7 +623,7 @@ mod storage {
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| error.to_redis_failed_response())
+                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
                 }
             }
         }
@@ -657,7 +657,7 @@ mod storage {
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| error.to_redis_failed_response())
+                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
                 }
             }
         }
