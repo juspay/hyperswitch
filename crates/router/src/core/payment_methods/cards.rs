@@ -503,7 +503,7 @@ pub async fn list_customer_payment_method(
     }
     let mut vec = Vec::new();
     for pm in resp.into_iter() {
-        let payment_token = generate_id(consts::ID_LENGTH, "token_");
+        let payment_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethodType::Card {
             Some(get_lookup_key_from_locker(state, &payment_token, &pm).await?)
         } else {
