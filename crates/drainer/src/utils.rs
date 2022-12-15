@@ -38,7 +38,9 @@ pub async fn read_from_stream(
     let entries = redis
         .stream_read_entries(stream_key, stream_id, Some(max_read_count))
         .await
-        .map_err(|_| errors::DrainerError::StreamReadError(stream_name.to_owned()))?;
+        .change_context(errors::DrainerError::StreamReadError(
+            stream_name.to_owned(),
+        ))?;
     Ok(entries)
 }
 
@@ -51,19 +53,26 @@ pub async fn trim_from_stream(
     let trim_type = fred::XCapTrim::Exact;
     let trim_id = fred::StringOrNumber::String(minimum_entry_id.into());
     let xcap = fred::XCap::try_from((trim_kind, trim_type, trim_id))
-        .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
+        .into_report()
+        .change_context(errors::DrainerError::StreamTrimFailed(
+            stream_name.to_owned(),
+        ))?;
 
     let trim_result = redis
         .stream_trim_entries(stream_name, xcap)
         .await
-        .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
+        .change_context(errors::DrainerError::StreamTrimFailed(
+            stream_name.to_owned(),
+        ))?;
 
     // Since xtrim deletes entires below given id excluding the given id.
     // Hence, deleting the minimum entry id
     redis
         .stream_delete_entries(stream_name, minimum_entry_id)
         .await
-        .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
+        .change_context(errors::DrainerError::StreamTrimFailed(
+            stream_name.to_owned(),
+        ))?;
 
     // adding 1 because we are deleting the given id too
     Ok(trim_result + 1)
