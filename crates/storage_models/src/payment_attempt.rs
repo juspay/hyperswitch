@@ -12,14 +12,14 @@ pub struct PaymentAttempt {
     pub merchant_id: String,
     pub txn_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
-    pub offer_amount: Option<i32>,
-    pub surcharge_amount: Option<i32>,
-    pub tax_amount: Option<i32>,
+    pub offer_amount: Option<i64>,
+    pub surcharge_amount: Option<i64>,
+    pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethodType>,
     pub payment_flow: Option<storage_enums::PaymentFlow>,
@@ -33,9 +33,10 @@ pub struct PaymentAttempt {
     pub modified_at: PrimitiveDateTime,
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+    pub error_code: Option<String>,
 }
 
 #[derive(
@@ -47,15 +48,15 @@ pub struct PaymentAttemptNew {
     pub merchant_id: String,
     pub txn_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
-    pub offer_amount: Option<i32>,
-    pub surcharge_amount: Option<i32>,
-    pub tax_amount: Option<i32>,
+    pub offer_amount: Option<i64>,
+    pub surcharge_amount: Option<i64>,
+    pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethodType>,
     pub payment_flow: Option<storage_enums::PaymentFlow>,
@@ -69,15 +70,16 @@ pub struct PaymentAttemptNew {
     pub modified_at: Option<PrimitiveDateTime>,
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
-        amount: i32,
+        amount: i64,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -98,6 +100,7 @@ pub enum PaymentAttemptUpdate {
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
+        connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
@@ -108,7 +111,9 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
     },
     ErrorUpdate {
+        connector: Option<String>,
         status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
         error_message: Option<String>,
     },
 }
@@ -116,7 +121,7 @@ pub enum PaymentAttemptUpdate {
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
-    amount: Option<i32>,
+    amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
     status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
@@ -130,6 +135,7 @@ pub struct PaymentAttemptUpdateInternal {
     redirect: Option<bool>,
     mandate_id: Option<String>,
     browser_info: Option<serde_json::Value>,
+    error_code: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -139,9 +145,10 @@ impl PaymentAttemptUpdate {
             amount: pa_update.amount.unwrap_or(source.amount),
             currency: pa_update.currency.or(source.currency),
             status: pa_update.status.unwrap_or(source.status),
-            connector_transaction_id: pa_update
+            connector: pa_update.connector.or(source.connector),
+            connector_transaction_id: source
                 .connector_transaction_id
-                .or(source.connector_transaction_id),
+                .or(pa_update.connector_transaction_id),
             authentication_type: pa_update.authentication_type.or(source.authentication_type),
             payment_method: pa_update.payment_method.or(source.payment_method),
             error_message: pa_update.error_message.or(source.error_message),
@@ -205,6 +212,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
+                connector,
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -212,6 +220,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 mandate_id,
             } => Self {
                 status: Some(status),
+                connector,
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -221,11 +230,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
+                connector,
                 status,
+                error_code,
                 error_message,
             } => Self {
+                connector,
                 status: Some(status),
                 error_message,
+                error_code,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },

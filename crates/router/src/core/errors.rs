@@ -234,6 +234,8 @@ pub enum ApiClientError {
     InvalidProxyConfiguration,
     #[error("Client construction failed")]
     ClientConstructionFailed,
+    #[error("Certificate decode failed")]
+    CertificateDecodeFailed,
 
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
@@ -295,6 +297,12 @@ pub enum ConnectorError {
     MissingRequiredField { field_name: String },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
+    #[error("Failed to obtain certificate")]
+    FailedToObtainCertificate,
+    #[error("Connector meta data not found")]
+    NoConnectorMetaData,
+    #[error("Failed to obtain certificate key")]
+    FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
     #[error("Missing connector transaction ID")]

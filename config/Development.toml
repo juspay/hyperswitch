@@ -37,8 +37,8 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna","braintree"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+wallets = ["klarna","braintree","applepay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci"]
 
 [eph_key]
 validity = 1
@@ -63,6 +63,9 @@ base_url = "https://api.sandbox.braintreegateway.com/"
 
 [connectors.klarna]
 base_url = "https://api-na.playground.klarna.com/"
+
+[connectors.applepay]
+base_url = "https://apple-pay-gateway.apple.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

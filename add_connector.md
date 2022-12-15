@@ -91,7 +91,7 @@ Now let's implement Request type for checkout
 #[derive(Debug, Serialize)]
 pub struct CheckoutPaymentsRequest {
     pub source: Source,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: String,
     #[serde(default = "generate_processing_channel_id")]
     pub processing_channel_id: Cow<'static, str>,
@@ -223,7 +223,7 @@ Below is rest of the response type implementation for checkout
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CheckoutPaymentsResponse {
     id: String,
-    amount: i32,
+    amount: i64,
     status: CheckoutPaymentStatus,
 }
 

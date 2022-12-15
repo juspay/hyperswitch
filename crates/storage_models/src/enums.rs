@@ -67,6 +67,7 @@ pub enum AttemptStatus {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -89,6 +90,7 @@ pub enum AuthenticationType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -112,6 +114,7 @@ pub enum CaptureMethod {
     serde::Deserialize,
     serde::Serialize,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
@@ -147,6 +150,7 @@ pub enum ConnectorType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 pub enum Currency {
@@ -305,6 +309,7 @@ pub enum EventObjectType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -325,6 +330,7 @@ pub enum EventType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -353,6 +359,7 @@ pub enum IntentStatus {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -421,6 +428,7 @@ pub enum PaymentFlow {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
@@ -450,6 +458,7 @@ pub enum PaymentMethodIssuerCode {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -476,6 +485,7 @@ pub enum PaymentMethodSubType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]
@@ -555,6 +565,7 @@ pub enum ProcessTrackerStatus {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[strum(serialize_all = "snake_case")]
@@ -598,6 +609,7 @@ pub enum RefundType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -644,6 +656,7 @@ pub enum MandateType {
     strum::Display,
     strum::EnumString,
     router_derive::DieselEnum,
+    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum]
 #[serde(rename_all = "snake_case")]

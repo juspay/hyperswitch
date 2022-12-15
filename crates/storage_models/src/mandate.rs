@@ -21,9 +21,9 @@ pub struct Mandate {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: PrimitiveDateTime,
-    pub mandate_amount: Option<i32>,
+    pub mandate_amount: Option<i64>,
     pub mandate_currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i32>,
+    pub amount_captured: Option<i64>,
     pub connector: String,
     pub connector_mandate_id: Option<String>,
 }
@@ -45,9 +45,9 @@ pub struct MandateNew {
     pub network_transaction_id: Option<String>,
     pub previous_transaction_id: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
-    pub mandate_amount: Option<i32>,
+    pub mandate_amount: Option<i64>,
     pub mandate_currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i32>,
+    pub amount_captured: Option<i64>,
     pub connector: String,
     pub connector_mandate_id: Option<String>,
 }
@@ -58,7 +58,7 @@ pub enum MandateUpdate {
         mandate_status: storage_enums::MandateStatus,
     },
     CaptureAmountUpdate {
-        amount_captured: Option<i32>,
+        amount_captured: Option<i64>,
     },
     ConnectorReferenceUpdate {
         connector_mandate_id: Option<String>,
@@ -67,7 +67,7 @@ pub enum MandateUpdate {
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: storage_enums::Currency,
 }
 
@@ -75,7 +75,7 @@ pub struct SingleUseMandate {
 #[diesel(table_name = mandate)]
 pub struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
-    amount_captured: Option<i32>,
+    amount_captured: Option<i64>,
     connector_mandate_id: Option<String>,
 }
 

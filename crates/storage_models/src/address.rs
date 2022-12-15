@@ -26,7 +26,7 @@ pub struct AddressNew {
     pub merchant_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
+#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable, frunk::LabelledGeneric)]
 #[diesel(table_name = address)]
 pub struct Address {
     #[serde(skip_serializing)]
@@ -54,7 +54,7 @@ pub struct Address {
     pub merchant_id: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, frunk::LabelledGeneric)]
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
