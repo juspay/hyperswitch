@@ -204,14 +204,15 @@ mod storage {
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
 
+                    let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<storage_types::Refund>(
-                            &lookup.result_id,
+                            key,
                             &lookup.sk_id,
                             "Refund",
                         )
                         .await
-                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
+                        .map_err(|error| error.to_redis_failed_response(key))
                 }
             }
         }
@@ -278,13 +279,12 @@ mod storage {
                                 .change_context(errors::StorageError::KVError)?;
 
                             storage_types::ReverseLookupNew {
-                                pk_id: created_refund.refund_id.clone(),
                                 sk_id: field.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
                                     created_refund.refund_id, created_refund.merchant_id
                                 ),
-                                result_id: key.clone(),
+                                pk_id: key.clone(),
                                 source: "ref".to_string(),
                             }
                             .insert(&conn)
@@ -294,13 +294,12 @@ mod storage {
 
                             //Reverse lookup for txn_id
                             storage_types::ReverseLookupNew {
-                                pk_id: created_refund.refund_id.clone(),
                                 sk_id: field.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
                                     created_refund.transaction_id, created_refund.merchant_id
                                 ),
-                                result_id: key.clone(),
+                                pk_id: key.clone(),
                                 source: "ref".to_string(),
                             }
                             .insert(&conn)
@@ -310,14 +309,13 @@ mod storage {
 
                             //Reverse lookup for internal_reference_id
                             storage_types::ReverseLookupNew {
-                                pk_id: created_refund.refund_id.clone(),
                                 sk_id: field.clone(),
                                 lookup_id: format!(
                                     "{}_{}",
                                     created_refund.internal_reference_id,
                                     created_refund.merchant_id
                                 ),
-                                result_id: key,
+                                pk_id: key,
                                 source: "ref".to_string(),
                             }
                             .insert(&conn)
@@ -372,7 +370,7 @@ mod storage {
                         Ok(l) => l,
                         Err(_) => return Ok(vec![]),
                     };
-                    let key = &lookup.result_id;
+                    let key = &lookup.pk_id;
                     let payment_id = key
                         .split("_mer")
                         .next()
@@ -476,14 +474,15 @@ mod storage {
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
 
+                    let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<storage_types::Refund>(
-                            &lookup.result_id,
+                            key,
                             &lookup.sk_id,
                             "Refund",
                         )
                         .await
-                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
+                        .map_err(|error| error.to_redis_failed_response(key))
                 }
             }
         }
@@ -524,7 +523,7 @@ mod storage {
                         Err(_) => return Ok(vec![]),
                     };
 
-                    let key = &lookup.result_id;
+                    let key = &lookup.pk_id;
                     let payment_id = key
                         .split("_mer")
                         .next()
