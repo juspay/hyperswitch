@@ -120,13 +120,8 @@ impl PaymentAttempt {
         payment_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        // Remove After Review
-        // generics::generic_find_one_by_order_core::<<Self as HasTable>::Table, _, _, _>(conn, dsl::payment_id
-        //     .eq(payment_id.to_owned())
-        //     .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-        //     .and(dsl::status.eq(enums::AttemptStatus::Charged)), dsl::created_at.desc()).await
-
-        let result: Vec<Self> = generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        // perform ordering on the application level instead of database level
+        generics::generic_filter::<<Self as HasTable>::Table, _, Self>(
             conn,
             dsl::payment_id
                 .eq(payment_id.to_owned())
@@ -134,9 +129,9 @@ impl PaymentAttempt {
                 .and(dsl::status.eq(enums::AttemptStatus::Charged)),
             None,
         )
-        .await?;
-
-        result.into_iter().fold(
+        .await?
+        .into_iter()
+        .fold(
             Err(errors::DatabaseError::NotFound).into_report(),
             |acc, cur| match acc {
                 Ok(value) if value.created_at > cur.created_at => Ok(value),
