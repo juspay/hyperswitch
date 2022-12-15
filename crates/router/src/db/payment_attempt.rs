@@ -400,7 +400,7 @@ mod storage {
                                 ),
                                 pk_id: key,
                                 sk_id: field,
-                                source: "pa".to_string(),
+                                source: "payment_attempt".to_string(),
                             }
                             .insert(&conn)
                             .await
@@ -474,7 +474,7 @@ mod storage {
                             ),
                             pk_id: key.clone(),
                             sk_id: field.clone(),
-                            source: "pa".to_string(),
+                            source: "payment_attempt".to_string(),
                         }
                         .insert(&conn)
                         .await

@@ -292,7 +292,7 @@ mod storage {
                                     created_refund.merchant_id, created_refund.refund_id
                                 ),
                                 pk_id: key.clone(),
-                                source: "ref".to_string(),
+                                source: "refund".to_string(),
                             }
                             .insert(&conn)
                             .await
@@ -307,7 +307,7 @@ mod storage {
                                     created_refund.merchant_id, created_refund.transaction_id
                                 ),
                                 pk_id: key.clone(),
-                                source: "ref".to_string(),
+                                source: "refund".to_string(),
                             }
                             .insert(&conn)
                             .await
@@ -323,7 +323,7 @@ mod storage {
                                     created_refund.internal_reference_id
                                 ),
                                 pk_id: key,
-                                source: "ref".to_string(),
+                                source: "refund".to_string(),
                             }
                             .insert(&conn)
                             .await
