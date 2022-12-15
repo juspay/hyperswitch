@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 mod transformers;
+use api_models::payments as api_payments;
 use std::fmt::Debug;
 
 use bytes::Bytes;
@@ -188,7 +189,107 @@ impl
         types::PaymentsResponseData,
     > for Klarna
 {
-    //Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_method_data = &req.request.payment_method_data;
+        match payment_method_data {
+            api_payments::PaymentMethod::Wallet(wallet_data) => {
+                let auth_token = wallet_data.token.clone();
+                Ok(format!(
+                    "{}payments/v1/authorizations/{}/order",
+                    self.base_url(connectors),
+                    auth_token
+                ))
+            }
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::NotImplemented(
+                    "We do not support card payments through klarna".to_string(),
+                )
+            )),
+        }
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        logger::debug!(klarna_payment_logs=?klarna_req);
+        Ok(Some(klarna_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
+                .header(headers::X_ROUTER, "test")
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        let response: klarna::KlarnaPaymentsResponse = res
+            .response
+            .parse_struct("KlarnaPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: klarna::KlarnaErrorResponse = res
+            .parse_struct("KlarnaErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response.error_code,
+            message: response.error_messages.join(" & "),
+            reason: None,
+        })
+    }
 }
 
 impl
