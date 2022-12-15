@@ -169,7 +169,6 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,

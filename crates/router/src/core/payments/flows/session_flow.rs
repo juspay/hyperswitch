@@ -7,7 +7,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{self, transformers, PaymentData},
     },
-    logger, routes, services,
+    routes, services,
     types::{
         self, api,
         storage::{self, enums},
@@ -62,16 +62,17 @@ fn create_gpay_session_token(
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
 
-    let gpay_data: Result<payment_types::GpaySessionTokenData, _> =
-        error_stack::ResultExt::change_context(
-            connector_metadata.parse_value("GpaySessionTokenData"),
-            errors::ConnectorError::NoConnectorMetaData,
-        );
+    let gpay_data = error_stack::ResultExt::change_context(
+        connector_metadata
+            .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData"),
+        errors::ConnectorError::NoConnectorMetaData,
+    );
 
     match gpay_data {
         Ok(data) => {
+            let session_data = router_data.request.clone();
             let transaction_info = payment_types::GpayTransactionInfo {
-                country_code: "US".to_string(), //FIXME: take from router data
+                country_code: session_data.country.unwrap_or_else(|| "US".to_string()),
                 currency_code: router_data.request.currency.to_string(),
                 total_price_status: "Final".to_string(),
                 total_price: router_data.request.amount,
@@ -90,8 +91,7 @@ fn create_gpay_session_token(
             Ok(response_router_data)
         }
 
-        Err(error) => {
-            logger::debug!("cannot construct gpay for connector {:?}", error);
+        Err(_error) => {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::InternalServerError //FIXME
             )

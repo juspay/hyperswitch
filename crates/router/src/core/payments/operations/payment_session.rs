@@ -263,12 +263,11 @@ where
 
         let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
 
-        //FIXME: Check if merchant has enabled wallet through the connector
         let connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Database error when querying for merchant accounts")?;
+            .attach_printable("Database error when querying for merchant connector accounts")?;
 
         let normal_connector_names = connector_accounts
             .iter()

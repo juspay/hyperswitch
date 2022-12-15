@@ -124,9 +124,9 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    //TODO: Add the fields here as required
     pub amount: i32,
     pub currency: storage_enums::Currency,
+    pub country: Option<String>,
 }
 
 #[derive(Debug, Clone)]
