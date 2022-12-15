@@ -1,5 +1,6 @@
 use std::collections;
 
+use common_utils::{consts, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{tracing, tracing::instrument};
 
@@ -60,7 +61,7 @@ pub async fn add_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
         None => {
-            let payment_method_id = uuid::Uuid::new_v4().to_string();
+            let payment_method_id = generate_id(consts::ID_LENGTH, "pm_");
             create_payment_method(
                 &*state.store,
                 &req,
@@ -153,7 +154,7 @@ pub async fn add_card(
         }?;
         response
     } else {
-        let card_id = uuid::Uuid::new_v4().to_string();
+        let card_id = generate_id(consts::ID_LENGTH, "card_id");
         mock_add_card(db, &card_id, &card, None).await?
     };
 
@@ -502,7 +503,7 @@ pub async fn list_customer_payment_method(
     }
     let mut vec = Vec::new();
     for pm in resp.into_iter() {
-        let payment_token = uuid::Uuid::new_v4().to_string();
+        let payment_token = generate_id(consts::ID_LENGTH, "token_");
         let card = if pm.payment_method == enums::PaymentMethodType::Card {
             Some(get_lookup_key_from_locker(state, &payment_token, &pm).await?)
         } else {
