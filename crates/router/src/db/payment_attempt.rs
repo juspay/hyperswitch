@@ -311,7 +311,7 @@ mod storage {
     use super::PaymentAttemptInterface;
     use crate::{
         connection::pg_connection,
-        core::errors::{self, CustomResult},
+        core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{enums, payment_attempt::*, ReverseLookupNew},
@@ -535,13 +535,7 @@ mod storage {
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Attempt does not exist for {}", key),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
+                        .map_err(|error| error.to_redis_failed_response(&key))
                     // Check for database presence as well Maybe use a read replica here ?
                 }
             }
@@ -568,14 +562,7 @@ mod storage {
                     "PaymentAttempt",
                 )
                 .await
-                .map_err(|error| match error.current_context() {
-                    errors::RedisError::NotFound => errors::StorageError::ValueNotFound(format!(
-                        "Payment Attempt does not exist for {}",
-                        lookup.result_id
-                    ))
-                    .into(),
-                    _ => error.change_context(errors::StorageError::KVError),
-                })
+                .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
         }
 
         async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -636,13 +623,7 @@ mod storage {
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Attempt does not exist for {}", lookup.result_id),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
+                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
                 }
             }
         }
@@ -676,13 +657,7 @@ mod storage {
                             "PaymentAttempt",
                         )
                         .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Attempt does not exist for {}", lookup.result_id),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
+                        .map_err(|error| error.to_redis_failed_response(&lookup.result_id))
                 }
             }
         }
