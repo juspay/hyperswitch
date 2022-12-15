@@ -32,7 +32,7 @@ async fn drainer_handler(
         //TODO: LOG ERRORs
     }
 
-    let flag_stream_name = utils::get_steam_key_flag(store.clone(), stream_index);
+    let flag_stream_name = utils::get_stream_key_flag(store.clone(), stream_index);
     //TODO: USE THE RESULT FOR LOGGING
     utils::make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await
 }
