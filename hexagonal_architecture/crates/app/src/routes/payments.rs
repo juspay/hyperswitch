@@ -21,7 +21,7 @@ async fn confirm(
     Json(connector.verify_payment(payment_id).await)
 }
 
-pub fn mk_service<C: Connector + 'static>(connector: C) -> Scope {
+pub fn mk_service<C: Connector>(connector: C) -> Scope {
     web::scope("/payments")
         .app_data(web::Data::new(connector))
         .service(web::resource("").route(web::post().to::<_, (Data<C>, _)>(create)))
