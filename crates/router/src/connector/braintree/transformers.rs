@@ -26,7 +26,7 @@ pub struct TransactionBody {
     device_data: DeviceData,
     options: PaymentOptions,
     #[serde(flatten)]
-    payment_method_nonce_or_data: PaymentMethodType,
+    payment_method_data_type: PaymentMethodType,
     #[serde(rename = "type")]
     kind: String,
 }
@@ -67,48 +67,41 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             Some(enums::CaptureMethod::Automatic) | None
         );
 
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                let braintree_payment_request = TransactionBody {
-                    amount: item.request.amount.to_string(),
-                    device_data: DeviceData {},
-                    options: PaymentOptions {
-                        submit_for_settlement,
-                    },
-                    kind: "sale".to_string(),
-                    payment_method_nonce_or_data: PaymentMethodType::CreditCard(Card {
-                        credit_card: CardDetails {
-                            number: ccard.card_number.peek().clone(),
-                            expiration_month: ccard.card_exp_month.peek().clone(),
-                            expiration_year: ccard.card_exp_year.peek().clone(),
-                            cvv: ccard.card_cvc.peek().clone(),
-                        },
-                    }),
-                };
-                Ok(BraintreePaymentsRequest {
-                    transaction: braintree_payment_request,
-                })
-            }
+        let amount = item.request.amount.to_string();
+        let device_data = DeviceData {};
+        let options = PaymentOptions {
+            submit_for_settlement,
+        };
+        let kind = "sale".to_string();
+
+        let payment_method_data_type = match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => Ok(PaymentMethodType::CreditCard(Card {
+                credit_card: CardDetails {
+                    number: ccard.card_number.peek().clone(),
+                    expiration_month: ccard.card_exp_month.peek().clone(),
+                    expiration_year: ccard.card_exp_year.peek().clone(),
+                    cvv: ccard.card_cvc.peek().clone(),
+                },
+            })),
             api::PaymentMethod::Wallet(ref wallet_data) => {
-                let braintree_paypal_request = TransactionBody {
-                    amount: item.request.amount.to_string(),
-                    device_data: DeviceData {},
-                    options: PaymentOptions {
-                        submit_for_settlement,
-                    },
-                    kind: "sale".to_string(),
-                    payment_method_nonce_or_data: PaymentMethodType::PaymentMethodNonce(Nonce {
-                        payment_method_nonce: wallet_data.token.to_string(),
-                    }),
-                };
-                Ok(BraintreePaymentsRequest {
-                    transaction: braintree_paypal_request,
-                })
+                Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
+                    payment_method_nonce: wallet_data.token.to_string(),
+                }))
             }
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Current Payment Method".to_string()).into(),
-            ),
-        }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Current Payment Method".to_string(),
+            )),
+        }?;
+        let braintree_transaction_body = TransactionBody {
+            amount,
+            device_data,
+            options,
+            payment_method_data_type,
+            kind,
+        };
+        Ok(BraintreePaymentsRequest {
+            transaction: braintree_transaction_body,
+        })
     }
 }
 
