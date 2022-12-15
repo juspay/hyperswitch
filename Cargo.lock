@@ -1147,6 +1147,7 @@ dependencies = [
  "redis_interface",
  "router",
  "serde_json",
+ "storage_models",
  "structopt",
  "thiserror",
  "tokio",

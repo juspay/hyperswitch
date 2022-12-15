@@ -1,7 +1,9 @@
 pub mod errors;
 mod utils;
-use router::{connection::pg_connection, db::kv_gen, services::Store};
 use std::sync::Arc;
+
+use router::{connection::pg_connection, services::Store};
+use storage_models::kv;
 
 pub async fn start_drainer(
     store: Arc<Store>,
@@ -23,8 +25,7 @@ async fn drainer_handler(
     stream_index: u8,
     max_read_count: u64,
 ) -> errors::DrainerResult<()> {
-    let stream_name = store.drainer_stream(stream_index.to_string().as_str());
-
+    let stream_name = utils::get_drainer_stream(store.clone(), stream_index);
     let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
 
     if let Err(_e) = drainer_result {
@@ -52,7 +53,7 @@ async fn drainer(
     // TODO: Handle errors when deserialization fails and when DB error occurs
     for entry in entries {
         let typed_sql = entry.1.get("typed_sql").map_or(String::new(), Clone::clone);
-        let result = serde_json::from_str::<kv_gen::DBOperation>(&typed_sql);
+        let result = serde_json::from_str::<kv::DBOperation>(&typed_sql);
         let Ok(db_op) = result else {
             continue; // TODO: handle error
         };
@@ -61,23 +62,23 @@ async fn drainer(
 
         match db_op {
             // TODO: Handle errors
-            kv_gen::DBOperation::Insert(a) => match a.insertable {
-                kv_gen::Insertables::PaymentIntent(a) => {
+            kv::DBOperation::Insert(a) => match a.insertable {
+                kv::Insertables::PaymentIntent(a) => {
                     macro_util::handle_resp!(a.insert(&conn).await, "ins", "pi")
                 }
-                kv_gen::Insertables::PaymentAttempt(a) => {
+                kv::Insertables::PaymentAttempt(a) => {
                     macro_util::handle_resp!(a.insert(&conn).await, "ins", "pa")
                 }
             },
-            kv_gen::DBOperation::Update(a) => match a.updateable {
-                kv_gen::Updateables::PaymentIntentUpdate(a) => {
+            kv::DBOperation::Update(a) => match a.updateable {
+                kv::Updateables::PaymentIntentUpdate(a) => {
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "pi")
                 }
-                kv_gen::Updateables::PaymentAttemptUpdate(a) => {
+                kv::Updateables::PaymentAttemptUpdate(a) => {
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "pa")
                 }
             },
-            kv_gen::DBOperation::Delete => todo!(),
+            kv::DBOperation::Delete => todo!(),
         };
     }
 

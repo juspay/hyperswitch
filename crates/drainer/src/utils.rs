@@ -1,8 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{IntoReport, ResultExt};
 use fred::types as fred;
 use redis_interface as redis;
+use router::services::Store;
 
 use crate::errors;
 
@@ -63,8 +64,8 @@ pub async fn trim_from_stream(
         .stream_delete_entries(stream_name, minimum_entry_id)
         .await
         .map_err(|_| errors::DrainerError::StreamTrimFailed(stream_name.to_owned()))?;
-    
-    // adding 1 because we are deleting the given id too 
+
+    // adding 1 because we are deleting the given id too
     Ok(trim_result + 1)
 }
 
@@ -91,7 +92,7 @@ pub fn parse_stream_entries<'a>(
                 .last()
                 .map(|last_entry| (entries, last_entry.0.clone()))
         })
-        .ok_or(errors::DrainerError::NoStreamEntry(stream_name.to_owned()))
+        .ok_or_else(|| errors::DrainerError::NoStreamEntry(stream_name.to_owned()))
         .into_report()
 }
 
@@ -108,4 +109,8 @@ pub fn get_steam_key_flag(store: Arc<router::services::Store>, stream_index: Str
         "{}_in_use",
         store.drainer_stream(stream_index.as_str()).as_str()
     )
+}
+
+pub(crate) fn get_drainer_stream(store: Arc<Store>, stream_index: u8) -> String {
+    store.drainer_stream(format!("shard_{}", stream_index).as_str())
 }

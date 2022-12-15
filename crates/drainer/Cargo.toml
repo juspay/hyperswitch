@@ -17,3 +17,4 @@ tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
 # First Party Crates
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router = { version = "0.2.0", path = "../router", features = ["kv_store"] }
+storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
