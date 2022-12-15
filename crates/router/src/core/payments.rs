@@ -32,8 +32,10 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest},
-        storage::{self, enums, ProcessTrackerExt},
+        api::{
+            self, enums as api_enums, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest,
+        },
+        storage::{self, enums as storage_enums, ProcessTrackerExt},
         transformers::ForeignInto,
     },
     utils::{self, OptionExt},
@@ -45,6 +47,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
+    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
@@ -106,15 +109,24 @@ where
             validate_result.storage_scheme,
         )
         .await?;
+
     payment_data.payment_method_data = payment_method_data;
     if let Some(token) = payment_token {
         payment_data.token = Some(token)
     }
 
-    let connector_details = operation
+    let mut connector_details = operation
         .to_domain()?
         .get_connector(&merchant_account, state)
         .await?;
+
+    if let (true, Some(conn)) = (connector_details.is_single(), use_connector) {
+        let conn_data =
+            api::ConnectorData::get_connector_by_name(&state.conf.connectors, &conn.to_string())
+                .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
+        connector_details = api::ConnectorCallType::Single(conn_data);
+    }
 
     if let api::ConnectorCallType::Single(ref connector) = connector_details {
         payment_data.payment_attempt.connector =
@@ -176,6 +188,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
+    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
@@ -200,9 +213,11 @@ where
         merchant_account,
         operation.clone(),
         req,
+        use_connector,
         call_connector_action,
     )
     .await?;
+
     Res::generate_response(
         Some(req),
         payment_data,
@@ -284,6 +299,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
         payments::PaymentStatus,
         req,
         services::api::AuthFlow::Merchant,
+        None,
         flow_type,
     )
     .await
@@ -433,7 +449,7 @@ where
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
-    StatusUpdate(enums::AttemptStatus),
+    StatusUpdate(storage_enums::AttemptStatus),
     HandleResponse(Vec<u8>),
 }
 
@@ -453,7 +469,7 @@ where
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
-    pub currency: enums::Currency,
+    pub currency: storage_enums::Currency,
     pub mandate_id: Option<String>,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
@@ -477,7 +493,7 @@ pub struct CustomerDetails {
 
 pub fn if_not_create_change_operation<'a, Op, F>(
     is_update: bool,
-    status: enums::IntentStatus,
+    status: storage_enums::IntentStatus,
     current: &'a Op,
 ) -> BoxedOperation<F, api::PaymentsRequest>
 where
@@ -486,9 +502,9 @@ where
     &'a Op: Operation<F, api::PaymentsRequest>,
 {
     match status {
-        enums::IntentStatus::RequiresConfirmation
-        | enums::IntentStatus::RequiresCustomerAction
-        | enums::IntentStatus::RequiresPaymentMethod => {
+        storage_enums::IntentStatus::RequiresConfirmation
+        | storage_enums::IntentStatus::RequiresCustomerAction
+        | storage_enums::IntentStatus::RequiresPaymentMethod => {
             if is_update {
                 Box::new(&PaymentUpdate)
             } else {
@@ -526,14 +542,14 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 .payment_attempt
                 .authentication_type
                 .unwrap_or_default()
-                == enums::AuthenticationType::NoThreeDs
+                == storage_enums::AuthenticationType::NoThreeDs
                 || payment_data.payment_attempt.payment_method
-                    == Some(enums::PaymentMethodType::PayLater)
+                    == Some(storage_enums::PaymentMethodType::PayLater)
         }
         "PaymentStart" => {
             !matches!(
                 payment_data.payment_intent.status,
-                enums::IntentStatus::Failed | enums::IntentStatus::Succeeded
+                storage_enums::IntentStatus::Failed | storage_enums::IntentStatus::Succeeded
             ) && payment_data
                 .connector_response
                 .authentication_data
@@ -542,20 +558,20 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentStatus" => {
             matches!(
                 payment_data.payment_intent.status,
-                enums::IntentStatus::Failed
-                    | enums::IntentStatus::Processing
-                    | enums::IntentStatus::Succeeded
-                    | enums::IntentStatus::RequiresCustomerAction
+                storage_enums::IntentStatus::Failed
+                    | storage_enums::IntentStatus::Processing
+                    | storage_enums::IntentStatus::Succeeded
+                    | storage_enums::IntentStatus::RequiresCustomerAction
             ) && payment_data.force_sync.unwrap_or(false)
         }
         "PaymentCancel" => matches!(
             payment_data.payment_intent.status,
-            enums::IntentStatus::RequiresCapture
+            storage_enums::IntentStatus::RequiresCapture
         ),
         "PaymentCapture" => {
             matches!(
                 payment_data.payment_intent.status,
-                enums::IntentStatus::RequiresCapture
+                storage_enums::IntentStatus::RequiresCapture
             )
         }
         "PaymentSession" => true,

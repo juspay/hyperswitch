@@ -10,9 +10,9 @@ use crate::{
     routes::AppState,
     services::api,
     types::api::{
-        self as api_types, payments::PaymentsCaptureRequest, Authorize, Capture, PSync,
-        PaymentListConstraints, PaymentsCancelRequest, PaymentsRequest, PaymentsRetrieveRequest,
-        Void,
+        self as api_types, enums as api_enums, payments::PaymentsCaptureRequest, Authorize,
+        Capture, PSync, PaymentListConstraints, PaymentsCancelRequest, PaymentsRequest,
+        PaymentsRetrieveRequest, Void,
     },
 };
 
@@ -53,6 +53,7 @@ pub async fn payment_intents_create(
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -101,6 +102,7 @@ pub async fn payment_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -155,6 +157,7 @@ pub async fn payment_intents_update(
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -210,6 +213,7 @@ pub async fn payment_intents_confirm(
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -257,6 +261,7 @@ pub async fn payment_intents_capture(
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -310,6 +315,7 @@ pub async fn payment_intents_cancel(
                 payments::PaymentCancel,
                 req,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },

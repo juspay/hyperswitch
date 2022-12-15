@@ -468,6 +468,28 @@ pub enum MandateStatus {
     Revoked,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Connector {
+    Aci,
+    Adyen,
+    Authorizedotnet,
+    Checkout,
+    Stripe,
+}
+
 impl From<AttemptStatus> for IntentStatus {
     fn from(s: AttemptStatus) -> Self {
         match s {

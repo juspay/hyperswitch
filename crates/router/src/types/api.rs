@@ -74,6 +74,12 @@ pub enum ConnectorCallType {
     Multiple(Vec<ConnectorData>),
 }
 
+impl ConnectorCallType {
+    pub fn is_single(&self) -> bool {
+        matches!(self, Self::Single(_))
+    }
+}
+
 impl ConnectorData {
     pub fn get_connector_by_name(
         connectors: &Connectors,

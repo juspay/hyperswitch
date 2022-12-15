@@ -9,7 +9,10 @@ use crate::{
     core::payments,
     routes::AppState,
     services::api,
-    types::api::{self as api_types, PSync, PaymentsRequest, PaymentsRetrieveRequest, Verify},
+    types::api::{
+        self as api_types, enums as api_enums, PSync, PaymentsRequest, PaymentsRetrieveRequest,
+        Verify,
+    },
 };
 
 #[post("")]
@@ -49,6 +52,7 @@ pub async fn setup_intents_create(
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -97,6 +101,7 @@ pub async fn setup_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -151,6 +156,7 @@ pub async fn setup_intents_update(
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -206,6 +212,7 @@ pub async fn setup_intents_confirm(
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
+                Some(api_enums::Connector::Stripe),
                 payments::CallConnectorAction::Trigger,
             )
         },
