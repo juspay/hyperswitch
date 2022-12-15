@@ -283,7 +283,7 @@ impl super::RedisConnectionPool {
         Ok(redis_results
             .iter()
             .filter_map(|v| {
-                let r: T = v.parse_struct(stringify!(T)).ok()?;
+                let r: T = v.parse_struct(std::any::type_name::<T>()).ok()?;
                 Some(r)
             })
             .collect())
