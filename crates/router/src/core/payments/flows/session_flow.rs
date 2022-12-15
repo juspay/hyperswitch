@@ -63,20 +63,18 @@ fn create_gpay_session_token(
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
 
-    let gpay_data = error_stack::ResultExt::change_context(
-        connector_metadata
-            .clone()
-            .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData"),
-        errors::ConnectorError::NoConnectorMetaData,
-    )
-    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-        field_name: "connector_metadata".to_string(),
-        expected_format: "gpay metadata format".to_string(),
-    })
-    .attach_printable(format!(
-        "cannnot parse gpay metadata from the given value {:?}",
-        connector_metadata
-    ))?;
+    let gpay_data = connector_metadata
+        .clone()
+        .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorMetaData)
+        .attach_printable(format!(
+            "cannnot parse gpay metadata from the given value {:?}",
+            connector_metadata
+        ))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "gpay_metadata_format".to_string(),
+        })?;
 
     let session_data = router_data.request.clone();
     let transaction_info = payment_types::GpayTransactionInfo {
