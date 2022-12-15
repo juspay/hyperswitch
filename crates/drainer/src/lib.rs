@@ -62,19 +62,19 @@ async fn drainer(
 
         match db_op {
             // TODO: Handle errors
-            kv::DBOperation::Insert(a) => match a.insertable {
-                kv::Insertables::PaymentIntent(a) => {
+            kv::DBOperation::Insert { insertable } => match insertable {
+                kv::Insertable::PaymentIntent(a) => {
                     macro_util::handle_resp!(a.insert(&conn).await, "ins", "pi")
                 }
-                kv::Insertables::PaymentAttempt(a) => {
+                kv::Insertable::PaymentAttempt(a) => {
                     macro_util::handle_resp!(a.insert(&conn).await, "ins", "pa")
                 }
             },
-            kv::DBOperation::Update(a) => match a.updateable {
-                kv::Updateables::PaymentIntentUpdate(a) => {
+            kv::DBOperation::Update { updatable } => match updatable {
+                kv::Updateable::PaymentIntentUpdate(a) => {
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "pi")
                 }
-                kv::Updateables::PaymentAttemptUpdate(a) => {
+                kv::Updateable::PaymentAttemptUpdate(a) => {
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "pa")
                 }
             },

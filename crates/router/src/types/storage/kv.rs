@@ -1,4 +1,4 @@
 pub use storage_models::kv::{
-    DBOperation, InsertData, Insertables, PaymentAttemptUpdateMems, PaymentIntentUpdateMems,
-    TypedSql, UpdateData, Updateables,
+    DBOperation, Insertable, PaymentAttemptUpdateMems, PaymentIntentUpdateMems, TypedSql,
+    Updateable,
 };

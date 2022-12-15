@@ -10,19 +10,9 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "db_op", content = "data")]
 pub enum DBOperation {
-    Insert(InsertData),
-    Update(UpdateData),
+    Insert { insertable: Insertable },
+    Update { updatable: Updateable },
     Delete,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InsertData {
-    pub insertable: Insertables,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateData {
-    pub updateable: Updateables,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,14 +36,14 @@ impl TypedSql {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "table", content = "data")]
-pub enum Insertables {
+pub enum Insertable {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "table", content = "data")]
-pub enum Updateables {
+pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
 }

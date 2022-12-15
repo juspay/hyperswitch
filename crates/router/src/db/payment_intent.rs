@@ -106,9 +106,9 @@ mod storage {
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
                             let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert(kv::InsertData {
-                                    insertable: kv::Insertables::PaymentIntent(new),
-                                }),
+                                op: kv::DBOperation::Insert {
+                                    insertable: kv::Insertable::PaymentIntent(new),
+                                },
                             };
                             let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
                                 crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
@@ -166,14 +166,14 @@ mod storage {
                         .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update(kv::UpdateData {
-                            updateable: kv::Updateables::PaymentIntentUpdate(
+                        op: kv::DBOperation::Update {
+                            updatable: kv::Updateable::PaymentIntentUpdate(
                                 kv::PaymentIntentUpdateMems {
                                     orig: this,
                                     update_data: payment_intent,
                                 },
                             ),
-                        }),
+                        },
                     };
 
                     let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
