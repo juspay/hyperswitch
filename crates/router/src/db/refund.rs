@@ -65,6 +65,7 @@ mod storage {
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
+        logger,
         services::Store,
         types::storage::{self as storage_types, enums},
     };
@@ -172,6 +173,7 @@ mod storage {
         connection::pg_connection,
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
+        logger,
         services::Store,
         types::storage::{self as storage_types, enums},
         utils::{self, storage_partitioning::KvStorePartition},
@@ -368,7 +370,10 @@ mod storage {
                     let lookup_id = format!("{}_{}", txn_id, merchant_id);
                     let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
                         Ok(l) => l,
-                        Err(_) => return Ok(vec![]),
+                        Err(err) => {
+                            logger::error!(?err);
+                            return Ok(vec![]);
+                        }
                     };
                     let key = &lookup.pk_id;
                     let payment_id = key
@@ -520,7 +525,10 @@ mod storage {
                     let lookup_id = format!("{}_{}", payment_id, merchant_id);
                     let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
                         Ok(l) => l,
-                        Err(_) => return Ok(vec![]),
+                        Err(err) => {
+                            logger::error!(?err);
+                            return Ok(vec![]);
+                        }
                     };
 
                     let key = &lookup.pk_id;

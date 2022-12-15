@@ -21,7 +21,7 @@ use fred::{
     },
 };
 use futures::StreamExt;
-use router_env::{tracing, tracing::instrument};
+use router_env::{logger, tracing, tracing::instrument};
 
 use crate::{
     errors,
@@ -262,7 +262,10 @@ impl super::RedisConnectionPool {
                             v.iter().filter_map(|(_, val)| val.as_string()).collect();
                         Some(futures::stream::iter(v))
                     }
-                    Err(_) => None,
+                    Err(err) => {
+                        logger::error!(?err);
+                        None
+                    }
                 }
             })
             .flatten()
