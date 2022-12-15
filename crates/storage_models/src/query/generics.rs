@@ -699,7 +699,7 @@ where
             }
             _ => err.change_context(errors::DatabaseError::Others),
         })
-        .attach_printable_lazy(|| "Error finding record by predicate")
+        .attach_printable_lazy(|| "Error finding record by predicate and using ORDER BY clause")
 }
 
 #[instrument(level = "DEBUG", skip_all)]

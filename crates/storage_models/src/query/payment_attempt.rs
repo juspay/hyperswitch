@@ -126,7 +126,7 @@ impl PaymentAttempt {
         //     .and(dsl::merchant_id.eq(merchant_id.to_owned()))
         //     .and(dsl::status.eq(enums::AttemptStatus::Charged)), dsl::created_at.desc()).await
 
-        let x: Vec<Self> = generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        let result: Vec<Self> = generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::payment_id
                 .eq(payment_id.to_owned())
@@ -136,11 +136,11 @@ impl PaymentAttempt {
         )
         .await?;
 
-        x.into_iter().fold(
+        result.into_iter().fold(
             Err(errors::DatabaseError::NotFound).into_report(),
             |acc, cur| match acc {
-                Ok(value) if value.created_at < cur.created_at => Ok(cur),
-                _ => acc,
+                Ok(value) if value.created_at > cur.created_at => Ok(value),
+                _ => Ok(cur),
             },
         )
     }
