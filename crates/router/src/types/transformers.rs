@@ -1,6 +1,8 @@
 use std::convert::TryInto;
 
 use api_models::enums as api_enums;
+use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
 use storage_models::enums as storage_enums;
 
 use crate::{
@@ -319,5 +321,35 @@ impl<'a> From<F<&'a storage::Address>> for F<api_types::Address> {
             }),
         }
         .into()
+    }
+}
+
+impl TryFrom<F<storage::MerchantConnectorAccount>>
+    for F<api_models::admin::PaymentConnectorCreate>
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(item: F<storage::MerchantConnectorAccount>) -> Result<Self, Self::Error> {
+        let merchant_ca = item.0;
+
+        let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
+            Some(val) => serde_json::Value::Array(val)
+                .parse_value("PaymentMethods")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            None => None,
+        };
+
+        Ok(api_models::admin::PaymentConnectorCreate {
+            connector_type: merchant_ca.connector_type.foreign_into(),
+            connector_name: merchant_ca.connector_name,
+            merchant_connector_id: Some(merchant_ca.merchant_connector_id),
+            connector_account_details: Some(masking::Secret::new(
+                merchant_ca.connector_account_details,
+            )),
+            test_mode: merchant_ca.test_mode,
+            disabled: merchant_ca.disabled,
+            metadata: None,
+            payment_methods_enabled,
+        }
+        .into())
     }
 }
