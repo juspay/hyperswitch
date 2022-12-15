@@ -34,7 +34,7 @@ fn mk_app() -> App<
 #[cfg(test)]
 async fn mk_service() -> impl actix_web::dev::Service<
     actix_http::Request,
-    Response = actix_web::dev::ServiceResponse<impl MessageBody>,
+    Response = ServiceResponse<impl MessageBody>,
     Error = actix_web::Error,
 > {
     actix_web::test::init_service(mk_app()).await
