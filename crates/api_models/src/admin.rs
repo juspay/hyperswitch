@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub use self::CreateMerchantAccount as MerchantAccountResponse;
 use super::payments::AddressDetails;
-use crate::enums as api_enums;
+use crate::{enums as api_enums, payment_methods};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -55,7 +55,7 @@ pub struct WebhookDetails {
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CustomRoutingRules {
-    pub payment_methods_incl: Option<Vec<api_enums::PaymentMethodType>>, //FIXME Add enums for all PM enums
+    pub payment_methods_incl: Option<Vec<api_enums::PaymentMethodType>>,
     pub payment_methods_excl: Option<Vec<api_enums::PaymentMethodType>>,
     pub payment_method_types_incl: Option<Vec<api_enums::PaymentMethodSubType>>,
     pub payment_method_types_excl: Option<Vec<api_enums::PaymentMethodSubType>>,
@@ -115,7 +115,7 @@ pub struct PaymentMethods {
     pub maximum_amount: Option<i32>,
     pub recurring_enabled: bool,
     pub installment_payment_enabled: bool,
-    pub payment_experience: Option<Vec<String>>, //TODO
+    pub payment_experience: Option<Vec<payment_methods::PaymentExperience>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

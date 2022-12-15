@@ -177,6 +177,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 connector: Some(router_data.connector.clone()),
                 status: storage::enums::AttemptStatus::Failure,
                 error_message: Some(err.message),
+                error_code: Some(err.code),
             }),
             Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                 connector_name: Some(router_data.connector.clone()),

@@ -136,7 +136,7 @@ pub struct AdyenRedirectionAction {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     currency: String,
-    value: i32,
+    value: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -654,7 +654,7 @@ pub struct AdyenAdditionalDataWH {
 
 #[derive(Debug, Deserialize)]
 pub struct AdyenAmountWH {
-    pub value: i32,
+    pub value: i64,
     pub currency: String,
 }
 
