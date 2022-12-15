@@ -132,7 +132,7 @@ pub async fn fetch_consumer_tasks(
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {
     let batches = pt_utils::get_batches(redis_conn, stream_name, group_name, consumer_name).await?;
 
-    let tasks = batches.into_iter().fold(Vec::new(), |mut acc, batch| {
+    let mut tasks = batches.into_iter().fold(Vec::new(), |mut acc, batch| {
         acc.extend_from_slice(
             batch
                 .trackers
@@ -148,18 +148,19 @@ pub async fn fetch_consumer_tasks(
         .map(|task| task.id.to_owned())
         .collect::<Vec<_>>();
 
-    let updated_tasks = db
-        .process_tracker_update_process_status_by_ids(
-            task_ids,
-            storage::ProcessTrackerUpdate::StatusUpdate {
-                status: enums::ProcessTrackerStatus::ProcessStarted,
-                business_status: None,
-            },
-        )
-        .await
-        .change_context(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-
-    Ok(updated_tasks)
+    db.process_tracker_update_process_status_by_ids(
+        task_ids,
+        storage::ProcessTrackerUpdate::StatusUpdate {
+            status: enums::ProcessTrackerStatus::ProcessStarted,
+            business_status: None,
+        },
+    )
+    .await
+    .change_context(errors::ProcessTrackerError::ProcessFetchingFailed)?;
+    tasks
+        .iter_mut()
+        .for_each(|x| x.status = enums::ProcessTrackerStatus::ProcessStarted);
+    Ok(tasks)
 }
 
 // Accept flow_options if required
