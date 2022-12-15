@@ -723,7 +723,7 @@ pub struct GpayTransactionInfo {
     pub country_code: String,
     pub currency_code: String,
     pub total_price_status: String,
-    pub total_price: i32,
+    pub total_price: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
