@@ -33,10 +33,7 @@ pub async fn read_from_stream(
 ) -> errors::DrainerResult<StreamReadResult> {
     let stream_key = fred::MultipleKeys::from(stream_name);
     // "0-0" id gives first entry
-    let stream_id = redis::RedisEntryId::UserSpecifiedID {
-        milliseconds: "0".to_owned(),
-        sequence_number: "0".to_owned(),
-    };
+    let stream_id = "0-0";
     let entries = redis
         .stream_read_entries(stream_key, stream_id, Some(max_read_count))
         .await
