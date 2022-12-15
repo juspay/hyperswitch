@@ -10,7 +10,7 @@ use std::fmt::Debug;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, Encode},
+    ext_traits::{ByteSliceExt, Encode, StringExt},
 };
 use error_stack::{IntoReport, ResultExt};
 use fred::{
@@ -20,6 +20,7 @@ use fred::{
         RedisMap, RedisValue, SetOptions, XReadResponse,
     },
 };
+use futures::StreamExt;
 use router_env::{tracing, tracing::instrument};
 
 use crate::{
@@ -240,6 +241,42 @@ impl super::RedisConnectionPool {
 
         self.set_hash_field_if_not_exist(key, field, &serialized as &[u8])
             .await
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn hscan_and_deserialize<T>(
+        &self,
+        key: &str,
+        pattern: &str,
+        count: Option<u32>,
+    ) -> CustomResult<Vec<T>, errors::RedisError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let redis_results = self
+            .pool
+            .hscan::<&str, &str>(key, pattern, count)
+            .filter_map(|value| async move {
+                match value {
+                    Ok(mut v) => {
+                        let v = v.take_results()?;
+                        let v: Vec<String> =
+                            v.iter().filter_map(|(_, val)| val.as_string()).collect();
+                        Some(v)
+                    }
+                    Err(_) => None,
+                }
+            })
+            .collect::<Vec<_>>()
+            .await;
+        Ok(redis_results
+            .iter()
+            .flatten()
+            .filter_map(|v| {
+                let r: T = v.parse_struct(stringify!(T)).ok()?;
+                Some(r)
+            })
+            .collect())
     }
 
     #[instrument(level = "DEBUG", skip(self))]

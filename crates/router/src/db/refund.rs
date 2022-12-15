@@ -385,32 +385,11 @@ mod storage {
                         .next()
                         .ok_or(errors::StorageError::KVError)?;
 
-                    let field = format!("pa_{}_ref_*", payment_id);
-                    let redis_results = self
-                        .redis_conn
-                        .pool
-                        .hscan::<&str, &str>(key, &field, None)
-                        .filter_map(|value| async move {
-                            match value {
-                                Ok(mut v) => {
-                                    let v = v.take_results()?;
-                                    let v: Vec<String> =
-                                        v.iter().filter_map(|(_, val)| val.as_string()).collect();
-                                    Some(v)
-                                }
-                                Err(_) => None,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .await;
-                    Ok(redis_results
-                        .iter()
-                        .flatten()
-                        .filter_map(|v| {
-                            let r: storage_types::Refund = v.parse_struct("Refund").ok()?;
-                            Some(r)
-                        })
-                        .collect())
+                    let pattern = format!("pa_{}_ref_*", payment_id);
+                    self.redis_conn
+                        .hscan_and_deserialize(key, &pattern, None)
+                        .await
+                        .change_context(errors::StorageError::KVError)
                 }
             }
         }

@@ -12,6 +12,7 @@ error-stack = "0.2.4"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
 serde = { version = "1.0.149", features = ["derive"] }
 thiserror = "1.0.37"
+futures = "0.3"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
