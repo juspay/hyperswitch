@@ -334,7 +334,6 @@ diesel::table! {
         lookup_id -> Varchar,
         sk_id -> Varchar,
         pk_id -> Varchar,
-        result_id -> Varchar,
         source -> Varchar,
     }
 }
