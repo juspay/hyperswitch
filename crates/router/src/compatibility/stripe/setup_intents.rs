@@ -9,10 +9,7 @@ use crate::{
     core::payments,
     routes::AppState,
     services::api,
-    types::api::{
-        self as api_types, enums as api_enums, PSync, PaymentsRequest, PaymentsRetrieveRequest,
-        Verify,
-    },
+    types::api::{self as api_types, PSync, PaymentsRequest, PaymentsRetrieveRequest, Verify},
 };
 
 #[post("")]
@@ -46,13 +43,14 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
-                Some(api_enums::Connector::Stripe),
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -101,7 +99,7 @@ pub async fn setup_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -150,13 +148,14 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -206,13 +205,14 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
+            let connector = req.connector;
             payments::payments_core::<Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                Some(api_enums::Connector::Stripe),
+                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
