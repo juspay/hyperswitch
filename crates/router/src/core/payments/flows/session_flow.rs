@@ -1,5 +1,6 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
+use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -64,40 +65,38 @@ fn create_gpay_session_token(
 
     let gpay_data = error_stack::ResultExt::change_context(
         connector_metadata
+            .clone()
             .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData"),
         errors::ConnectorError::NoConnectorMetaData,
-    );
+    )
+    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+        field_name: "connector_metadata".to_string(),
+        expected_format: "gpay metadata format".to_string(),
+    })
+    .attach_printable(format!(
+        "cannnot parse gpay metadata from the given value {:?}",
+        connector_metadata
+    ))?;
 
-    match gpay_data {
-        Ok(data) => {
-            let session_data = router_data.request.clone();
-            let transaction_info = payment_types::GpayTransactionInfo {
-                country_code: session_data.country.unwrap_or_else(|| "US".to_string()),
-                currency_code: router_data.request.currency.to_string(),
-                total_price_status: "Final".to_string(),
-                total_price: router_data.request.amount,
-            };
+    let session_data = router_data.request.clone();
+    let transaction_info = payment_types::GpayTransactionInfo {
+        country_code: session_data.country.unwrap_or_else(|| "US".to_string()),
+        currency_code: router_data.request.currency.to_string(),
+        total_price_status: "Final".to_string(),
+        total_price: router_data.request.amount,
+    };
 
-            let response_router_data = types::PaymentsSessionRouterData {
-                response: Ok(types::PaymentsResponseData::SessionResponse {
-                    session_token: payment_types::SessionToken::Gpay {
-                        allowed_payment_methods: data.gpay.allowed_payment_methods,
-                        transaction_info,
-                    },
-                }),
-                ..router_data.clone()
-            };
+    let response_router_data = types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::Gpay {
+                allowed_payment_methods: gpay_data.gpay.allowed_payment_methods,
+                transaction_info,
+            },
+        }),
+        ..router_data.clone()
+    };
 
-            Ok(response_router_data)
-        }
-
-        Err(_error) => {
-            Err(error_stack::report!(
-                errors::ApiErrorResponse::InternalServerError //FIXME
-            )
-            .attach_printable("Cannot construct gpay session token"))
-        }
-    }
+    Ok(response_router_data)
 }
 
 impl types::PaymentsSessionRouterData {
