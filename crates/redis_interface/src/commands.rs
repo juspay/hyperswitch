@@ -244,16 +244,13 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn hscan_and_deserialize<T>(
+    pub async fn hscan(
         &self,
         key: &str,
         pattern: &str,
         count: Option<u32>,
-    ) -> CustomResult<Vec<T>, errors::RedisError>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let redis_results = self
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        let hscan_result = self
             .pool
             .hscan::<&str, &str>(key, pattern, count)
             .filter_map(|value| async move {
@@ -269,9 +266,22 @@ impl super::RedisConnectionPool {
             })
             .collect::<Vec<_>>()
             .await;
+        Ok(hscan_result.into_iter().flatten().collect())
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn hscan_and_deserialize<T>(
+        &self,
+        key: &str,
+        pattern: &str,
+        count: Option<u32>,
+    ) -> CustomResult<Vec<T>, errors::RedisError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let redis_results = self.hscan(key, pattern, count).await?;
         Ok(redis_results
             .iter()
-            .flatten()
             .filter_map(|v| {
                 let r: T = v.parse_struct(stringify!(T)).ok()?;
                 Some(r)
