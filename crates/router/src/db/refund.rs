@@ -169,6 +169,7 @@ mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::{HsetnxReply, RedisEntryId};
 
+    use super::RefundInterface;
     use crate::{
         connection::pg_connection,
         core::errors::{self, utils::RedisErrorExt, CustomResult},
@@ -176,10 +177,13 @@ mod storage {
         logger,
         services::Store,
         types::storage::{self as storage_types, enums},
-        utils::{self, storage_partitioning::KvStorePartition},
+        utils::{
+            self,
+            storage_partitioning::{KvStorePartition, PartitionKey},
+        },
     };
     #[async_trait::async_trait]
-    impl super::RefundInterface for Store {
+    impl RefundInterface for Store {
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -325,13 +329,14 @@ mod storage {
                             .map_err(Into::<errors::StorageError>::into)
                             .into_report()?;
 
-                            let stream_name = self.drainer_stream(&storage_types::Refund::shard_key(
-                            crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
-                                merchant_id: &created_refund.merchant_id,
-                                payment_id: &created_refund.payment_id,
-                            },
-                            self.config.drainer_num_partitions,
-                        ));
+                            let stream_name =
+                                self.drainer_stream(&storage_types::Refund::shard_key(
+                                    PartitionKey::MerchantIdPaymentId {
+                                        merchant_id: &created_refund.merchant_id,
+                                        payment_id: &created_refund.payment_id,
+                                    },
+                                    self.config.drainer_num_partitions,
+                                ));
                             self.redis_conn
                                 .stream_append_entry(
                                     &stream_name,
@@ -434,7 +439,7 @@ mod storage {
                         .change_context(errors::StorageError::KVError)?;
 
                     let stream_name = self.drainer_stream(&storage_types::Refund::shard_key(
-                        crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                        PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_refund.merchant_id,
                             payment_id: &updated_refund.payment_id,
                         },
