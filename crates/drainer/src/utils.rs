@@ -12,7 +12,7 @@ pub type StreamReadResult = HashMap<String, StreamEntries>;
 
 pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::Store>) -> bool {
     let stream_key_flag = get_steam_key_flag(store.clone(), stream_index.to_string());
-    let value = fred::RedisValue::Boolean(true);
+    let value: fred::RedisValue = true.into();
 
     match store
         .redis_conn
