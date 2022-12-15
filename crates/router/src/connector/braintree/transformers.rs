@@ -14,25 +14,45 @@ pub struct PaymentOptions {
     submit_for_settlement: bool,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct BraintreePaymentsRequest {
     transaction: TransactionBody,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionBody {
     amount: String,
     device_data: DeviceData,
     options: PaymentOptions,
-    credit_card: Card,
+    #[serde(flatten)]
+    payment_method_nonce_or_data: PaymentMethodType,
     #[serde(rename = "type")]
     kind: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
+pub enum PaymentMethodType {
+    CreditCard(Card),
+    PaymentMethodNonce(Nonce),
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct Nonce {
+    payment_method_nonce: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
+    credit_card: CardDetails,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CardDetails {
     number: String,
     expiration_month: String,
     expiration_year: String,
@@ -42,28 +62,47 @@ pub struct Card {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let submit_for_settlement = matches!(
+            item.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let submit_for_settlement = matches!(
-                    item.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic) | None
-                );
                 let braintree_payment_request = TransactionBody {
                     amount: item.request.amount.to_string(),
                     device_data: DeviceData {},
                     options: PaymentOptions {
                         submit_for_settlement,
                     },
-                    credit_card: Card {
-                        number: ccard.card_number.peek().clone(),
-                        expiration_month: ccard.card_exp_month.peek().clone(),
-                        expiration_year: ccard.card_exp_year.peek().clone(),
-                        cvv: ccard.card_cvc.peek().clone(),
-                    },
                     kind: "sale".to_string(),
+                    payment_method_nonce_or_data: PaymentMethodType::CreditCard(Card {
+                        credit_card: CardDetails {
+                            number: ccard.card_number.peek().clone(),
+                            expiration_month: ccard.card_exp_month.peek().clone(),
+                            expiration_year: ccard.card_exp_year.peek().clone(),
+                            cvv: ccard.card_cvc.peek().clone(),
+                        },
+                    }),
                 };
                 Ok(BraintreePaymentsRequest {
                     transaction: braintree_payment_request,
+                })
+            }
+            api::PaymentMethod::Wallet(ref wallet_data) => {
+                let braintree_paypal_request = TransactionBody {
+                    amount: item.request.amount.to_string(),
+                    device_data: DeviceData {},
+                    options: PaymentOptions {
+                        submit_for_settlement,
+                    },
+                    kind: "sale".to_string(),
+                    payment_method_nonce_or_data: PaymentMethodType::PaymentMethodNonce(Nonce {
+                        payment_method_nonce: wallet_data.token.to_string(),
+                    }),
+                };
+                Ok(BraintreePaymentsRequest {
+                    transaction: braintree_paypal_request,
                 })
             }
             _ => Err(
@@ -119,7 +158,9 @@ impl Default for BraintreePaymentStatus {
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
-            BraintreePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
+            BraintreePaymentStatus::Succeeded | BraintreePaymentStatus::SubmittedForSettlement => {
+                enums::AttemptStatus::Charged
+            }
             BraintreePaymentStatus::AuthorizedExpired => enums::AttemptStatus::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected

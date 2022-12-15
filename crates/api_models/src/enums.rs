@@ -401,6 +401,7 @@ pub enum PaymentMethodType {
 pub enum WalletIssuer {
     GooglePay,
     ApplePay,
+    Paypal,
 }
 
 #[derive(
