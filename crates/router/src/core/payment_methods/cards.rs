@@ -154,7 +154,7 @@ pub async fn add_card(
         }?;
         response
     } else {
-        let card_id = generate_id(consts::ID_LENGTH, "card_id");
+        let card_id = generate_id(consts::ID_LENGTH, "card");
         mock_add_card(db, &card_id, &card, None).await?
     };
 
