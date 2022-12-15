@@ -1,12 +1,6 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
-};
-use error_stack::{IntoReport, ResultExt};
-use router_env::{
-    logger::debug,
-    tracing::{self, instrument},
-};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::IntoReport;
+use router_env::tracing::{self, instrument};
 
 use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
 use crate::{
@@ -121,29 +115,29 @@ impl PaymentAttempt {
         .await
     }
 
-    // FIXME: Use generics
-    #[instrument(skip(conn))]
     pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        let query = Self::table()
-            .filter(
-                dsl::payment_id
-                    .eq(payment_id.to_owned())
-                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                    .and(dsl::status.eq(enums::AttemptStatus::Charged)),
-            )
-            .order(dsl::created_at.desc());
-        debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
-        query
-            .get_result_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable("Error while finding last successful payment attempt")
+        // perform ordering on the application level instead of database level
+        generics::generic_filter::<<Self as HasTable>::Table, _, Self>(
+            conn,
+            dsl::payment_id
+                .eq(payment_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq(enums::AttemptStatus::Charged)),
+            None,
+        )
+        .await?
+        .into_iter()
+        .fold(
+            Err(errors::DatabaseError::NotFound).into_report(),
+            |acc, cur| match acc {
+                Ok(value) if value.created_at > cur.created_at => Ok(value),
+                _ => Ok(cur),
+            },
+        )
     }
 
     #[instrument(skip(conn))]

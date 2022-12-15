@@ -24,11 +24,19 @@ pub mod validation;
 /// Date-time utilities.
 pub mod date_time {
     use time::{OffsetDateTime, PrimitiveDateTime};
+    /// Struct to represent milliseconds in time sensitive data fields
+    #[derive(Debug)]
+    pub struct Milliseconds(i32);
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
     pub fn now() -> PrimitiveDateTime {
         let utc_date_time = OffsetDateTime::now_utc();
         PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
+    }
+
+    /// Convert from OffsetDateTime to PrimitiveDateTime
+    pub fn convert_to_pdt(offset_time: OffsetDateTime) -> PrimitiveDateTime {
+        PrimitiveDateTime::new(offset_time.date(), offset_time.time())
     }
 }
 
