@@ -11,9 +11,9 @@ pub struct PaymentIntent {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i32>,
+    pub amount_captured: Option<i64>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -37,9 +37,9 @@ pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i32>,
+    pub amount_captured: Option<i64>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -61,7 +61,7 @@ pub struct PaymentIntentNew {
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
-        amount_captured: Option<i32>,
+        amount_captured: Option<i64>,
         return_url: Option<String>,
     },
     MetadataUpdate {
@@ -83,7 +83,7 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
     },
     Update {
-        amount: i32,
+        amount: i64,
         currency: storage_enums::Currency,
         status: storage_enums::IntentStatus,
         customer_id: Option<String>,
@@ -96,10 +96,10 @@ pub enum PaymentIntentUpdate {
 #[diesel(table_name = payment_intent)]
 
 pub struct PaymentIntentUpdateInternal {
-    pub amount: Option<i32>,
+    pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
-    pub amount_captured: Option<i32>,
+    pub amount_captured: Option<i64>,
     pub customer_id: Option<String>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,

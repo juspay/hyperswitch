@@ -48,14 +48,14 @@ pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
     dyn services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsSessionType =
+    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
-pub type PaymentsSessionType =
-    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
@@ -73,6 +73,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub orca_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
+    pub connector_meta_data: Option<serde_json::Value>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -87,7 +88,7 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -104,7 +105,7 @@ pub struct PaymentsAuthorizeData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     pub connector_transaction_id: String,
 }
 
@@ -123,15 +124,9 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    pub amount: i32,
+    //TODO: Add the fields here as required
+    pub amount: i64,
     pub currency: storage_enums::Currency,
-}
-
-#[derive(Debug, Clone)]
-pub struct ConnectorSessionToken {
-    pub connector_name: String,
-    pub session_id: Option<String>,
-    pub session_token: String,
 }
 
 #[derive(Debug, Clone)]
@@ -201,9 +196,9 @@ pub struct RefundsData {
     pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
-    pub amount: i32,
+    pub amount: i64,
     /// Amount to be refunded
-    pub refund_amount: i32,
+    pub refund_amount: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -238,7 +233,7 @@ pub struct ConnectorResponse {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
-    pub amount: i32,
+    pub amount: i64,
     pub connector_transaction_id: String,
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,
@@ -250,7 +245,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 }
 
 // Different patterns of authentication.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     HeaderKey {
@@ -265,15 +260,10 @@ pub enum ConnectorAuthType {
         key1: String,
         api_secret: String,
     },
+    #[default]
+    NoKey,
 }
 
-impl Default for ConnectorAuthType {
-    fn default() -> Self {
-        Self::HeaderKey {
-            api_key: "".to_string(),
-        }
-    }
-}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
