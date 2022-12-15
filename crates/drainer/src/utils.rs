@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use error_stack::{IntoReport, ResultExt};
 use fred::types as fred;
 use redis_interface as redis;
-use router::services::Store;
+use router::{scheduler::Milliseconds, services::Store};
 
 use crate::errors;
 
@@ -12,11 +12,10 @@ pub type StreamReadResult = HashMap<String, StreamEntries>;
 
 pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::Store>) -> bool {
     let stream_key_flag = get_steam_key_flag(store.clone(), stream_index);
-    let value: fred::RedisValue = true.into();
 
     match store
         .redis_conn
-        .set_key_if_not_exist(stream_key_flag.as_str(), value)
+        .set_key_if_not_exist(stream_key_flag.as_str(), true)
         .await
     {
         Ok(resp) => resp == redis::types::SetnxReply::KeySet,
@@ -34,7 +33,10 @@ pub async fn read_from_stream(
 ) -> errors::DrainerResult<StreamReadResult> {
     let stream_key = fred::MultipleKeys::from(stream_name);
     // "0-0" id gives first entry
-    let stream_id = fred::XID::Manual("0-0".into());
+    let stream_id = redis::RedisEntryId::UserSpecifiedID {
+        milliseconds: "0".to_owned(),
+        sequence_number: "0".to_owned(),
+    };
     let entries = redis
         .stream_read_entries(stream_key, stream_id, Some(max_read_count))
         .await
