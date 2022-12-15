@@ -66,7 +66,6 @@ mod storage {
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
-        logger,
         services::Store,
         types::storage::{self as storage_types, enums},
     };
