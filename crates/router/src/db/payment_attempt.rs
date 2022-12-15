@@ -527,7 +527,8 @@ mod storage {
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
                         .await
-                        .change_context(errors::StorageError::KVError)?;
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
                             &key,
