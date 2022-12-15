@@ -405,17 +405,16 @@ where
 
     for (connector_res, connector) in result.into_iter().zip(connectors) {
         let connector_name = connector.connector_name.to_string();
-        match connector_res?.response {
+        match connector_res {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse { session_token } =
-                    connector_response
+                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
+                    connector_response.response
                 {
                     payment_data.sessions_token.push(session_token);
                 }
             }
-
             Err(connector_error) => {
-                logger::debug!(
+                logger::error!(
                     "sessions_connector_error {} {:?}",
                     connector_name,
                     connector_error
