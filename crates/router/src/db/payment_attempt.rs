@@ -240,6 +240,7 @@ impl PaymentAttemptInterface for MockDb {
             amount_to_capture: payment_attempt.amount_to_capture,
             mandate_id: None,
             browser_info: None,
+            payment_token: None,
             error_code: payment_attempt.error_code,
         };
         payment_attempts.push(payment_attempt.clone());
@@ -371,6 +372,7 @@ mod storage {
                         cancellation_reason: payment_attempt.cancellation_reason.clone(),
                         mandate_id: payment_attempt.mandate_id.clone(),
                         browser_info: payment_attempt.browser_info.clone(),
+                        payment_token: payment_attempt.payment_token.clone(),
                         error_code: payment_attempt.error_code.clone(),
                     };
 

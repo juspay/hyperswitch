@@ -250,6 +250,23 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             _ => None,
         };
 
+        let payment_token = payment_data.token.clone();
+        let connector = payment_data.payment_attempt.connector.clone();
+
+        payment_data.payment_attempt = db
+            .update_payment_attempt(
+                payment_data.payment_attempt,
+                storage::PaymentAttemptUpdate::UpdateTrackers {
+                    payment_token,
+                    connector,
+                },
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
         let customer_id = payment_data.payment_intent.customer_id.clone();
         payment_data.payment_intent = db
             .update_payment_intent(

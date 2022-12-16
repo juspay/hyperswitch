@@ -358,7 +358,6 @@ where
     Ok(response)
 }
 
-#[allow(dead_code)]
 async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
@@ -522,15 +521,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     payment_data: &PaymentData<F>,
 ) -> bool {
     match format!("{:?}", operation).as_str() {
-        "PaymentConfirm" => {
-            payment_data
-                .payment_attempt
-                .authentication_type
-                .unwrap_or_default()
-                == enums::AuthenticationType::NoThreeDs
-                || payment_data.payment_attempt.payment_method
-                    == Some(enums::PaymentMethodType::PayLater)
-        }
+        "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(
                 payment_data.payment_intent.status,

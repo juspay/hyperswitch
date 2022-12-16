@@ -2734,6 +2734,7 @@ dependencies = [
  "mimalloc",
  "mime",
  "nanoid",
+ "num_cpus",
  "once_cell",
  "rand",
  "redis_interface",
