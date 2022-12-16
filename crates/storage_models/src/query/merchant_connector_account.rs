@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     errors,
     merchant_connector_account::{
@@ -18,12 +18,7 @@ impl MerchantConnectorAccountNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<MerchantConnectorAccount, errors::DatabaseError> {
-        generics::generic_insert::<_, _, MerchantConnectorAccount, _>(
-            conn,
-            self,
-            ExecuteQuery::new(),
-        )
-        .await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -34,11 +29,10 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_connector_account: MerchantConnectorAccountUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
             MerchantConnectorAccountUpdateInternal::from(merchant_connector_account),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -55,12 +49,11 @@ impl MerchantConnectorAccount {
         merchant_id: &str,
         merchant_connector_id: &i32,
     ) -> CustomResult<bool, errors::DatabaseError> {
-        generics::generic_delete::<<Self as HasTable>::Table, _, _>(
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::merchant_connector_id.eq(merchant_connector_id.to_owned())),
-            ExecuteQuery::<Self>::new(),
         )
         .await
     }

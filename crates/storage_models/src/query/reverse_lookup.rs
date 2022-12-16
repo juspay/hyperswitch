@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     errors,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
@@ -15,7 +15,7 @@ impl ReverseLookupNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<ReverseLookup, errors::DatabaseError> {
-        generics::generic_insert::<_, _, ReverseLookup, _>(conn, self, ExecuteQuery::new()).await
+        generics::generic_insert(conn, self).await
     }
 }
 impl ReverseLookup {

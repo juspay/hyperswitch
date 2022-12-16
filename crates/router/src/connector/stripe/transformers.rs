@@ -373,6 +373,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
+                    StripePaymentMethodOptions::Klarna {} => None,
                 });
 
         Ok(types::RouterData {
@@ -424,6 +425,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
                     } => mandate_options.map(|mandate_option| mandate_option.reference),
+                    StripePaymentMethodOptions::Klarna {} => None,
                 });
 
         Ok(types::RouterData {
@@ -662,6 +664,7 @@ pub enum StripePaymentMethodOptions {
     Card {
         mandate_options: Option<StripeMandateOptions>,
     },
+    Klarna {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card

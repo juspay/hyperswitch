@@ -214,6 +214,7 @@ diesel::table! {
         mandate_id -> Nullable<Varchar>,
         browser_info -> Nullable<Jsonb>,
         error_code -> Nullable<Varchar>,
+        payment_token -> Nullable<Varchar>,
     }
 }
 
@@ -273,6 +274,7 @@ diesel::table! {
         payment_method_type -> Nullable<PaymentMethodSubType>,
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
+        metadata -> Nullable<Json>,
     }
 }
 

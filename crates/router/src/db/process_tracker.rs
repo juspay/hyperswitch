@@ -31,7 +31,7 @@ pub trait ProcessTrackerInterface {
         &self,
         task_ids: Vec<String>,
         task_update: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError>;
+    ) -> CustomResult<usize, errors::StorageError>;
     async fn update_process_tracker(
         &self,
         this: storage::ProcessTracker,
@@ -136,7 +136,7 @@ impl ProcessTrackerInterface for Store {
         &self,
         task_ids: Vec<String>,
         task_update: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
+    ) -> CustomResult<usize, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         storage::ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update)
             .await
@@ -224,7 +224,7 @@ impl ProcessTrackerInterface for MockDb {
         &self,
         _task_ids: Vec<String>,
         _task_update: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
+    ) -> CustomResult<usize, errors::StorageError> {
         todo!()
     }
 }
