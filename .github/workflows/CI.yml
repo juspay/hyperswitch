@@ -98,8 +98,6 @@ jobs:
           toolchain: 1.64
 
       - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          key: cargo-cache-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}-${{ matrix.os }}-msrv
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v1.3.0
@@ -169,8 +167,6 @@ jobs:
       #     crate: cargo-nextest
 
       - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          key: cargo-cache-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}-${{ matrix.os }}-stable
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash
