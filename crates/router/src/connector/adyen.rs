@@ -617,7 +617,7 @@ impl api::IncomingWebhook for Adyen {
 
         let response: adyen::AdyenResponse = notif.into();
 
-        let res_json = serde_json::to_value(&response)
+        let res_json = serde_json::to_value(response)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 

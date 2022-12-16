@@ -84,6 +84,7 @@ pub struct Proxy {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Server {
     pub port: u16,
+    pub workers: Option<usize>,
     pub host: String,
     pub request_body_limit: usize,
     pub base_url: String,
