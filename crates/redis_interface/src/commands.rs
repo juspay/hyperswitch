@@ -17,7 +17,7 @@ use fred::{
     interfaces::{HashesInterface, KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisMap, RedisValue, SetOptions, XReadResponse,
+        RedisKey, RedisMap, RedisValue, SetOptions, XCap, XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -365,6 +365,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn stream_trim_entries<C>(
+        &self,
+        stream: &str,
+        xcap: C,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        C: TryInto<XCap> + Debug,
+        C::Error: Into<fred::error::RedisError>,
+    {
+        self.pool
+            .xtrim(stream, xcap)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::StreamTrimFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_acknowledge_entries<Ids>(
         &self,
         stream: &str,
@@ -382,18 +399,31 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
+    where
+        K: Into<RedisKey> + Debug,
+    {
+        self.pool
+            .xlen(stream)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetLengthFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_read_entries<K, Ids>(
         &self,
         streams: K,
         ids: Ids,
+        read_count: Option<u64>,
     ) -> CustomResult<XReadResponse<String, String, String, String>, errors::RedisError>
     where
         K: Into<MultipleKeys> + Debug,
         Ids: Into<MultipleIDs> + Debug,
     {
         self.pool
-            .xread(
-                Some(self.config.default_stream_read_count),
+            .xread_map(
+                Some(read_count.unwrap_or(self.config.default_stream_read_count)),
                 None,
                 streams,
                 ids,

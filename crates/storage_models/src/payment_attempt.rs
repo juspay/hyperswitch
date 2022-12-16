@@ -39,7 +39,9 @@ pub struct PaymentAttempt {
     pub error_code: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptNew {
     pub payment_id: String,
@@ -74,7 +76,7 @@ pub struct PaymentAttemptNew {
     pub error_code: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
         amount: i64,

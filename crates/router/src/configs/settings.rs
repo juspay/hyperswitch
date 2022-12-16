@@ -144,6 +144,7 @@ pub struct ProducerSettings {
 pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
+    pub max_read_count: u64,
 }
 
 impl Settings {
