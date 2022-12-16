@@ -861,7 +861,7 @@ impl api::IncomingWebhook for Stripe {
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
             .into_report()?;
 
-        hex::decode(&signature)
+        hex::decode(signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }

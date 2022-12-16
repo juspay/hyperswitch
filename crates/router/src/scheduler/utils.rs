@@ -160,7 +160,7 @@ pub async fn get_batches(
         })?;
     metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
 
-    let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_iter().map(|(_key, entries)| {
+    let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_values().map(|entries| {
         entries.into_iter().try_fold(
             (Vec::new(), Vec::new()),
             |(mut batches, mut entry_ids), entry| {
