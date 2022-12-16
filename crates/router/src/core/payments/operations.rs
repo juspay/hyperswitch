@@ -9,7 +9,7 @@ mod payment_start;
 mod payment_status;
 mod payment_update;
 use async_trait::async_trait;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 pub use payment_cancel::PaymentCancel;
 pub use payment_capture::PaymentCapture;
 pub use payment_confirm::PaymentConfirm;
@@ -29,7 +29,6 @@ use crate::{
     db::StorageInterface,
     pii::Secret,
     routes::AppState,
-    scheduler::{metrics, workflows::payment_sync},
     types::{
         self, api,
         storage::{self, enums},
@@ -168,110 +167,6 @@ pub trait PostUpdateTracker<F, D, R>: Send {
     ) -> RouterResult<D>
     where
         F: 'b + Send;
-}
-
-#[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRequest>>
-    Domain<F, api::PaymentsRequest> for Op
-where
-    for<'a> &'a Op: Operation<F, api::PaymentsRequest> + std::fmt::Debug,
-{
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        db: &dyn StorageInterface,
-        payment_data: &mut PaymentData<F>,
-        request: Option<CustomerDetails>,
-        merchant_id: &str,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<storage::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        helpers::create_customer_if_not_exist(
-            Box::new(self),
-            db,
-            payment_data,
-            request,
-            merchant_id,
-        )
-        .await
-    }
-
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
-        Option<String>,
-    )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await
-    }
-
-    #[instrument(skip_all)]
-    async fn add_task_to_process_tracker<'a>(
-        &'a self,
-        state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        if helpers::check_if_operation_confirm(self) {
-            metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-
-            let connector_name = payment_attempt
-                .connector
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
-            let schedule_time = payment_sync::get_sync_process_schedule_time(
-                &*state.store,
-                &connector_name,
-                &payment_attempt.merchant_id,
-                0,
-            )
-            .await
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            match schedule_time {
-                Some(stime) => super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                    .await
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError),
-                None => Ok(()),
-            }
-        } else {
-            Ok(())
-        }
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        merchant_account: &storage::MerchantAccount,
-        state: &AppState,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
-    }
 }
 
 #[async_trait]

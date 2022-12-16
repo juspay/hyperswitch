@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdate, CustomerUpdateInternal},
     errors,
@@ -12,7 +12,7 @@ use crate::{
 impl CustomerNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
-        generics::generic_insert::<_, _, Customer, _>(conn, self, ExecuteQuery::new()).await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -24,11 +24,10 @@ impl Customer {
         merchant_id: String,
         customer: CustomerUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             (customer_id.clone(), merchant_id.clone()),
             CustomerUpdateInternal::from(customer),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -52,12 +51,11 @@ impl Customer {
         customer_id: &str,
         merchant_id: &str,
     ) -> StorageResult<bool> {
-        generics::generic_delete::<<Self as HasTable>::Table, _, _>(
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::customer_id
                 .eq(customer_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-            ExecuteQuery::<Self>::new(),
         )
         .await
     }

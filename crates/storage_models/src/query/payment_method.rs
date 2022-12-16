@@ -1,8 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use error_stack::ResultExt;
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     payment_method::{PaymentMethod, PaymentMethodNew},
     schema::payment_methods::dsl,
@@ -12,7 +11,7 @@ use crate::{
 impl PaymentMethodNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
-        generics::generic_insert::<_, _, PaymentMethod, _>(conn, self, ExecuteQuery::new()).await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -22,15 +21,11 @@ impl PaymentMethod {
         conn: &PgPooledConn,
         payment_method_id: String,
     ) -> StorageResult<Self> {
-        let result =
-            generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self, _>(
-                conn,
-                dsl::payment_method_id.eq(payment_method_id),
-                ExecuteQuery::new(),
-            )
-            .await
-            .attach_printable("Error while deleting by payment method ID")?;
-        Ok(result)
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
+            conn,
+            dsl::payment_method_id.eq(payment_method_id),
+        )
+        .await
     }
 
     #[instrument(skip(conn))]
@@ -39,17 +34,13 @@ impl PaymentMethod {
         merchant_id: &str,
         payment_method_id: &str,
     ) -> StorageResult<Self> {
-        let result =
-            generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self, _>(
-                conn,
-                dsl::merchant_id
-                    .eq(merchant_id.to_owned())
-                    .and(dsl::payment_method_id.eq(payment_method_id.to_owned())),
-                ExecuteQuery::new(),
-            )
-            .await?;
-
-        Ok(result)
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_method_id.eq(payment_method_id.to_owned())),
+        )
+        .await
     }
 
     #[instrument(skip(conn))]

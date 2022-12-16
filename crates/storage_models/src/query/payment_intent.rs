@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
+use super::generics;
 use crate::{
     errors,
     payment_intent::{
@@ -14,12 +14,7 @@ use crate::{
 impl PaymentIntentNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
-        generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, ExecuteQuery::new()).await
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn insert_query(self, conn: &PgPooledConn) -> StorageResult<RawSqlQuery> {
-        generics::generic_insert::<_, _, PaymentIntent, _>(conn, self, RawQuery).await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -30,11 +25,12 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent: PaymentIntentUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.id,
+            dsl::payment_id
+                .eq(self.payment_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             PaymentIntentUpdateInternal::from(payment_intent),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -42,23 +38,10 @@ impl PaymentIntent {
                 errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            result => result,
+            Ok(mut payment_intents) => payment_intents
+                .pop()
+                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
         }
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn update_query(
-        self,
-        conn: &PgPooledConn,
-        payment_intent: PaymentIntentUpdate,
-    ) -> StorageResult<RawSqlQuery> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
-            conn,
-            self.id,
-            PaymentIntentUpdateInternal::from(payment_intent),
-            RawQuery,
-        )
-        .await
     }
 
     #[instrument(skip(conn))]

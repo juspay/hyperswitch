@@ -48,6 +48,8 @@ pub enum ApiErrorResponse {
     /// a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}.")]
     InvalidDataValue { field_name: &'static str },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Client secret was not provided")]
+    ClientSecretNotGiven,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "The client_secret provided does not match the client_secret associated with the Payment.")]
     ClientSecretInvalid,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Customer has existing mandate/subsciption.")]
@@ -178,6 +180,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::MerchantAccountNotFound
             | ApiErrorResponse::MerchantConnectorAccountNotFound
             | ApiErrorResponse::MandateNotFound
+            | ApiErrorResponse::ClientSecretNotGiven
             | ApiErrorResponse::ClientSecretInvalid
             | ApiErrorResponse::SuccessfulPaymentNotFound
             | ApiErrorResponse::ResourceIdNotFound

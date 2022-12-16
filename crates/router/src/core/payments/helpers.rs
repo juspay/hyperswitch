@@ -20,6 +20,7 @@ use crate::{
     db::StorageInterface,
     pii::Secret,
     routes::AppState,
+    scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
         self,
@@ -420,6 +421,45 @@ pub fn payment_intent_status_fsm(
             _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
+    }
+}
+
+pub async fn add_domain_task_to_pt<Op>(
+    operation: &Op,
+    state: &AppState,
+    payment_attempt: &storage::PaymentAttempt,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    Op: std::fmt::Debug,
+{
+    if check_if_operation_confirm(operation) {
+        let connector_name = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+        let schedule_time = payment_sync::get_sync_process_schedule_time(
+            &*state.store,
+            &connector_name,
+            &payment_attempt.merchant_id,
+            0,
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        match schedule_time {
+            Some(stime) => {
+                metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                super::add_process_sync_task(&*state.store, payment_attempt, stime)
+                    .await
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+            None => Ok(()),
+        }
+    } else {
+        Ok(())
     }
 }
 
@@ -1200,6 +1240,18 @@ pub(crate) fn authenticate_client_secret(
         ),
         _ => Ok(()),
     }
+}
+
+pub(crate) fn validate_pm_or_token_given(
+    token: &Option<String>,
+    pm_data: &Option<api::PaymentMethod>,
+) -> Result<(), errors::ApiErrorResponse> {
+    utils::when(
+        token.is_none() && pm_data.is_none(),
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "A payment token or payment method data is required".to_string(),
+        }),
+    )
 }
 
 // A function to perform database lookup and then verify the client secret
