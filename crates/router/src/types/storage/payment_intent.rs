@@ -38,7 +38,6 @@ impl PaymentIntentDbExt for PaymentIntent {
 
         //TODO: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
-
         let mut filter = <PaymentIntent as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .order_by(dsl::id)
