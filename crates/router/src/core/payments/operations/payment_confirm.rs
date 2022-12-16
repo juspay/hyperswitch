@@ -197,6 +197,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         };
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let payment_token = payment_data.token.clone();
 
         payment_data.payment_attempt = db
             .update_payment_attempt(
@@ -206,6 +207,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_method,
                     browser_info,
                     connector,
+                    payment_token,
                 },
                 storage_scheme,
             )
