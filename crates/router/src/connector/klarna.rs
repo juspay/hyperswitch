@@ -1,8 +1,7 @@
-#![allow(dead_code)]
 mod transformers;
-use api_models::payments as api_payments;
 use std::fmt::Debug;
 
+use api_models::payments as api_payments;
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
