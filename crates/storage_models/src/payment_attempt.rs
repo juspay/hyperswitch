@@ -36,6 +36,7 @@ pub struct PaymentAttempt {
     pub amount_to_capture: Option<i64>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+    pub payment_token: Option<String>,
     pub error_code: Option<String>,
 }
 
@@ -71,6 +72,7 @@ pub struct PaymentAttemptNew {
     pub amount_to_capture: Option<i64>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
+    pub payment_token: Option<String>,
     pub error_code: Option<String>,
 }
 
@@ -83,6 +85,10 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethodType>,
     },
+    UpdateTrackers {
+        payment_token: Option<String>,
+        connector: Option<String>,
+    },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
     },
@@ -91,6 +97,7 @@ pub enum PaymentAttemptUpdate {
         payment_method: Option<storage_enums::PaymentMethodType>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
+        payment_token: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -133,6 +140,7 @@ pub struct PaymentAttemptUpdateInternal {
     redirect: Option<bool>,
     mandate_id: Option<String>,
     browser_info: Option<serde_json::Value>,
+    payment_token: Option<String>,
     error_code: Option<String>,
 }
 
@@ -155,6 +163,7 @@ impl PaymentAttemptUpdate {
                 .unwrap_or(source.payment_method_id),
             browser_info: pa_update.browser_info,
             modified_at: common_utils::date_time::now(),
+            payment_token: pa_update.payment_token,
             ..source
         }
     }
@@ -192,12 +201,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method,
                 browser_info,
                 connector,
+                payment_token,
             } => Self {
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 browser_info,
                 connector,
+                payment_token,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -242,6 +253,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::UpdateTrackers {
+                payment_token,
+                connector,
+            } => Self {
+                payment_token,
+                connector,
                 ..Default::default()
             },
         }

@@ -30,6 +30,7 @@ pub struct PaymentMethod {
     pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
@@ -55,6 +56,7 @@ pub struct PaymentMethodNew {
     pub network_transaction_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
+    pub metadata: Option<serde_json::Value>,
 }
 
 impl Default for PaymentMethodNew {
@@ -82,6 +84,7 @@ impl Default for PaymentMethodNew {
             network_transaction_id: Option::default(),
             created_at: now,
             last_modified: now,
+            metadata: Option::default(),
         }
     }
 }

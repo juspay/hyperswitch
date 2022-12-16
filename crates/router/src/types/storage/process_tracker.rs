@@ -1,7 +1,7 @@
 use error_stack::ResultExt;
 use serde::Serialize;
 pub use storage_models::process_tracker::{
-    Milliseconds, ProcessData, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate,
+    ProcessData, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate,
     ProcessTrackerUpdateInternal, SchedulerOptions,
 };
 use time::PrimitiveDateTime;
