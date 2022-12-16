@@ -7,6 +7,8 @@ pub mod enums;
 pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
+#[cfg(feature = "kv_store")]
+pub mod kv;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;

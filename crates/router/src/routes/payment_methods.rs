@@ -6,10 +6,7 @@ use router_env::{
 
 use super::app::AppState;
 use crate::{
-    core::{
-        errors::{http_not_implemented, BachResult},
-        payment_methods::cards,
-    },
+    core::payment_methods::cards,
     services,
     services::api,
     types::api::payment_methods::{self, PaymentMethodId},
@@ -114,13 +111,29 @@ pub async fn payment_method_retrieve_api(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
-// #[post("/{payment_method_id}")]
 pub async fn payment_method_update_api(
-    _state: web::Data<AppState>,
-    _req: HttpRequest,
-    _path: web::Path<String>,
-) -> BachResult<HttpResponse> {
-    Ok(http_not_implemented())
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<payment_methods::UpdatePaymentMethod>,
+) -> HttpResponse {
+    let payment_method_id = path.into_inner();
+
+    api::server_wrap(
+        &state,
+        &req,
+        json_payload.into_inner(),
+        |state, merchant_account, payload| {
+            cards::update_customer_payment_method(
+                state,
+                merchant_account,
+                payload,
+                &payment_method_id,
+            )
+        },
+        api::MerchantAuthentication::ApiKey,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]

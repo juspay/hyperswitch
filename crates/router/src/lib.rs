@@ -133,6 +133,7 @@ pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
+        .workers(server.workers.unwrap_or_else(num_cpus::get_physical))
         .run();
 
     Ok((server, app_state))
