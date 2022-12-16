@@ -54,8 +54,9 @@ async fn drainer(
     for entry in entries {
         let typed_sql = entry.1.get("typed_sql").map_or(String::new(), Clone::clone);
         let result = serde_json::from_str::<kv::DBOperation>(&typed_sql);
-        let Ok(db_op) = result else {
-            continue; // TODO: handle error
+        let db_op = match result {
+            Ok(f) => f,
+            Err(_err) => continue, // TODO: handle error
         };
 
         let conn = pg_connection(&store.master_pool).await;
