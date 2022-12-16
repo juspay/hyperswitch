@@ -308,7 +308,7 @@ where
             let connector_data = api::ConnectorData::get_connector_by_name(
                 connectors,
                 &connector_name,
-                api::ConnectorType::NormalFlow,
+                api::GetToken::Connector,
             )?;
             connectors_data.push(connector_data);
         }
@@ -317,7 +317,7 @@ where
             let connector_data = api::ConnectorData::get_connector_by_name(
                 connectors,
                 &connector_name,
-                api::ConnectorType::SessionTokenFromMetadata,
+                api::GetToken::Metadata,
             )?;
             connectors_data.push(connector_data);
         }

@@ -613,7 +613,7 @@ pub async fn get_connector_default(
     let connector_data = api::ConnectorData::get_connector_by_name(
         connectors,
         connector_name,
-        api::ConnectorType::NormalFlow,
+        api::GetToken::Connector,
     )?;
 
     Ok(api::ConnectorCallType::Single(connector_data))

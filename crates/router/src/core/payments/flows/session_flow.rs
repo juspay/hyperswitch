@@ -106,9 +106,9 @@ impl types::PaymentsSessionRouterData {
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        match connector.connector_type {
-            api::ConnectorType::SessionTokenFromMetadata => create_gpay_session_token(self),
-            api::ConnectorType::NormalFlow => {
+        match connector.get_token {
+            api::GetToken::Metadata => create_gpay_session_token(self),
+            api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     api::Session,
                     types::PaymentsSessionData,

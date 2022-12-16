@@ -200,7 +200,7 @@ pub async fn webhooks_core(
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
-        api::ConnectorType::NormalFlow,
+        api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed construction of ConnectorData")?;

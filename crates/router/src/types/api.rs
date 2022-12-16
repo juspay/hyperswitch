@@ -66,15 +66,15 @@ type BoxedConnector = Box<&'static (dyn Connector + marker::Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-pub enum ConnectorType {
-    SessionTokenFromMetadata,
-    NormalFlow,
+pub enum GetToken {
+    Metadata,
+    Connector,
 }
 
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
-    pub connector_type: ConnectorType,
+    pub get_token: GetToken,
 }
 
 pub enum ConnectorCallType {
@@ -86,7 +86,7 @@ impl ConnectorData {
     pub fn get_connector_by_name(
         connectors: &Connectors,
         name: &str,
-        connector_type: ConnectorType,
+        connector_type: GetToken,
     ) -> CustomResult<ConnectorData, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = types::Connector::from_str(name)
@@ -97,7 +97,7 @@ impl ConnectorData {
         Ok(ConnectorData {
             connector,
             connector_name,
-            connector_type,
+            get_token: connector_type,
         })
     }
 

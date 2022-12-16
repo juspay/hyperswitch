@@ -100,7 +100,7 @@ pub async fn trigger_refund_to_gateway(
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &connector_id,
-        api::ConnectorType::NormalFlow,
+        api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
@@ -247,7 +247,7 @@ pub async fn sync_refund_with_gateway(
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &connector_id,
-        api::ConnectorType::NormalFlow,
+        api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;

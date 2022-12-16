@@ -102,7 +102,7 @@ async fn payments_create_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
-        connector_type: types::api::ConnectorType::NormalFlow,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -137,7 +137,7 @@ async fn payments_create_failure() {
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Authorizedotnet,
-            connector_type: types::api::ConnectorType::NormalFlow,
+            get_token: types::api::GetToken::Connector,
         };
         let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
         let connector_integration: services::BoxedConnectorIntegration<
@@ -181,7 +181,7 @@ async fn refunds_create_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
-        connector_type: types::api::ConnectorType::NormalFlow,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
@@ -217,7 +217,7 @@ async fn refunds_create_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
-        connector_type: types::api::ConnectorType::NormalFlow,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
