@@ -64,6 +64,9 @@ pub(crate) enum ErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such refund")]
     RefundNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "client_secret_invalid", message = "Expected client secret to be included in the request")]
+    ClientSecretNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such customer")]
     CustomerNotFound,
 
@@ -353,6 +356,7 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::CustomerNotFound => ErrorCode::CustomerNotFound,
             ApiErrorResponse::PaymentNotFound => ErrorCode::PaymentNotFound,
             ApiErrorResponse::PaymentMethodNotFound => ErrorCode::PaymentMethodNotFound,
+            ApiErrorResponse::ClientSecretNotGiven => ErrorCode::ClientSecretNotFound,
             ApiErrorResponse::MerchantAccountNotFound => ErrorCode::MerchantAccountNotFound,
             ApiErrorResponse::ResourceIdNotFound => ErrorCode::ResourceIdNotFound,
             ApiErrorResponse::MerchantConnectorAccountNotFound => {
@@ -420,6 +424,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::DuplicateRefundRequest
             | ErrorCode::RefundNotFound
             | ErrorCode::CustomerNotFound
+            | ErrorCode::ClientSecretNotFound
             | ErrorCode::PaymentNotFound
             | ErrorCode::PaymentMethodNotFound
             | ErrorCode::MerchantAccountNotFound
