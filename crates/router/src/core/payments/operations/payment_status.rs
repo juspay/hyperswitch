@@ -2,13 +2,14 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        errors::{self, ApiErrorResponse, RouterResult, StorageErrorExt},
+        errors::{self, ApiErrorResponse, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
@@ -45,6 +46,79 @@ impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for &PaymentStatus {
     ) -> RouterResult<&(dyn UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> + Send + Sync)>
     {
         Ok(*self)
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
+    #[instrument(skip_all)]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        db: &dyn StorageInterface,
+        payment_data: &mut PaymentData<F>,
+        request: Option<CustomerDetails>,
+        merchant_id: &str,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsRequest>,
+            Option<storage::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        helpers::create_customer_if_not_exist(
+            Box::new(self),
+            db,
+            payment_data,
+            request,
+            merchant_id,
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        state: &'a AppState,
+        payment_method: Option<enums::PaymentMethodType>,
+        txn_id: &str,
+        payment_attempt: &storage::PaymentAttempt,
+        request: &Option<api::PaymentMethod>,
+        token: &Option<String>,
+        card_cvc: Option<Secret<String>>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'a, F, api::PaymentsRequest>,
+        Option<api::PaymentMethod>,
+        Option<String>,
+    )> {
+        helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_method,
+            txn_id,
+            payment_attempt,
+            request,
+            token,
+            card_cvc,
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a AppState,
+        payment_attempt: &storage::PaymentAttempt,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state).await
     }
 }
 
