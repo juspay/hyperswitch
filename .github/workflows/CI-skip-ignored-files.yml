@@ -10,16 +10,12 @@ on:
       - "ready_for_review"
       - "reopened"
       - "synchronize"
-    paths:
-      - "config/**"
-      - "contrib/**"
-      - "docs/**"
-      - "monitoring/**"
-      - "openapi/**"
-      - "postman/**"
-      - "*.md"
-      - "LICENSE"
-      - "NOTICE"
+    paths-ignore:
+      - ".github/workflows/**"
+      - "crates/**"
+      - "examples/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

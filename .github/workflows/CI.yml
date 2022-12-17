@@ -4,16 +4,12 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "config/**"
-      - "contrib/**"
-      - "docs/**"
-      - "monitoring/**"
-      - "openapi/**"
-      - "postman/**"
-      - "*.md"
-      - "LICENSE"
-      - "NOTICE"
+    paths:
+      - ".github/workflows/**"
+      - "crates/**"
+      - "examples/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
 
   pull_request:
     types:
@@ -22,16 +18,12 @@ on:
       - "ready_for_review"
       - "reopened"
       - "synchronize"
-    paths-ignore:
-      - "config/**"
-      - "contrib/**"
-      - "docs/**"
-      - "monitoring/**"
-      - "openapi/**"
-      - "postman/**"
-      - "*.md"
-      - "LICENSE"
-      - "NOTICE"
+    paths:
+      - ".github/workflows/**"
+      - "crates/**"
+      - "examples/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
