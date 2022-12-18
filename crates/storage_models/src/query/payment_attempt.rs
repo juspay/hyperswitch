@@ -2,7 +2,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::IntoReport;
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery, RawQuery, RawSqlQuery};
+use super::generics;
 use crate::{
     enums, errors,
     payment_attempt::{
@@ -18,15 +18,7 @@ impl PaymentAttemptNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<PaymentAttempt, errors::DatabaseError> {
-        generics::generic_insert::<_, _, PaymentAttempt, _>(conn, self, ExecuteQuery::new()).await
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn insert_query(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
-        generics::generic_insert::<_, _, PaymentAttempt, _>(conn, self, RawQuery).await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -37,11 +29,12 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.id,
+            dsl::payment_id
+                .eq(self.payment_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             PaymentAttemptUpdateInternal::from(payment_attempt),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -49,23 +42,10 @@ impl PaymentAttempt {
                 errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            result => result,
+            Ok(mut payment_attempts) => payment_attempts
+                .pop()
+                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
         }
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn update_query(
-        self,
-        conn: &PgPooledConn,
-        payment_attempt: PaymentAttemptUpdate,
-    ) -> CustomResult<RawSqlQuery, errors::DatabaseError> {
-        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
-            conn,
-            self.id,
-            PaymentAttemptUpdateInternal::from(payment_attempt),
-            RawQuery,
-        )
-        .await
     }
 
     #[instrument(skip(conn))]

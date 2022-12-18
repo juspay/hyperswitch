@@ -1,0 +1,20 @@
+[package]
+name = "drainer"
+description = "App that reads redis streams and executes queries in DB"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.64"
+readme = "README.md"
+license = "Apache-2.0"
+
+[dependencies]
+error-stack = "0.2.4"
+fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
+serde_json = "1.0.89"
+structopt = "0.3.26"
+thiserror = "1.0.37"
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+# First Party Crates
+redis_interface = { version = "0.1.0", path = "../redis_interface" }
+router = { version = "0.2.0", path = "../router", features = ["kv_store"] }
+storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
