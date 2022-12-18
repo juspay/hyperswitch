@@ -142,12 +142,9 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
     }
 }
 
-// TODO: Move this to a utility module?
-pub struct Milliseconds(i32);
-
 #[allow(dead_code)]
 pub struct SchedulerOptions {
-    looper_interval: Milliseconds,
+    looper_interval: common_utils::date_time::Milliseconds,
     db_name: String,
     cache_name: String,
     schema_name: String,
