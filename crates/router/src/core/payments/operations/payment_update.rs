@@ -234,10 +234,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
+        _state: &'a AppState,
+        _payment_attempt: &storage::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        Ok(())
     }
 
     async fn get_connector<'a>(
