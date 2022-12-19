@@ -16,7 +16,7 @@ use crate::{
     pii::Secret,
     routes::AppState,
     types::{
-        api::{self, PaymentIdTypeExt},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -257,6 +257,7 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        _request_connector: Option<api_enums::Connector>,
     ) -> RouterResult<api::ConnectorCallType> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
