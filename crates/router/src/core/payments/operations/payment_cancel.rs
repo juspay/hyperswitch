@@ -67,7 +67,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .find_connector_response_by_payment_id_merchant_id_txn_id(
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
-                &payment_attempt.txn_id,
+                &payment_attempt.attempt_id,
                 storage_scheme,
             )
             .await

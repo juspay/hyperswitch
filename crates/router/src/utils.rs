@@ -1,7 +1,9 @@
 pub(crate) mod crypto;
 pub(crate) mod custom_serde;
+pub(crate) mod db_utils;
 mod ext_traits;
 mod fp_utils;
+
 #[cfg(feature = "kv_store")]
 pub(crate) mod storage_partitioning;
 

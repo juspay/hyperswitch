@@ -98,7 +98,7 @@ where
         .make_pm_data(
             state,
             payment_data.payment_attempt.payment_method,
-            &payment_data.payment_attempt.txn_id,
+            &payment_data.payment_attempt.attempt_id,
             &payment_data.payment_attempt,
             &payment_data.payment_method_data,
             &payment_data.token,
@@ -594,7 +594,7 @@ pub async fn add_process_sync_task(
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
 
-        resource_id: api::PaymentIdType::PaymentTxnId(payment_attempt.txn_id.clone()),
+        resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
         param: None,
         connector: None,
     };
@@ -603,7 +603,7 @@ pub async fn add_process_sync_task(
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
-        &payment_attempt.txn_id,
+        &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
     let process_tracker_entry =

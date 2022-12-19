@@ -285,7 +285,7 @@ impl PaymentMethodValidate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            txn_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().to_string(),
             status,
             // Amount & Currency will be zero in this case
             amount: 0,
