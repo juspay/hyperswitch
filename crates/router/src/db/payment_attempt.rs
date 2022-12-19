@@ -342,10 +342,9 @@ mod storage {
                         "{}_{}",
                         payment_attempt.payment_id, payment_attempt.merchant_id
                     );
-                    // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
-                    // Check for database presence as well Maybe use a read replica here ?
+                    
                     let created_attempt = PaymentAttempt {
-                        id: 0i32,
+                        id: Default::default(),
                         payment_id: payment_attempt.payment_id.clone(),
                         merchant_id: payment_attempt.merchant_id.clone(),
                         txn_id: payment_attempt.txn_id.clone(),
@@ -380,7 +379,7 @@ mod storage {
 
                     match self
                         .redis_conn
-                        .serialize_and_set_hash_field_if_not_exist(&key, "pa", &created_attempt)
+                        .serialize_and_set_hash_field_if_not_exist(&key, &format!("pa_{}", created_attempt.txn_id), &created_attempt)
                         .await
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
