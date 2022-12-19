@@ -30,6 +30,7 @@ pub struct Refund {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub description: Option<String>,
+    pub attempt_id: String,
 }
 
 #[derive(
@@ -65,6 +66,7 @@ pub struct RefundNew {
     pub created_at: Option<PrimitiveDateTime>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub description: Option<String>,
+    pub attempt_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

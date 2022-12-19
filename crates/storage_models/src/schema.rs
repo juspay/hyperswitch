@@ -325,6 +325,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         description -> Nullable<Varchar>,
+        attempt_id -> Varchar,
     }
 }
 
