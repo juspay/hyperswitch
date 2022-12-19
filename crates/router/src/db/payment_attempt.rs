@@ -348,6 +348,30 @@ mod storage {
                         payment_attempt.merchant_id, payment_attempt.payment_id
                     );
 
+                    #[cfg(feature = "olap")]
+                    async {
+                        //
+                        let conn = pg_connection(&self.replica_pool).await;
+                        let data = PaymentAttempt::find_by_merchant_id_attempt_id(
+                            &conn,
+                            &payment_attempt.merchant_id,
+                            &payment_attempt.attempt_id,
+                        )
+                        .await;
+                        match data {
+                            Ok(_) => Err(errors::StorageError::DuplicateValue(format!(
+                                "Payment Attempt already exists for payment_id: {}",
+                                key
+                            )))
+                            .into_report(),
+                            Err(error) => match error.current_context() {
+                                storage_models::errors::DatabaseError::NotFound => Ok(()),
+                                _ => Err(errors::StorageError::DatabaseError(error)).into_report(),
+                            },
+                        }
+                    }
+                    .await?;
+
                     let created_attempt = PaymentAttempt {
                         id: Default::default(),
                         payment_id: payment_attempt.payment_id.clone(),
