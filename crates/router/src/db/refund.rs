@@ -332,7 +332,7 @@ mod storage {
                             };
 
                             let stream_name =
-                                self.drainer_stream(&storage_types::Refund::shard_key(
+                                self.get_drainer_stream_name(&storage_types::Refund::shard_key(
                                     PartitionKey::MerchantIdPaymentId {
                                         merchant_id: &created_refund.merchant_id,
                                         payment_id: &created_refund.payment_id,
@@ -434,13 +434,14 @@ mod storage {
                         .await
                         .change_context(errors::StorageError::KVError)?;
 
-                    let stream_name = self.drainer_stream(&storage_types::Refund::shard_key(
-                        PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_refund.merchant_id,
-                            payment_id: &updated_refund.payment_id,
-                        },
-                        self.config.drainer_num_partitions,
-                    ));
+                    let stream_name =
+                        self.get_drainer_stream_name(&storage_types::Refund::shard_key(
+                            PartitionKey::MerchantIdPaymentId {
+                                merchant_id: &updated_refund.merchant_id,
+                                payment_id: &updated_refund.payment_id,
+                            },
+                            self.config.drainer_num_partitions,
+                        ));
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
                             updatable: kv::Updateable::RefundUpdate(kv::RefundUpdateMems {

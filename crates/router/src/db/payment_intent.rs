@@ -110,7 +110,7 @@ mod storage {
                                     insertable: kv::Insertable::PaymentIntent(new),
                                 },
                             };
-                            let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
+                            let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
                                 crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                     merchant_id: &created_intent.merchant_id,
                                     payment_id: &created_intent.payment_id,
@@ -176,7 +176,7 @@ mod storage {
                         },
                     };
 
-                    let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
+                    let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
                         crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_intent.merchant_id,
                             payment_id: &updated_intent.payment_id,

@@ -410,7 +410,7 @@ mod storage {
                                     insertable: kv::Insertable::PaymentAttempt(payment_attempt),
                                 },
                             };
-                            let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(
+                            let stream_name = self.get_drainer_stream_name(&PaymentAttempt::shard_key(
                                 crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                     merchant_id: &created_attempt.merchant_id,
                                     payment_id: &created_attempt.payment_id,
@@ -498,7 +498,7 @@ mod storage {
                         },
                     };
 
-                    let stream_name = self.drainer_stream(&PaymentAttempt::shard_key(
+                    let stream_name = self.get_drainer_stream_name(&PaymentAttempt::shard_key(
                         crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_attempt.merchant_id,
                             payment_id: &updated_attempt.payment_id,
