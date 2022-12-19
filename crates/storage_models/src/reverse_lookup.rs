@@ -5,21 +5,19 @@ use crate::schema::reverse_lookup;
 ///
 /// This reverse lookup table basically looks up id's and get result_id that you want. This is
 /// useful for KV where you can't lookup without key
-/// ## Field
-/// * lookup_id: Primary key. The key id.
-/// * pk_id: the value id. i.e the id you want to access KV table.
-/// * sk_id: the `field` in KV database. Which is used to differentiate between two same keys
-/// * source: the source of insertion for reference
-///
 #[derive(
     Clone, Debug, serde::Serialize, serde::Deserialize, Identifiable, Queryable, Eq, PartialEq,
 )]
 #[diesel(table_name = reverse_lookup)]
 #[diesel(primary_key(lookup_id))]
 pub struct ReverseLookup {
+    /// Primary key. The key id.
     pub lookup_id: String,
+    /// the value id. i.e the id you want to access KV table.
     pub pk_id: String,
+    /// the `field` in KV database. Which is used to differentiate between two same keys
     pub sk_id: String,
+    /// the source of insertion for reference
     pub source: String,
 }
 
