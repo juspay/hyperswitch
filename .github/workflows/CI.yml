@@ -54,7 +54,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -72,7 +72,7 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -110,7 +110,7 @@ jobs:
 
   # cargo-deny:
   #   name: Run cargo-deny
-  #   if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+  #   if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
   #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
@@ -132,7 +132,7 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

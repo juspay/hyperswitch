@@ -22,8 +22,6 @@ pub fn sample() -> () {
 
 ## Files Tree Layout
 
-<!-- FIXME: fill missing -->
-
 ```text
 ├── src                        : source code
 │   └── logger                 : logger

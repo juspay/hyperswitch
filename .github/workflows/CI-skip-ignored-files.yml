@@ -3,6 +3,16 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".github/workflows/**"
+      - "crates/**"
+      - "examples/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+
   pull_request:
     types:
       - "labeled"
@@ -24,7 +34,7 @@ concurrency:
 jobs:
   formatting:
     name: Check formatting
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ubuntu-latest
     steps:
       - name: Skip formatting
@@ -33,7 +43,7 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -46,7 +56,7 @@ jobs:
 
   # cargo-deny:
   #   name: Run cargo-deny
-  #   if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+  #   if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
   #   runs-on: ubuntu-latest
   #   steps:
   #     - name: Skip cargo-deny
@@ -55,7 +65,7 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

@@ -21,13 +21,10 @@ use diesel::{
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{logger, tracing, tracing::instrument};
 
-use crate::{errors, CustomResult, PgPooledConn};
+use crate::{errors, PgPooledConn, StorageResult};
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_insert<T, V, R>(
-    conn: &PgPooledConn,
-    values: V,
-) -> CustomResult<R, errors::DatabaseError>
+pub(super) async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static,
     V: Debug + Insertable<T>,
@@ -60,7 +57,7 @@ pub(super) async fn generic_update<T, V, P>(
     conn: &PgPooledConn,
     predicate: P,
     values: V,
-) -> CustomResult<usize, errors::DatabaseError>
+) -> StorageResult<usize>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug,
@@ -89,7 +86,7 @@ pub(super) async fn generic_update_with_results<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
     values: V,
-) -> CustomResult<Vec<R>, errors::DatabaseError>
+) -> StorageResult<Vec<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug + 'static,
@@ -119,7 +116,7 @@ pub(super) async fn generic_update_by_id<T, V, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
     values: V,
-) -> CustomResult<R, errors::DatabaseError>
+) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     V: AsChangeset<Target = <<T as FindDsl<Pk>>::Output as HasTable>::Table> + Debug,
@@ -163,10 +160,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_delete<T, P>(
-    conn: &PgPooledConn,
-    predicate: P,
-) -> CustomResult<bool, errors::DatabaseError>
+pub(super) async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -200,7 +194,7 @@ where
 pub(super) async fn generic_delete_one_with_result<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
-) -> CustomResult<R, errors::DatabaseError>
+) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -228,10 +222,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-async fn generic_find_by_id_core<T, Pk, R>(
-    conn: &PgPooledConn,
-    id: Pk,
-) -> CustomResult<R, errors::DatabaseError>
+async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -256,10 +247,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_by_id<T, Pk, R>(
-    conn: &PgPooledConn,
-    id: Pk,
-) -> CustomResult<R, errors::DatabaseError>
+pub(super) async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -275,7 +263,7 @@ where
 pub(super) async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
-) -> CustomResult<Option<R>, errors::DatabaseError>
+) -> StorageResult<Option<R>>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as HasTable>::Table: FindDsl<Pk>,
@@ -290,10 +278,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-async fn generic_find_one_core<T, P, R>(
-    conn: &PgPooledConn,
-    predicate: P,
-) -> CustomResult<R, errors::DatabaseError>
+async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -317,10 +302,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_one<T, P, R>(
-    conn: &PgPooledConn,
-    predicate: P,
-) -> CustomResult<R, errors::DatabaseError>
+pub(super) async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -334,7 +316,7 @@ where
 pub(super) async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
-) -> CustomResult<Option<R>, errors::DatabaseError>
+) -> StorageResult<Option<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -349,7 +331,7 @@ pub(super) async fn generic_filter<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
-) -> CustomResult<Vec<R>, errors::DatabaseError>
+) -> StorageResult<Vec<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg>,
@@ -377,9 +359,7 @@ where
     .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
-fn to_optional<T>(
-    arg: CustomResult<T, errors::DatabaseError>,
-) -> CustomResult<Option<T>, errors::DatabaseError> {
+fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
     match arg {
         Ok(value) => Ok(Some(value)),
         Err(err) => match err.current_context() {

@@ -111,7 +111,7 @@ impl
                 .build(),
         );
 
-        logger::debug!(session_request=?request);
+        logger::debug!(braintree_session_request=?request);
         Ok(request)
     }
 
@@ -132,9 +132,14 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
+        let braintree_session_request =
+            utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        logger::debug!(?braintree_session_request);
+        Ok(Some(braintree_session_request))
     }
 
     fn handle_response(

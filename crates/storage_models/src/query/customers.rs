@@ -6,15 +6,12 @@ use crate::{
     customers::{Customer, CustomerNew, CustomerUpdate, CustomerUpdateInternal},
     errors,
     schema::customers::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl CustomerNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<Customer, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -26,7 +23,7 @@ impl Customer {
         customer_id: String,
         merchant_id: String,
         customer: CustomerUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             (customer_id.clone(), merchant_id.clone()),
@@ -53,7 +50,7 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::DatabaseError> {
+    ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::customer_id
@@ -68,7 +65,7 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
             conn,
             (customer_id.to_owned(), merchant_id.to_owned()),
@@ -81,7 +78,7 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             (customer_id.to_owned(), merchant_id.to_owned()),

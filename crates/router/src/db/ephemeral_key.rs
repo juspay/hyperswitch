@@ -23,8 +23,8 @@ pub trait EphemeralKeyInterface {
 
 mod storage {
     use common_utils::{date_time, ext_traits::StringExt};
-    use error_stack::{IntoReport, ResultExt};
-    use redis_interface::RedisValue;
+    use error_stack::ResultExt;
+    use redis_interface::MsetnxReply;
     use time::ext::NumericalDuration;
 
     use super::EphemeralKeyInterface;
@@ -55,20 +55,21 @@ mod storage {
                 merchant_id: new.merchant_id,
                 secret: new.secret,
             };
-            let redis_value = &utils::Encode::<EphemeralKey>::encode_to_string_of_json(&created_ek)
+            let redis_value = utils::Encode::<EphemeralKey>::encode_to_string_of_json(&created_ek)
                 .change_context(errors::StorageError::KVError)
                 .attach_printable("Unable to serialize ephemeral key")?;
 
-            let redis_map: Vec<(&str, RedisValue)> = vec![
-                (&secret_key, redis_value.into()),
-                (&id_key, redis_value.into()),
-            ];
+            let redis_map = vec![(&secret_key, &redis_value), (&id_key, &redis_value)];
             match self
                 .redis_conn
-                .msetnx::<Vec<(&str, RedisValue)>>(redis_map)
+                .set_multiple_keys_if_not_exist(redis_map)
                 .await
             {
-                Ok(1) => {
+                Ok(MsetnxReply::KeysNotSet) => Err(errors::StorageError::DuplicateValue(
+                    "Ephemeral key already exists".to_string(),
+                )
+                .into()),
+                Ok(MsetnxReply::KeysSet) => {
                     let expire_at = expires.assume_utc().unix_timestamp();
                     self.redis_conn
                         .set_expire_at(&secret_key, expire_at)
@@ -80,12 +81,6 @@ mod storage {
                         .change_context(errors::StorageError::KVError)?;
                     Ok(created_ek)
                 }
-                Ok(0) => {
-                    Err(errors::StorageError::DuplicateValue("ephimeral_key".to_string()).into())
-                }
-                Ok(i) => Err(errors::StorageError::KVError)
-                    .into_report()
-                    .attach_printable_lazy(|| format!("Invalid response for HSETNX: {i}")),
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
