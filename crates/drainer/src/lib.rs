@@ -25,7 +25,7 @@ async fn drainer_handler(
     stream_index: u8,
     max_read_count: u64,
 ) -> errors::DrainerResult<()> {
-    let stream_name = utils::get_get_drainer_stream_name(store.clone(), stream_index);
+    let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
     let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
 
     if let Err(_e) = drainer_result {

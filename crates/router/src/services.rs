@@ -20,7 +20,7 @@ pub struct Store {
 #[cfg(feature = "kv_store")]
 #[derive(Clone)]
 pub(crate) struct StoreConfig {
-    pub(crate) get_drainer_stream_name_name: String,
+    pub(crate) drainer_stream_name: String,
     pub(crate) drainer_num_partitions: u8,
 }
 
@@ -33,7 +33,7 @@ impl Store {
             redis_conn: Arc::new(crate::connection::redis_connection(config).await),
             #[cfg(feature = "kv_store")]
             config: StoreConfig {
-                get_drainer_stream_name_name: config.drainer.stream_name.clone(),
+                drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
             },
         }
@@ -42,9 +42,6 @@ impl Store {
     #[cfg(feature = "kv_store")]
     pub fn get_drainer_stream_name(&self, shard_key: &str) -> String {
         // Example: {shard_5}_get_drainer_stream_name
-        format!(
-            "{{{}}}_{}",
-            shard_key, self.config.get_drainer_stream_name_name,
-        )
+        format!("{{{}}}_{}", shard_key, self.config.drainer_stream_name,)
     }
 }
