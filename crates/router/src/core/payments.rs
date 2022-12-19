@@ -169,7 +169,6 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -236,8 +235,11 @@ where
         },
     )?;
 
-    let connector_data =
-        api::ConnectorData::get_connector_by_name(&state.conf.connectors, &connector)?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector,
+        api::GetToken::Connector,
+    )?;
 
     let flow_type = connector_data
         .connector
@@ -402,17 +404,16 @@ where
 
     for (connector_res, connector) in result.into_iter().zip(connectors) {
         let connector_name = connector.connector_name.to_string();
-        match connector_res?.response {
+        match connector_res {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse { session_token } =
-                    connector_response
+                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
+                    connector_response.response
                 {
                     payment_data.sessions_token.push(session_token);
                 }
             }
-
             Err(connector_error) => {
-                logger::debug!(
+                logger::error!(
                     "sessions_connector_error {} {:?}",
                     connector_name,
                     connector_error

@@ -6,23 +6,19 @@ use crate::{
     errors,
     refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
     schema::refund::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl RefundNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Refund, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Refund {
     #[instrument(skip(conn))]
-    pub async fn update(
-        self,
-        conn: &PgPooledConn,
-        refund: RefundUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
@@ -44,7 +40,7 @@ impl Refund {
         conn: &PgPooledConn,
         merchant_id: &str,
         refund_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -59,7 +55,7 @@ impl Refund {
         conn: &PgPooledConn,
         internal_reference_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -74,7 +70,7 @@ impl Refund {
         conn: &PgPooledConn,
         merchant_id: &str,
         txn_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -90,7 +86,7 @@ impl Refund {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id

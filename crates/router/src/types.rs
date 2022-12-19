@@ -124,9 +124,9 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    //TODO: Add the fields here as required
     pub amount: i64,
     pub currency: storage_enums::Currency,
+    pub country: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -145,12 +145,6 @@ pub struct PaymentsTransactionResponse {
     pub resource_id: ResponseId,
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct PaymentsSessionResponse {
-    pub session_id: Option<String>,
-    pub session_token: String,
 }
 
 #[derive(Debug, Clone)]

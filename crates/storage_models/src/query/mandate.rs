@@ -3,11 +3,11 @@ use error_stack::report;
 use router_env::tracing::{self, instrument};
 
 use super::generics;
-use crate::{errors, mandate::*, schema::mandate::dsl, CustomResult, PgPooledConn};
+use crate::{errors, mandate::*, schema::mandate::dsl, PgPooledConn, StorageResult};
 
 impl MandateNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Mandate, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Mandate> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -17,7 +17,7 @@ impl Mandate {
         conn: &PgPooledConn,
         merchant_id: &str,
         mandate_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -31,7 +31,7 @@ impl Mandate {
         conn: &PgPooledConn,
         merchant_id: &str,
         customer_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -47,7 +47,7 @@ impl Mandate {
         merchant_id: &str,
         mandate_id: &str,
         mandate: MandateUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id

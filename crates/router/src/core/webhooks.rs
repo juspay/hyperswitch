@@ -197,10 +197,13 @@ pub async fn webhooks_core(
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let connector =
-        api::ConnectorData::get_connector_by_name(&state.conf.connectors, connector_name)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed construction of ConnectorData")?;
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
 
