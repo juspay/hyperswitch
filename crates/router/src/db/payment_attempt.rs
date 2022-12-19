@@ -172,7 +172,7 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
 
-            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, attempt_id)
+            PaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
