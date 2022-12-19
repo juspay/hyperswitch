@@ -25,16 +25,13 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    logger,
-    pii::{Email, Secret},
+    logger, pii,
     routes::AppState,
     scheduler::utils as pt_utils,
     services,
     types::{
         self,
-        api::{
-            self, enums as api_enums, PaymentIdTypeExt, PaymentsResponse, PaymentsRetrieveRequest,
-        },
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums as storage_enums, ProcessTrackerExt},
         transformers::ForeignInto,
     },
@@ -227,7 +224,7 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
 pub async fn handle_payments_redirect_response<'a, F>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    req: PaymentsRetrieveRequest,
+    req: api::PaymentsRetrieveRequest,
 ) -> RouterResponse<api::RedirectionResponse>
 where
     F: Send + Clone + 'a,
@@ -284,9 +281,9 @@ where
 pub async fn payments_response_for_redirection_flows<'a>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    req: PaymentsRetrieveRequest,
+    req: api::PaymentsRetrieveRequest,
     flow_type: CallConnectorAction,
-) -> RouterResponse<PaymentsResponse> {
+) -> RouterResponse<api::PaymentsResponse> {
     payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         state,
         merchant_account,
@@ -471,14 +468,14 @@ where
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
-    pub card_cvc: Option<Secret<String>>,
+    pub card_cvc: Option<pii::Secret<String>>,
 }
 
 #[derive(Debug)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<masking::Secret<String, masking::WithType>>,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<masking::Secret<String, pii::Email>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
