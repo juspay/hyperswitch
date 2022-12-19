@@ -44,11 +44,11 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
-        connector_attempt_id: &str,
+        connector_txn_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
-    async fn find_payment_attempt_by_merchant_id_txn_id(
+    async fn find_payment_attempt_by_merchant_id_attempt_id(
         &self,
         merchant_id: &str,
         attempt_id: &str,
@@ -148,23 +148,23 @@ mod storage {
         async fn find_payment_attempt_by_merchant_id_connector_txn_id(
             &self,
             merchant_id: &str,
-            connector_attempt_id: &str,
+            connector_txn_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
             // TODO: update logic to lookup all payment attempts for an intent
             // and apply filter logic on top of them to get the desired one.
-            PaymentAttempt::find_by_merchant_id_connector_attempt_id(
+            PaymentAttempt::find_by_merchant_id_connector_txn_id(
                 &conn,
                 merchant_id,
-                connector_attempt_id,
+                connector_txn_id,
             )
             .await
             .map_err(Into::into)
             .into_report()
         }
 
-        async fn find_payment_attempt_by_merchant_id_txn_id(
+        async fn find_payment_attempt_by_merchant_id_attempt_id(
             &self,
             merchant_id: &str,
             attempt_id: &str,
@@ -182,7 +182,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
-    async fn find_payment_attempt_by_merchant_id_txn_id(
+    async fn find_payment_attempt_by_merchant_id_attempt_id(
         &self,
         _merchant_id: &str,
         _attempt_id: &str,
@@ -194,7 +194,7 @@ impl PaymentAttemptInterface for MockDb {
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         _merchant_id: &str,
-        _connector_attempt_id: &str,
+        _connector_txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
@@ -644,7 +644,7 @@ mod storage {
             }
         }
 
-        async fn find_payment_attempt_by_merchant_id_txn_id(
+        async fn find_payment_attempt_by_merchant_id_attempt_id(
             &self,
             merchant_id: &str,
             attempt_id: &str,

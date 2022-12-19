@@ -215,7 +215,7 @@ async fn get_tracker_for_sync<
             db.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, id, storage_scheme)
         }
         api::PaymentIdType::PaymentTxnId(ref id) => {
-            db.find_payment_attempt_by_merchant_id_txn_id(merchant_id, id, storage_scheme)
+            db.find_payment_attempt_by_merchant_id_attempt_id(merchant_id, id, storage_scheme)
         }
     }
     .await

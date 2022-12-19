@@ -13,6 +13,7 @@ pub(crate) use common_utils::{
 };
 use nanoid::nanoid;
 
+#[allow(unused_imports)]
 pub(crate) use self::{
     db_utils::*,
     ext_traits::{OptionExt, ValidateCall},
