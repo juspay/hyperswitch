@@ -337,7 +337,7 @@ checksum = "3f907281554a3d0312bb7aab855a8e0ef6cbf1614d06de54105039ca8b34460e"
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
-source = "git+https://github.com/juspay/async-bb8-diesel?rev=412663e16802dbc58a1b98bfcbe78fa0090311eb#412663e16802dbc58a1b98bfcbe78fa0090311eb"
+source = "git+https://github.com/juspay/async-bb8-diesel?rev=9a71d142726dbc33f41c1fd935ddaa79841c7be5#9a71d142726dbc33f41c1fd935ddaa79841c7be5"
 dependencies = [
  "async-trait",
  "bb8",
@@ -1092,7 +1092,8 @@ dependencies = [
 [[package]]
 name = "diesel"
 version = "2.0.2"
-source = "git+https://github.com/juspay/diesel?rev=22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02#22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68c186a7418a2aac330bb76cde82f16c36b03a66fb91db32d20214311f9f6545"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -1107,7 +1108,8 @@ dependencies = [
 [[package]]
 name = "diesel_derives"
 version = "2.0.1"
-source = "git+https://github.com/juspay/diesel?rev=22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02#22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "143b758c91dbc3fe1fdcb0dba5bd13276c6a66422f2ef5795b58488248a310aa"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
