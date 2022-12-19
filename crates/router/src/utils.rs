@@ -1,4 +1,3 @@
-pub(crate) mod crypto;
 pub(crate) mod custom_serde;
 mod ext_traits;
 mod fp_utils;
@@ -6,6 +5,7 @@ mod fp_utils;
 pub(crate) mod storage_partitioning;
 
 pub(crate) use common_utils::{
+    crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     validation::validate_email,
 };

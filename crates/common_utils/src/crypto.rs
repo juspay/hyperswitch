@@ -1,11 +1,14 @@
+//! Utilities for cryptographic algorithms
 use error_stack::{IntoReport, ResultExt};
 use ring::{aead, hmac};
 
-use crate::core::errors::{self, CustomResult};
+use crate::errors::{self, CustomResult};
 
 const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
 
+/// Trait for cryptographically signing messages
 pub trait SignMessage {
+    /// Takes in a secret and a message and returns the calculated signature as bytes
     fn sign_message(
         &self,
         _secret: &[u8],
@@ -13,7 +16,10 @@ pub trait SignMessage {
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
+/// Trait for cryptographically verifying a message against a signature
 pub trait VerifySignature {
+    /// Takes in a secret, the signature and the message and verifies the message
+    /// against the signature
     fn verify_signature(
         &self,
         _secret: &[u8],
@@ -22,7 +28,9 @@ pub trait VerifySignature {
     ) -> CustomResult<bool, errors::CryptoError>;
 }
 
+/// Trait for cryptographically encoding a message
 pub trait EncodeMessage {
+    /// Takes in a secret and the message and encodes it, returning bytes
     fn encode_message(
         &self,
         _secret: &[u8],
@@ -30,7 +38,9 @@ pub trait EncodeMessage {
     ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::CryptoError>;
 }
 
+/// Trait for cryptographically decoding a message
 pub trait DecodeMessage {
+    /// Takes in a secret, an encoded messages and attempts to decode it, returning bytes
     fn decode_message(
         &self,
         _secret: &[u8],
@@ -38,6 +48,9 @@ pub trait DecodeMessage {
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
+/// Represents no cryptographic algorithm.
+/// Implements all crypto traits and acts like a Nop
+#[derive(Debug)]
 pub struct NoAlgorithm;
 
 impl SignMessage for NoAlgorithm {
@@ -81,6 +94,8 @@ impl DecodeMessage for NoAlgorithm {
     }
 }
 
+/// Represents the HMAC-SHA-256 algorithm
+#[derive(Debug)]
 pub struct HmacSha256;
 
 impl SignMessage for HmacSha256 {
@@ -107,6 +122,8 @@ impl VerifySignature for HmacSha256 {
     }
 }
 
+/// Represents the HMAC-SHA-512 algorithm
+#[derive(Debug)]
 pub struct HmacSha512;
 
 impl SignMessage for HmacSha512 {
@@ -133,6 +150,8 @@ impl VerifySignature for HmacSha512 {
     }
 }
 
+/// Represents the GCM-AES-256 algorithm
+#[derive(Debug)]
 pub struct GcmAes256 {
     nonce: Vec<u8>,
 }

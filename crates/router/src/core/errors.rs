@@ -451,15 +451,3 @@ pub enum WebhooksFlowError {
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
 }
-
-#[derive(Debug, thiserror::Error)]
-pub enum CryptoError {
-    #[error("Failed to encode given message")]
-    EncodingFailed,
-    #[error("Failed to decode given message")]
-    DecodingFailed,
-    #[error("Failed to sign message")]
-    MessageSigningFailed,
-    #[error("Failed to verify signature")]
-    SignatureVerificationFailed,
-}

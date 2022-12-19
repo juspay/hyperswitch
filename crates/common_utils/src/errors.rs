@@ -54,3 +54,20 @@ pub enum ValidationError {
     #[error("{message}")]
     InvalidValue { message: String },
 }
+
+/// Cryptograpic algorithm errors
+#[derive(Debug, thiserror::Error)]
+pub enum CryptoError {
+    /// The cryptographic algorithm was unable to encode the message
+    #[error("Failed to encode given message")]
+    EncodingFailed,
+    /// The cryptographic algorithm was unable to decode the message
+    #[error("Failed to decode given message")]
+    DecodingFailed,
+    /// The cryptographic algorithm was unable to sign the message
+    #[error("Failed to sign message")]
+    MessageSigningFailed,
+    /// The cryptographic algorithm was unable to verify the given signature
+    #[error("Failed to verify signature")]
+    SignatureVerificationFailed,
+}

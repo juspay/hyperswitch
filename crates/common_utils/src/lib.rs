@@ -15,6 +15,7 @@
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
 pub mod consts;
+pub mod crypto;
 pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
