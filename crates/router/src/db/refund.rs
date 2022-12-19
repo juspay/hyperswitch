@@ -280,50 +280,39 @@ mod storage {
                         Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
 
-                            storage_types::ReverseLookupNew {
-                                sk_id: field.clone(),
-                                lookup_id: format!(
-                                    "{}_{}",
-                                    created_refund.merchant_id, created_refund.refund_id
-                                ),
-                                pk_id: key.clone(),
-                                source: "refund".to_string(),
-                            }
-                            .insert(&conn)
-                            .await
-                            .map_err(Into::<errors::StorageError>::into)
-                            .into_report()?;
-
-                            //Reverse lookup for txn_id
-                            storage_types::ReverseLookupNew {
-                                sk_id: field.clone(),
-                                lookup_id: format!(
-                                    "{}_{}",
-                                    created_refund.merchant_id, created_refund.transaction_id
-                                ),
-                                pk_id: key.clone(),
-                                source: "refund".to_string(),
-                            }
-                            .insert(&conn)
-                            .await
-                            .map_err(Into::<errors::StorageError>::into)
-                            .into_report()?;
-
-                            //Reverse lookup for internal_reference_id
-                            storage_types::ReverseLookupNew {
-                                sk_id: field.clone(),
-                                lookup_id: format!(
-                                    "{}_{}",
-                                    created_refund.merchant_id,
-                                    created_refund.internal_reference_id
-                                ),
-                                pk_id: key,
-                                source: "refund".to_string(),
-                            }
-                            .insert(&conn)
-                            .await
-                            .map_err(Into::<errors::StorageError>::into)
-                            .into_report()?;
+                            let reverse_lookups = vec![
+                                storage_types::ReverseLookupNew {
+                                    sk_id: field.clone(),
+                                    lookup_id: format!(
+                                        "{}_{}",
+                                        created_refund.merchant_id, created_refund.refund_id
+                                    ),
+                                    pk_id: key.clone(),
+                                    source: "refund".to_string(),
+                                },
+                                storage_types::ReverseLookupNew {
+                                    sk_id: field.clone(),
+                                    lookup_id: format!(
+                                        "{}_{}",
+                                        created_refund.merchant_id, created_refund.transaction_id
+                                    ),
+                                    pk_id: key.clone(),
+                                    source: "refund".to_string(),
+                                },
+                                storage_types::ReverseLookupNew {
+                                    sk_id: field.clone(),
+                                    lookup_id: format!(
+                                        "{}_{}",
+                                        created_refund.merchant_id,
+                                        created_refund.internal_reference_id
+                                    ),
+                                    pk_id: key,
+                                    source: "refund".to_string(),
+                                },
+                            ];
+                            storage_types::ReverseLookupNew::batch_insert(reverse_lookups, &conn)
+                                .await
+                                .change_context(errors::StorageError::KVError)?;
 
                             let redis_entry = kv::TypedSql {
                                 op: kv::DBOperation::Insert {

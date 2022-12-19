@@ -17,6 +17,14 @@ impl ReverseLookupNew {
     ) -> CustomResult<ReverseLookup, errors::DatabaseError> {
         generics::generic_insert(conn, self).await
     }
+    #[instrument(skip(conn))]
+    pub async fn batch_insert(
+        reverse_lookups: Vec<Self>,
+        conn: &PgPooledConn,
+    ) -> CustomResult<(), errors::DatabaseError> {
+        generics::generic_insert::<_, _, ReverseLookup>(conn, reverse_lookups).await?;
+        Ok(())
+    }
 }
 impl ReverseLookup {
     pub async fn find_by_lookup_id(
