@@ -97,7 +97,7 @@ pub struct SetupIntentRequest {
     #[serde(rename = "metadata[txn_uuid]")]
     pub metadata_txn_uuid: String,
     pub confirm: bool,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
@@ -257,7 +257,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_uuid,
             payment_data,
             off_session: item.request.off_session,
-            setup_future_usage: item.request.setup_future_usage,
+            usage: item.request.setup_future_usage,
         })
     }
 }
