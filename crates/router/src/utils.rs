@@ -1,7 +1,9 @@
 pub(crate) mod crypto;
 pub(crate) mod custom_serde;
+mod db_utils;
 mod ext_traits;
 mod fp_utils;
+
 #[cfg(feature = "kv_store")]
 pub(crate) mod storage_partitioning;
 
@@ -12,6 +14,7 @@ pub(crate) use common_utils::{
 use nanoid::nanoid;
 
 pub(crate) use self::{
+    db_utils::*,
     ext_traits::{OptionExt, ValidateCall},
     fp_utils::when,
 };

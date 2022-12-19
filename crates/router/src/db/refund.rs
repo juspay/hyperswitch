@@ -165,7 +165,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{date_time, extract_payment_id_from_mid_pid};
+    use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::{HsetnxReply, RedisEntryId};
 
@@ -264,7 +264,7 @@ mod storage {
 
                     let field = format!(
                         "pa_{}_ref_{}",
-                        &created_refund.payment_id, &created_refund.refund_id
+                        &created_refund.attempt_id, &created_refund.refund_id
                     );
                     match self
                         .redis_conn
@@ -375,10 +375,9 @@ mod storage {
                         }
                     };
                     let key = &lookup.pk_id;
-                    let payment_id = extract_payment_id_from_mid_pid(key)
-                        .ok_or(errors::StorageError::KVError)?;
 
-                    let pattern = format!("pa_{}_ref_*", payment_id);
+                    let pattern = utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
+
                     self.redis_conn
                         .hscan_and_deserialize(key, &pattern, None)
                         .await
@@ -408,10 +407,13 @@ mod storage {
                     // Check for database presence as well Maybe use a read replica here ?
                     // TODO: Add a proper error for serialization failure
 
-                    let field = format!(
-                        "pa_{}_ref_{}",
-                        &updated_refund.payment_id, &updated_refund.refund_id
-                    );
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&key)
+                        .await
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
+
+                    let field = &lookup.sk_id;
 
                     let redis_value =
                         utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
@@ -420,7 +422,7 @@ mod storage {
                         .change_context(errors::StorageError::KVError)?;
 
                     self.redis_conn
-                        .set_hash_fields(&key, (&field, redis_value))
+                        .set_hash_fields(&key, (field, redis_value))
                         .await
                         .change_context(errors::StorageError::KVError)?;
 
@@ -525,7 +527,13 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", merchant_id, payment_id);
-                    let pattern = format!("pa_{}_ref_*", payment_id);
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&key)
+                        .await
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
+
+                    let pattern = utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
                     self.redis_conn
                         .hscan_and_deserialize(&key, &pattern, None)
