@@ -249,10 +249,7 @@ mod storage {
                         .into_report()
                 }
 
-                enums::MerchantStorageScheme::RedisKv => {
-                    //TODO: Implement this
-                    Err(errors::StorageError::KVError.into())
-                }
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
     }
