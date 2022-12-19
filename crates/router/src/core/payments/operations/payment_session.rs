@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -197,6 +198,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
     }
 }
 
+#[derive(serde::Deserialize, Default)]
+pub struct PaymentMethodEnabled {
+    payment_method: String,
+}
+
 #[async_trait]
 impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
     Domain<F, api::PaymentsSessionRequest> for Op
@@ -257,12 +263,13 @@ where
 
         let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
 
-        //FIXME: Check if merchant has enabled wallet through the connector
-        let connector_names = db
+        let connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Database error when querying for merchant accounts")?
+            .attach_printable("Database error when querying for merchant connector accounts")?;
+
+        let normal_connector_names = connector_accounts
             .iter()
             .filter(|connector_account| {
                 supported_connectors.contains(&connector_account.connector_name)
@@ -270,11 +277,48 @@ where
             .map(|filtered_connector| filtered_connector.connector_name.clone())
             .collect::<Vec<String>>();
 
-        let mut connectors_data = Vec::with_capacity(connector_names.len());
+        // Parse the payment methods enabled to check if the merchant has enabled gpay ( wallet )
+        // through that connector this parsing from Value to payment method is costly and has to be done for every connector
+        // for sure looks like an area of optimization
+        let session_token_from_metadata_connectors = connector_accounts
+            .iter()
+            .filter(|connector_account| {
+                connector_account
+                    .payment_methods_enabled
+                    .clone()
+                    .unwrap_or_default()
+                    .iter()
+                    .any(|payment_method| {
+                        let parsed_payment_method: PaymentMethodEnabled = payment_method
+                            .clone()
+                            .parse_value("payment_method")
+                            .unwrap_or_default();
 
-        for connector_name in connector_names {
-            let connector_data =
-                api::ConnectorData::get_connector_by_name(connectors, &connector_name)?;
+                        parsed_payment_method.payment_method == "wallet"
+                    })
+            })
+            .map(|filtered_connector| filtered_connector.connector_name.clone())
+            .collect::<Vec<String>>();
+
+        let mut connectors_data = Vec::with_capacity(
+            normal_connector_names.len() + session_token_from_metadata_connectors.len(),
+        );
+
+        for connector_name in normal_connector_names {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                &connector_name,
+                api::GetToken::Connector,
+            )?;
+            connectors_data.push(connector_data);
+        }
+
+        for connector_name in session_token_from_metadata_connectors {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                &connector_name,
+                api::GetToken::Metadata,
+            )?;
             connectors_data.push(connector_data);
         }
 

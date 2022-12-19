@@ -24,7 +24,7 @@ use router_env::{tracing, tracing::instrument};
 
 use crate::{
     errors,
-    types::{HsetnxReply, RedisEntryId, SetnxReply},
+    types::{HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
@@ -47,13 +47,16 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    pub async fn msetnx<V>(&self, value: V) -> CustomResult<u8, errors::RedisError>
+    pub async fn set_multiple_keys_if_not_exist<V>(
+        &self,
+        value: V,
+    ) -> CustomResult<MsetnxReply, errors::RedisError>
     where
         V: TryInto<RedisMap> + Debug,
         V::Error: Into<fred::error::RedisError>,
     {
         self.pool
-            .msetnx::<u8, V>(value)
+            .msetnx(value)
             .await
             .into_report()
             .change_context(errors::RedisError::SetFailed)
