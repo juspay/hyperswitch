@@ -35,12 +35,12 @@ pub struct ConnectorResponse {
     pub encoded_data: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, AsChangeset, Serialize)]
+#[derive(Clone, Default, Debug, Deserialize, AsChangeset, Serialize)]
 #[diesel(table_name = connector_response)]
 pub struct ConnectorResponseUpdateInternal {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
-    pub modified_at: PrimitiveDateTime,
+    pub modified_at: Option<PrimitiveDateTime>,
     pub encoded_data: Option<String>,
     pub connector_name: Option<String>,
 }
@@ -53,16 +53,30 @@ pub enum ConnectorResponseUpdate {
         encoded_data: Option<String>,
         connector_name: Option<String>,
     },
+    ErrorUpdate {
+        connector_name: Option<String>,
+    },
 }
 
 impl ConnectorResponseUpdate {
     pub fn apply_changeset(self, source: ConnectorResponse) -> ConnectorResponse {
         let connector_response_update: ConnectorResponseUpdateInternal = self.into();
         ConnectorResponse {
-            modified_at: connector_response_update.modified_at,
-            connector_transaction_id: connector_response_update.connector_transaction_id,
-            authentication_data: connector_response_update.authentication_data,
-            encoded_data: connector_response_update.encoded_data,
+            modified_at: connector_response_update
+                .modified_at
+                .unwrap_or_else(common_utils::date_time::now),
+            connector_name: connector_response_update
+                .connector_name
+                .or(source.connector_name),
+            connector_transaction_id: source
+                .connector_transaction_id
+                .or(connector_response_update.connector_transaction_id),
+            authentication_data: connector_response_update
+                .authentication_data
+                .or(source.authentication_data),
+            encoded_data: connector_response_update
+                .encoded_data
+                .or(source.encoded_data),
             ..source
         }
     }
@@ -80,8 +94,13 @@ impl From<ConnectorResponseUpdate> for ConnectorResponseUpdateInternal {
                 connector_transaction_id,
                 authentication_data,
                 encoded_data,
-                modified_at: common_utils::date_time::now(),
+                modified_at: Some(common_utils::date_time::now()),
                 connector_name,
+            },
+            ConnectorResponseUpdate::ErrorUpdate { connector_name } => Self {
+                connector_name,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Self::default()
             },
         }
     }

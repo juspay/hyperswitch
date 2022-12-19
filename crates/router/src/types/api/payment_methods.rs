@@ -6,6 +6,7 @@ pub use api_models::payment_methods::{
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCustomerPaymentMethodsResponse,
     ListPaymentMethodRequest, ListPaymentMethodResponse, PaymentMethodId, PaymentMethodResponse,
     TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
+    UpdatePaymentMethod,
 };
 use error_stack::report;
 use literally::hmap;

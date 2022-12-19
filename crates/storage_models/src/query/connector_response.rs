@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     connector_response::{
         ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate,
@@ -18,8 +18,7 @@ impl ConnectorResponseNew {
         self,
         conn: &PgPooledConn,
     ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
-        generics::generic_insert::<_, _, ConnectorResponse, _>(conn, self, ExecuteQuery::new())
-            .await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -30,11 +29,10 @@ impl ConnectorResponse {
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
             ConnectorResponseUpdateInternal::from(connector_response),
-            ExecuteQuery::new(),
         )
         .await
         {

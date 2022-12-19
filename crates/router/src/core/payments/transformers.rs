@@ -95,7 +95,7 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-
+        connector_meta_data: merchant_connector_account.metadata,
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
     };
@@ -275,6 +275,7 @@ where
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
+                        .set_connector(payment_attempt.connector)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
                         .set_currency(currency)
@@ -355,6 +356,7 @@ where
                 .capture_method
                 .map(ForeignInto::foreign_into),
             error_message: payment_attempt.error_message,
+            error_code: payment_attempt.error_code,
             payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
             email: customer
                 .as_ref()

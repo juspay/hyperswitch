@@ -114,9 +114,11 @@ pub fn mk_add_card_response(
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
         payment_method_issuer_code: req.payment_method_issuer_code,
-        recurring_enabled: false,                                      //TODO
-        installment_payment_enabled: false,                            //TODO
-        payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO,
+        recurring_enabled: false,           //TODO
+        installment_payment_enabled: false, //TODO
+        payment_experience: Some(vec![
+            api_models::payment_methods::PaymentExperience::RedirectToUrl,
+        ]), //TODO,
     }
 }
 

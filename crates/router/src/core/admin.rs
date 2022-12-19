@@ -10,7 +10,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, MerchantAccount},
-        transformers::ForeignInto,
+        transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{self, OptionExt, ValueExt},
 };
@@ -321,6 +321,7 @@ pub async fn create_payment_connector(
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
+        metadata: req.metadata,
     };
 
     let mca = store
@@ -355,22 +356,35 @@ pub async fn retrieve_payment_connector(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
-    let payment_methods_enabled = match mca.payment_methods_enabled {
-        Some(val) => serde_json::Value::Array(val)
-            .parse_value("PaymentMethods")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        None => None,
-    };
-    let response = api::PaymentConnectorCreate {
-        connector_type: mca.connector_type.foreign_into(),
-        connector_name: mca.connector_name,
-        merchant_connector_id: Some(mca.merchant_connector_id),
-        connector_account_details: Some(Secret::new(mca.connector_account_details)),
-        test_mode: mca.test_mode,
-        disabled: mca.disabled,
-        payment_methods_enabled,
-        metadata: None,
-    };
+
+    Ok(service_api::BachResponse::Json(mca.foreign_try_into()?))
+}
+
+pub async fn list_payment_connectors(
+    store: &dyn StorageInterface,
+    merchant_id: String,
+) -> RouterResponse<Vec<api::PaymentConnectorCreate>> {
+    // Validate merchant account
+    store
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|err| {
+            err.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
+    let merchant_connector_accounts = store
+        .find_merchant_connector_account_by_merchant_id_list(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
+        })?;
+    let mut response = vec![];
+
+    // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
+    for mca in merchant_connector_accounts.into_iter() {
+        response.push(mca.foreign_try_into()?);
+    }
+
     Ok(service_api::BachResponse::Json(response))
 }
 

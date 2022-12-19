@@ -48,7 +48,7 @@ locker_decryption_key2 = ""
 host = "redis-queue"
 port = 6379
 cluster_enabled = true
-cluster_urls = ["bach-redis-queue-1:6379", "bach-redis-queue-2:6379", "bach-redis-queue-3:6379"]
+cluster_urls = ["redis-queue:6379"]
 
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
@@ -71,7 +71,9 @@ base_url = "https://api.sandbox.braintreegateway.com/"
 [connectors.klarna]
 base_url = "https://api-na.playground.klarna.com/"
 
-[connectors.supported]
-wallets = ["klarna","braintree"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+[connectors.applepay]
+base_url = "https://apple-pay-gateway.apple.com/"
 
+[connectors.supported]
+wallets = ["klarna","braintree","applepay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]

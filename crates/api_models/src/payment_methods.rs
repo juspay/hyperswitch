@@ -18,6 +18,14 @@ pub struct CreatePaymentMethod {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
+pub struct UpdatePaymentMethod {
+    pub card: Option<CardDetail>,
+    // Add more payment method update field in future
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct CardDetail {
     pub card_number: masking::Secret<String, pii::CardNumber>,
     pub card_exp_month: masking::Secret<String>,
@@ -33,14 +41,9 @@ pub struct PaymentMethodResponse {
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     pub card: Option<CardDetailFromLocker>,
-    //TODO: Populate this on request?
-    // pub accepted_country: Option<Vec<String>>,
-    // pub accepted_currency: Option<Vec<enums::Currency>>,
-    // pub minimum_amount: Option<i32>,
-    // pub maximum_amount: Option<i32>,
     pub recurring_enabled: bool,
     pub installment_payment_enabled: bool,
-    pub payment_experience: Option<Vec<String>>, //TODO change it to enum
+    pub payment_experience: Option<Vec<PaymentExperience>>,
     pub metadata: Option<serde_json::Value>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
@@ -174,7 +177,7 @@ pub struct ListPaymentMethodResponse {
     pub maximum_amount: Option<i32>,
     pub recurring_enabled: bool,
     pub installment_payment_enabled: bool,
-    pub payment_experience: Option<Vec<String>>, //TODO change it to enum
+    pub payment_experience: Option<Vec<PaymentExperience>>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -197,18 +200,25 @@ pub struct CustomerPaymentMethod {
     pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
-    //TODO: Populate this on request?
-    // pub accepted_country: Option<Vec<String>>,
-    // pub accepted_currency: Option<Vec<enums::Currency>>,
-    // pub minimum_amount: Option<i32>,
-    // pub maximum_amount: Option<i32>,
     pub recurring_enabled: bool,
     pub installment_payment_enabled: bool,
-    pub payment_experience: Option<Vec<String>>, //TODO change it to enum
+    pub payment_experience: Option<Vec<PaymentExperience>>,
     pub card: Option<CardDetailFromLocker>,
     pub metadata: Option<serde_json::Value>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum PaymentExperience {
+    RedirectToUrl,
+    InvokeSdkClient,
+    DisplayQrCode,
+    OneClick,
+    LinkWallet,
+    InvokePaymentApp,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -243,7 +253,7 @@ pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
 }
 
-#[derive(Debug, serde::Serialize)] //FIXME yet to be implemented
+#[derive(Debug, serde::Serialize)] // Blocked: Yet to be implemented by `basilisk`
 pub struct DeleteTokenizeByDateRequest {
     pub buffer_minutes: i32,
     pub service_name: String,

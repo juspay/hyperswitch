@@ -84,6 +84,7 @@ pub struct Proxy {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Server {
     pub port: u16,
+    pub workers: Option<usize>,
     pub host: String,
     pub request_body_limit: usize,
     pub base_url: String,
@@ -114,6 +115,7 @@ pub struct Connectors {
     pub braintree: ConnectorParams,
     pub klarna: ConnectorParams,
     pub supported: SupportedConnectors,
+    pub applepay: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -143,6 +145,7 @@ pub struct ProducerSettings {
 pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
+    pub max_read_count: u64,
 }
 
 impl Settings {

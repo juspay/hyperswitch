@@ -5,11 +5,17 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["kv_store"]
+kv_store = []
+
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "412663e16802dbc58a1b98bfcbe78fa0090311eb" }
 async-trait = "0.1.57"
 diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "serde_json", "time"], rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
 error-stack = "0.2.1"
+frunk = "0.4.1"
+frunk_core = "0.4.1"
 hex = "0.4.3"
 serde = { version = "1.0.145", features = ["derive"] }
 serde_json = "1.0.85"

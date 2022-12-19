@@ -174,10 +174,14 @@ async fn payment_response_update_tracker<F: Clone, T>(
     let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                connector: Some(router_data.connector.clone()),
                 status: storage::enums::AttemptStatus::Failure,
                 error_message: Some(err.message),
+                error_code: Some(err.code),
             }),
-            None,
+            Some(storage::ConnectorResponseUpdate::ErrorUpdate {
+                connector_name: Some(router_data.connector.clone()),
+            }),
         ),
         Ok(payments_response) => match payments_response {
             types::PaymentsResponseData::TransactionResponse {
@@ -203,6 +207,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
                 let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                     status: router_data.status,
+                    connector: Some(router_data.connector),
                     connector_transaction_id: connector_transaction_id.clone(),
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),

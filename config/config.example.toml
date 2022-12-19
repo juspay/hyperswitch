@@ -79,8 +79,8 @@ mock_locker = true # Emulate a locker locally using Postgres
 basilisk_host = "" #Basilisk host
 
 [jwekey] # 4 priv/pub key pair
-locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk 
-locker_key_identifier2 = "" # key identifier for key rotation , should be same as basilisk 
+locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
+locker_key_identifier2 = "" # key identifier for key rotation , should be same as basilisk
 locker_encryption_key1 = "" # public key 1 in pem format, corresponding private key in basilisk
 locker_encryption_key2 = "" # public key 2 in pem format, corresponding private key in basilisk
 locker_decryption_key1 = "" # private key 1 in pem format, corresponding public key in basilisk
@@ -116,9 +116,12 @@ base_url = "https://api.sandbox.braintreegateway.com/"
 [connectors.klarna]
 base_url = "https://api-na.playground.klarna.com/"
 
+[connectors.applepay]
+base_url = "https://apple-pay-gateway.apple.com/"
+
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna","braintree"]
+wallets = ["klarna","braintree","applepay"]
 cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
 
 
@@ -140,3 +143,4 @@ batch_size = 200 # Specifies the batch size the producer will push under a singl
 [drainer]
 stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
 num_partitions = 64            # Specifies the number of partitions the stream will be divided into
+max_read_count = 100           # Specifies the maximum number of entries that would be read from redis stream in one call

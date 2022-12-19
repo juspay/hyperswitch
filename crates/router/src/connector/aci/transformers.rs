@@ -33,7 +33,7 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
     pub entity_id: String,
-    pub amount: i32,
+    pub amount: i64,
     pub currency: String,
     pub payment_type: AciPaymentType,
     #[serde(flatten)]
@@ -228,7 +228,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: String,
     pub payment_type: AciPaymentType,
     pub entity_id: String,

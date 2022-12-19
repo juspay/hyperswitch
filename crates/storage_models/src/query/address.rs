@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     address::{Address, AddressNew, AddressUpdate, AddressUpdateInternal},
     errors,
@@ -12,7 +12,7 @@ use crate::{
 impl AddressNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Address, errors::DatabaseError> {
-        generics::generic_insert::<_, _, Address, _>(conn, self, ExecuteQuery::new()).await
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -23,11 +23,10 @@ impl Address {
         address_id: String,
         address: AddressUpdate,
     ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             address_id.clone(),
             AddressUpdateInternal::from(address),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -53,10 +52,9 @@ impl Address {
         conn: &PgPooledConn,
         address_id: &str,
     ) -> CustomResult<bool, errors::DatabaseError> {
-        generics::generic_delete::<<Self as HasTable>::Table, _, _>(
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::address_id.eq(address_id.to_owned()),
-            ExecuteQuery::<Self>::new(),
         )
         .await
     }
@@ -67,13 +65,12 @@ impl Address {
         merchant_id: &str,
         address: AddressUpdate,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self, _>(
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::customer_id.eq(customer_id.to_owned())),
             AddressUpdateInternal::from(address),
-            ExecuteQuery::new(),
         )
         .await
     }

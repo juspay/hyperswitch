@@ -22,7 +22,6 @@ pub fn sample() -> () {
 
 ## Files Tree Layout
 
-
 ```text
 ├── src                        : source code
 │   └── logger                 : logger

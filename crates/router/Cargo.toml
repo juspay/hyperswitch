@@ -7,6 +7,7 @@ default-run = "router"
 rust-version = "1.64"
 readme = "README.md"
 license = "Apache-2.0"
+build = "src/build.rs"
 
 [features]
 default = ["kv_store"]
@@ -37,17 +38,21 @@ diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "se
 dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.4"
+frunk = "0.4.1"
+frunk_core = "0.4.1"
 futures = "0.3.25"
 hex = "0.4.3"
 http = "0.2.8"
 josekit = "0.8.1"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
+mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
 nanoid = "0.4.0"
+num_cpus = "1.14.0"
 once_cell = "1.16.0"
 rand = "0.8.5"
-reqwest = { version = "0.11.12", features = ["json"] }
+reqwest = { version = "0.11.12", features = ["json", "native-tls"] }
 ring = "0.16.20"
 serde = { version = "1.0.149", features = ["derive"] }
 serde_json = "1.0.89"
@@ -70,7 +75,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-storage_models = { version = "0.1.0", path = "../storage_models" }
+storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }

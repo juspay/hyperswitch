@@ -177,7 +177,8 @@ impl MerchantConnectorAccount {
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/connectors")
-                    .route(web::post().to(payment_connector_create)),
+                    .route(web::post().to(payment_connector_create))
+                    .route(web::get().to(payment_connector_list)),
             )
             .service(
                 web::resource("/{merchant_id}/payment_methods")

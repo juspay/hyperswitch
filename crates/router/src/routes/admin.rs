@@ -130,6 +130,24 @@ pub async fn payment_connector_retrieve(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsList))]
+
+pub async fn payment_connector_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        &state,
+        &req,
+        merchant_id,
+        |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
+        api::MerchantAuthentication::AdminApiKey,
+    )
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsUpdate))]
 // #[post("/{merchant_id}/connectors/{merchant_connector_id}")]
 pub async fn payment_connector_update(

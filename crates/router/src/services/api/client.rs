@@ -36,6 +36,8 @@ pub(super) fn create_client(
     proxy: &Proxy,
     should_bypass_proxy: bool,
     request_time_out: u64,
+    client_certificate: Option<String>,
+    client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
     let mut client_builder = reqwest::Client::builder();
 
@@ -57,6 +59,36 @@ pub(super) fn create_client(
             );
         }
     }
+
+    client_builder = match (client_certificate, client_certificate_key) {
+        (Some(encoded_cert), Some(encoded_cert_key)) => {
+            let decoded_cert = base64::decode(encoded_cert)
+                .into_report()
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+            let decoded_cert_key = base64::decode(encoded_cert_key)
+                .into_report()
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+            let certificate = String::from_utf8(decoded_cert)
+                .into_report()
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+            let certificate_key = String::from_utf8(decoded_cert_key)
+                .into_report()
+                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+            let identity = reqwest::Identity::from_pkcs8_pem(
+                certificate.as_bytes(),
+                certificate_key.as_bytes(),
+            )
+            .into_report()
+            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+            client_builder.identity(identity)
+        }
+        _ => client_builder,
+    };
 
     let duration = Duration::from_secs(request_time_out);
     client_builder = client_builder.timeout(duration);

@@ -129,9 +129,9 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         previous_transaction_id -> Nullable<Varchar>,
         created_at -> Timestamp,
-        mandate_amount -> Nullable<Int4>,
+        mandate_amount -> Nullable<Int8>,
         mandate_currency -> Nullable<Currency>,
-        amount_captured -> Nullable<Int4>,
+        amount_captured -> Nullable<Int8>,
         connector -> Varchar,
         connector_mandate_id -> Nullable<Varchar>,
     }
@@ -175,6 +175,7 @@ diesel::table! {
         merchant_connector_id -> Int4,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -188,14 +189,14 @@ diesel::table! {
         merchant_id -> Varchar,
         txn_id -> Varchar,
         status -> AttemptStatus,
-        amount -> Int4,
+        amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
         connector -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
-        offer_amount -> Nullable<Int4>,
-        surcharge_amount -> Nullable<Int4>,
-        tax_amount -> Nullable<Int4>,
+        offer_amount -> Nullable<Int8>,
+        surcharge_amount -> Nullable<Int8>,
+        tax_amount -> Nullable<Int8>,
         payment_method_id -> Nullable<Varchar>,
         payment_method -> Nullable<PaymentMethodType>,
         payment_flow -> Nullable<PaymentFlow>,
@@ -209,9 +210,11 @@ diesel::table! {
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
         cancellation_reason -> Nullable<Varchar>,
-        amount_to_capture -> Nullable<Int4>,
+        amount_to_capture -> Nullable<Int8>,
         mandate_id -> Nullable<Varchar>,
         browser_info -> Nullable<Jsonb>,
+        error_code -> Nullable<Varchar>,
+        payment_token -> Nullable<Varchar>,
     }
 }
 
@@ -224,9 +227,9 @@ diesel::table! {
         payment_id -> Varchar,
         merchant_id -> Varchar,
         status -> IntentStatus,
-        amount -> Int4,
+        amount -> Int8,
         currency -> Nullable<Currency>,
-        amount_captured -> Nullable<Int4>,
+        amount_captured -> Nullable<Int8>,
         customer_id -> Nullable<Varchar>,
         description -> Nullable<Varchar>,
         return_url -> Nullable<Varchar>,
@@ -271,6 +274,7 @@ diesel::table! {
         payment_method_type -> Nullable<PaymentMethodSubType>,
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
+        metadata -> Nullable<Json>,
     }
 }
 
@@ -310,9 +314,9 @@ diesel::table! {
         pg_refund_id -> Nullable<Varchar>,
         external_reference_id -> Nullable<Varchar>,
         refund_type -> RefundType,
-        total_amount -> Int4,
+        total_amount -> Int8,
         currency -> Currency,
-        refund_amount -> Int4,
+        refund_amount -> Int8,
         refund_status -> RefundStatus,
         sent_to_gateway -> Bool,
         refund_error_message -> Nullable<Text>,
