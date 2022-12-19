@@ -178,7 +178,7 @@ mod storage {
         services::Store,
         types::storage::{self as storage_types, enums, kv},
         utils::{
-            self,
+            self, db_utils,
             storage_partitioning::{KvStorePartition, PartitionKey},
         },
     };
@@ -376,7 +376,7 @@ mod storage {
                     };
                     let key = &lookup.pk_id;
 
-                    let pattern = utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
+                    let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
                     self.redis_conn
                         .hscan_and_deserialize(key, &pattern, None)
@@ -533,7 +533,7 @@ mod storage {
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
 
-                    let pattern = utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
+                    let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
                     self.redis_conn
                         .hscan_and_deserialize(&key, &pattern, None)

@@ -1,6 +1,6 @@
 pub(crate) mod crypto;
 pub(crate) mod custom_serde;
-mod db_utils;
+pub(crate) mod db_utils;
 mod ext_traits;
 mod fp_utils;
 
@@ -13,9 +13,7 @@ pub(crate) use common_utils::{
 };
 use nanoid::nanoid;
 
-#[allow(unused_imports)]
 pub(crate) use self::{
-    db_utils::*,
     ext_traits::{OptionExt, ValidateCall},
     fp_utils::when,
 };
