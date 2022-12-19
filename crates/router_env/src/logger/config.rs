@@ -120,10 +120,10 @@ impl Config {
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 
-        config.try_deserialize().map_err(|error| {
+        serde_path_to_error::deserialize(config).map_err(|error| {
             crate::error!(%error, "Unable to deserialize configuration");
             eprintln!("Unable to deserialize application configuration: {error}");
-            error
+            error.into_inner()
         })
     }
 
