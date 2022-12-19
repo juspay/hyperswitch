@@ -13,6 +13,14 @@ impl ReverseLookupNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ReverseLookup> {
         generics::generic_insert(conn, self).await
     }
+    #[instrument(skip(conn))]
+    pub async fn batch_insert(
+        reverse_lookups: Vec<Self>,
+        conn: &PgPooledConn,
+    ) -> StorageResult<()> {
+        generics::generic_insert::<_, _, ReverseLookup>(conn, reverse_lookups).await?;
+        Ok(())
+    }
 }
 impl ReverseLookup {
     pub async fn find_by_lookup_id(lookup_id: &str, conn: &PgPooledConn) -> StorageResult<Self> {

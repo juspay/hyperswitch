@@ -323,7 +323,7 @@ pub fn create_startpay_url(
         server.base_url,
         payment_intent.payment_id,
         payment_intent.merchant_id,
-        payment_attempt.txn_id
+        payment_attempt.attempt_id
     )
 }
 
