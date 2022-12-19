@@ -17,6 +17,7 @@ opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-ru
 rustc-hash = "1.1"
 serde = { version = "1.0.149", features = ["derive"] }
 serde_json = "1.0.89"
+serde_path_to_error = "0.1.8"
 strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.17", default-features = false, features = ["formatting"] }
 tokio = { version = "1.23.0" }
