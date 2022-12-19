@@ -187,7 +187,7 @@ diesel::table! {
         id -> Int4,
         payment_id -> Varchar,
         merchant_id -> Varchar,
-        txn_id -> Varchar,
+        attempt_id -> Varchar,
         status -> AttemptStatus,
         amount -> Int8,
         currency -> Nullable<Currency>,
@@ -325,6 +325,19 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         description -> Nullable<Varchar>,
+        attempt_id -> Varchar,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    reverse_lookup (lookup_id) {
+        lookup_id -> Varchar,
+        sk_id -> Varchar,
+        pk_id -> Varchar,
+        source -> Varchar,
     }
 }
 
@@ -355,5 +368,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     payment_methods,
     process_tracker,
     refund,
+    reverse_lookup,
     temp_card,
 );

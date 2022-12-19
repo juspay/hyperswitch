@@ -10,6 +10,7 @@ license = "Apache-2.0"
 [dependencies]
 error-stack = "0.2.4"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
+futures = "0.3"
 serde = { version = "1.0.149", features = ["derive"] }
 thiserror = "1.0.37"
 

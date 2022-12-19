@@ -40,7 +40,7 @@ impl Store {
     }
 
     #[cfg(feature = "kv_store")]
-    pub fn drainer_stream(&self, shard_key: &str) -> String {
+    pub fn get_drainer_stream_name(&self, shard_key: &str) -> String {
         // Example: {shard_5}_drainer_stream
         format!("{{{}}}_{}", shard_key, self.config.drainer_stream_name,)
     }
