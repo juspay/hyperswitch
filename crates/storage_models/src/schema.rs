@@ -187,7 +187,7 @@ diesel::table! {
         id -> Int4,
         payment_id -> Varchar,
         merchant_id -> Varchar,
-        txn_id -> Varchar,
+        attempt_id -> Varchar,
         status -> AttemptStatus,
         amount -> Int8,
         currency -> Nullable<Currency>,

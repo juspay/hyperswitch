@@ -139,13 +139,13 @@ impl PaymentAttempt {
     pub async fn find_by_merchant_id_transaction_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-        txn_id: &str,
+        attempt_id: &str,
     ) -> CustomResult<Self, errors::DatabaseError> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::txn_id.eq(txn_id.to_owned())),
+                .and(dsl::attempt_id.eq(attempt_id.to_owned())),
         )
         .await
     }

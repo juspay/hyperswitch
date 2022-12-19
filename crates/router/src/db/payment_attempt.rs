@@ -44,14 +44,14 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
-        connector_txn_id: &str,
+        connector_attempt_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_txn_id(
         &self,
         merchant_id: &str,
-        txn_id: &str,
+        attempt_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 }
@@ -148,16 +148,16 @@ mod storage {
         async fn find_payment_attempt_by_merchant_id_connector_txn_id(
             &self,
             merchant_id: &str,
-            connector_txn_id: &str,
+            connector_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
             // TODO: update logic to lookup all payment attempts for an intent
             // and apply filter logic on top of them to get the desired one.
-            PaymentAttempt::find_by_merchant_id_connector_txn_id(
+            PaymentAttempt::find_by_merchant_id_connector_attempt_id(
                 &conn,
                 merchant_id,
-                connector_txn_id,
+                connector_attempt_id,
             )
             .await
             .map_err(Into::into)
@@ -167,12 +167,12 @@ mod storage {
         async fn find_payment_attempt_by_merchant_id_txn_id(
             &self,
             merchant_id: &str,
-            txn_id: &str,
+            attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
 
-            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
+            PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, attempt_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -185,7 +185,7 @@ impl PaymentAttemptInterface for MockDb {
     async fn find_payment_attempt_by_merchant_id_txn_id(
         &self,
         _merchant_id: &str,
-        _txn_id: &str,
+        _attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
@@ -194,7 +194,7 @@ impl PaymentAttemptInterface for MockDb {
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         _merchant_id: &str,
-        _connector_txn_id: &str,
+        _connector_attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         todo!()
@@ -214,7 +214,7 @@ impl PaymentAttemptInterface for MockDb {
             id,
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
-            txn_id: payment_attempt.txn_id,
+            attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
             amount: payment_attempt.amount,
             currency: payment_attempt.currency,
@@ -347,7 +347,7 @@ mod storage {
                         id: 0i32,
                         payment_id: payment_attempt.payment_id.clone(),
                         merchant_id: payment_attempt.merchant_id.clone(),
-                        txn_id: payment_attempt.txn_id.clone(),
+                        attempt_id: payment_attempt.attempt_id.clone(),
                         status: payment_attempt.status,
                         amount: payment_attempt.amount,
                         currency: payment_attempt.currency,
@@ -377,7 +377,7 @@ mod storage {
                         error_code: payment_attempt.error_code.clone(),
                     };
 
-                    let field = format!("pa_{}", created_attempt.txn_id);
+                    let field = format!("pa_{}", created_attempt.attempt_id);
                     match self
                         .redis_conn
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
@@ -390,11 +390,11 @@ mod storage {
                         Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
 
-                            //Reverse lookup for txn_id
+                            //Reverse lookup for attempt_id
                             ReverseLookupNew {
                                 lookup_id: format!(
                                     "{}_{}",
-                                    &created_attempt.merchant_id, &created_attempt.txn_id,
+                                    &created_attempt.merchant_id, &created_attempt.attempt_id,
                                 ),
                                 pk_id: key,
                                 sk_id: field,
@@ -458,7 +458,7 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_attempt)
                         .into_report()
                         .change_context(errors::StorageError::KVError)?;
-                    let field = format!("pa_{}", updated_attempt.txn_id);
+                    let field = format!("pa_{}", updated_attempt.attempt_id);
                     let updated_attempt = self
                         .redis_conn
                         .set_hash_fields(&key, (&field, &redis_value))
@@ -471,7 +471,7 @@ mod storage {
                     if let Some(ref connector_transaction_id) =
                         updated_attempt.connector_transaction_id
                     {
-                        let field = format!("pa_{}", updated_attempt.txn_id);
+                        let field = format!("pa_{}", updated_attempt.attempt_id);
                         ReverseLookupNew {
                             lookup_id: format!(
                                 "{}_{}",
@@ -647,20 +647,24 @@ mod storage {
         async fn find_payment_attempt_by_merchant_id_txn_id(
             &self,
             merchant_id: &str,
-            txn_id: &str,
+            attempt_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    PaymentAttempt::find_by_merchant_id_transaction_id(&conn, merchant_id, txn_id)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
+                    PaymentAttempt::find_by_merchant_id_transaction_id(
+                        &conn,
+                        merchant_id,
+                        attempt_id,
+                    )
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{merchant_id}_{txn_id}");
+                    let lookup_id = format!("{merchant_id}_{attempt_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await

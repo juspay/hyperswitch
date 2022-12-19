@@ -232,7 +232,7 @@ async fn get_tracker_for_sync<
         .find_connector_response_by_payment_id_merchant_id_txn_id(
             &payment_intent.payment_id,
             &payment_intent.merchant_id,
-            &payment_attempt.txn_id,
+            &payment_attempt.attempt_id,
             storage_scheme,
         )
         .await
