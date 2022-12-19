@@ -31,8 +31,8 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, enums as api_enums, PaymentIdTypeExt},
-        storage::{self, enums as storage_enums, ProcessTrackerExt},
+        api::{self, enums as api_enums},
+        storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
     utils::{self, OptionExt},
@@ -233,11 +233,10 @@ where
 
     let query_params = req.param.clone().get_required_value("param")?;
 
-    let resource_id = req.resource_id.get_payment_intent_id().change_context(
-        errors::ApiErrorResponse::MissingRequiredField {
+    let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "payment_id".to_string(),
-        },
-    )?;
+        })?;
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -607,13 +606,14 @@ pub async fn add_process_sync_task(
         &payment_attempt.txn_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = storage::ProcessTracker::make_process_tracker_new(
-        process_tracker_id,
-        task,
-        runner,
-        tracking_data,
-        schedule_time,
-    )?;
+    let process_tracker_entry =
+        <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
+            process_tracker_id,
+            task,
+            runner,
+            tracking_data,
+            schedule_time,
+        )?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
