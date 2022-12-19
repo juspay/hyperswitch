@@ -100,6 +100,7 @@ async fn test_checkout_payment_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
@@ -138,6 +139,7 @@ async fn test_checkout_refund_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -203,6 +205,7 @@ async fn test_checkout_payment_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -234,6 +237,7 @@ async fn test_checkout_refund_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,

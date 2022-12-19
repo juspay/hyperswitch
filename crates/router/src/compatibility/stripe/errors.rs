@@ -349,6 +349,7 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::RefundFailed { data } => ErrorCode::RefundFailed, // Nothing at stripe to map
 
             ApiErrorResponse::InternalServerError => ErrorCode::InternalServerError, // not a stripe code
+            ApiErrorResponse::IncorrectConnectorNameGiven => ErrorCode::InternalServerError,
             ApiErrorResponse::MandateActive => ErrorCode::MandateActive, //not a stripe code
             ApiErrorResponse::CustomerRedacted => ErrorCode::CustomerRedacted, //not a stripe code
             ApiErrorResponse::DuplicateRefundRequest => ErrorCode::DuplicateRefundRequest,

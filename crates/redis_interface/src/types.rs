@@ -123,3 +123,22 @@ impl fred::types::FromRedis for HsetnxReply {
         }
     }
 }
+
+#[derive(Eq, PartialEq)]
+pub enum MsetnxReply {
+    KeysSet,
+    KeysNotSet, // At least one existing key
+}
+
+impl fred::types::FromRedis for MsetnxReply {
+    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+        match value {
+            fred::types::RedisValue::Integer(1) => Ok(Self::KeysSet),
+            fred::types::RedisValue::Integer(0) => Ok(Self::KeysNotSet),
+            _ => Err(fred::error::RedisError::new(
+                fred::error::RedisErrorKind::Unknown,
+                "Unexpected MSETNX command reply",
+            )),
+        }
+    }
+}
