@@ -373,6 +373,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent)
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
         this: types::PaymentIntent,
@@ -388,6 +390,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,

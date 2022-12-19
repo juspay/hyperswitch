@@ -247,6 +247,8 @@ impl PaymentAttemptInterface for MockDb {
         Ok(payment_attempt)
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_payment_attempt(
         &self,
         this: types::PaymentAttempt,
@@ -286,6 +288,8 @@ impl PaymentAttemptInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -342,7 +346,7 @@ mod storage {
                         "{}_{}",
                         payment_attempt.payment_id, payment_attempt.merchant_id
                     );
-                    
+
                     let created_attempt = PaymentAttempt {
                         id: Default::default(),
                         payment_id: payment_attempt.payment_id.clone(),
@@ -379,7 +383,11 @@ mod storage {
 
                     match self
                         .redis_conn
-                        .serialize_and_set_hash_field_if_not_exist(&key, &format!("pa_{}", created_attempt.txn_id), &created_attempt)
+                        .serialize_and_set_hash_field_if_not_exist(
+                            &key,
+                            &format!("pa_{}", created_attempt.txn_id),
+                            &created_attempt,
+                        )
                         .await
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(

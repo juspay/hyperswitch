@@ -114,6 +114,8 @@ impl ConnectorResponseInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    // safety: interface only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_connector_response(
         &self,
         this: storage::ConnectorResponse,
