@@ -248,7 +248,7 @@ impl Default for PaymentMethod {
 pub enum PaymentIdType {
     PaymentIntentId(String),
     ConnectorTransactionId(String),
-    PaymentTxnId(String),
+    PaymentAttemptId(String),
 }
 
 impl Default for PaymentIdType {

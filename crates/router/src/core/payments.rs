@@ -589,7 +589,7 @@ pub async fn add_process_sync_task(
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
 
-        resource_id: api::PaymentIdType::PaymentTxnId(payment_attempt.attempt_id.clone()),
+        resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
         param: None,
         connector: None,
     };

@@ -136,7 +136,7 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_merchant_id_transaction_id(
+    pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &str,
         attempt_id: &str,
