@@ -97,10 +97,13 @@ pub async fn trigger_refund_to_gateway(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
     let connector_id = connector.to_string();
-    let connector: api::ConnectorData =
-        api::ConnectorData::get_connector_by_name(&state.conf.connectors, &connector_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get the connector")?;
+    let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_id,
+        api::GetToken::Connector,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector")?;
 
     let currency = payment_attempt.currency.ok_or_else(|| {
         report!(errors::ApiErrorResponse::MissingRequiredField {
@@ -241,10 +244,13 @@ pub async fn sync_refund_with_gateway(
     refund: &storage::Refund,
 ) -> RouterResult<storage::Refund> {
     let connector_id = refund.connector.to_string();
-    let connector: api::ConnectorData =
-        api::ConnectorData::get_connector_by_name(&state.conf.connectors, &connector_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get the connector")?;
+    let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_id,
+        api::GetToken::Connector,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector")?;
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 

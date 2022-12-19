@@ -624,8 +624,11 @@ pub async fn get_connector_default(
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
     let connectors = &state.conf.connectors;
     if let Some(connector) = request_connector {
-        let connector_data =
-            api::ConnectorData::get_connector_by_name(connectors, &connector.to_string())?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            connectors,
+            &connector.to_string(),
+            api::GetToken::Connector,
+        )?;
         Ok(api::ConnectorCallType::Single(connector_data))
     } else {
         let vec_val: Vec<serde_json::Value> = merchant_account
@@ -656,8 +659,11 @@ pub async fn get_connector_default(
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .as_str();
 
-        let connector_data = api::ConnectorData::get_connector_by_name(connectors, connector_name)?;
-
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            connectors,
+            connector_name,
+            api::GetToken::Connector,
+        )?;
         Ok(api::ConnectorCallType::Single(connector_data))
     }
 }

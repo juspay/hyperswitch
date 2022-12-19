@@ -9,15 +9,12 @@ use crate::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
     schema::payment_attempt::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl PaymentAttemptNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<PaymentAttempt, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -28,7 +25,7 @@ impl PaymentAttempt {
         self,
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::payment_id
@@ -53,7 +50,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -68,7 +65,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -84,7 +81,7 @@ impl PaymentAttempt {
         transaction_id: &str,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::connector_transaction_id
@@ -99,7 +96,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
         generics::generic_filter::<<Self as HasTable>::Table, _, Self>(
             conn,
@@ -125,7 +122,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         merchant_id: &str,
         connector_txn_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -140,7 +137,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         merchant_id: &str,
         txn_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id

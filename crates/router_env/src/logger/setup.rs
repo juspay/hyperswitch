@@ -22,30 +22,6 @@ use tracing_subscriber::{
 
 use crate::{config, FormattingLayer, Level, StorageSubscription};
 
-// FIXME: xxx: clean
-pub struct DebugLayer;
-impl<S> Layer<S> for DebugLayer
-where
-    S: tracing::Subscriber,
-{
-    fn on_event(
-        &self,
-        event: &tracing::Event<'_>,
-        _ctx: tracing_subscriber::layer::Context<'_, S>,
-    ) {
-        if event.metadata().level() == &Level::TRACE {
-            return;
-        }
-        println!("Got event!");
-        println!("  level={:?}", event.metadata().level());
-        println!("  target={:?}", event.metadata().target());
-        println!("  name={:?}", event.metadata().name());
-        for field in event.fields() {
-            println!("  field={}", field.name());
-        }
-    }
-}
-
 /// TelemetryGuard which helps with
 #[derive(Debug)]
 pub struct TelemetryGuard {
