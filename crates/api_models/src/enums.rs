@@ -472,6 +472,7 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -485,8 +486,13 @@ pub enum MandateStatus {
 pub enum Connector {
     Aci,
     Adyen,
+    Applepay,
     Authorizedotnet,
+    Braintree,
     Checkout,
+    #[default]
+    Dummy,
+    Klarna,
     Stripe,
 }
 

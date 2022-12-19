@@ -17,7 +17,7 @@ use crate::{
     connector,
     core::errors::{self, CustomResult},
     services::ConnectorRedirectResponse,
-    types,
+    types::{self, api::enums as api_enums},
 };
 
 pub trait ConnectorCommon {
@@ -66,7 +66,7 @@ type BoxedConnector = Box<&'static (dyn Connector + marker::Sync)>;
 
 pub struct ConnectorData {
     pub connector: BoxedConnector,
-    pub connector_name: types::Connector,
+    pub connector_name: api_enums::Connector,
 }
 
 pub enum ConnectorCallType {
@@ -86,7 +86,7 @@ impl ConnectorData {
         name: &str,
     ) -> CustomResult<ConnectorData, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
-        let connector_name = types::Connector::from_str(name)
+        let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
