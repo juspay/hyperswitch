@@ -22,9 +22,7 @@ pub struct TypedSql {
 }
 
 impl TypedSql {
-    pub fn to_field_value_pairs(
-        &self,
-    ) -> crate::CustomResult<Vec<(&str, String)>, errors::DatabaseError> {
+    pub fn to_field_value_pairs(&self) -> crate::StorageResult<Vec<(&str, String)>> {
         Ok(vec![(
             "typed_sql",
             serde_json::to_string(self)

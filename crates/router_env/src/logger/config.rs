@@ -115,22 +115,15 @@ impl Config {
         let environment = crate::env::which();
         let config_path = Self::config_path(&environment.to_string(), explicit_config_path);
 
-        // println!(
-        //     "config_path : {:?} {:?}",
-        //     config_path,
-        //     std::path::Path::new(&config_path).exists()
-        // );
-
         let config = Self::builder(&environment.to_string())?
             .add_source(config::File::from(config_path).required(true))
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
-        // FIXME: in case config is missing information about error is not readable
 
-        config.try_deserialize().map_err(|e| {
-            crate::error!("Unable to source config file");
-            eprintln!("Unable to source config file");
-            e
+        serde_path_to_error::deserialize(config).map_err(|error| {
+            crate::error!(%error, "Unable to deserialize configuration");
+            eprintln!("Unable to deserialize application configuration: {error}");
+            error.into_inner()
         })
     }
 
@@ -144,6 +137,7 @@ impl Config {
             // Should be single source of truth.
             .set_override("env", environment)?
             .add_source(config::File::from_str(
+                // Plan on handling with the changes in crates/router
                 // FIXME: embedding of textual file into bin files has several disadvantages
                 // 1. larger bin file
                 // 2. slower initialization of program
