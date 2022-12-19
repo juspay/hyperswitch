@@ -2602,6 +2602,7 @@ dependencies = [
  "common_utils",
  "error-stack",
  "fred",
+ "futures",
  "router_env",
  "serde",
  "thiserror",

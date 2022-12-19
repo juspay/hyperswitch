@@ -114,6 +114,7 @@ impl From<Shipping> for Address {
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
 pub(crate) struct StripePaymentIntentRequest {
     pub(crate) amount: Option<i64>, //amount in cents, hence passed as integer
+    pub(crate) connector: Option<api_enums::Connector>,
     pub(crate) currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub(crate) amount_capturable: Option<i64>,
@@ -137,6 +138,7 @@ impl From<StripePaymentIntentRequest> for PaymentsRequest {
     fn from(item: StripePaymentIntentRequest) -> Self {
         PaymentsRequest {
             amount: item.amount.map(|amount| amount.into()),
+            connector: item.connector,
             currency: item.currency.as_ref().map(|c| c.to_uppercase()),
             capture_method: item.capture_method,
             amount_to_capture: item.amount_capturable,

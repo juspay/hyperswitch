@@ -13,9 +13,9 @@ pub mod transformers;
 
 use std::marker::PhantomData;
 
+pub use api_models::enums::Connector;
 use error_stack::{IntoReport, ResultExt};
 
-pub use self::connector::Connector;
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
 use crate::{core::errors, services};
