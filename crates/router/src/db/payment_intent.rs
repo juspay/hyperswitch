@@ -333,7 +333,8 @@ impl PaymentIntentInterface for MockDb {
         _pc: &api::PaymentListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]

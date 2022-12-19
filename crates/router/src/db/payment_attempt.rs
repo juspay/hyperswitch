@@ -152,8 +152,6 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            // TODO: update logic to lookup all payment attempts for an intent
-            // and apply filter logic on top of them to get the desired one.
             PaymentAttempt::find_by_merchant_id_connector_txn_id(
                 &conn,
                 merchant_id,
@@ -188,7 +186,8 @@ impl PaymentAttemptInterface for MockDb {
         _txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -197,7 +196,8 @@ impl PaymentAttemptInterface for MockDb {
         _connector_txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -271,7 +271,8 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
@@ -281,7 +282,8 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -573,8 +575,6 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    // TODO: update logic to lookup all payment attempts for an intent
-                    // and apply filter logic on top of them to get the desired one.
                     PaymentAttempt::find_by_merchant_id_connector_txn_id(
                         &conn,
                         merchant_id,

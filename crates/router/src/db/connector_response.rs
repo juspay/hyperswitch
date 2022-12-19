@@ -110,7 +110,8 @@ impl ConnectorResponseInterface for MockDb {
         _txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_connector_response(
