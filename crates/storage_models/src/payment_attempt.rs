@@ -10,7 +10,7 @@ pub struct PaymentAttempt {
     pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
-    pub txn_id: String,
+    pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
@@ -47,7 +47,7 @@ pub struct PaymentAttempt {
 pub struct PaymentAttemptNew {
     pub payment_id: String,
     pub merchant_id: String,
-    pub txn_id: String,
+    pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
     pub currency: Option<storage_enums::Currency>,

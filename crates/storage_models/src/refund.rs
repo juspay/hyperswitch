@@ -4,7 +4,9 @@ use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::refund};
 
-#[derive(Clone, Debug, Eq, Identifiable, Queryable, PartialEq)]
+#[derive(
+    Clone, Debug, Eq, Identifiable, Queryable, PartialEq, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(table_name = refund)]
 pub struct Refund {
     pub id: i32,
@@ -28,9 +30,20 @@ pub struct Refund {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub description: Option<String>,
+    pub attempt_id: String,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = refund)]
 pub struct RefundNew {
     pub refund_id: String,
@@ -53,9 +66,10 @@ pub struct RefundNew {
     pub created_at: Option<PrimitiveDateTime>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub description: Option<String>,
+    pub attempt_id: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RefundUpdate {
     Update {
         pg_refund_id: String,
@@ -128,6 +142,21 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 ..Default::default()
             },
+        }
+    }
+}
+
+impl RefundUpdate {
+    pub fn apply_changeset(self, source: Refund) -> Refund {
+        let pa_update: RefundUpdateInternal = self.into();
+        Refund {
+            pg_refund_id: pa_update.pg_refund_id,
+            refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
+            sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
+            refund_error_message: pa_update.refund_error_message,
+            refund_arn: pa_update.refund_arn,
+            metadata: pa_update.metadata,
+            ..source
         }
     }
 }

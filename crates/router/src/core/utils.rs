@@ -51,9 +51,11 @@ pub async fn construct_refund_router_data<'a, F>(
         .get_required_value("payment_method_type")?;
     let payment_method_data = match payment_method_data.cloned() {
         Some(v) => v,
-        None => helpers::Vault::get_payment_method_data_from_locker(state, &payment_attempt.txn_id)
-            .await?
-            .get_required_value("payment_method_data")?,
+        None => {
+            helpers::Vault::get_payment_method_data_from_locker(state, &payment_attempt.attempt_id)
+                .await?
+                .get_required_value("payment_method_data")?
+        }
     };
 
     let router_data = types::RouterData {

@@ -113,9 +113,9 @@ pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
 }
 
 pub(crate) fn get_stream_key_flag(store: Arc<router::services::Store>, stream_index: u8) -> String {
-    format!("{}_in_use", get_drainer_stream(store, stream_index))
+    format!("{}_in_use", get_drainer_stream_name(store, stream_index))
 }
 
-pub(crate) fn get_drainer_stream(store: Arc<Store>, stream_index: u8) -> String {
-    store.drainer_stream(format!("shard_{}", stream_index).as_str())
+pub(crate) fn get_drainer_stream_name(store: Arc<Store>, stream_index: u8) -> String {
+    store.get_drainer_stream_name(format!("shard_{}", stream_index).as_str())
 }

@@ -5,6 +5,7 @@ use crate::{
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
+    refund::{Refund, RefundNew, RefundUpdate},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,6 +38,7 @@ impl TypedSql {
 pub enum Insertable {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
+    Refund(RefundNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,6 +46,7 @@ pub enum Insertable {
 pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
+    RefundUpdate(RefundUpdateMems),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,4 +59,10 @@ pub struct PaymentIntentUpdateMems {
 pub struct PaymentAttemptUpdateMems {
     pub orig: PaymentAttempt,
     pub update_data: PaymentAttemptUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RefundUpdateMems {
+    pub orig: Refund,
+    pub update_data: RefundUpdate,
 }
