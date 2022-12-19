@@ -31,7 +31,8 @@ use crate::{
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
     types::{
-        self, api,
+        self,
+        api::{self, enums as api_enums},
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -139,6 +140,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
 }
 
@@ -269,8 +271,9 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
 
@@ -309,8 +312,9 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 
     #[instrument(skip_all)]
@@ -396,8 +400,9 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
 
@@ -455,7 +460,8 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }

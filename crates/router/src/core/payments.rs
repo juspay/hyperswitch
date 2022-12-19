@@ -115,18 +115,10 @@ where
         payment_data.token = Some(token)
     }
 
-    let mut connector_details = operation
+    let connector_details = operation
         .to_domain()?
-        .get_connector(&merchant_account, state)
+        .get_connector(&merchant_account, state, use_connector)
         .await?;
-
-    if let (true, Some(conn)) = (connector_details.is_single(), use_connector) {
-        let conn_data =
-            api::ConnectorData::get_connector_by_name(&state.conf.connectors, &conn.to_string())
-                .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
-
-        connector_details = api::ConnectorCallType::Single(conn_data);
-    }
 
     if let api::ConnectorCallType::Single(ref connector) = connector_details {
         payment_data.payment_attempt.connector =
