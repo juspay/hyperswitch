@@ -4,28 +4,26 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "config/**"
-      - "contrib/**"
-      - "docs/**"
-      - "monitoring/**"
-      - "openapi/**"
-      - "postman/**"
-      - "*.md"
-      - "LICENSE"
-      - "NOTICE"
+    paths:
+      - ".github/workflows/**"
+      - "crates/**"
+      - "examples/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
 
   pull_request:
-    paths-ignore:
-      - "config/**"
-      - "contrib/**"
-      - "docs/**"
-      - "monitoring/**"
-      - "openapi/**"
-      - "postman/**"
-      - "*.md"
-      - "LICENSE"
-      - "NOTICE"
+    types:
+      - "labeled"
+      - "opened"
+      - "ready_for_review"
+      - "reopened"
+      - "synchronize"
+    paths:
+      - ".github/workflows/**"
+      - "crates/**"
+      - "examples/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -56,6 +54,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -73,6 +72,7 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -98,8 +98,6 @@ jobs:
           toolchain: 1.64
 
       - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          key: cargo-cache-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}-${{ matrix.os }}-msrv
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v1.3.0
@@ -112,6 +110,7 @@ jobs:
 
   # cargo-deny:
   #   name: Run cargo-deny
+  #   if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
   #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
@@ -133,6 +132,7 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -169,8 +169,6 @@ jobs:
       #     crate: cargo-nextest
 
       - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          key: cargo-cache-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}-${{ matrix.os }}-stable
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash
