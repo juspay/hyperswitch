@@ -1,0 +1,9 @@
+[package]
+name = "memory_adapter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+router_core = { path = "../core", package = "core" }
+
+async-trait = "0.1"

@@ -3,15 +3,49 @@ name = "hexagonal_architecture"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
 [dependencies]
+# Router_core is a dependency used in the hexagonal_architecture package. 
+# It is a library that provides the necessary functions for routing requests and responses between different parts of the application. 
+# It is located in the "../core" directory and is part of the "core" package.
 router_core = { path = "../core", package = "core" }
 
-serde_json = "1"
-actix-web = "4"
-anyhow = "1"
+# Memory_adapter is a type of software that allows the user to access and store data in a computer's memory. 
+# It is used to manage the data that is stored in the computer's memory, allowing the user to access and manipulate the data as needed.
+memory_adapter = { path = "../memory_adapter" }
+
+# Serde_json is a library that allows data to be encoded and decoded in the JSON (JavaScript Object Notation) format. 
+# It is used to serialize and deserialize data structures into a format that can be easily read and written by other programs.
+serde_json = "1.0"
+
+# Actix-web is a web framework. 
+# It is designed to make it easier to create web applications and services. 
+# It provides features such as routing, middleware, and web sockets.
+actix-web = "4.2"
+
+# Actix-http is a library that provides an interface for creating web applications. 
+# It is used to create web servers and handle requests from clients. 
+# It is written in Rust and is part of the Actix web framework.
+actix-http = "3.2"
+
+# dotenv is a library that allows developers to store configuration settings in a file called .env. 
+# This file can then be used to set environment variables in the application, 
+# which can be used to configure the application's behavior.
 dotenv = "0.15"
+
+# envconfig is a library that helps developers easily access environment variables in their applications. 
+# It provides a way to define the environment variables in a structured way and access them in a type-safe manner.
 envconfig = "0.10"
+
+# Async-trait is a library that allows developers to write asynchronous code in Rust. 
+# It provides a way to write functions that can be called asynchronously,
+# which can help improve the performance of applications.
 async-trait = "0.1"
 
-[dev-dependencies]
-actix-http = "3"
+# ext-trait is a library that allows developers to extend the functionality of existing traits. 
+# It provides a way to add new methods to existing traits without having to rewrite the entire trait. 
+# This makes it easier to add new features to existing code.
+ext-trait = "1.0"

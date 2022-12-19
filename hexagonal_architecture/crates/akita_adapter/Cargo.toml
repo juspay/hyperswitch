@@ -1,0 +1,14 @@
+[package]
+name = "akita_store"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+router_core = { path = "../core", package = "core" }
+# Frunk is a library for Rust that provides data structures and functions for working with generic types.
+# It is used to create abstract data types and to provide type safety.
+
+frunk = "0.4.1"
+frunk_core = "0.4.1"
+akita = "0.4"
+async-trait = "0.1"
