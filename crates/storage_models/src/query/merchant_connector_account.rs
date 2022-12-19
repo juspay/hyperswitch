@@ -9,15 +9,12 @@ use crate::{
         MerchantConnectorAccountUpdateInternal,
     },
     schema::merchant_connector_account::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl MerchantConnectorAccountNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<MerchantConnectorAccount, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantConnectorAccount> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -28,7 +25,7 @@ impl MerchantConnectorAccount {
         self,
         conn: &PgPooledConn,
         merchant_connector_account: MerchantConnectorAccountUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
@@ -48,7 +45,7 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_id: &str,
         merchant_connector_id: &i32,
-    ) -> CustomResult<bool, errors::DatabaseError> {
+    ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id
@@ -63,7 +60,7 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_id: &str,
         connector: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -78,7 +75,7 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_id: &str,
         merchant_connector_id: &i32,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -92,7 +89,7 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),

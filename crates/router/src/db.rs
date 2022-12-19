@@ -14,6 +14,7 @@ pub mod payment_method;
 pub mod process_tracker;
 pub mod queue;
 pub mod refund;
+pub mod reverse_lookup;
 pub mod temp_card;
 
 use std::sync::Arc;
@@ -51,6 +52,7 @@ pub trait StorageInterface:
     + queue::QueueInterface
     + ephemeral_key::EphemeralKeyInterface
     + connector_response::ConnectorResponseInterface
+    + reverse_lookup::ReverseLookupInterface
     + 'static
 {
     async fn close(&mut self) {}

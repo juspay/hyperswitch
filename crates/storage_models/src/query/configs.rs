@@ -4,22 +4,19 @@ use router_env::tracing::{self, instrument};
 use super::generics;
 use crate::{
     configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal},
-    errors, CustomResult, PgPooledConn,
+    errors, PgPooledConn, StorageResult,
 };
 
 impl ConfigNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> CustomResult<Config, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Config> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Config {
     #[instrument(skip(conn))]
-    pub async fn find_by_key(
-        conn: &PgPooledConn,
-        key: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    pub async fn find_by_key(conn: &PgPooledConn, key: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, key.to_owned()).await
     }
 
@@ -28,7 +25,7 @@ impl Config {
         conn: &PgPooledConn,
         key: &str,
         config_update: ConfigUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             key.to_owned(),

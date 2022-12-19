@@ -13,9 +13,9 @@ pub mod transformers;
 
 use std::marker::PhantomData;
 
+pub use api_models::enums::Connector;
 use error_stack::{IntoReport, ResultExt};
 
-pub use self::connector::Connector;
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
 use crate::{core::errors, services};
@@ -124,9 +124,9 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    //TODO: Add the fields here as required
     pub amount: i64,
     pub currency: storage_enums::Currency,
+    pub country: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -145,12 +145,6 @@ pub struct PaymentsTransactionResponse {
     pub resource_id: ResponseId,
     pub redirection_data: Option<services::RedirectForm>,
     pub redirect: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct PaymentsSessionResponse {
-    pub session_id: Option<String>,
-    pub session_token: String,
 }
 
 #[derive(Debug, Clone)]

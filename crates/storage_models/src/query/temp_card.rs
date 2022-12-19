@@ -3,28 +3,21 @@ use router_env::tracing::{self, instrument};
 
 use super::generics;
 use crate::{
-    errors,
     schema::temp_card::dsl,
     temp_card::{TempCard, TempCardNew},
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl TempCardNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<TempCard, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<TempCard> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl TempCard {
     #[instrument(skip(conn))]
-    pub async fn insert_with_token(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    pub async fn insert_with_token(self, conn: &PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
@@ -32,7 +25,7 @@ impl TempCard {
     pub async fn find_by_transaction_id(
         conn: &PgPooledConn,
         transaction_id: &str,
-    ) -> CustomResult<Option<TempCard>, errors::DatabaseError> {
+    ) -> StorageResult<Option<TempCard>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::txn_id.eq(transaction_id.to_owned()),
@@ -41,10 +34,7 @@ impl TempCard {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_token(
-        conn: &PgPooledConn,
-        token: &i32,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    pub async fn find_by_token(conn: &PgPooledConn, token: &i32) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(token.to_owned()),

@@ -20,6 +20,27 @@ pub struct BraintreePaymentsRequest {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct BraintreeApiVersion {
+    version: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct BraintreeSessionRequest {
+    client_token: BraintreeApiVersion,
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for BraintreeSessionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            client_token: BraintreeApiVersion {
+                version: "2".to_string(),
+            },
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionBody {
     amount: String,
@@ -178,7 +199,7 @@ impl<F, T>
         Ok(types::RouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Paypal {
-                    session_token: item.response.client_token.value.authorization_fingerprint,
+                    session_token: item.response.client_token.value,
                 },
             }),
             ..item.data
@@ -194,14 +215,8 @@ pub struct BraintreePaymentsResponse {
 
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AuthorizationFingerprint {
-    authorization_fingerprint: String,
-}
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ClientToken {
-    #[serde(with = "common_utils::custom_serde::json_string")]
-    pub value: AuthorizationFingerprint,
+    pub value: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]

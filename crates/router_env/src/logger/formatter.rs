@@ -22,8 +22,7 @@ use tracing_subscriber::{
 };
 
 use crate::Storage;
-
-// FIXME: xxx: Describe each implicit field with examples.
+// TODO: Documentation coverage for this crate
 
 // Implicit keys
 
@@ -51,14 +50,6 @@ const MERCHANT_ID: &str = "merchant_id";
 const REQUEST_METHOD: &str = "request_method";
 const REQUEST_URL_PATH: &str = "request_url_path";
 const REQUEST_ID: &str = "request_id";
-
-//const TAG: &str = "tag";
-//const CATEGORY: &str = "category";
-//const SESSION_ID: &str = "session_id";
-//const PAYMENT_ID: &str = "payment_id";
-//const PAYMENT_ATTEMPT_ID: &str = "payment_attempt_id";
-//const MERCHANT_ID: &str = "merchant_id";
-//const FLOW: &str = "flow";
 
 /// Set of predefined implicit keys.
 pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
