@@ -90,7 +90,6 @@ pub struct PaymentIntentRequest {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SetupIntentRequest {
-    pub statement_descriptor_suffix: Option<String>,
     #[serde(rename = "metadata[order_id]")]
     pub metadata_order_id: String,
     #[serde(rename = "metadata[txn_id]")]
@@ -257,7 +256,6 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             payment_data,
-            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,
         })
