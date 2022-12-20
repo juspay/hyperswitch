@@ -150,12 +150,12 @@ impl QueueInterface for MockDb {
         _ttl: i64,
     ) -> bool {
         // [#172]: Implement function for `MockDb`
-        unimplemented!()
+        false
     }
 
     async fn release_pt_lock(&self, _tag: &str, _lock_key: &str) -> bool {
         // [#172]: Implement function for `MockDb`
-        unimplemented!()
+        false
     }
 
     async fn stream_append_entry(
