@@ -370,6 +370,7 @@ where
             mandate_id,
             shipping: address.shipping,
             billing: address.billing,
+            cancellation_reason: payment_attempt.cancellation_reason,
             ..Default::default()
         }),
     })
