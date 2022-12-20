@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 mod transformers;
 
 use std::fmt::Debug;
@@ -9,7 +8,7 @@ use router_env::{tracing, tracing::instrument};
 
 use self::transformers as adyen;
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -19,7 +18,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -43,7 +41,7 @@ impl api::ConnectorCommon for Adyen {
     }
 
     //FIXME with enum
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.adyen.base_url
     }
 }
@@ -156,7 +154,7 @@ impl
     fn get_url(
         &self,
         _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -168,7 +166,7 @@ impl
     fn build_request(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -184,7 +182,7 @@ impl
     fn handle_response(
         &self,
         data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: adyen::AdyenPaymentResponse = res
@@ -203,11 +201,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -248,7 +246,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
@@ -269,7 +267,7 @@ impl
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -287,7 +285,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: adyen::AdyenPaymentResponse = res
             .response
@@ -305,11 +303,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -343,7 +341,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsCancelRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/cancel"))
     }
@@ -359,7 +357,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -376,7 +374,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: adyen::AdyenCancelResponse = res
             .response
@@ -393,12 +391,12 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::info!(response=?res);
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -432,7 +430,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -454,7 +452,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -470,7 +468,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: adyen::AdyenRefundResponse = res
             .response
@@ -488,12 +486,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::info!(response=?res);
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.error_code,
             message: response.message,
             reason: None,
