@@ -10,7 +10,10 @@ use self::transformers as stripe;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db::StorageInterface,
     headers, logger, services,
     types::{
@@ -944,11 +947,10 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        match query.redirect_status {
-            Some(status) => Ok(crate::core::payments::CallConnectorAction::StatusUpdate(
-                status.into(),
-            )),
-            None => Ok(crate::core::payments::CallConnectorAction::Trigger),
-        }
+        Ok(query
+            .redirect_status
+            .map_or(payments::CallConnectorAction::Trigger, |status| {
+                payments::CallConnectorAction::StatusUpdate(status.into())
+            }))
     }
 }
