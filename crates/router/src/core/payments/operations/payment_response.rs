@@ -148,7 +148,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
+        mut payment_data: PaymentData<F>,
         response: Option<
             types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
         >,
@@ -157,8 +157,23 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
-            .await
+        let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
+        payment_data.mandate_id = payment_data.mandate_id.or_else(|| {
+            router_data
+                .request
+                .mandate_id
+                .clone()
+                .map(api_models::payments::MandateIds::new)
+        });
+
+        payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            Some(router_data),
+            storage_scheme,
+        )
+        .await
     }
 }
 
@@ -212,7 +227,10 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
                     redirect: Some(redirect),
-                    mandate_id: payment_data.mandate_id.clone(),
+                    mandate_id: payment_data
+                        .mandate_id
+                        .clone()
+                        .map(|mandate| mandate.mandate_id),
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {

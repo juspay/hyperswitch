@@ -453,7 +453,7 @@ where
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub currency: enums::Currency,
-    pub mandate_id: Option<String>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
     pub token: Option<String>,

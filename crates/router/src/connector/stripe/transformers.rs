@@ -152,7 +152,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
 
         let (payment_data, mandate) = {
-            match item.request.mandate_id.clone() {
+            match item
+                .request
+                .mandate_id
+                .clone()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
+            {
                 None => (
                     Some(match item.request.payment_method_data {
                         api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({

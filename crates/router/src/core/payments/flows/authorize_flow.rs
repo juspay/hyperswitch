@@ -100,7 +100,8 @@ impl PaymentsAuthorizeRouterData {
                 .await
                 .map_err(|error| error.to_payment_failed_response())?;
                 match &self.request.mandate_id {
-                    Some(mandate_id) => {
+                    Some(mandate_ids) => {
+                        let mandate_id = &mandate_ids.mandate_id;
                         let mandate = state
                             .store
                             .find_mandate_by_merchant_id_mandate_id(
@@ -170,7 +171,12 @@ impl PaymentsAuthorizeRouterData {
                                 payment_method_id,
                                 mandate_reference,
                             ) {
-                                resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
+                                resp.request.mandate_id = Some(api_models::payments::MandateIds {
+                                    mandate_id: new_mandate_data.mandate_id.clone(),
+                                    connector_mandate_id: new_mandate_data
+                                        .connector_mandate_id
+                                        .clone(),
+                                });
                                 state.store.insert_mandate(new_mandate_data).await.map_err(
                                     |err| {
                                         err.to_duplicate_response(

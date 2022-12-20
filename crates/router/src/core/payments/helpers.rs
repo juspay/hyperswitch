@@ -390,7 +390,7 @@ pub fn verify_mandate_details(
         mandate
             .mandate_currency
             .map(|mandate_currency| mandate_currency.to_string() != request_currency)
-            .unwrap_or(true),
+            .unwrap_or(false),
         Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "cross currency mandates not supported".to_string()
         })),

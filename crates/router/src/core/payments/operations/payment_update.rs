@@ -126,6 +126,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .attach_printable("Database error when finding connector response")
             })?;
 
+        let mandate_id = match request.mandate_id.as_ref() {
+            Some(mandate_id) => {
+                let mandate = db
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                Some(api_models::payments::MandateIds {
+                    mandate_id: mandate_id.clone(),
+                    connector_mandate_id: mandate.connector_mandate_id,
+                })
+            }
+            None => None,
+        };
+
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -142,7 +156,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_attempt,
                     currency,
                     amount,
-                    mandate_id: request.mandate_id.clone(),
+                    mandate_id,
                     token,
                     setup_mandate,
                     address: PaymentAddress {

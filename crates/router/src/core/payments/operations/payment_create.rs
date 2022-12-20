@@ -182,6 +182,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
         }?;
 
+        let mandate_id = match request.mandate_id.as_ref() {
+            Some(mandate_id) => {
+                let mandate = db
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                Some(api_models::payments::MandateIds {
+                    mandate_id: mandate_id.clone(),
+                    connector_mandate_id: mandate.connector_mandate_id,
+                })
+            }
+            None => None,
+        };
+
         let operation = payments::if_not_create_change_operation::<_, F>(
             is_update,
             payment_intent.status,
@@ -196,7 +210,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_attempt,
                 currency,
                 amount,
-                mandate_id: request.mandate_id.clone(),
+                mandate_id,
                 setup_mandate,
                 token,
                 address: PaymentAddress {
