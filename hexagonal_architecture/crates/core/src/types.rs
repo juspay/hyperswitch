@@ -38,3 +38,23 @@ pub enum Verify {
         message: String,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_ser_de() {
+        use serde_test::{assert_tokens, Token::*};
+
+        let verify = super::Verify::Error { message: "hello".into() };
+
+        assert_tokens(
+            &verify,
+            &[
+                StructVariant { name: "Verify", variant: "Error", len: 1 },
+                Str("message"),
+                Str("hello"),
+                StructVariantEnd,
+            ],
+        );
+    }
+}

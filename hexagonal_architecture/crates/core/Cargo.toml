@@ -15,3 +15,4 @@ frunk_core = "0.4.1"
 
 [dev-dependencies]
 tokio = { version = "1.23", features = ["macros", "rt"] }
+serde_test = "1.0"

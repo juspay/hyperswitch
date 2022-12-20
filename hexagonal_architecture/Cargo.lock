@@ -472,6 +472,7 @@ dependencies = [
  "frunk_core",
  "mockall",
  "serde",
+ "serde_test",
  "tokio",
 ]
 
@@ -1426,6 +1427,15 @@ checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
 dependencies = [
  "itoa",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_test"
+version = "1.0.151"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8f77be7305dac4f250891d2f7444276315f3c288176d35746b6a4ca786dacb3"
+dependencies = [
  "serde",
 ]
 
