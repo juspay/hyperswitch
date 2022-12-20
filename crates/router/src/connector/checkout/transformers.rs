@@ -4,12 +4,11 @@ use url::Url;
 
 use crate::{
     core::errors,
-    pii::{self, Secret},
-    services,
+    pii, services,
     types::{
         self, api,
         storage::enums,
-        transformers::{Foreign, ForeignFrom},
+        transformers::{self, ForeignFrom},
     },
 };
 
@@ -17,9 +16,9 @@ use crate::{
 pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: Option<String>,
-    pub number: Option<Secret<String, pii::CardNumber>>,
-    pub expiry_month: Option<Secret<String>>,
-    pub expiry_year: Option<Secret<String>>,
+    pub number: Option<pii::Secret<String, pii::CardNumber>>,
+    pub expiry_month: Option<pii::Secret<String>>,
+    pub expiry_year: Option<pii::Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,10 +141,12 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
-    for Foreign<enums::AttemptStatus>
+impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
+    for transformers::Foreign<enums::AttemptStatus>
 {
-    fn from(item: Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>) -> Self {
+    fn from(
+        item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
+    ) -> Self {
         let item = item.0;
         let status = item.0;
         let capture_method = item.1;

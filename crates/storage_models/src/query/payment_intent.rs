@@ -8,15 +8,12 @@ use crate::{
         PaymentIntent, PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateInternal,
     },
     schema::payment_intent::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl PaymentIntentNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<PaymentIntent, errors::DatabaseError> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -27,7 +24,7 @@ impl PaymentIntent {
         self,
         conn: &PgPooledConn,
         payment_intent: PaymentIntentUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::payment_id
@@ -52,7 +49,7 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -67,7 +64,7 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id

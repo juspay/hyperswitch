@@ -16,7 +16,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api::{self, PaymentIdTypeExt},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -116,7 +116,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .find_connector_response_by_payment_id_merchant_id_txn_id(
                 &payment_intent.payment_id,
                 &payment_intent.merchant_id,
-                &payment_attempt.txn_id,
+                &payment_attempt.attempt_id,
                 storage_scheme,
             )
             .await
@@ -251,8 +251,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
 

@@ -265,8 +265,9 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
 
@@ -284,7 +285,7 @@ impl PaymentMethodValidate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            txn_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().to_string(),
             status,
             // Amount & Currency will be zero in this case
             amount: 0,

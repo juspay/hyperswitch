@@ -22,6 +22,7 @@ pub struct PaymentsRequest {
     pub merchant_id: Option<String>,
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     pub amount: Option<Amount>,
+    pub connector: Option<api_enums::Connector>,
     pub currency: Option<String>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub amount_to_capture: Option<i64>,
@@ -263,7 +264,7 @@ impl Default for PaymentMethod {
 pub enum PaymentIdType {
     PaymentIntentId(String),
     ConnectorTransactionId(String),
-    PaymentTxnId(String),
+    PaymentAttemptId(String),
 }
 
 impl Default for PaymentIdType {
@@ -706,11 +707,65 @@ pub struct PaymentsSessionRequest {
     pub client_secret: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayAllowedMethodsParameters {
+    pub allowed_auth_methods: Vec<String>,
+    pub allowed_card_networks: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayTokenParameters {
+    pub gateway: String,
+    pub gateway_merchant_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayTokenizationSpecification {
+    #[serde(rename = "type")]
+    pub token_specification_type: String,
+    pub parameters: GpayTokenParameters,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayAllowedPaymentMethods {
+    #[serde(rename = "type")]
+    pub payment_method_type: String,
+    pub parameters: GpayAllowedMethodsParameters,
+    pub tokenization_specification: GpayTokenizationSpecification,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayTransactionInfo {
+    pub country_code: String,
+    pub currency_code: String,
+    pub total_price_status: String,
+    pub total_price: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayMerchantInfo {
+    pub merchant_name: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayMetadata {
+    pub merchant_info: GpayMerchantInfo,
+    pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpaySessionTokenData {
+    pub gpay: GpayMetadata,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "connector_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
-    Gpay {},
+    Gpay {
+        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+        transaction_info: GpayTransactionInfo,
+    },
     Klarna {
         session_token: String,
         session_id: String,

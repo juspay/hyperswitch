@@ -17,7 +17,7 @@ use crate::{
     connector,
     core::errors::{self, CustomResult},
     services::ConnectorRedirectResponse,
-    types,
+    types::{self, api::enums as api_enums},
 };
 
 pub trait ConnectorCommon {
@@ -64,9 +64,17 @@ impl<T: Refund + Payment + Debug + ConnectorRedirectResponse + Send + IncomingWe
 
 type BoxedConnector = Box<&'static (dyn Connector + marker::Sync)>;
 
+// Normal flow will call the connector and follow the flow specific operations (capture, authorize)
+// SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
+pub enum GetToken {
+    Metadata,
+    Connector,
+}
+
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
+    pub get_token: GetToken,
 }
 
 pub enum ConnectorCallType {
@@ -74,13 +82,20 @@ pub enum ConnectorCallType {
     Multiple(Vec<ConnectorData>),
 }
 
+impl ConnectorCallType {
+    pub fn is_single(&self) -> bool {
+        matches!(self, Self::Single(_))
+    }
+}
+
 impl ConnectorData {
     pub fn get_connector_by_name(
         connectors: &Connectors,
         name: &str,
+        connector_type: GetToken,
     ) -> CustomResult<ConnectorData, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
-        let connector_name = types::Connector::from_str(name)
+        let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
@@ -88,6 +103,7 @@ impl ConnectorData {
         Ok(ConnectorData {
             connector,
             connector_name,
+            get_token: connector_type,
         })
     }
 
