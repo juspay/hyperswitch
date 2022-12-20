@@ -382,7 +382,6 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::PreconditionFailed { message } => {
                 ErrorCode::PreconditionFailed { message }
             }
-            ApiErrorResponse::BadCredentials => ErrorCode::Unauthorized,
             ApiErrorResponse::InvalidDataValue { field_name } => ErrorCode::ParameterMissing {
                 field_name: field_name.to_owned(),
                 param: field_name.to_owned(),

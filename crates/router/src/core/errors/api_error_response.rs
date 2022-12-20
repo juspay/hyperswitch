@@ -19,15 +19,9 @@ pub enum ErrorType {
 pub enum ApiErrorResponse {
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_01",
-        message = "API key not provided. Provide API key in the Authorization header, using api-key (e.g api-key: API_KEY)."
+        message = "API key not provided or invalid API key used. Provide API key in the Authorization header or crate new API key, using api-key (e.g api-key: API_KEY)."
     )]
     Unauthorized,
-    #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_02",
-        message = "Access forbidden, invalid API key was used. Please create your new API key from \
-                    the Dashboard Settings section."
-    )]
-    BadCredentials,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
@@ -148,9 +142,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            ApiErrorResponse::Unauthorized
-            | ApiErrorResponse::BadCredentials
-            | ApiErrorResponse::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
+            ApiErrorResponse::Unauthorized | ApiErrorResponse::InvalidEphermeralKey => {
+                StatusCode::UNAUTHORIZED
+            } // 401
             ApiErrorResponse::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             ApiErrorResponse::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             ApiErrorResponse::MissingRequiredField { .. }
