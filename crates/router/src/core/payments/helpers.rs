@@ -471,17 +471,6 @@ where
     Box::new(PaymentResponse)
 }
 
-pub async fn amap<A, B, E, F, Fut>(value: Result<A, E>, func: F) -> Result<B, E>
-where
-    F: FnOnce(A) -> Fut,
-    Fut: futures::Future<Output = Result<B, E>>,
-{
-    match value {
-        Ok(a) => func(a).await,
-        Err(err) => Err(err),
-    }
-}
-
 #[instrument(skip_all)]
 pub(crate) async fn call_payment_method(
     state: &AppState,

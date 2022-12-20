@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use masking::Secret;
 use router_derive::PaymentOperation;
@@ -182,19 +183,21 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
         }?;
 
-        let mandate_id = match request.mandate_id.as_ref() {
-            Some(mandate_id) => {
+        let mandate_id = request
+            .mandate_id
+            .as_ref()
+            .async_map(|mandate_id| async {
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
-                Some(api_models::payments::MandateIds {
-                    mandate_id: mandate_id.clone(),
-                    connector_mandate_id: mandate.connector_mandate_id,
-                })
-            }
-            None => None,
-        };
+                    .change_context(errors::ApiErrorResponse::MandateNotFound);
+                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
+                    mandate_id: mandate_obj.mandate_id,
+                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                }))
+            })
+            .await
+            .transpose()?;
 
         let operation = payments::if_not_create_change_operation::<_, F>(
             is_update,

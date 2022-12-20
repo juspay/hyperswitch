@@ -8,8 +8,10 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [dependencies]
+async-trait = "0.1.59"
 bytes = "1.3.0"
 error-stack = "0.2.4"
+futures = "0.3.25"
 hex = "0.4.3"
 nanoid = "0.4.0"
 once_cell = "1.16.0"

@@ -5,6 +5,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::{tracing, tracing::instrument};
@@ -61,6 +62,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
+    FData: std::marker::Send,
 {
     let operation: BoxedOperation<F, Req> = Box::new(operation);
 
@@ -194,7 +196,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    // To create merchant response
+    FData: std::marker::Send, // To create merchant response
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -313,7 +315,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
@@ -339,21 +341,22 @@ where
         )
         .await;
 
-    let response = helpers::amap(res, |response| async {
-        let operation = helpers::response_operation::<F, Req>();
-        let payment_data = operation
-            .to_post_update_tracker()?
-            .update_tracker(
-                db,
-                payment_id,
-                payment_data,
-                Some(response),
-                merchant_account.storage_scheme,
-            )
-            .await?;
-        Ok(payment_data)
-    })
-    .await?;
+    let response = res
+        .async_map(|response| async {
+            let operation = helpers::response_operation::<F, Req>();
+            let payment_data = operation
+                .to_post_update_tracker()?
+                .update_tracker(
+                    db,
+                    payment_id,
+                    payment_data,
+                    response,
+                    merchant_account.storage_scheme,
+                )
+                .await?;
+            Ok(payment_data)
+        })
+        .await?;
 
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);
