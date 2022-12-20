@@ -1,9 +1,9 @@
 use std::{convert::From, default::Default};
 
-use masking::{Secret, WithType};
+use masking;
 use serde::{Deserialize, Serialize};
 
-use crate::{pii::Email, types::api};
+use crate::{pii, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct CustomerAddress {
@@ -17,10 +17,10 @@ pub(crate) struct CustomerAddress {
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct CreateCustomerRequest {
-    pub(crate) email: Option<Secret<String, Email>>,
+    pub(crate) email: Option<masking::Secret<String, pii::Email>>,
     pub(crate) invoice_prefix: Option<String>,
     pub(crate) name: Option<String>,
-    pub(crate) phone: Option<Secret<String, WithType>>,
+    pub(crate) phone: Option<masking::Secret<String, masking::WithType>>,
     pub(crate) address: Option<CustomerAddress>,
 }
 
@@ -28,8 +28,8 @@ pub(crate) struct CreateCustomerRequest {
 pub(crate) struct CustomerUpdateRequest {
     pub(crate) metadata: Option<String>,
     pub(crate) description: Option<String>,
-    pub(crate) email: Option<Secret<String, Email>>,
-    pub(crate) phone: Option<Secret<String, WithType>>,
+    pub(crate) email: Option<masking::Secret<String, pii::Email>>,
+    pub(crate) phone: Option<masking::Secret<String, masking::WithType>>,
     pub(crate) name: Option<String>,
     pub(crate) address: Option<CustomerAddress>,
 }
@@ -40,10 +40,10 @@ pub(crate) struct CreateCustomerResponse {
     object: String,
     created: u64,
     description: Option<String>,
-    email: Option<Secret<String, Email>>,
+    email: Option<masking::Secret<String, pii::Email>>,
     metadata: Option<serde_json::Value>,
     name: Option<String>,
-    phone: Option<Secret<String, WithType>>,
+    phone: Option<masking::Secret<String, masking::WithType>>,
 }
 
 pub(crate) type CustomerRetrieveResponse = CreateCustomerResponse;
