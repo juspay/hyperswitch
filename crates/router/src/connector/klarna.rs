@@ -214,17 +214,17 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
         match payment_method_data {
-            api_payments::PaymentMethod::Wallet(wallet_data) => {
-                let auth_token = wallet_data.token.clone();
-                Ok(format!(
-                    "{}payments/v1/authorizations/{}/order",
-                    self.base_url(connectors),
-                    auth_token
-                ))
-            }
+            api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
+                token,
+                ..
+            }) => Ok(format!(
+                "{}payments/v1/authorizations/{}/order",
+                self.base_url(connectors),
+                token
+            )),
             _ => Err(error_stack::report!(
                 errors::ConnectorError::NotImplemented(
-                    "We do not support card payments through klarna".to_string(),
+                    "We only support wallet payments through klarna".to_string(),
                 )
             )),
         }
@@ -263,6 +263,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!(klarna_raw_response=?res);
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
@@ -279,6 +280,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(klarna_error_response=?res);
         let response: klarna::KlarnaErrorResponse = res
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
