@@ -1,4 +1,4 @@
-use common_utils::{consts, custom_serde, generate_id};
+use common_utils::{consts, custom_serde, date_time, generate_id};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -115,15 +115,10 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 last_name,
                 phone_number,
                 country_code,
-                modified_at: convert_to_pdt(OffsetDateTime::now_utc()),
+                modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
             },
         }
     }
-}
-
-// TODO: Create utils for this since cane be reused outside address
-fn convert_to_pdt(offset_time: OffsetDateTime) -> PrimitiveDateTime {
-    PrimitiveDateTime::new(offset_time.date(), offset_time.time())
 }
 
 impl Default for AddressNew {

@@ -20,6 +20,7 @@ use crate::{
     db::StorageInterface,
     pii::Secret,
     routes::AppState,
+    scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
         self,
@@ -322,7 +323,7 @@ pub fn create_startpay_url(
         server.base_url,
         payment_intent.payment_id,
         payment_intent.merchant_id,
-        payment_attempt.txn_id
+        payment_attempt.attempt_id
     )
 }
 
@@ -420,6 +421,45 @@ pub fn payment_intent_status_fsm(
             _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
+    }
+}
+
+pub async fn add_domain_task_to_pt<Op>(
+    operation: &Op,
+    state: &AppState,
+    payment_attempt: &storage::PaymentAttempt,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    Op: std::fmt::Debug,
+{
+    if check_if_operation_confirm(operation) {
+        let connector_name = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+        let schedule_time = payment_sync::get_sync_process_schedule_time(
+            &*state.store,
+            &connector_name,
+            &payment_attempt.merchant_id,
+            0,
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        match schedule_time {
+            Some(stime) => {
+                metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                super::add_process_sync_task(&*state.store, payment_attempt, stime)
+                    .await
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+            None => Ok(()),
+        }
+    } else {
+        Ok(())
     }
 }
 
@@ -580,39 +620,52 @@ pub async fn get_customer_from_details(
 pub async fn get_connector_default(
     merchant_account: &storage::MerchantAccount,
     state: &AppState,
+    request_connector: Option<api_enums::Connector>,
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
     let connectors = &state.conf.connectors;
-    let vec_val: Vec<serde_json::Value> = merchant_account
-        .custom_routing_rules
-        .clone()
-        .parse_value("CustomRoutingRulesVec")
-        .change_context(errors::ConnectorError::RoutingRulesParsingError)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let custom_routing_rules: api::CustomRoutingRules = vec_val[0]
-        .clone()
-        .parse_value("CustomRoutingRules")
-        .change_context(errors::ConnectorError::RoutingRulesParsingError)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let connector_names = custom_routing_rules
-        .connectors_pecking_order
-        .unwrap_or_else(|| vec!["stripe".to_string()]);
+    if let Some(connector) = request_connector {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            connectors,
+            &connector.to_string(),
+            api::GetToken::Connector,
+        )?;
+        Ok(api::ConnectorCallType::Single(connector_data))
+    } else {
+        let vec_val: Vec<serde_json::Value> = merchant_account
+            .custom_routing_rules
+            .clone()
+            .parse_value("CustomRoutingRulesVec")
+            .change_context(errors::ConnectorError::RoutingRulesParsingError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let custom_routing_rules: api::CustomRoutingRules = vec_val[0]
+            .clone()
+            .parse_value("CustomRoutingRules")
+            .change_context(errors::ConnectorError::RoutingRulesParsingError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let connector_names = custom_routing_rules
+            .connectors_pecking_order
+            .unwrap_or_else(|| vec!["stripe".to_string()]);
 
-    //use routing rules if configured by merchant else query MCA as per PM
-    let connector_list: types::ConnectorsList = types::ConnectorsList {
-        connectors: connector_names,
-    };
+        //use routing rules if configured by merchant else query MCA as per PM
+        let connector_list: types::ConnectorsList = types::ConnectorsList {
+            connectors: connector_names,
+        };
 
-    let connector_name = connector_list
-        .connectors
-        .first()
-        .get_required_value("connectors")
-        .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .as_str();
+        let connector_name = connector_list
+            .connectors
+            .first()
+            .get_required_value("connectors")
+            .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .as_str();
 
-    let connector_data = api::ConnectorData::get_connector_by_name(connectors, connector_name)?;
-
-    Ok(api::ConnectorCallType::Single(connector_data))
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            connectors,
+            connector_name,
+            api::GetToken::Connector,
+        )?;
+        Ok(api::ConnectorCallType::Single(connector_data))
+    }
 }
 
 #[instrument(skip_all)]
@@ -1200,6 +1253,18 @@ pub(crate) fn authenticate_client_secret(
         ),
         _ => Ok(()),
     }
+}
+
+pub(crate) fn validate_pm_or_token_given(
+    token: &Option<String>,
+    pm_data: &Option<api::PaymentMethod>,
+) -> Result<(), errors::ApiErrorResponse> {
+    utils::when(
+        token.is_none() && pm_data.is_none(),
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "A payment token or payment method data is required".to_string(),
+        }),
+    )
 }
 
 // A function to perform database lookup and then verify the client secret

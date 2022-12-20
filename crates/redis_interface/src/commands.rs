@@ -10,21 +10,22 @@ use std::fmt::Debug;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, Encode},
+    ext_traits::{ByteSliceExt, Encode, StringExt},
 };
 use error_stack::{IntoReport, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisMap, RedisValue, SetOptions, XReadResponse,
+        RedisKey, RedisMap, RedisValue, SetOptions, XCap, XReadResponse,
     },
 };
-use router_env::{tracing, tracing::instrument};
+use futures::StreamExt;
+use router_env::{logger, tracing, tracing::instrument};
 
 use crate::{
     errors,
-    types::{HsetnxReply, RedisEntryId, SetnxReply},
+    types::{HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
@@ -47,13 +48,16 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    pub async fn msetnx<V>(&self, value: V) -> CustomResult<u8, errors::RedisError>
+    pub async fn set_multiple_keys_if_not_exist<V>(
+        &self,
+        value: V,
+    ) -> CustomResult<MsetnxReply, errors::RedisError>
     where
         V: TryInto<RedisMap> + Debug,
         V::Error: Into<fred::error::RedisError>,
     {
         self.pool
-            .msetnx::<u8, V>(value)
+            .msetnx(value)
             .await
             .into_report()
             .change_context(errors::RedisError::SetFailed)
@@ -243,6 +247,56 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn hscan(
+        &self,
+        key: &str,
+        pattern: &str,
+        count: Option<u32>,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        Ok(self
+            .pool
+            .hscan::<&str, &str>(key, pattern, count)
+            .filter_map(|value| async move {
+                match value {
+                    Ok(mut v) => {
+                        let v = v.take_results()?;
+
+                        let v: Vec<String> =
+                            v.iter().filter_map(|(_, val)| val.as_string()).collect();
+                        Some(futures::stream::iter(v))
+                    }
+                    Err(err) => {
+                        logger::error!(?err);
+                        None
+                    }
+                }
+            })
+            .flatten()
+            .collect::<Vec<_>>()
+            .await)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn hscan_and_deserialize<T>(
+        &self,
+        key: &str,
+        pattern: &str,
+        count: Option<u32>,
+    ) -> CustomResult<Vec<T>, errors::RedisError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let redis_results = self.hscan(key, pattern, count).await?;
+        Ok(redis_results
+            .iter()
+            .filter_map(|v| {
+                let r: T = v.parse_struct(std::any::type_name::<T>()).ok()?;
+                Some(r)
+            })
+            .collect())
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_hash_field<V>(
         &self,
         key: &str,
@@ -314,6 +368,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn stream_trim_entries<C>(
+        &self,
+        stream: &str,
+        xcap: C,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        C: TryInto<XCap> + Debug,
+        C::Error: Into<fred::error::RedisError>,
+    {
+        self.pool
+            .xtrim(stream, xcap)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::StreamTrimFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_acknowledge_entries<Ids>(
         &self,
         stream: &str,
@@ -331,18 +402,31 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
+    where
+        K: Into<RedisKey> + Debug,
+    {
+        self.pool
+            .xlen(stream)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetLengthFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_read_entries<K, Ids>(
         &self,
         streams: K,
         ids: Ids,
+        read_count: Option<u64>,
     ) -> CustomResult<XReadResponse<String, String, String, String>, errors::RedisError>
     where
         K: Into<MultipleKeys> + Debug,
         Ids: Into<MultipleIDs> + Debug,
     {
         self.pool
-            .xread(
-                Some(self.config.default_stream_read_count),
+            .xread_map(
+                Some(read_count.unwrap_or(self.config.default_stream_read_count)),
                 None,
                 streams,
                 ids,

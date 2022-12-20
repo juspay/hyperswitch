@@ -337,7 +337,7 @@ checksum = "3f907281554a3d0312bb7aab855a8e0ef6cbf1614d06de54105039ca8b34460e"
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
-source = "git+https://github.com/juspay/async-bb8-diesel?rev=412663e16802dbc58a1b98bfcbe78fa0090311eb#412663e16802dbc58a1b98bfcbe78fa0090311eb"
+source = "git+https://github.com/juspay/async-bb8-diesel?rev=9a71d142726dbc33f41c1fd935ddaa79841c7be5#9a71d142726dbc33f41c1fd935ddaa79841c7be5"
 dependencies = [
  "async-trait",
  "bb8",
@@ -919,11 +919,13 @@ dependencies = [
  "bytes",
  "error-stack",
  "fake",
+ "hex",
  "masking",
  "nanoid",
  "once_cell",
  "proptest",
  "regex",
+ "ring",
  "router_env",
  "serde",
  "serde_json",
@@ -1092,7 +1094,8 @@ dependencies = [
 [[package]]
 name = "diesel"
 version = "2.0.2"
-source = "git+https://github.com/juspay/diesel?rev=22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02#22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68c186a7418a2aac330bb76cde82f16c36b03a66fb91db32d20214311f9f6545"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -1107,7 +1110,8 @@ dependencies = [
 [[package]]
 name = "diesel_derives"
 version = "2.0.1"
-source = "git+https://github.com/juspay/diesel?rev=22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02#22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "143b758c91dbc3fe1fdcb0dba5bd13276c6a66422f2ef5795b58488248a310aa"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -1139,6 +1143,21 @@ name = "dlv-list"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
+
+[[package]]
+name = "drainer"
+version = "0.1.0"
+dependencies = [
+ "error-stack",
+ "fred",
+ "redis_interface",
+ "router",
+ "serde_json",
+ "storage_models",
+ "structopt",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "dyn-clone"
@@ -1826,6 +1845,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04d1c67deb83e6b75fa4fe3309e09cfeade12e7721d95322af500d3814ea60c9"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "libz-sys"
 version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1942,6 +1971,15 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
+
+[[package]]
+name = "mimalloc"
+version = "0.1.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b2374e2999959a7b583e1811a1ddbf1d3a4b9496eceb9746f1192a59d871eca"
+dependencies = [
+ "libmimalloc-sys",
+]
 
 [[package]]
 name = "mime"
@@ -2564,6 +2602,7 @@ dependencies = [
  "common_utils",
  "error-stack",
  "fred",
+ "futures",
  "router_env",
  "serde",
  "thiserror",
@@ -2712,8 +2751,10 @@ dependencies = [
  "literally",
  "masking",
  "maud",
+ "mimalloc",
  "mime",
  "nanoid",
+ "num_cpus",
  "once_cell",
  "rand",
  "redis_interface",
@@ -2763,6 +2804,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "serde_path_to_error",
  "strum",
  "time",
  "tokio",

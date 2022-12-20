@@ -25,13 +25,23 @@ pub struct PaymentIntent {
     pub statement_descriptor_suffix: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub last_synced: Option<PrimitiveDateTime>, // FIXME: this is optional
+    pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    Serialize,
+    Deserialize,
+)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
@@ -57,7 +67,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,

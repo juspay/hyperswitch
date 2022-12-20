@@ -8,7 +8,7 @@ pub enum DatabaseError {
     UniqueViolation,
     #[error("No fields were provided to be updated")]
     NoFieldsToUpdate,
-    #[error("An error occurred when generating raw SQL query")]
+    #[error("An error occurred when generating typed SQL query")]
     QueryGenerationFailed,
     // InsertFailed,
     #[error("An unknown error occurred")]

@@ -7,6 +7,7 @@ default-run = "router"
 rust-version = "1.64"
 readme = "README.md"
 license = "Apache-2.0"
+build = "src/build.rs"
 
 [features]
 default = ["kv_store"]
@@ -24,7 +25,7 @@ actix = "0.13.0"
 actix-cors = "0.6.3"
 actix-rt = "2.7.0"
 actix-web = "4.2.1"
-async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "412663e16802dbc58a1b98bfcbe78fa0090311eb" }
+async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
 async-trait = "0.1.59"
 aws-config = { version = "0.49.0", optional = true }
 aws-sdk-kms = { version = "0.19.0", optional = true }
@@ -33,7 +34,7 @@ bb8 = "0.8"
 bytes = "1.3.0"
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-diesel = { git = "https://github.com/juspay/diesel", features = ["postgres", "serde_json", "time"], rev = "22f3f59f1db8a3f61623e4d6b375d64cd7bd3d02" }
+diesel = { version = "2.0.2", features = ["postgres", "serde_json", "time"] }
 dyn-clone = "1.0.9"
 encoding_rs = "0.8.31"
 error-stack = "0.2.4"
@@ -45,8 +46,10 @@ http = "0.2.8"
 josekit = "0.8.1"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
+mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
 nanoid = "0.4.0"
+num_cpus = "1.14.0"
 once_cell = "1.16.0"
 rand = "0.8.5"
 reqwest = { version = "0.11.12", features = ["json", "native-tls"] }
@@ -72,7 +75,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-storage_models = { version = "0.1.0", path = "../storage_models" }
+storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }

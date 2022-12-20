@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     errors,
     merchant_connector_account::{
@@ -9,21 +9,13 @@ use crate::{
         MerchantConnectorAccountUpdateInternal,
     },
     schema::merchant_connector_account::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl MerchantConnectorAccountNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<MerchantConnectorAccount, errors::DatabaseError> {
-        generics::generic_insert::<_, _, MerchantConnectorAccount, _>(
-            conn,
-            self,
-            ExecuteQuery::new(),
-        )
-        .await
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantConnectorAccount> {
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -33,12 +25,11 @@ impl MerchantConnectorAccount {
         self,
         conn: &PgPooledConn,
         merchant_connector_account: MerchantConnectorAccountUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
             MerchantConnectorAccountUpdateInternal::from(merchant_connector_account),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -54,13 +45,12 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_id: &str,
         merchant_connector_id: &i32,
-    ) -> CustomResult<bool, errors::DatabaseError> {
-        generics::generic_delete::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::merchant_connector_id.eq(merchant_connector_id.to_owned())),
-            ExecuteQuery::<Self>::new(),
         )
         .await
     }
@@ -70,7 +60,7 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_id: &str,
         connector: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -85,7 +75,7 @@ impl MerchantConnectorAccount {
         conn: &PgPooledConn,
         merchant_id: &str,
         merchant_connector_id: &i32,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
@@ -99,7 +89,7 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),

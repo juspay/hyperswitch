@@ -1,0 +1,1 @@
+ALTER TABLE refund ADD COLUMN attempt_id VARCHAR(64) NOT NULL;
