@@ -1197,6 +1197,8 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<String>,
 ) -> Option<storage::MandateNew> {
+    println!("==================d9a46e14-ad26-47a1-8bea-420488c30c72=================");
+    println!("{:#?}", (&setup_mandate_details, customer));
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
             let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");

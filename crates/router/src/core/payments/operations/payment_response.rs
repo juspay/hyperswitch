@@ -43,6 +43,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         F: 'b + Send,
     {
         let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
+
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
