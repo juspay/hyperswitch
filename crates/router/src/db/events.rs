@@ -32,6 +32,7 @@ impl EventInterface for MockDb {
         &self,
         _event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

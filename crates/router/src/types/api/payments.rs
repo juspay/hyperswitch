@@ -178,7 +178,7 @@ pub trait Payment:
 
 #[cfg(test)]
 mod payments_test {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use super::*;
 

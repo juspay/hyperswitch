@@ -152,8 +152,6 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            // TODO: update logic to lookup all payment attempts for an intent
-            // and apply filter logic on top of them to get the desired one.
             PaymentAttempt::find_by_merchant_id_connector_txn_id(
                 &conn,
                 merchant_id,
@@ -188,7 +186,8 @@ impl PaymentAttemptInterface for MockDb {
         _attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -197,7 +196,8 @@ impl PaymentAttemptInterface for MockDb {
         _connector_txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -247,6 +247,8 @@ impl PaymentAttemptInterface for MockDb {
         Ok(payment_attempt)
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_payment_attempt(
         &self,
         this: types::PaymentAttempt,
@@ -271,7 +273,8 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
@@ -281,9 +284,12 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -341,10 +347,9 @@ mod storage {
                         "{}_{}",
                         payment_attempt.merchant_id, payment_attempt.payment_id
                     );
-                    // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
-                    // Check for database presence as well Maybe use a read replica here ?
+
                     let created_attempt = PaymentAttempt {
-                        id: 0i32,
+                        id: Default::default(),
                         payment_id: payment_attempt.payment_id.clone(),
                         merchant_id: payment_attempt.merchant_id.clone(),
                         attempt_id: payment_attempt.attempt_id.clone(),
@@ -611,8 +616,6 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    // TODO: update logic to lookup all payment attempts for an intent
-                    // and apply filter logic on top of them to get the desired one.
                     PaymentAttempt::find_by_merchant_id_connector_txn_id(
                         &conn,
                         merchant_id,
