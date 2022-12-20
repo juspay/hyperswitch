@@ -1,23 +1,20 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     errors,
     merchant_account::{
         MerchantAccount, MerchantAccountNew, MerchantAccountUpdate, MerchantAccountUpdateInternal,
     },
     schema::merchant_account::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl MerchantAccountNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<MerchantAccount, errors::DatabaseError> {
-        generics::generic_insert::<_, _, MerchantAccount, _>(conn, self, ExecuteQuery::new()).await
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantAccount> {
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -27,12 +24,11 @@ impl MerchantAccount {
         self,
         conn: &PgPooledConn,
         merchant_account: MerchantAccountUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
             MerchantAccountUpdateInternal::from(merchant_account),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -47,11 +43,10 @@ impl MerchantAccount {
     pub async fn delete_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::DatabaseError> {
-        generics::generic_delete::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
-            ExecuteQuery::<Self>::new(),
         )
         .await
     }
@@ -60,7 +55,7 @@ impl MerchantAccount {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
@@ -69,10 +64,7 @@ impl MerchantAccount {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_api_key(
-        conn: &PgPooledConn,
-        api_key: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    pub async fn find_by_api_key(conn: &PgPooledConn, api_key: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::api_key.eq(api_key.to_owned()),
@@ -84,7 +76,7 @@ impl MerchantAccount {
     pub async fn find_by_publishable_key(
         conn: &PgPooledConn,
         publishable_key: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::publishable_key.eq(publishable_key.to_owned()),

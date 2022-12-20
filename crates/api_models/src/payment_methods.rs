@@ -18,6 +18,14 @@ pub struct CreatePaymentMethod {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
+pub struct UpdatePaymentMethod {
+    pub card: Option<CardDetail>,
+    // Add more payment method update field in future
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct CardDetail {
     pub card_number: masking::Secret<String, pii::CardNumber>,
     pub card_exp_month: masking::Secret<String>,

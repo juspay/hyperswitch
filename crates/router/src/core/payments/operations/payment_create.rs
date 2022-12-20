@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -10,7 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -18,7 +19,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        api::{self, PaymentIdTypeExt},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -222,6 +223,80 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
+impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
+    #[instrument(skip_all)]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        db: &dyn StorageInterface,
+        payment_data: &mut PaymentData<F>,
+        request: Option<CustomerDetails>,
+        merchant_id: &str,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsRequest>,
+            Option<storage::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        helpers::create_customer_if_not_exist(
+            Box::new(self),
+            db,
+            payment_data,
+            request,
+            merchant_id,
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        state: &'a AppState,
+        payment_method: Option<enums::PaymentMethodType>,
+        txn_id: &str,
+        payment_attempt: &storage::PaymentAttempt,
+        request: &Option<api::PaymentMethod>,
+        token: &Option<String>,
+        card_cvc: Option<Secret<String>>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'a, F, api::PaymentsRequest>,
+        Option<api::PaymentMethod>,
+        Option<String>,
+    )> {
+        helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_method,
+            txn_id,
+            payment_attempt,
+            request,
+            token,
+            card_cvc,
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a AppState,
+        payment_attempt: &storage::PaymentAttempt,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+        request_connector: Option<api_enums::Connector>,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state, request_connector).await
+    }
+}
+
+#[async_trait]
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -249,6 +324,23 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             }
             _ => None,
         };
+
+        let payment_token = payment_data.token.clone();
+        let connector = payment_data.payment_attempt.connector.clone();
+
+        payment_data.payment_attempt = db
+            .update_payment_attempt(
+                payment_data.payment_attempt,
+                storage::PaymentAttemptUpdate::UpdateTrackers {
+                    payment_token,
+                    connector,
+                },
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
         payment_data.payment_intent = db
@@ -342,7 +434,7 @@ impl PaymentCreate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            txn_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().to_string(),
             status,
             amount: amount.into(),
             currency,
@@ -403,7 +495,7 @@ impl PaymentCreate {
         storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
-            txn_id: payment_attempt.txn_id.clone(),
+            txn_id: payment_attempt.attempt_id.clone(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
             connector_name: payment_attempt.connector.clone(),

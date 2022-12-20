@@ -49,7 +49,7 @@ pub async fn update_status_and_append(
         .collect();
     match flow {
         SchedulerFlow::Producer => {
-            let res = state
+            state
                 .store
                 .process_tracker_update_process_status_by_ids(
                     process_ids,
@@ -58,18 +58,13 @@ pub async fn update_status_and_append(
                         business_status: None,
                     },
                 )
-                .await;
-            match res {
-                Ok(trackers) => {
-                    let count = trackers.len();
-                    logger::debug!("Updated status of {count} processes");
-                    Ok(())
-                }
-                Err(error) => {
+                .await.map_or_else(|error| {
                     logger::error!(error=%error.current_context(),"Error while updating process status");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
-                }
-            }
+                }, |count| {
+                    logger::debug!("Updated status of {count} processes");
+                    Ok(())
+                })
         }
         SchedulerFlow::Cleaner => {
             let res = state

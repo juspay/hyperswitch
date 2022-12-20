@@ -1,22 +1,17 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use error_stack::ResultExt;
 use router_env::tracing::{self, instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
-    errors,
     payment_method::{PaymentMethod, PaymentMethodNew},
     schema::payment_methods::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl PaymentMethodNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<PaymentMethod, errors::DatabaseError> {
-        generics::generic_insert::<_, _, PaymentMethod, _>(conn, self, ExecuteQuery::new()).await
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -25,16 +20,12 @@ impl PaymentMethod {
     pub async fn delete_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: String,
-    ) -> CustomResult<Self, errors::DatabaseError> {
-        let result =
-            generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self, _>(
-                conn,
-                dsl::payment_method_id.eq(payment_method_id),
-                ExecuteQuery::new(),
-            )
-            .await
-            .attach_printable("Error while deleting by payment method ID")?;
-        Ok(result)
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
+            conn,
+            dsl::payment_method_id.eq(payment_method_id),
+        )
+        .await
     }
 
     #[instrument(skip(conn))]
@@ -42,25 +33,21 @@ impl PaymentMethod {
         conn: &PgPooledConn,
         merchant_id: &str,
         payment_method_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
-        let result =
-            generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self, _>(
-                conn,
-                dsl::merchant_id
-                    .eq(merchant_id.to_owned())
-                    .and(dsl::payment_method_id.eq(payment_method_id.to_owned())),
-                ExecuteQuery::new(),
-            )
-            .await?;
-
-        Ok(result)
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_method_id.eq(payment_method_id.to_owned())),
+        )
+        .await
     }
 
     #[instrument(skip(conn))]
     pub async fn find_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: &str,
-    ) -> CustomResult<Self, errors::DatabaseError> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::payment_method_id.eq(payment_method_id.to_owned()),
@@ -72,7 +59,7 @@ impl PaymentMethod {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
@@ -86,7 +73,7 @@ impl PaymentMethod {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::customer_id

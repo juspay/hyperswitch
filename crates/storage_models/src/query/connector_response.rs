@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{tracing, tracing::instrument};
 
-use super::generics::{self, ExecuteQuery};
+use super::generics;
 use crate::{
     connector_response::{
         ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate,
@@ -9,17 +9,13 @@ use crate::{
     },
     errors,
     schema::connector_response::dsl,
-    CustomResult, PgPooledConn,
+    PgPooledConn, StorageResult,
 };
 
 impl ConnectorResponseNew {
     #[instrument(skip(conn))]
-    pub async fn insert(
-        self,
-        conn: &PgPooledConn,
-    ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
-        generics::generic_insert::<_, _, ConnectorResponse, _>(conn, self, ExecuteQuery::new())
-            .await
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
+        generics::generic_insert(conn, self).await
     }
 }
 
@@ -29,12 +25,11 @@ impl ConnectorResponse {
         self,
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
-    ) -> CustomResult<Self, errors::DatabaseError> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, Self, _>(
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
             ConnectorResponseUpdateInternal::from(connector_response),
-            ExecuteQuery::new(),
         )
         .await
         {
@@ -52,7 +47,7 @@ impl ConnectorResponse {
         payment_id: &str,
         merchant_id: &str,
         transaction_id: &str,
-    ) -> CustomResult<ConnectorResponse, errors::DatabaseError> {
+    ) -> StorageResult<ConnectorResponse> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()).and(

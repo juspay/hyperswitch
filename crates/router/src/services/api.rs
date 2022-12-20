@@ -348,7 +348,9 @@ impl From<&storage::PaymentAttempt> for BachRedirectResponse {
         Self {
             url: format!(
                 "/payments/start/{}/{}/{}",
-                &payment_attempt.payment_id, &payment_attempt.merchant_id, &payment_attempt.txn_id
+                &payment_attempt.payment_id,
+                &payment_attempt.merchant_id,
+                &payment_attempt.attempt_id
             ),
         }
     }

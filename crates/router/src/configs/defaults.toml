@@ -53,8 +53,9 @@ batch_size = 200
 
 [drainer]
 stream_name = "DRAINER_STREAM"
-num_partitions = 4
+num_partitions = 64
+max_read_count = 100
 
 [connectors.supported]
-wallets = ["klarna","braintree"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+wallets = ["klarna", "braintree"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree"]
