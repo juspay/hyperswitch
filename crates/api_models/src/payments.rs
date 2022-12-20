@@ -194,10 +194,30 @@ pub struct CCard {
     pub card_cvc: Secret<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct PayLaterData {
-    pub billing_email: String,
-    pub country: String,
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KlarnaRedirectIssuer {
+    Stripe,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KlarnaSdkIssuer {
+    Klarna,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayLaterData {
+    KlarnaRedirect {
+        issuer_name: KlarnaRedirectIssuer,
+        billing_email: String,
+        country: String,
+    },
+    KlarnaSdk {
+        issuer_name: KlarnaSdkIssuer,
+        token: String,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
