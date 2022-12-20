@@ -19,6 +19,7 @@ pub mod payment_method;
 pub mod process_tracker;
 pub mod query;
 pub mod refund;
+pub mod reverse_lookup;
 pub mod schema;
 pub mod temp_card;
 

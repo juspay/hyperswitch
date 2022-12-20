@@ -15,7 +15,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, enums as api_enums},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -117,8 +117,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state).await
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
 
@@ -214,8 +215,8 @@ async fn get_tracker_for_sync<
         api::PaymentIdType::ConnectorTransactionId(ref id) => {
             db.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, id, storage_scheme)
         }
-        api::PaymentIdType::PaymentTxnId(ref id) => {
-            db.find_payment_attempt_by_merchant_id_txn_id(merchant_id, id, storage_scheme)
+        api::PaymentIdType::PaymentAttemptId(ref id) => {
+            db.find_payment_attempt_by_merchant_id_attempt_id(merchant_id, id, storage_scheme)
         }
     }
     .await
@@ -232,7 +233,7 @@ async fn get_tracker_for_sync<
         .find_connector_response_by_payment_id_merchant_id_txn_id(
             &payment_intent.payment_id,
             &payment_intent.merchant_id,
-            &payment_attempt.txn_id,
+            &payment_attempt.attempt_id,
             storage_scheme,
         )
         .await

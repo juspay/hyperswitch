@@ -9,7 +9,7 @@ use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as checkout;
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -19,7 +19,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
     },
     utils::{self, BytesExt, OptionExt},
 };
@@ -46,7 +45,7 @@ impl api::ConnectorCommon for Checkout {
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.checkout.base_url
     }
 }
@@ -113,7 +112,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}{}",
@@ -129,7 +128,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -145,7 +144,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
         api::PSync: Clone,
@@ -169,11 +168,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -212,7 +211,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "payments"))
     }
@@ -232,7 +231,7 @@ impl
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -250,7 +249,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: checkout::PaymentsResponse = res
             .response
@@ -268,11 +267,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -311,7 +310,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}payments/{}/voids",
@@ -331,7 +330,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -346,7 +345,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let mut response: checkout::PaymentVoidResponse = res
             .response
@@ -365,11 +364,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -412,7 +411,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -434,7 +433,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -448,7 +447,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(response=?res);
         let response: checkout::RefundResponse = res
@@ -471,11 +470,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -510,7 +509,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -523,7 +522,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -538,7 +537,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
         let refund_action_id = data
             .response
@@ -569,11 +568,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])

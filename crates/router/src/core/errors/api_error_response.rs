@@ -123,6 +123,8 @@ pub enum ApiErrorResponse {
     PaymentNotSucceeded,
     #[error(error_type= ErrorType::ObjectNotFound, code = "RE_05", message = "Successful payment not found for the given payment id")]
     SuccessfulPaymentNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_05", message = "The connector provided in the request is incorrect or not available")]
+    IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_05", message = "Address does not exist in our records.")]
     AddressNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Mandate Validation Failed" )]
@@ -183,6 +185,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | ApiErrorResponse::ClientSecretNotGiven
             | ApiErrorResponse::ClientSecretInvalid
             | ApiErrorResponse::SuccessfulPaymentNotFound
+            | ApiErrorResponse::IncorrectConnectorNameGiven
             | ApiErrorResponse::ResourceIdNotFound
             | ApiErrorResponse::AddressNotFound => StatusCode::BAD_REQUEST, // 400
             ApiErrorResponse::DuplicateMerchantAccount

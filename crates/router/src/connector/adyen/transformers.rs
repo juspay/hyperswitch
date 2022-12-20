@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts,
     core::errors,
-    pii::{self, Secret},
-    services,
+    pii, services,
     types::{
         self,
         api::{self, enums as api_enums},
@@ -153,10 +152,10 @@ pub enum AdyenPaymentMethod {
 pub struct AdyenCard {
     #[serde(rename = "type")]
     payment_type: String,
-    number: Option<Secret<String, pii::CardNumber>>,
-    expiry_month: Option<Secret<String>>,
-    expiry_year: Option<Secret<String>>,
-    cvc: Option<Secret<String>>,
+    number: Option<pii::Secret<String, pii::CardNumber>>,
+    expiry_month: Option<pii::Secret<String>>,
+    expiry_year: Option<pii::Secret<String>>,
+    cvc: Option<pii::Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
