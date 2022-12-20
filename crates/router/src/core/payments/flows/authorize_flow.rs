@@ -171,8 +171,6 @@ impl PaymentsAuthorizeRouterData {
                                 payment_method_id,
                                 mandate_reference,
                             ) {
-                                println!("==================ce3bed6a-c122-4e6e-908c-829cbde2b168=================");
-                                println!("{:#?}", new_mandate_data);
                                 resp.request.mandate_id = Some(api_models::payments::MandateIds {
                                     mandate_id: new_mandate_data.mandate_id.clone(),
                                     connector_mandate_id: new_mandate_data
