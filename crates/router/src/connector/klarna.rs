@@ -210,7 +210,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
         match payment_method_data {
@@ -243,7 +243,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -261,7 +261,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaPaymentsResponse = res
             .response
@@ -278,11 +278,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: klarna::KlarnaErrorResponse = res
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.error_code,
             message: response.error_messages.join(" & "),
             reason: None,
