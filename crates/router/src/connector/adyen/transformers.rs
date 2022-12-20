@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts,
     core::errors,
-    pii::{PeekInterface, Secret},
+    pii::{self, Secret},
     services,
     types::{
         self,
@@ -153,10 +153,10 @@ pub enum AdyenPaymentMethod {
 pub struct AdyenCard {
     #[serde(rename = "type")]
     payment_type: String,
-    number: Option<Secret<String>>,
+    number: Option<Secret<String, pii::CardNumber>>,
     expiry_month: Option<Secret<String>>,
     expiry_year: Option<Secret<String>>,
-    cvc: Option<String>,
+    cvc: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -301,12 +301,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             storage_enums::PaymentMethodType::Card => {
                 let card = AdyenCard {
                     payment_type,
-                    number: ccard.map(|x| x.card_number.peek().clone().into()), // FIXME: xxx: should also be secret?
-                    expiry_month: ccard.map(|x| x.card_exp_month.peek().clone().into()),
-                    expiry_year: ccard.map(|x| x.card_exp_year.peek().clone().into()),
-                    // TODO: CVV/CVC shouldn't be saved in our db
-                    // Will need to implement tokenization that allows us to make payments without cvv
-                    cvc: ccard.map(|x| x.card_cvc.peek().into()),
+                    number: ccard.map(|x| x.card_number.clone()),
+                    expiry_month: ccard.map(|x| x.card_exp_month.clone()),
+                    expiry_year: ccard.map(|x| x.card_exp_year.clone()),
+                    cvc: ccard.map(|x| x.card_cvc.clone()),
                 };
 
                 Ok(AdyenPaymentMethod::AdyenCard(card))
@@ -409,7 +407,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
                 redirect: false,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data
@@ -451,7 +448,6 @@ pub fn get_adyen_response(
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         redirect: false,
-        // TODO: Implement mandate fetch for other connectors
         mandate_reference: None,
     };
     Ok((status, error, payments_response_data))
@@ -517,7 +513,6 @@ pub fn get_redirection_response(
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
         redirect: true,
-        // TODO: Implement mandate fetch for other connectors
         mandate_reference: None,
     };
     Ok((status, error, payments_response_data))

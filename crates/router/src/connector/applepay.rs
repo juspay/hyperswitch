@@ -128,7 +128,6 @@ impl
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
             .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
             .headers(types::PaymentsSessionType::get_headers(self, req)?)
             .body(types::PaymentsSessionType::get_request_body(self, req)?)

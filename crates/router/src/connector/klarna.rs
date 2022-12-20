@@ -161,7 +161,7 @@ impl
         types::PaymentsResponseData,
     > for Klarna
 {
-    // TODO: Critical Implement
+    // Not Implemented(R)
 }
 
 impl

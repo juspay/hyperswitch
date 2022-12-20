@@ -64,7 +64,7 @@ impl
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
-    // TODO: Critical Implement
+    // Issue: #173
 }
 
 impl
