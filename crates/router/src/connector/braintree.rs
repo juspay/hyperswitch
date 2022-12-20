@@ -5,9 +5,9 @@ use std::fmt::Debug;
 use bytes::Bytes;
 use error_stack::ResultExt;
 
-use self::{braintree::BraintreeAuthType, transformers as braintree};
+use self::transformers as braintree;
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -17,7 +17,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -30,7 +29,7 @@ impl api::ConnectorCommon for Braintree {
         "braintree"
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.braintree.base_url
     }
 
@@ -86,7 +85,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSessionRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -100,7 +99,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSessionRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = Some(
             services::RequestBuilder::new()
@@ -118,12 +117,12 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
             .parse_struct("Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -145,7 +144,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSessionRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
         logger::debug!(payment_session_response_braintree=?res);
         let response: braintree::BraintreeSessionTokenResponse = res
@@ -214,7 +213,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -234,7 +233,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -249,12 +248,12 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
             .parse_struct("Braintree Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -271,7 +270,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
@@ -315,9 +314,9 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth_type = BraintreeAuthType::try_from(&req.connector_auth_type)
+        let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         Ok(format!(
@@ -330,7 +329,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -357,7 +356,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: braintree::BraintreePaymentsResponse = res
             .response
@@ -376,13 +375,13 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(braintreepayments_create_response=?res);
 
         let response: braintree::ErrorResponse = res
             .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -422,7 +421,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -437,7 +436,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -452,12 +451,12 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
             .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -474,7 +473,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
@@ -522,9 +521,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth_type = BraintreeAuthType::try_from(&req.connector_auth_type)
+        let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -548,7 +547,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -562,7 +561,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
@@ -581,7 +580,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         _res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 }
@@ -604,7 +603,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_url(
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        _connectors: Connectors,
+        _connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
@@ -612,7 +611,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_error_response(
         &self,
         _res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 
@@ -626,7 +625,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn build_request(
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        _connectors: Connectors,
+        _connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(None)
     }
@@ -634,7 +633,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn handle_response(
         &self,
         data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
