@@ -4,22 +4,22 @@ use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use router_env::{tracing, tracing::instrument};
 
 use crate::{
-    compatibility::{stripe, wrap},
+    compatibility::{stripe::errors, wrap},
     core::refunds,
-    routes::AppState,
+    routes,
     services::api,
-    types::api::refunds::RefundRequest,
+    types::api::refunds as refund_types,
 };
 
 #[instrument(skip_all)]
 #[post("")]
 pub(crate) async fn refund_create(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     req: HttpRequest,
     form_payload: web::Form<types::StripeCreateRefundRequest>,
 ) -> HttpResponse {
     let payload = form_payload.into_inner();
-    let create_refund_req: RefundRequest = payload.into();
+    let create_refund_req: refund_types::RefundRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
         _,
@@ -28,7 +28,7 @@ pub(crate) async fn refund_create(
         _,
         _,
         types::StripeCreateRefundResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
@@ -42,7 +42,7 @@ pub(crate) async fn refund_create(
 #[instrument(skip_all)]
 #[get("/{refund_id}")]
 pub(crate) async fn refund_retrieve(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
@@ -54,7 +54,7 @@ pub(crate) async fn refund_retrieve(
         _,
         _,
         types::StripeCreateRefundResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
@@ -75,14 +75,14 @@ pub(crate) async fn refund_retrieve(
 #[instrument(skip_all)]
 #[post("/{refund_id}")]
 pub(crate) async fn refund_update(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
     form_payload: web::Form<types::StripeCreateRefundRequest>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();
     let payload = form_payload.into_inner();
-    let create_refund_update_req: RefundRequest = payload.into();
+    let create_refund_update_req: refund_types::RefundRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
         _,
@@ -91,7 +91,7 @@ pub(crate) async fn refund_update(
         _,
         _,
         types::StripeCreateRefundResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,

@@ -88,14 +88,16 @@ impl PaymentMethodInterface for MockDb {
         &self,
         _payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_payment_method(
         &self,
         _m: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_payment_method_by_customer_id_merchant_id_list(
@@ -103,7 +105,8 @@ impl PaymentMethodInterface for MockDb {
         _customer_id: &str,
         _merchant_id: &str,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn delete_payment_method_by_merchant_id_payment_method_id(
@@ -111,6 +114,7 @@ impl PaymentMethodInterface for MockDb {
         _merchant_id: &str,
         _payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

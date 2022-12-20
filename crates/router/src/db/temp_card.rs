@@ -100,20 +100,23 @@ impl TempCardInterface for MockDb {
         &self,
         _transaction_id: &str,
     ) -> CustomResult<Option<storage::TempCard>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_tempcard_with_token(
         &self,
         _card: storage::TempCard,
     ) -> CustomResult<storage::TempCard, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_tempcard_by_token(
         &self,
         _token: &i32,
     ) -> CustomResult<storage::TempCard, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }
