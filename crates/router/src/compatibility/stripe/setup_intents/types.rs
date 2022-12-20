@@ -1,31 +1,27 @@
+use api_models::{payments, refunds};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     core::errors,
-    pii::Secret,
-    types::api::{
-        self as api_types, enums as api_enums, Address, AddressDetails, CCard,
-        PaymentListConstraints, PaymentMethod, PaymentsCancelRequest, PaymentsRequest,
-        PaymentsResponse, PhoneDetails, RefundResponse,
-    },
+    types::api::{self as api_types, enums as api_enums},
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub(crate) struct StripeBillingDetails {
-    pub(crate) address: Option<AddressDetails>,
+    pub(crate) address: Option<payments::AddressDetails>,
     pub(crate) email: Option<String>,
     pub(crate) name: Option<String>,
     pub(crate) phone: Option<String>,
 }
 
-impl From<StripeBillingDetails> for Address {
+impl From<StripeBillingDetails> for payments::Address {
     fn from(details: StripeBillingDetails) -> Self {
         Self {
             address: details.address,
-            phone: Some(PhoneDetails {
-                number: details.phone.map(Secret::new),
+            phone: Some(payments::PhoneDetails {
+                number: details.phone.map(masking::Secret::new),
                 country_code: None,
             }),
         }
@@ -72,41 +68,43 @@ pub(crate) enum StripePaymentMethodDetails {
     BankTransfer,
 }
 
-impl From<StripeCard> for CCard {
+impl From<StripeCard> for payments::CCard {
     fn from(card: StripeCard) -> Self {
         Self {
-            card_number: Secret::new(card.number),
-            card_exp_month: Secret::new(card.exp_month),
-            card_exp_year: Secret::new(card.exp_year),
-            card_holder_name: Secret::new("stripe_cust".to_owned()),
-            card_cvc: Secret::new(card.cvc),
+            card_number: masking::Secret::new(card.number),
+            card_exp_month: masking::Secret::new(card.exp_month),
+            card_exp_year: masking::Secret::new(card.exp_year),
+            card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
+            card_cvc: masking::Secret::new(card.cvc),
         }
     }
 }
-impl From<StripePaymentMethodDetails> for PaymentMethod {
+impl From<StripePaymentMethodDetails> for payments::PaymentMethod {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
-            StripePaymentMethodDetails::Card(card) => PaymentMethod::Card(CCard::from(card)),
-            StripePaymentMethodDetails::BankTransfer => PaymentMethod::BankTransfer,
+            StripePaymentMethodDetails::Card(card) => {
+                payments::PaymentMethod::Card(payments::CCard::from(card))
+            }
+            StripePaymentMethodDetails::BankTransfer => payments::PaymentMethod::BankTransfer,
         }
     }
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub(crate) struct Shipping {
-    pub(crate) address: Option<AddressDetails>,
+    pub(crate) address: Option<payments::AddressDetails>,
     pub(crate) name: Option<String>,
     pub(crate) carrier: Option<String>,
     pub(crate) phone: Option<String>,
     pub(crate) tracking_number: Option<String>,
 }
 
-impl From<Shipping> for Address {
+impl From<Shipping> for payments::Address {
     fn from(details: Shipping) -> Self {
         Self {
             address: details.address,
-            phone: Some(PhoneDetails {
-                number: details.phone.map(Secret::new),
+            phone: Some(payments::PhoneDetails {
+                number: details.phone.map(masking::Secret::new),
                 country_code: None,
             }),
         }
@@ -129,40 +127,43 @@ pub(crate) struct StripeSetupIntentRequest {
     pub(crate) client_secret: Option<String>,
 }
 
-impl From<StripeSetupIntentRequest> for PaymentsRequest {
+impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
     fn from(item: StripeSetupIntentRequest) -> Self {
-        PaymentsRequest {
+        payments::PaymentsRequest {
             amount: Some(api_types::Amount::Zero),
             currency: Some(api_enums::Currency::default().to_string()),
             capture_method: None,
             amount_to_capture: None,
             confirm: item.confirm,
             customer_id: item.customer,
-            email: item.receipt_email.map(Secret::new),
+            email: item.receipt_email.map(masking::Secret::new),
             name: item
                 .billing_details
                 .as_ref()
-                .and_then(|b| b.name.as_ref().map(|x| Secret::new(x.to_owned()))),
+                .and_then(|b| b.name.as_ref().map(|x| masking::Secret::new(x.to_owned()))),
             phone: item
                 .shipping
                 .as_ref()
-                .and_then(|s| s.phone.as_ref().map(|x| Secret::new(x.to_owned()))),
+                .and_then(|s| s.phone.as_ref().map(|x| masking::Secret::new(x.to_owned()))),
             description: item.description,
             return_url: item.return_url,
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| PaymentMethod::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethod::from(spmd.to_owned()))
             }),
             payment_method: item
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| api_enums::PaymentMethodType::from(pmd.stype.to_owned())),
-            shipping: item.shipping.as_ref().map(|s| Address::from(s.to_owned())),
+            shipping: item
+                .shipping
+                .as_ref()
+                .map(|s| payments::Address::from(s.to_owned())),
             billing: item
                 .billing_details
                 .as_ref()
-                .map(|b| Address::from(b.to_owned())),
+                .map(|b| payments::Address::from(b.to_owned())),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
@@ -232,7 +233,7 @@ pub(crate) struct StripePaymentCancelRequest {
     cancellation_reason: Option<CancellationReason>,
 }
 
-impl From<StripePaymentCancelRequest> for PaymentsCancelRequest {
+impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
     fn from(item: StripePaymentCancelRequest) -> Self {
         Self {
             cancellation_reason: item.cancellation_reason.map(|c| c.to_string()),
@@ -245,16 +246,16 @@ pub(crate) struct StripeSetupIntentResponse {
     pub(crate) id: Option<String>,
     pub(crate) object: String,
     pub(crate) status: StripeSetupStatus,
-    pub(crate) client_secret: Option<Secret<String>>,
+    pub(crate) client_secret: Option<masking::Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub(crate) created: Option<time::PrimitiveDateTime>,
     pub(crate) customer: Option<String>,
-    pub(crate) refunds: Option<Vec<RefundResponse>>,
+    pub(crate) refunds: Option<Vec<refunds::RefundResponse>>,
     pub(crate) mandate_id: Option<String>,
 }
 
-impl From<PaymentsResponse> for StripeSetupIntentResponse {
-    fn from(resp: PaymentsResponse) -> Self {
+impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
+    fn from(resp: payments::PaymentsResponse) -> Self {
         Self {
             object: "setup_intent".to_owned(),
             status: StripeSetupStatus::from(resp.status),
@@ -290,7 +291,7 @@ fn default_limit() -> i64 {
     10
 }
 
-impl TryFrom<StripePaymentListConstraints> for PaymentListConstraints {
+impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentListConstraints) -> Result<Self, Self::Error> {
         Ok(Self {

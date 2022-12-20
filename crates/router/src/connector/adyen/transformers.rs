@@ -340,6 +340,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     };
                     Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
                 }
+
+                api_enums::WalletIssuer::Paypal => Err(errors::ConnectorError::NotImplemented(
+                    "Adyen - Paypal".to_string(),
+                )),
             },
 
             storage_enums::PaymentMethodType::Paypal => {
