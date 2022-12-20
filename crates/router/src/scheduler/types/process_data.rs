@@ -26,8 +26,8 @@ pub struct ConnectorPTMapping {
     pub max_retries_count: i32,
 }
 
-impl ConnectorPTMapping {
-    pub fn default() -> Self {
+impl Default for ConnectorPTMapping {
+    fn default() -> Self {
         Self {
             custom_merchant_mapping: HashMap::new(),
             default_mapping: RetryMapping {
