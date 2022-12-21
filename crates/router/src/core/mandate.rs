@@ -140,8 +140,6 @@ where
                 .payment_method_id;
 
                 resp.payment_method_id = Some(payment_method_id.clone());
-
-                resp.payment_method_id = Some(payment_method_id.clone());
                 let mandate_reference = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
