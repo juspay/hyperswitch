@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::{
     core::errors,
-    pii,
+    pii::{self, PeekInterface},
     types::api::{self as api_types, enums as api_enums},
 };
 
@@ -97,7 +97,7 @@ pub struct Shipping {
     pub name: Option<String>,
     pub carrier: Option<String>,
     pub phone: Option<pii::Secret<String>>,
-    pub tracking_number: Option<String>,
+    pub tracking_number: Option<pii::Secret<String>>,
 }
 
 impl From<Shipping> for payments::Address {
@@ -117,7 +117,7 @@ pub struct StripeSetupIntentRequest {
     pub customer: Option<String>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
-    pub receipt_email: Option<String>,
+    pub receipt_email: Option<pii::Secret<String, pii::Email>>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub shipping: Option<Shipping>,
@@ -125,7 +125,7 @@ pub struct StripeSetupIntentRequest {
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<Value>,
-    pub client_secret: Option<String>,
+    pub client_secret: Option<pii::Secret<String>>,
 }
 
 impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
@@ -137,7 +137,7 @@ impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
             amount_to_capture: None,
             confirm: item.confirm,
             customer_id: item.customer,
-            email: item.receipt_email.map(masking::Secret::new),
+            email: item.receipt_email,
             name: item
                 .billing_details
                 .as_ref()
@@ -165,7 +165,7 @@ impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
-            client_secret: item.client_secret,
+            client_secret: item.client_secret.map(|s| s.peek().clone()),
             ..Default::default()
         }
     }

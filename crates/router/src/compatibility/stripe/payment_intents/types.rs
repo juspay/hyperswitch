@@ -2,7 +2,7 @@ use api_models::{payments, refunds};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{core::errors, pii, types::api::enums as api_enums};
+use crate::{core::errors, pii::{self, PeekInterface}, types::api::enums as api_enums};
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
@@ -92,7 +92,7 @@ pub struct Shipping {
     pub name: Option<String>,
     pub carrier: Option<String>,
     pub phone: Option<pii::Secret<String>>,
-    pub tracking_number: Option<String>,
+    pub tracking_number: Option<pii::Secret<String>>,
 }
 
 impl From<Shipping> for payments::Address {
@@ -126,7 +126,7 @@ pub struct StripePaymentIntentRequest {
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<Value>,
-    pub client_secret: Option<String>,
+    pub client_secret: Option<pii::Secret<String>>,
 }
 
 impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -167,7 +167,7 @@ impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
-            client_secret: item.client_secret,
+            client_secret: item.client_secret.map(|s| s.peek().clone()),
             ..Default::default()
         }
     }
