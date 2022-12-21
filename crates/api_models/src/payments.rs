@@ -571,9 +571,11 @@ impl From<PaymentsSessionRequest> for PaymentsResponse {
 }
 
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
-    fn from(_item: PaymentsSessionRequest) -> Self {
+    fn from(item: PaymentsSessionRequest) -> Self {
         Self {
             session_token: vec![],
+            payment_id: item.payment_id,
+            client_secret: item.client_secret,
         }
     }
 }
@@ -775,6 +777,8 @@ pub enum SessionToken {
 
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
+    pub payment_id: String,
+    pub client_secret: String,
     pub session_token: Vec<SessionToken>,
 }
 
