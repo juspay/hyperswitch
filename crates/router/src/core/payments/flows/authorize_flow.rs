@@ -4,7 +4,8 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, helpers, transformers, PaymentData},
+        mandate,
+        payments::{self, transformers, PaymentData},
     },
     routes::AppState,
     scheduler::metrics,
@@ -99,9 +100,27 @@ impl PaymentsAuthorizeRouterData {
                 .await
                 .map_err(|error| error.to_payment_failed_response())?;
 
-                Ok(helpers::mandate_procedure(state, resp, maybe_customer).await?)
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
             }
             _ => Ok(self.clone()),
         }
+    }
+}
+
+impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
+    fn get_amount(&self) -> i64 {
+        self.amount
+    }
+    fn get_mandate_id(&self) -> Option<&String> {
+        self.mandate_id.as_ref()
+    }
+    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod {
+        self.payment_method_data.clone()
+    }
+    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+        self.setup_future_usage
+    }
+    fn set_mandate_id(&mut self, new_mandate_id: String) {
+        self.mandate_id = Some(new_mandate_id);
     }
 }
