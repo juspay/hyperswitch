@@ -41,11 +41,12 @@ pub enum Verify {
 
 #[cfg(test)]
 mod tests {
-    /// serde_test is a testing tool that tests the verification of an enum (Verify) and the associated error message (message:String). 
+    /// serde_test is a testing tool that tests the verification of an enum (Verify) and the associated error message (message:String).
     /// This tool verifies that the enum and string are stored correctly by comparing them to a set of expected results.
     #[test]
     fn test_ser_de() {
-        use serde_test::{assert_tokens, Token::*};
+        use serde_test::assert_tokens;
+        use serde_test::Token::*;
 
         let verify = super::Verify::Error { message: "hello".into() };
 
