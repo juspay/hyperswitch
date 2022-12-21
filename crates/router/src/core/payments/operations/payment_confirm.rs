@@ -356,6 +356,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 
+        helpers::validate_customer_id_given(&request.customer_id)?;
+
         helpers::validate_pm_or_token_given(&request.payment_token, &request.payment_method_data)?;
 
         let mandate_type = helpers::validate_mandate(request)?;

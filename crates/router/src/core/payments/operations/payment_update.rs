@@ -364,6 +364,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
                 &request.payment_token,
                 &request.payment_method_data,
             )?;
+            helpers::validate_customer_id_given(&request.customer_id)?;
         }
 
         let request_merchant_id = request.merchant_id.as_deref();

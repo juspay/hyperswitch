@@ -617,6 +617,17 @@ pub async fn get_customer_from_details(
     }
 }
 
+pub fn validate_customer_id_given(customer_id: &Option<String>) -> RouterResult<()> {
+    if customer_id.is_none() {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "'customer_id' is a mandatory field that was not provided".to_string(),
+        })
+        .into_report()
+    } else {
+        Ok(())
+    }
+}
+
 pub async fn get_connector_default(
     merchant_account: &storage::MerchantAccount,
     state: &AppState,
