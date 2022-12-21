@@ -12,6 +12,7 @@ use crate::{
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
+    pii,
     pii::Secret,
     routes::AppState,
     types::{
@@ -128,7 +129,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                     payment_intent,
                     currency,
                     amount,
-                    email: None,
+                    email: None::<masking::Secret<String, pii::Email>>,
                     mandate_id: None,
                     connector_response,
                     setup_mandate: None,

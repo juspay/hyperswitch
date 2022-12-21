@@ -47,30 +47,24 @@ impl Cybersource {
         } = auth;
 
         let headers_for_post_method = "host date (request-target) digest v-c-merchant-id";
-
-        let mut signature_header =
-            String::from(&format!("keyid=\"{}\", algorithm=\"HmacSHA256\"", api_key));
-        signature_header.push_str(&format!(", headers=\"{}\"", headers_for_post_method));
-
-        let mut signature_string = format!("host: {}", host);
-        signature_string.push_str(&format!("\ndate: {}", date));
-        signature_string.push_str(&format!("\n(request-target): post {}", resource));
-
-        signature_string.push_str(&format!(
-            "\ndigest: SHA-256={}\n",
+        let signature_string = format!(
+            "host: {host}\n\
+             date: {date}\n\
+             (request-target): post {resource}\n\
+             digest: SHA-256={}\n\
+             v-c-merchant-id: {merchant_account}",
             self.generate_digest(payload.as_bytes())
-        ));
-
-        signature_string.push_str(&format!("v-c-merchant-id: {}", merchant_account));
+        );
         let key_value = base64::decode(api_secret)
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
-
         let signature_value =
             base64::encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
-        signature_header.push_str(&format!(", signature=\"{}\"", signature_value));
+        let signature_header = format!(
+            r#"keyid="{api_key}", algorithm="HmacSHA256", headers="{headers_for_post_method}", signature="{signature_value}""#
+        );
+
         Ok(signature_header)
     }
 }
@@ -229,7 +223,7 @@ impl
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourcePaymentsResponse = res
             .response
-            .parse_struct("Cybersource PaymentIntentResponse")
+            .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(cybersourcepayments_create_response=?response);
         types::ResponseRouterData {
@@ -251,8 +245,8 @@ impl
         Ok(ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response
-                .error_information
-                .map_or(consts::NO_ERROR_MESSAGE.to_string(), |e| e.message),
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
         })
     }

@@ -468,7 +468,7 @@ where
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<masking::Secret<String, pii::Email>>,
 }
 
 #[derive(Debug)]

@@ -27,6 +27,7 @@ pub struct PaymentInformation {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Card {
     number: String,
     expiration_month: String,
@@ -35,23 +36,27 @@ pub struct Card {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct OrderInformationWithBill {
     amount_details: Amount,
     bill_to: BillTo,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct OrderInformation {
     amount_details: Amount,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Amount {
     total_amount: String,
     currency: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct BillTo {
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
@@ -212,6 +217,7 @@ impl TryFrom<types::PaymentsResponseRouterData<CybersourcePaymentsResponse>>
 pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: String,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

@@ -13,6 +13,7 @@ use crate::{
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
+    pii,
     routes::AppState,
     types::{
         api::{self, enums as api_enums},
@@ -273,7 +274,7 @@ async fn get_tracker_for_sync<
             connector_response,
             currency,
             amount,
-            email: None,
+            email: None::<masking::Secret<String, pii::Email>>,
             mandate_id: None,
             setup_mandate: None,
             token: None,
