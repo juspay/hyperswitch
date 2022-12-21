@@ -15,6 +15,7 @@ use crate::{
     types::{
         self,
         api::{self, NextAction, PaymentsResponse},
+        domain,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -82,7 +83,7 @@ where
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
-        payment_id: payment_data.payment_attempt.payment_id.clone(),
+        payment_id: payment_data.payment_attempt.payment_id.to_string(),
         status: payment_data.payment_attempt.status,
         payment_method,
         connector_auth_type: auth_type,
@@ -218,7 +219,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn payments_to_payments_response<R, Op>(
     payment_request: Option<R>,
-    payment_attempt: storage::PaymentAttempt,
+    payment_attempt: domain::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     payment_method_data: Option<api::PaymentMethod>,
@@ -269,7 +270,7 @@ where
 
                 services::BachResponse::Json(
                     response
-                        .set_payment_id(Some(payment_attempt.payment_id))
+                        .set_payment_id(Some(payment_attempt.payment_id.to_string()))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status.foreign_into())
                         .set_amount(payment_attempt.amount)
@@ -337,7 +338,7 @@ where
             }
         }
         None => services::BachResponse::Json(PaymentsResponse {
-            payment_id: Some(payment_attempt.payment_id),
+            payment_id: Some(payment_attempt.payment_id.to_string()),
             merchant_id: Some(payment_attempt.merchant_id),
             status: payment_intent.status.foreign_into(),
             amount: payment_attempt.amount,

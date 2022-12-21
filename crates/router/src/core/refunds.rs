@@ -16,6 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, refunds},
+        domain,
         storage::{self, enums, ProcessTrackerExt},
         transformers::{Foreign, ForeignInto},
     },
@@ -89,7 +90,7 @@ pub async fn trigger_refund_to_gateway(
     state: &AppState,
     refund: &storage::Refund,
     merchant_account: &storage::merchant_account::MerchantAccount,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<storage::Refund> {
     let connector = payment_attempt
@@ -239,7 +240,7 @@ pub async fn refund_retrieve_core(
 pub async fn sync_refund_with_gateway(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
 ) -> RouterResult<storage::Refund> {
@@ -343,7 +344,7 @@ pub async fn refund_update_core(
 pub async fn validate_and_create_refund(
     state: &AppState,
     merchant_account: &storage::merchant_account::MerchantAccount,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund_amount: i64,
     req: refunds::RefundRequest,
@@ -461,7 +462,7 @@ pub async fn validate_and_create_refund(
 fn mk_new_refund(
     request: refunds::RefundRequest,
     connector: String,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     currency: enums::Currency,
     refund_id: &str,
     merchant_id: &str,
@@ -490,7 +491,7 @@ fn mk_new_refund(
         refund_status: enums::RefundStatus::Pending,
         metadata: request.metadata,
         description: request.reason,
-        attempt_id: payment_attempt.attempt_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone().into(),
         ..storage::RefundNew::default()
     }
 }
@@ -544,7 +545,7 @@ pub async fn schedule_refund_execution(
     refund: storage::Refund,
     refund_type: api_models::refunds::RefundType,
     merchant_account: &storage::merchant_account::MerchantAccount,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {

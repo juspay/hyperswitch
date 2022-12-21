@@ -25,6 +25,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        domain,
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -315,7 +316,7 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
 
 pub fn create_startpay_url(
     server: &Server,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
 ) -> String {
     format!(
@@ -329,7 +330,7 @@ pub fn create_startpay_url(
 
 pub fn create_redirect_url(
     server: &Server,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
@@ -427,7 +428,7 @@ pub fn payment_intent_status_fsm(
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     Op: std::fmt::Debug,
@@ -730,7 +731,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     state: &'a AppState,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     txn_id: &str,
-    _payment_attempt: &storage::PaymentAttempt,
+    _payment_attempt: &domain::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
     token: &Option<String>,
     card_cvc: Option<Secret<String>>,

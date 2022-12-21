@@ -21,6 +21,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -238,7 +239,7 @@ where
         state: &'a AppState,
         payment_method: Option<storage_enums::PaymentMethodType>,
         txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
         card_cvc: Option<Secret<String>>,

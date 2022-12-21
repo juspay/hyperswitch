@@ -32,6 +32,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -116,7 +117,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         state: &'a AppState,
         _payment_method: Option<enums::PaymentMethodType>,
         txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
         card_cvc: Option<Secret<String>>,
@@ -130,7 +131,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _db: &'a AppState,
-        _payment_attempt: &storage::PaymentAttempt,
+        _payment_attempt: &domain::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -217,7 +218,7 @@ where
         state: &'a AppState,
         payment_method: Option<enums::PaymentMethodType>,
         txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
         card_cvc: Option<Secret<String>>,
@@ -277,7 +278,7 @@ where
         _state: &'a AppState,
         _payment_method: Option<enums::PaymentMethodType>,
         _txn_id: &str,
-        _payment_attempt: &storage::PaymentAttempt,
+        _payment_attempt: &domain::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
         _card_cvc: Option<Secret<String>>,
@@ -337,7 +338,7 @@ where
         _state: &'a AppState,
         _payment_method: Option<enums::PaymentMethodType>,
         _txn_id: &str,
-        _payment_attempt: &storage::PaymentAttempt,
+        _payment_attempt: &domain::PaymentAttempt,
         _request: &Option<api::PaymentMethod>,
         _token: &Option<String>,
         _card_cvc: Option<Secret<String>>,

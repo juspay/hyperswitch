@@ -20,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
+        domain,
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -107,7 +108,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await
         {
-            Ok(payment_attempt) => Ok(payment_attempt),
+            Ok(payment_attempt) => Ok(payment_attempt.foreign_into()),
 
             Err(err) => {
                 if err.current_context().is_db_unique_violation() {
@@ -254,7 +255,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         state: &'a AppState,
         payment_method: Option<enums::PaymentMethodType>,
         txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
         card_cvc: Option<Secret<String>>,
@@ -281,7 +282,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         helpers::add_domain_task_to_pt(self, state, payment_attempt).await
     }
@@ -490,12 +491,12 @@ impl PaymentCreate {
 
     #[instrument(skip_all)]
     pub fn make_connector_response(
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
     ) -> storage::ConnectorResponseNew {
         storage::ConnectorResponseNew {
-            payment_id: payment_attempt.payment_id.clone(),
+            payment_id: payment_attempt.payment_id.clone().into(),
             merchant_id: payment_attempt.merchant_id.clone(),
-            txn_id: payment_attempt.attempt_id.clone(),
+            txn_id: payment_attempt.attempt_id.clone().into(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
             connector_name: payment_attempt.connector.clone(),

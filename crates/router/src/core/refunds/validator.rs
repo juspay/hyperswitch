@@ -6,7 +6,10 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     logger,
-    types::storage::{self, enums},
+    types::{
+        domain,
+        storage::{self, enums},
+    },
     utils,
 };
 
@@ -29,7 +32,7 @@ pub enum RefundValidationError {
 
 #[instrument(skip_all)]
 pub fn validate_success_transaction(
-    transaction: &storage::PaymentAttempt,
+    transaction: &domain::PaymentAttempt,
 ) -> CustomResult<(), RefundValidationError> {
     if transaction.status != enums::AttemptStatus::Charged {
         Err(report!(RefundValidationError::UnsuccessfulPaymentAttempt))?
@@ -41,7 +44,7 @@ pub fn validate_success_transaction(
 //todo: max refund request count
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
-    payment_attempt_amount: i64, // &storage::PaymentAttempt,
+    payment_attempt_amount: i64, // &domain::PaymentAttempt,
     all_refunds: &[storage::Refund],
     refund_amount: i64,
 ) -> CustomResult<(), RefundValidationError> {

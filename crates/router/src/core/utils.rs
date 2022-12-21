@@ -9,7 +9,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, enums},
     },
     utils::{generate_id, OptionExt, ValueExt},
@@ -24,7 +24,7 @@ pub async fn construct_refund_router_data<'a, F>(
     money: (i64, enums::Currency),
     payment_method_data: Option<&'a api::PaymentMethod>,
     payment_intent: &'a storage::PaymentIntent,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     refund: &'a storage::Refund,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
@@ -62,7 +62,7 @@ pub async fn construct_refund_router_data<'a, F>(
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.clone().into(),
         status,
         payment_method: payment_method_type,
         connector_auth_type: auth_type,

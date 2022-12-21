@@ -32,6 +32,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -454,7 +455,7 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: storage::PaymentIntent,
-    pub payment_attempt: storage::PaymentAttempt,
+    pub payment_attempt: domain::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub currency: storage_enums::Currency,
@@ -587,14 +588,16 @@ pub async fn list_payments(
 
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
 
-        resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
+        resource_id: api::PaymentIdType::PaymentAttemptId(
+            payment_attempt.attempt_id.clone().into(),
+        ),
         param: None,
         connector: None,
     };

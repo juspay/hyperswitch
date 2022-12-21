@@ -18,6 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
+        domain,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -200,7 +201,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         state: &'a AppState,
         payment_method: Option<enums::PaymentMethodType>,
         txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
         card_cvc: Option<Secret<String>>,
@@ -234,7 +235,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &domain::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         helpers::add_domain_task_to_pt(self, state, payment_attempt).await
     }

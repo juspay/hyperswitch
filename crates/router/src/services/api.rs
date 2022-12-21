@@ -27,7 +27,7 @@ use crate::{
     logger, routes,
     routes::AppState,
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, enums},
         ErrorResponse, Response,
     },
@@ -343,8 +343,8 @@ pub struct BachRedirectResponse {
     pub url: String,
 }
 
-impl From<&storage::PaymentAttempt> for BachRedirectResponse {
-    fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
+impl From<&domain::PaymentAttempt> for BachRedirectResponse {
+    fn from(payment_attempt: &domain::PaymentAttempt) -> Self {
         Self {
             url: format!(
                 "/payments/start/{}/{}/{}",
