@@ -102,6 +102,9 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     }
                 }
             }
+            errors::ConnectorError::RequestEncodingFailedWithReason(reason) => {
+                Some(serde_json::json!(reason))
+            }
             _ => None,
         };
         self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
