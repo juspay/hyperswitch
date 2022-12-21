@@ -9,5 +9,6 @@ Ports:
 * Payments
 
 Adapters:
+* Stripe
 * akita_adapter
 * memory_adapter
