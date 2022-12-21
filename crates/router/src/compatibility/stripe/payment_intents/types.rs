@@ -2,7 +2,11 @@ use api_models::{payments, refunds};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{core::errors, pii::{self, PeekInterface}, types::api::enums as api_enums};
+use crate::{
+    core::errors,
+    pii::{self, PeekInterface},
+    types::api::enums as api_enums,
+};
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
@@ -118,7 +122,7 @@ pub struct StripePaymentIntentRequest {
     pub customer: Option<String>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
-    pub receipt_email: Option<String>,
+    pub receipt_email: Option<pii::Secret<String, pii::Email>>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub shipping: Option<Shipping>,
@@ -139,7 +143,7 @@ impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
             amount_to_capture: item.amount_capturable,
             confirm: item.confirm,
             customer_id: item.customer,
-            email: item.receipt_email.map(masking::Secret::new),
+            email: item.receipt_email,
             name: item
                 .billing_details
                 .as_ref()
