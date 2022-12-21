@@ -35,9 +35,9 @@ impl api::ConnectorCommon for Stripe {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         // &self.base_url
-        connectors.stripe.base_url
+        connectors.stripe.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -102,7 +102,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
 
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
 
@@ -127,7 +127,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
 
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -209,7 +209,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -224,7 +224,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -310,7 +310,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -331,7 +331,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -416,7 +416,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_id = &req.request.connector_transaction_id;
         Ok(format!(
@@ -440,7 +440,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -529,7 +529,7 @@ impl
             types::VerifyRequestData,
             types::PaymentsResponseData,
         >,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -550,7 +550,7 @@ impl
     fn build_request(
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -644,7 +644,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v1/refunds"))
     }
@@ -661,7 +661,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -739,7 +739,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
             .response
@@ -755,7 +755,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()

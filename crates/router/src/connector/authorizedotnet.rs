@@ -32,8 +32,8 @@ impl api::ConnectorCommon for Authorizedotnet {
         "application/json"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
-        connectors.authorizedotnet.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.authorizedotnet.base_url.as_ref()
     }
 }
 
@@ -101,9 +101,9 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -121,7 +121,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -193,9 +193,9 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -216,7 +216,7 @@ impl
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -292,9 +292,9 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -309,7 +309,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -384,9 +384,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -403,7 +403,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -473,9 +473,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::RSync>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -493,7 +493,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
