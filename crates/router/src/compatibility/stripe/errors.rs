@@ -3,7 +3,7 @@ use crate::core::errors;
 
 #[derive(Debug, router_derive::ApiError)]
 #[error(error_type_enum = StripeErrorType)]
-pub(crate) enum ErrorCode {
+pub enum StripeErrorCode {
     /*
     "error": {
         "message": "Invalid API Key provided: sk_jkjgs****nlgs",
@@ -291,7 +291,7 @@ pub(crate) enum ErrorCode {
     // TransfersNotAllowed,
 }
 
-impl ::core::fmt::Display for ErrorCode {
+impl ::core::fmt::Display for StripeErrorCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -304,21 +304,21 @@ impl ::core::fmt::Display for ErrorCode {
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum StripeErrorType {
+pub enum StripeErrorType {
     ApiError,
     CardError,
     InvalidRequestError,
 }
 
-impl From<errors::ApiErrorResponse> for ErrorCode {
+impl From<errors::ApiErrorResponse> for StripeErrorCode {
     fn from(value: errors::ApiErrorResponse) -> Self {
         match value {
             errors::ApiErrorResponse::Unauthorized
-            | errors::ApiErrorResponse::InvalidEphermeralKey => ErrorCode::Unauthorized,
+            | errors::ApiErrorResponse::InvalidEphermeralKey => StripeErrorCode::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
-            | errors::ApiErrorResponse::InvalidHttpMethod => ErrorCode::InvalidRequestUrl,
+            | errors::ApiErrorResponse::InvalidHttpMethod => StripeErrorCode::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
-                ErrorCode::ParameterMissing {
+                StripeErrorCode::ParameterMissing {
                     field_name: field_name.to_owned(),
                     param: field_name,
                 }
@@ -327,88 +327,98 @@ impl From<errors::ApiErrorResponse> for ErrorCode {
             errors::ApiErrorResponse::InvalidDataFormat {
                 field_name,
                 expected_format,
-            } => ErrorCode::ParameterUnknown {
+            } => StripeErrorCode::ParameterUnknown {
                 field_name,
                 expected_format,
             },
             errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount => {
-                ErrorCode::RefundAmountExceedsPaymentAmount {
+                StripeErrorCode::RefundAmountExceedsPaymentAmount {
                     param: "amount".to_owned(),
                 }
             }
             errors::ApiErrorResponse::PaymentAuthorizationFailed { data }
             | errors::ApiErrorResponse::PaymentAuthenticationFailed { data } => {
-                ErrorCode::PaymentIntentAuthenticationFailure { data }
+                StripeErrorCode::PaymentIntentAuthenticationFailure { data }
             }
             errors::ApiErrorResponse::VerificationFailed { data } => {
-                ErrorCode::VerificationFailed { data }
+                StripeErrorCode::VerificationFailed { data }
             }
             errors::ApiErrorResponse::PaymentCaptureFailed { data } => {
-                ErrorCode::PaymentIntentPaymentAttemptFailed { data }
+                StripeErrorCode::PaymentIntentPaymentAttemptFailed { data }
             }
-            errors::ApiErrorResponse::InvalidCardData { data } => ErrorCode::InvalidCardType, // Maybe it is better to de generalize this router error
-            errors::ApiErrorResponse::CardExpired { data } => ErrorCode::ExpiredCard,
-            errors::ApiErrorResponse::RefundFailed { data } => ErrorCode::RefundFailed, // Nothing at stripe to map
+            errors::ApiErrorResponse::InvalidCardData { data } => StripeErrorCode::InvalidCardType, // Maybe it is better to de generalize this router error
+            errors::ApiErrorResponse::CardExpired { data } => StripeErrorCode::ExpiredCard,
+            errors::ApiErrorResponse::RefundFailed { data } => StripeErrorCode::RefundFailed, // Nothing at stripe to map
 
-            errors::ApiErrorResponse::InternalServerError => ErrorCode::InternalServerError, // not a stripe code
-            errors::ApiErrorResponse::IncorrectConnectorNameGiven => ErrorCode::InternalServerError,
-            errors::ApiErrorResponse::MandateActive => ErrorCode::MandateActive, //not a stripe code
-            errors::ApiErrorResponse::CustomerRedacted => ErrorCode::CustomerRedacted, //not a stripe code
-            errors::ApiErrorResponse::DuplicateRefundRequest => ErrorCode::DuplicateRefundRequest,
-            errors::ApiErrorResponse::RefundNotFound => ErrorCode::RefundNotFound,
-            errors::ApiErrorResponse::CustomerNotFound => ErrorCode::CustomerNotFound,
-            errors::ApiErrorResponse::PaymentNotFound => ErrorCode::PaymentNotFound,
-            errors::ApiErrorResponse::PaymentMethodNotFound => ErrorCode::PaymentMethodNotFound,
-            errors::ApiErrorResponse::ClientSecretNotGiven => ErrorCode::ClientSecretNotFound,
-            errors::ApiErrorResponse::MerchantAccountNotFound => ErrorCode::MerchantAccountNotFound,
-            errors::ApiErrorResponse::ResourceIdNotFound => ErrorCode::ResourceIdNotFound,
+            errors::ApiErrorResponse::InternalServerError => StripeErrorCode::InternalServerError, // not a stripe code
+            errors::ApiErrorResponse::IncorrectConnectorNameGiven => {
+                StripeErrorCode::InternalServerError
+            }
+            errors::ApiErrorResponse::MandateActive => StripeErrorCode::MandateActive, //not a stripe code
+            errors::ApiErrorResponse::CustomerRedacted => StripeErrorCode::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::DuplicateRefundRequest => {
+                StripeErrorCode::DuplicateRefundRequest
+            }
+            errors::ApiErrorResponse::RefundNotFound => StripeErrorCode::RefundNotFound,
+            errors::ApiErrorResponse::CustomerNotFound => StripeErrorCode::CustomerNotFound,
+            errors::ApiErrorResponse::PaymentNotFound => StripeErrorCode::PaymentNotFound,
+            errors::ApiErrorResponse::PaymentMethodNotFound => {
+                StripeErrorCode::PaymentMethodNotFound
+            }
+            errors::ApiErrorResponse::ClientSecretNotGiven => StripeErrorCode::ClientSecretNotFound,
+            errors::ApiErrorResponse::MerchantAccountNotFound => {
+                StripeErrorCode::MerchantAccountNotFound
+            }
+            errors::ApiErrorResponse::ResourceIdNotFound => StripeErrorCode::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
-                ErrorCode::MerchantConnectorAccountNotFound
+                StripeErrorCode::MerchantConnectorAccountNotFound
             }
-            errors::ApiErrorResponse::MandateNotFound => ErrorCode::MandateNotFound,
+            errors::ApiErrorResponse::MandateNotFound => StripeErrorCode::MandateNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
-                ErrorCode::PaymentIntentMandateInvalid { message: reason }
+                StripeErrorCode::PaymentIntentMandateInvalid { message: reason }
             }
-            errors::ApiErrorResponse::ReturnUrlUnavailable => ErrorCode::ReturnUrlUnavailable,
+            errors::ApiErrorResponse::ReturnUrlUnavailable => StripeErrorCode::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => {
-                ErrorCode::DuplicateMerchantAccount
+                StripeErrorCode::DuplicateMerchantAccount
             }
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount => {
-                ErrorCode::DuplicateMerchantConnectorAccount
+                StripeErrorCode::DuplicateMerchantConnectorAccount
             }
-            errors::ApiErrorResponse::DuplicatePaymentMethod => ErrorCode::DuplicatePaymentMethod,
+            errors::ApiErrorResponse::DuplicatePaymentMethod => {
+                StripeErrorCode::DuplicatePaymentMethod
+            }
             errors::ApiErrorResponse::ClientSecretInvalid => {
-                ErrorCode::PaymentIntentInvalidParameter {
+                StripeErrorCode::PaymentIntentInvalidParameter {
                     param: "client_secret".to_owned(),
                 }
             }
             errors::ApiErrorResponse::InvalidRequestData { message } => {
-                ErrorCode::InvalidRequestData { message }
+                StripeErrorCode::InvalidRequestData { message }
             }
             errors::ApiErrorResponse::PreconditionFailed { message } => {
-                ErrorCode::PreconditionFailed { message }
+                StripeErrorCode::PreconditionFailed { message }
             }
-            errors::ApiErrorResponse::BadCredentials => ErrorCode::Unauthorized,
+            errors::ApiErrorResponse::BadCredentials => StripeErrorCode::Unauthorized,
             errors::ApiErrorResponse::InvalidDataValue { field_name } => {
-                ErrorCode::ParameterMissing {
+                StripeErrorCode::ParameterMissing {
                     field_name: field_name.to_owned(),
                     param: field_name.to_owned(),
                 }
             }
-            errors::ApiErrorResponse::MaximumRefundCount => ErrorCode::MaximumRefundCount,
-            errors::ApiErrorResponse::PaymentNotSucceeded => ErrorCode::PaymentFailed,
-            errors::ApiErrorResponse::DuplicateMandate => ErrorCode::DuplicateMandate,
+            errors::ApiErrorResponse::MaximumRefundCount => StripeErrorCode::MaximumRefundCount,
+            errors::ApiErrorResponse::PaymentNotSucceeded => StripeErrorCode::PaymentFailed,
+            errors::ApiErrorResponse::DuplicateMandate => StripeErrorCode::DuplicateMandate,
             errors::ApiErrorResponse::SuccessfulPaymentNotFound => {
-                ErrorCode::SuccessfulPaymentNotFound
+                StripeErrorCode::SuccessfulPaymentNotFound
             }
-            errors::ApiErrorResponse::AddressNotFound => ErrorCode::AddressNotFound,
-            errors::ApiErrorResponse::NotImplemented => ErrorCode::Unauthorized,
+            errors::ApiErrorResponse::AddressNotFound => StripeErrorCode::AddressNotFound,
+            errors::ApiErrorResponse::NotImplemented => StripeErrorCode::Unauthorized,
             errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,
                 current_value,
                 states,
-            } => ErrorCode::PaymentIntentUnexpectedState {
+            } => StripeErrorCode::PaymentIntentUnexpectedState {
                 current_flow,
                 field_name,
                 current_value,
@@ -418,50 +428,50 @@ impl From<errors::ApiErrorResponse> for ErrorCode {
     }
 }
 
-impl actix_web::ResponseError for ErrorCode {
+impl actix_web::ResponseError for StripeErrorCode {
     fn status_code(&self) -> reqwest::StatusCode {
         use reqwest::StatusCode;
 
         match self {
-            ErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
-            ErrorCode::InvalidRequestUrl => StatusCode::NOT_FOUND,
-            ErrorCode::ParameterUnknown { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-            ErrorCode::ParameterMissing { .. }
-            | ErrorCode::RefundAmountExceedsPaymentAmount { .. }
-            | ErrorCode::PaymentIntentAuthenticationFailure { .. }
-            | ErrorCode::PaymentIntentPaymentAttemptFailed { .. }
-            | ErrorCode::ExpiredCard
-            | ErrorCode::InvalidCardType
-            | ErrorCode::DuplicateRefundRequest
-            | ErrorCode::RefundNotFound
-            | ErrorCode::CustomerNotFound
-            | ErrorCode::ClientSecretNotFound
-            | ErrorCode::PaymentNotFound
-            | ErrorCode::PaymentMethodNotFound
-            | ErrorCode::MerchantAccountNotFound
-            | ErrorCode::MerchantConnectorAccountNotFound
-            | ErrorCode::MandateNotFound
-            | ErrorCode::DuplicateMerchantAccount
-            | ErrorCode::DuplicateMerchantConnectorAccount
-            | ErrorCode::DuplicatePaymentMethod
-            | ErrorCode::PaymentFailed
-            | ErrorCode::VerificationFailed { .. }
-            | ErrorCode::MaximumRefundCount
-            | ErrorCode::PaymentIntentInvalidParameter { .. }
-            | ErrorCode::SerdeQsError { .. }
-            | ErrorCode::InvalidRequestData { .. }
-            | ErrorCode::PreconditionFailed { .. }
-            | ErrorCode::DuplicateMandate
-            | ErrorCode::SuccessfulPaymentNotFound
-            | ErrorCode::AddressNotFound
-            | ErrorCode::ResourceIdNotFound
-            | ErrorCode::PaymentIntentMandateInvalid { .. }
-            | ErrorCode::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
-            ErrorCode::RefundFailed
-            | ErrorCode::InternalServerError
-            | ErrorCode::MandateActive
-            | ErrorCode::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorCode::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+            StripeErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
+            StripeErrorCode::InvalidRequestUrl => StatusCode::NOT_FOUND,
+            StripeErrorCode::ParameterUnknown { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+            StripeErrorCode::ParameterMissing { .. }
+            | StripeErrorCode::RefundAmountExceedsPaymentAmount { .. }
+            | StripeErrorCode::PaymentIntentAuthenticationFailure { .. }
+            | StripeErrorCode::PaymentIntentPaymentAttemptFailed { .. }
+            | StripeErrorCode::ExpiredCard
+            | StripeErrorCode::InvalidCardType
+            | StripeErrorCode::DuplicateRefundRequest
+            | StripeErrorCode::RefundNotFound
+            | StripeErrorCode::CustomerNotFound
+            | StripeErrorCode::ClientSecretNotFound
+            | StripeErrorCode::PaymentNotFound
+            | StripeErrorCode::PaymentMethodNotFound
+            | StripeErrorCode::MerchantAccountNotFound
+            | StripeErrorCode::MerchantConnectorAccountNotFound
+            | StripeErrorCode::MandateNotFound
+            | StripeErrorCode::DuplicateMerchantAccount
+            | StripeErrorCode::DuplicateMerchantConnectorAccount
+            | StripeErrorCode::DuplicatePaymentMethod
+            | StripeErrorCode::PaymentFailed
+            | StripeErrorCode::VerificationFailed { .. }
+            | StripeErrorCode::MaximumRefundCount
+            | StripeErrorCode::PaymentIntentInvalidParameter { .. }
+            | StripeErrorCode::SerdeQsError { .. }
+            | StripeErrorCode::InvalidRequestData { .. }
+            | StripeErrorCode::PreconditionFailed { .. }
+            | StripeErrorCode::DuplicateMandate
+            | StripeErrorCode::SuccessfulPaymentNotFound
+            | StripeErrorCode::AddressNotFound
+            | StripeErrorCode::ResourceIdNotFound
+            | StripeErrorCode::PaymentIntentMandateInvalid { .. }
+            | StripeErrorCode::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
+            StripeErrorCode::RefundFailed
+            | StripeErrorCode::InternalServerError
+            | StripeErrorCode::MandateActive
+            | StripeErrorCode::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,
+            StripeErrorCode::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -475,36 +485,36 @@ impl actix_web::ResponseError for ErrorCode {
     }
 }
 
-impl From<serde_qs::Error> for ErrorCode {
+impl From<serde_qs::Error> for StripeErrorCode {
     fn from(item: serde_qs::Error) -> Self {
         match item {
-            serde_qs::Error::Custom(s) => ErrorCode::SerdeQsError {
+            serde_qs::Error::Custom(s) => StripeErrorCode::SerdeQsError {
                 error_message: s,
                 param: None,
             },
-            serde_qs::Error::Parse(param, position) => ErrorCode::SerdeQsError {
+            serde_qs::Error::Parse(param, position) => StripeErrorCode::SerdeQsError {
                 error_message: format!(
                     "parsing failed with error: '{param}' at position: {position}"
                 ),
                 param: Some(param),
             },
-            serde_qs::Error::Unsupported => ErrorCode::SerdeQsError {
+            serde_qs::Error::Unsupported => StripeErrorCode::SerdeQsError {
                 error_message: "Given request format is not supported".to_owned(),
                 param: None,
             },
-            serde_qs::Error::FromUtf8(_) => ErrorCode::SerdeQsError {
+            serde_qs::Error::FromUtf8(_) => StripeErrorCode::SerdeQsError {
                 error_message: "Failed to parse request to from utf-8".to_owned(),
                 param: None,
             },
-            serde_qs::Error::Io(_) => ErrorCode::SerdeQsError {
+            serde_qs::Error::Io(_) => StripeErrorCode::SerdeQsError {
                 error_message: "Failed to parse request".to_owned(),
                 param: None,
             },
-            serde_qs::Error::ParseInt(_) => ErrorCode::SerdeQsError {
+            serde_qs::Error::ParseInt(_) => StripeErrorCode::SerdeQsError {
                 error_message: "Failed to parse integer in request".to_owned(),
                 param: None,
             },
-            serde_qs::Error::Utf8(_) => ErrorCode::SerdeQsError {
+            serde_qs::Error::Utf8(_) => StripeErrorCode::SerdeQsError {
                 error_message: "Failed to convert utf8 to string".to_owned(),
                 param: None,
             },
