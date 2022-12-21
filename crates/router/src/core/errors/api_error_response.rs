@@ -148,53 +148,55 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            ApiErrorResponse::Unauthorized
-            | ApiErrorResponse::BadCredentials
-            | ApiErrorResponse::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
-            ApiErrorResponse::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
-            ApiErrorResponse::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
-            ApiErrorResponse::MissingRequiredField { .. }
-            | ApiErrorResponse::InvalidDataValue { .. } => StatusCode::BAD_REQUEST, // 400
-            ApiErrorResponse::InvalidDataFormat { .. }
-            | ApiErrorResponse::InvalidRequestData { .. } => StatusCode::UNPROCESSABLE_ENTITY, // 422
-            ApiErrorResponse::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            ApiErrorResponse::MaximumRefundCount => StatusCode::BAD_REQUEST,               // 400
-            ApiErrorResponse::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,        // 400
+            Self::Unauthorized | Self::BadCredentials | Self::InvalidEphermeralKey => {
+                StatusCode::UNAUTHORIZED
+            } // 401
+            Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {
+                StatusCode::BAD_REQUEST
+            } // 400
+            Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } // 422
+            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
+            Self::MaximumRefundCount => StatusCode::BAD_REQUEST, // 400
+            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
-            ApiErrorResponse::PaymentAuthorizationFailed { .. }
-            | ApiErrorResponse::PaymentAuthenticationFailed { .. }
-            | ApiErrorResponse::PaymentCaptureFailed { .. }
-            | ApiErrorResponse::InvalidCardData { .. }
-            | ApiErrorResponse::CardExpired { .. }
-            | ApiErrorResponse::RefundFailed { .. }
-            | ApiErrorResponse::VerificationFailed { .. }
-            | ApiErrorResponse::PaymentUnexpectedState { .. }
-            | ApiErrorResponse::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            Self::PaymentAuthorizationFailed { .. }
+            | Self::PaymentAuthenticationFailed { .. }
+            | Self::PaymentCaptureFailed { .. }
+            | Self::InvalidCardData { .. }
+            | Self::CardExpired { .. }
+            | Self::RefundFailed { .. }
+            | Self::VerificationFailed { .. }
+            | Self::PaymentUnexpectedState { .. }
+            | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
-            ApiErrorResponse::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
-            ApiErrorResponse::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
-            ApiErrorResponse::RefundNotFound
-            | ApiErrorResponse::CustomerNotFound
-            | ApiErrorResponse::MandateActive
-            | ApiErrorResponse::CustomerRedacted
-            | ApiErrorResponse::PaymentNotFound
-            | ApiErrorResponse::PaymentMethodNotFound
-            | ApiErrorResponse::MerchantAccountNotFound
-            | ApiErrorResponse::MerchantConnectorAccountNotFound
-            | ApiErrorResponse::MandateNotFound
-            | ApiErrorResponse::ClientSecretNotGiven
-            | ApiErrorResponse::ClientSecretInvalid
-            | ApiErrorResponse::SuccessfulPaymentNotFound
-            | ApiErrorResponse::IncorrectConnectorNameGiven
-            | ApiErrorResponse::ResourceIdNotFound
-            | ApiErrorResponse::AddressNotFound => StatusCode::BAD_REQUEST, // 400
-            ApiErrorResponse::DuplicateMerchantAccount
-            | ApiErrorResponse::DuplicateMerchantConnectorAccount
-            | ApiErrorResponse::DuplicatePaymentMethod
-            | ApiErrorResponse::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
-            ApiErrorResponse::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,  // 503
-            ApiErrorResponse::PaymentNotSucceeded => StatusCode::BAD_REQUEST,           // 400
-            ApiErrorResponse::NotImplemented => StatusCode::NOT_IMPLEMENTED,            // 501
+            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
+            Self::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
+            Self::RefundNotFound
+            | Self::CustomerNotFound
+            | Self::MandateActive
+            | Self::CustomerRedacted
+            | Self::PaymentNotFound
+            | Self::PaymentMethodNotFound
+            | Self::MerchantAccountNotFound
+            | Self::MerchantConnectorAccountNotFound
+            | Self::MandateNotFound
+            | Self::ClientSecretNotGiven
+            | Self::ClientSecretInvalid
+            | Self::SuccessfulPaymentNotFound
+            | Self::IncorrectConnectorNameGiven
+            | Self::ResourceIdNotFound
+            | Self::AddressNotFound => StatusCode::BAD_REQUEST, // 400
+            Self::DuplicateMerchantAccount
+            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicatePaymentMethod
+            | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
+            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,  // 503
+            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,           // 400
+            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,            // 501
         }
     }
 

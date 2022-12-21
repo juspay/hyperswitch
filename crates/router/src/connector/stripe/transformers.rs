@@ -217,7 +217,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => Address::default(),
         };
 
-        Ok(PaymentIntentRequest {
+        Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
@@ -292,16 +292,14 @@ pub enum StripePaymentStatus {
 impl From<StripePaymentStatus> for enums::AttemptStatus {
     fn from(item: StripePaymentStatus) -> Self {
         match item {
-            StripePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            StripePaymentStatus::Failed => enums::AttemptStatus::Failure,
-            StripePaymentStatus::Processing => enums::AttemptStatus::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => enums::AttemptStatus::PendingVbv,
-            StripePaymentStatus::RequiresPaymentMethod => {
-                enums::AttemptStatus::PaymentMethodAwaited
-            }
-            StripePaymentStatus::RequiresConfirmation => enums::AttemptStatus::ConfirmationAwaited,
-            StripePaymentStatus::Canceled => enums::AttemptStatus::Voided,
-            StripePaymentStatus::RequiresCapture => enums::AttemptStatus::Authorized,
+            StripePaymentStatus::Succeeded => Self::Charged,
+            StripePaymentStatus::Failed => Self::Failure,
+            StripePaymentStatus::Processing => Self::Authorizing,
+            StripePaymentStatus::RequiresCustomerAction => Self::PendingVbv,
+            StripePaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
+            StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
+            StripePaymentStatus::Canceled => Self::Voided,
+            StripePaymentStatus::RequiresCapture => Self::Authorized,
         }
     }
 }
@@ -375,7 +373,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Klarna {} => None,
                 });
 
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
             // description: item.response.description.map(|x| x.as_str()),
@@ -427,7 +425,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Klarna {} => None,
                 });
 
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
@@ -494,7 +492,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
         let metadata_txn_uuid = "Fetch txn_id from DB".to_string();
         let payment_intent = item.request.connector_transaction_id.clone();
-        Ok(RefundRequest {
+        Ok(Self {
             amount: Some(amount),
             payment_intent,
             metadata_order_id: item.payment_id.clone(),
@@ -545,7 +543,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
@@ -562,7 +560,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
@@ -753,7 +751,7 @@ pub struct StripeWebhookObjectId {
 impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
     fn from((pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType)) -> Self {
         match pm_data {
-            api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
+            api::PaymentMethod::Card(ref ccard) => Self::Card({
                 let payment_method_auth_type = match auth_type {
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
@@ -768,17 +766,15 @@ impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMeth
                     payment_method_auth_type,
                 }
             }),
-            api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
-            api::PaymentMethod::PayLater(ref klarna_data) => {
-                StripePaymentMethodData::Klarna(StripeKlarnaData {
-                    payment_method_types: "klarna".to_string(),
-                    payment_method_data_type: "klarna".to_string(),
-                    billing_email: klarna_data.billing_email.clone(),
-                    billing_country: klarna_data.country.clone(),
-                })
-            }
-            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
-            api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
+            api::PaymentMethod::BankTransfer => Self::Bank,
+            api::PaymentMethod::PayLater(ref klarna_data) => Self::Klarna(StripeKlarnaData {
+                payment_method_types: "klarna".to_string(),
+                payment_method_data_type: "klarna".to_string(),
+                billing_email: klarna_data.billing_email.clone(),
+                billing_country: klarna_data.country.clone(),
+            }),
+            api::PaymentMethod::Wallet(_) => Self::Wallet,
+            api::PaymentMethod::Paypal => Self::Paypal,
         }
     }
 }
