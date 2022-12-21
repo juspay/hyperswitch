@@ -116,6 +116,7 @@ pub struct Connectors {
     pub klarna: ConnectorParams,
     pub supported: SupportedConnectors,
     pub applepay: ConnectorParams,
+    pub shift4: ConnectorParams
 }
 
 #[derive(Debug, Deserialize, Clone)]

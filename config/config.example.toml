@@ -119,6 +119,9 @@ base_url = "https://api-na.playground.klarna.com/"
 [connectors.applepay]
 base_url = "https://apple-pay-gateway.apple.com/"
 
+[connectors.shift4]
+base_url = "https://api.shift4.com/"
+
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]

@@ -417,6 +417,7 @@ pub async fn validate_and_create_refund(
             validator::validate_maximum_refund_against_payment_attempt(&all_refunds)
                 .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
+            // TODO: internal server error without proper error message occurs when connector is empty
             let connector = payment_attempt
                 .connector
                 .clone()

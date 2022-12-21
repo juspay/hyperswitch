@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use crate::{core::errors,types::{self,storage::enums}};
+use crate::{core::errors,pii::PeekInterface,types::{self,api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {}
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
@@ -66,9 +66,9 @@ impl TryFrom<types::PaymentsResponseRouterData<{{project-name | downcase | pasca
 #[derive(Default, Debug, Serialize)]
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {}
 
-impl TryFrom<&types::RefundsRouterData> for {{project-name | downcase | pascal_case}}RefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData) -> Result<Self,Self::Error> {
+    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
        todo!()
     }
 }
@@ -103,14 +103,27 @@ impl From<self::RefundStatus> for enums::RefundStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct {{project-name | downcase | pascal_case}}RefundResponse {}
+pub struct RefundResponse {
+}
 
-impl TryFrom<types::RefundsResponseRouterData<{{project-name | downcase | pascal_case}}RefundResponse>> for types::RefundsRouterData {
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+    for types::RefundsRouterData<api::Execute>
+{
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<{{project-name | downcase | pascal_case}}RefundResponse>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
         todo!()
     }
 }
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+{
+     type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+         todo!()
+     }
+ }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
