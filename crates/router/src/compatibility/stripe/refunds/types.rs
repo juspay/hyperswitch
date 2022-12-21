@@ -5,24 +5,24 @@ use serde::{Deserialize, Serialize};
 use crate::types::api::refunds;
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub(crate) struct StripeCreateRefundRequest {
-    pub(crate) amount: Option<i64>,
-    pub(crate) payment_intent: String,
-    pub(crate) reason: Option<String>,
+pub struct StripeCreateRefundRequest {
+    pub amount: Option<i64>,
+    pub payment_intent: String,
+    pub reason: Option<String>,
 }
 
 #[derive(Clone, Serialize, PartialEq, Eq)]
-pub(crate) struct StripeCreateRefundResponse {
-    pub(crate) id: String,
-    pub(crate) amount: i64,
-    pub(crate) currency: String,
-    pub(crate) payment_intent: String,
-    pub(crate) status: StripeRefundStatus,
+pub struct StripeCreateRefundResponse {
+    pub id: String,
+    pub amount: i64,
+    pub currency: String,
+    pub payment_intent: String,
+    pub status: StripeRefundStatus,
 }
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum StripeRefundStatus {
+pub enum StripeRefundStatus {
     Succeeded,
     Failed,
     Pending,

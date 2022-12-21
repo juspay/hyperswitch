@@ -41,9 +41,8 @@ pub trait ConnectorCommon {
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
 
-    // TODO: Pass the connectors as borrow
     /// The base URL for interacting with the connector's API.
-    fn base_url(&self, connectors: Connectors) -> String;
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
 }
 
 pub trait Router {}

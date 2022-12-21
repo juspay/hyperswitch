@@ -217,7 +217,6 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data

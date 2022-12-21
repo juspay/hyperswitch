@@ -25,7 +25,6 @@ pub struct CardSource {
 #[serde(untagged)]
 pub enum Source {
     Card(CardSource),
-    // TODO: Add other sources here.
 }
 
 pub struct CheckoutAuthType {
@@ -220,7 +219,6 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),
                 redirection_data,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data
@@ -235,14 +233,31 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let redirection_url = item
+            .response
+            .links
+            .redirect
+            .map(|data| Url::parse(&data.href))
+            .transpose()
+            .into_report()
+            .change_context(errors::ParsingError)
+            .attach_printable("Could not parse the redirection data")?;
+
+        let redirection_data = redirection_url.map(|url| services::RedirectForm {
+            url: url.to_string(),
+            method: services::Method::Get,
+            form_fields: std::collections::HashMap::from_iter(
+                url.query_pairs()
+                    .map(|(k, v)| (k.to_string(), v.to_string())),
+            ),
+        });
+
         Ok(types::RouterData {
             status: enums::AttemptStatus::foreign_from((item.response.status, None)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                //TODO: Add redirection details here
-                redirection_data: None,
-                redirect: false,
-                // TODO: Implement mandate fetch for other connectors
+                redirect: redirection_data.is_some(),
+                redirection_data,
                 mandate_reference: None,
             }),
             ..item.data
@@ -284,7 +299,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
                 redirect: false,
                 redirection_data: None,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             status: response.into(),
