@@ -296,6 +296,19 @@ async fn handle_response(
                             .change_context(errors::ApiClientError::ResponseDecodingFailed)
                             .attach_printable("Client error response received")
                     })?;
+                    /* let error = match status_code {
+                        400 => errors::ApiClientError::BadRequestReceived(bytes),
+                        401 => errors::ApiClientError::UnauthorizedReceived(bytes),
+                        403 => errors::ApiClientError::ForbiddenReceived,
+                        404 => errors::ApiClientError::NotFoundReceived(bytes),
+                        405 => errors::ApiClientError::MethodNotAllowedReceived,
+                        408 => errors::ApiClientError::RequestTimeoutReceived,
+                        422 => errors::ApiClientError::UnprocessableEntityReceived(bytes),
+                        429 => errors::ApiClientError::TooManyRequestsReceived,
+                        _ => errors::ApiClientError::UnexpectedServerResponse,
+                    };
+                    Err(report!(error).attach_printable("Client error response received"))
+                        */
                     Ok(Err(Response {
                         response: bytes,
                         status_code,

@@ -19,7 +19,7 @@ pub enum ErrorType {
 pub enum ApiErrorResponse {
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_01",
-        message = "API key not provided or invalid API key used. Provide API key in the Authorization header or crate new API key, using api-key (e.g api-key: API_KEY)."
+        message = "API key not provided or invalid API key used. Provide API key in the Authorization header or create new API key, using api-key (e.g api-key: API_KEY)."
     )]
     Unauthorized,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
