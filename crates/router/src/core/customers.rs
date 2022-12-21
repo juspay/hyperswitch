@@ -1,5 +1,5 @@
 use error_stack::ResultExt;
-use router_env::{tracing, instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     core::{

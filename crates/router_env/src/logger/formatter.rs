@@ -13,11 +13,11 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 // use time::format_description::well_known::Rfc3339;
 use time::format_description::well_known::Iso8601;
-use tracing::{Event, Id, Metadata, Collect};
+use tracing::{Collect, Event, Id, Metadata};
 use tracing_subscriber::{
     fmt::MakeWriter,
-    subscribe::Context,
     registry::{LookupSpan, SpanRef},
+    subscribe::Context,
     Subscribe,
 };
 

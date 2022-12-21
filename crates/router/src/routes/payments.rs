@@ -5,10 +5,7 @@ use actix_web::{
     web, HttpRequest, HttpResponse, Responder,
 };
 use error_stack::report;
-use router_env::{
-    tracing, instrument,
-    Flow,
-};
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{

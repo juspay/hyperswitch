@@ -17,7 +17,7 @@ use opentelemetry::{
 use opentelemetry_otlp::WithExportConfig;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
-    filter, fmt, subscribe::CollectExt, util::SubscriberInitExt, EnvFilter, Subscribe
+    filter, fmt, subscribe::CollectExt, util::SubscriberInitExt, EnvFilter, Subscribe,
 };
 
 use crate::{config, FormattingLayer, Level, StorageSubscription};
@@ -73,7 +73,9 @@ pub fn setup<Str: AsRef<str>>(
     };
 
     let telemetry_layer = match telemetry {
-        Some(Ok(ref tracer)) => Some(tracing_opentelemetry::subscriber().with_tracer(tracer.clone())),
+        Some(Ok(ref tracer)) => {
+            Some(tracing_opentelemetry::subscriber().with_tracer(tracer.clone()))
+        }
         _ => None,
     };
 

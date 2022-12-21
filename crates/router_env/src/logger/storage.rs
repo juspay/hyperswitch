@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt, time::Instant};
 use tracing::{
     field::{Field, Visit},
     span::{Attributes, Record},
-    Id, Collect,
+    Collect, Id,
 };
 use tracing_subscriber::{subscribe::Context, Subscribe};
 
