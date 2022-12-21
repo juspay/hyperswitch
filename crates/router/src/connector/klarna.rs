@@ -30,8 +30,8 @@ impl api::ConnectorCommon for Klarna {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
-        connectors.klarna.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.klarna.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -83,7 +83,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsSessionRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -106,7 +106,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSessionRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
