@@ -197,8 +197,8 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    {
-        let (payment_data, req, customer) = payments_operation_core(
+{
+    let (payment_data, req, customer) = payments_operation_core(
         state,
         merchant_account,
         operation.clone(),
