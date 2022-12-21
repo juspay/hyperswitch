@@ -481,7 +481,7 @@ pub struct CustomerDetails {
 
 pub fn if_not_create_change_operation<'a, Op, F>(
     is_update: bool,
-    status: enums::IntentStatus,
+    status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
 ) -> BoxedOperation<F, api::PaymentsRequest>
@@ -494,9 +494,9 @@ where
         Box::new(PaymentConfirm)
     } else {
         match status {
-            enums::IntentStatus::RequiresConfirmation
-            | enums::IntentStatus::RequiresCustomerAction
-            | enums::IntentStatus::RequiresPaymentMethod => {
+            storage_enums::IntentStatus::RequiresConfirmation
+            | storage_enums::IntentStatus::RequiresCustomerAction
+            | storage_enums::IntentStatus::RequiresPaymentMethod => {
                 if is_update {
                     Box::new(&PaymentUpdate)
                 } else {
