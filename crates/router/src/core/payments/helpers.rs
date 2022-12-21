@@ -827,6 +827,20 @@ impl Vault {
             .attach_printable("Add Card Failed")?;
         Ok(txn_id.to_string())
     }
+
+    #[instrument(skip_all)]
+    pub async fn delete_locker_payment_method_by_lookup_key(
+        state: &AppState,
+        lookup_key: &Option<String>,
+    ) {
+        let db = &*state.store;
+        if let Some(id) = lookup_key {
+            match cards::mock_delete_card(db, id).await {
+                Ok(_) => print!("Card Deleted from locker mock up"),
+                Err(_) => print!("Err: Card Delete from locker Failed"),
+            }
+        }
+    }
 }
 
 #[cfg(feature = "basilisk")]
@@ -888,6 +902,26 @@ impl Vault {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error getting Value12 for locker")?;
         cards::create_tokenize(state, value1, Some(value2), txn_id.to_string()).await
+    }
+
+    #[instrument(skip_all)]
+    pub async fn delete_locker_payment_method_by_lookup_key(
+        state: &AppState,
+        lookup_key: &Option<String>,
+    ) {
+        if let Some(lookup_key) = lookup_key {
+            let delete_resp = cards::delete_tokenized_data(state, lookup_key).await;
+            match delete_resp {
+                Ok(resp) => {
+                    if resp == "Ok" {
+                        print!("Card From locker deleted Successfully")
+                    } else {
+                        print!("Error: Deleting Card From Locker")
+                    }
+                }
+                Err(_) => print!("Err: Deleting Card From Locker"),
+            }
+        }
     }
 }
 
