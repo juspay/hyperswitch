@@ -33,9 +33,9 @@ pub mod diesel_exports {
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
-    OrcaDeclined,
-    PendingCustomerAuthentication,
-    CustomerAuthenticationSuccessful,
+    RouterDeclined,
+    AuthenticationPending,
+    AuthenticationSuccessful,
     Authorized,
     AuthorizationFailed,
     Charged,

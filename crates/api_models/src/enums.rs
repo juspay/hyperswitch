@@ -15,9 +15,9 @@
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
-    OrcaDeclined,
-    PendingCustomerAuthentication,
-    CustomerAuthenticationSuccessful,
+    RouterDeclined,
+    AuthenticationPending,
+    AuthenticationSuccessful,
     Authorized,
     AuthorizationFailed,
     Charged,
@@ -506,11 +506,11 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => IntentStatus::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => IntentStatus::RequiresCapture,
-            AttemptStatus::PendingCustomerAuthentication => IntentStatus::RequiresCustomerAction,
+            AttemptStatus::AuthenticationPending => IntentStatus::RequiresCustomerAction,
 
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
-            | AttemptStatus::CustomerAuthenticationSuccessful
+            | AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::Authorizing
             | AttemptStatus::CodInitiated
             | AttemptStatus::VoidInitiated
@@ -520,7 +520,7 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::AuthenticationFailed
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::VoidFailed
-            | AttemptStatus::OrcaDeclined
+            | AttemptStatus::RouterDeclined
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure => IntentStatus::Failed,
             AttemptStatus::Voided => IntentStatus::Cancelled,

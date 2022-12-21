@@ -487,7 +487,7 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     fn from(item: CheckoutRedirectResponseStatus) -> Self {
         match item {
             CheckoutRedirectResponseStatus::Success => {
-                types::storage::enums::AttemptStatus::CustomerAuthenticationSuccessful
+                types::storage::enums::AttemptStatus::AuthenticationSuccessful
             }
 
             CheckoutRedirectResponseStatus::Failure => {

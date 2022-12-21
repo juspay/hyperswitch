@@ -274,7 +274,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
             _ => (
                 enums::IntentStatus::RequiresCustomerAction,
-                enums::AttemptStatus::PendingCustomerAuthentication,
+                enums::AttemptStatus::AuthenticationPending,
             ),
         };
 
