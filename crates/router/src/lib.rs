@@ -52,7 +52,6 @@ use crate::{
     core::errors::{self, BachResult},
 };
 
-
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
