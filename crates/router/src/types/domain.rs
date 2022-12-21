@@ -132,8 +132,8 @@ mod tests {
 
     #[test]
     fn test_deserialize_payment_id() {
-        let payment_id = "\"pay_348u23403956kfdsgjb93y2\"".to_string();
+        let payment_id = r#""pay_348u23403956kfdsgjb93y2""#.to_string();
         let payment_id_new: PaymentId = serde_json::from_str(&payment_id).unwrap();
-        println!("{}", payment_id_new)
+        println!("{payment_id_new}")
     }
 }
