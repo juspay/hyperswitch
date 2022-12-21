@@ -46,8 +46,8 @@ pub async fn trim_from_stream(
     minimum_entry_id: &str,
     redis: &redis::RedisConnectionPool,
 ) -> errors::DrainerResult<usize> {
-    let trim_kind = "MINID";
-    let trim_type = "EXACT";
+    let trim_kind = redis::StreamCapKind::MinID;
+    let trim_type = redis::StreamCapTrim::Exact;
     let trim_id = minimum_entry_id;
     let trim_result = redis
         .stream_trim_entries(stream_name, (trim_kind, trim_type, trim_id))
