@@ -27,7 +27,7 @@ tracing-appender = { git = "https://github.com/jarnura/tracing", rev = "16d27722
 tracing-subscriber = { git = "https://github.com/jarnura/tracing", rev = "16d277227f60788750528e4f4cc1db4f36b0869f", default-features = true, features = ["json", "env-filter", "registry"] }
 tracing-opentelemetry = { git = "https://github.com/jarnura/tracing", rev = "16d277227f60788750528e4f4cc1db4f36b0869f" }
 vergen = { version = "7.4.3", optional = true }
-tracing-attributes = "0.1.23"
+tracing-attributes = "0.1.22"
 
 [dev-dependencies]
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
