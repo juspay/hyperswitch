@@ -281,6 +281,8 @@ pub enum ConnectorError {
     FailedToObtainIntegrationUrl,
     #[error("Failed to encode connector request")]
     RequestEncodingFailed,
+    #[error("Request encoding failed : {0}")]
+    RequestEncodingFailedWithReason(String),
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
