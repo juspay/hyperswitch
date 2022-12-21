@@ -126,6 +126,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .attach_printable("Database error when finding connector response")
             })?;
 
+        let next_operation: BoxedOperation<'a, F, api::PaymentsRequest> =
+            if request.confirm.unwrap_or(false) {
+                Box::new(operations::PaymentConfirm)
+            } else {
+                Box::new(self)
+            };
+
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -135,7 +142,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 }))
             }
             _ => Ok((
-                Box::new(self),
+                next_operation,
                 PaymentData {
                     flow: PhantomData,
                     payment_intent,
@@ -227,10 +234,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
+        _state: &'a AppState,
+        _payment_attempt: &storage::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        Ok(())
     }
 
     async fn get_connector<'a>(
@@ -351,6 +358,13 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             ),
             None => None,
         };
+
+        if let Some(true) = request.confirm {
+            helpers::validate_pm_or_token_given(
+                &request.payment_token,
+                &request.payment_method_data,
+            )?;
+        }
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)

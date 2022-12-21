@@ -63,7 +63,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationExt<T, Req, Re
     fn get_url(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
-        _connectors: Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(String::new())
     }
@@ -78,7 +78,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationExt<T, Req, Re
     fn build_request(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
-        _connectors: Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(None)
     }
@@ -153,7 +153,7 @@ where
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {
-            match connector_integration.build_request(req, state.conf.connectors.clone())? {
+            match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
                     let response = call_connector_api(state, request).await;
                     match response {

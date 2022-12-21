@@ -26,8 +26,8 @@ impl api::ConnectorCommon for Applepay {
         "applepay"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
-        connectors.applepay.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.applepay.base_url.as_ref()
     }
 }
 
@@ -103,7 +103,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsSessionRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -124,11 +124,10 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSessionRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
             .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
             .headers(types::PaymentsSessionType::get_headers(self, req)?)
             .body(types::PaymentsSessionType::get_request_body(self, req)?)

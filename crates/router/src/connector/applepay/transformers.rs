@@ -77,7 +77,6 @@ impl<F, T>
         item: types::ResponseRouterData<F, ApplepaySessionResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            //TODO : change in session response to fit apple pay session object
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: {
                     api_models::payments::SessionToken::Applepay {
