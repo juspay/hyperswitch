@@ -13,7 +13,7 @@ use router_env::opentelemetry::metrics::MetricsError;
 use storage_models::errors as storage_errors;
 
 pub use self::api_error_response::ApiErrorResponse;
-pub(crate) use self::utils::{ApiClientErrorExt, ConnectorErrorExt, StorageErrorExt};
+pub(crate) use self::utils::{ConnectorErrorExt, StorageErrorExt};
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::BachResponse<T>, ApiErrorResponse>;
@@ -246,22 +246,8 @@ pub enum ApiClientError {
     #[error("Failed to decode response")]
     ResponseDecodingFailed,
 
-    #[error("Server responded with Bad Request")]
-    BadRequestReceived(bytes::Bytes),
-    #[error("Server responded with Unauthorized")]
-    UnauthorizedReceived(bytes::Bytes),
-    #[error("Server responded with Forbidden")]
-    ForbiddenReceived,
-    #[error("Server responded with Not Found")]
-    NotFoundReceived(bytes::Bytes),
-    #[error("Server responded with Method Not Allowed")]
-    MethodNotAllowedReceived,
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
-    #[error("Server responded with Unprocessable Entity")]
-    UnprocessableEntityReceived(bytes::Bytes),
-    #[error("Server responded with Too Many Requests")]
-    TooManyRequestsReceived,
 
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,

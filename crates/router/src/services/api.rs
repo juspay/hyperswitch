@@ -18,9 +18,7 @@ pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
     core::{
-        errors::{
-            self, ApiClientErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
-        },
+        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
         payments,
     },
     db::StorageInterface,
@@ -173,7 +171,8 @@ where
                             logger::debug!(?response);
                             Ok(response)
                         }
-                        Err(error) => Err(error.to_unsuccessful_processing_step_response()),
+                        Err(error) => Err(error
+                            .change_context(errors::ConnectorError::ProcessingStepFailed(None))),
                     }
                 }
                 None => Ok(router_data),
