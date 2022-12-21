@@ -13,12 +13,12 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 // use time::format_description::well_known::Rfc3339;
 use time::format_description::well_known::Iso8601;
-use tracing::{Event, Id, Metadata, Subscriber};
+use tracing::{Event, Id, Metadata, Collect};
 use tracing_subscriber::{
     fmt::MakeWriter,
-    layer::Context,
+    subscribe::Context,
     registry::{LookupSpan, SpanRef},
-    Layer,
+    Subscribe,
 };
 
 use crate::Storage;
@@ -184,7 +184,7 @@ where
         message: &str,
     ) -> Result<(), std::io::Error>
     where
-        S: Subscriber + for<'a> LookupSpan<'a>,
+        S: Collect + for<'a> LookupSpan<'a>,
     {
         let is_extra = |s: &str| !IMPLICIT_KEYS.contains(s);
         let is_extra_implicit = |s: &str| is_extra(s) && EXTRA_IMPLICIT_KEYS.contains(s);
@@ -278,7 +278,7 @@ where
         ty: RecordType,
     ) -> Result<Vec<u8>, std::io::Error>
     where
-        S: Subscriber + for<'a> LookupSpan<'a>,
+        S: Collect + for<'a> LookupSpan<'a>,
     {
         let mut buffer = Vec::new();
         let mut serializer = serde_json::Serializer::new(&mut buffer);
@@ -305,7 +305,7 @@ where
         event: &Event<'_>,
     ) -> std::io::Result<Vec<u8>>
     where
-        S: Subscriber + for<'a> LookupSpan<'a>,
+        S: Collect + for<'a> LookupSpan<'a>,
     {
         let mut buffer = Vec::new();
         let mut serializer = serde_json::Serializer::new(&mut buffer);
@@ -338,7 +338,7 @@ where
 
     fn span_message<S>(span: &SpanRef<'_, S>, ty: RecordType) -> String
     where
-        S: Subscriber + for<'a> LookupSpan<'a>,
+        S: Collect + for<'a> LookupSpan<'a>,
     {
         format!("[{} - {}]", span.metadata().name().to_uppercase(), ty)
     }
@@ -355,7 +355,7 @@ where
         storage: &Storage<'_>,
     ) -> String
     where
-        S: Subscriber + for<'a> LookupSpan<'a>,
+        S: Collect + for<'a> LookupSpan<'a>,
     {
         // Get value of ket "message" or "target" if does not exist.
         let mut message = storage
@@ -382,9 +382,9 @@ where
 }
 
 #[allow(clippy::expect_used)]
-impl<S, W> Layer<S> for FormattingLayer<W>
+impl<S, W> Subscribe<S> for FormattingLayer<W>
 where
-    S: Subscriber + for<'a> LookupSpan<'a>,
+    S: Collect + for<'a> LookupSpan<'a>,
     W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
