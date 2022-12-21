@@ -391,15 +391,13 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
             .metadata
-            .and_then(|metadata_value| {
-                Some(
-                    serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
-                        .into_report()
-                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "metadata",
-                        })
-                        .attach_printable("unable to parse metadata"),
-                )
+            .map(|metadata_value| {
+                serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "metadata",
+                    })
+                    .attach_printable("unable to parse metadata")
             })
             .transpose()?;
 
@@ -487,15 +485,13 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
             .metadata
-            .and_then(|metadata_value| {
-                Some(
-                    serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
-                        .into_report()
-                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "metadata",
-                        })
-                        .attach_printable("unable to parse metadata"),
-                )
+            .map(|metadata_value| {
+                serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "metadata",
+                    })
+                    .attach_printable("unable to parse metadata")
             })
             .transpose()?;
 
