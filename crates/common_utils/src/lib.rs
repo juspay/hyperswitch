@@ -10,7 +10,8 @@
     clippy::panicking_unwrap,
     clippy::unreachable,
     clippy::unwrap_in_result,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    clippy::unimplemented
 )]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 

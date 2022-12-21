@@ -7,14 +7,13 @@ use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     core::errors::{self, CustomResult},
     headers,
     services::{self, logger},
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -31,7 +30,7 @@ impl api::ConnectorCommon for Klarna {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.klarna.base_url
     }
 
@@ -84,7 +83,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsSessionRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -107,7 +106,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSessionRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -123,7 +122,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSessionRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaSessionResponse = res
             .response
@@ -140,11 +139,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: klarna::KlarnaErrorResponse = res
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: response.error_code,
             message: response.error_messages.join(" & "),
             reason: None,

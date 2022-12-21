@@ -1,25 +1,22 @@
 mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use api_models::payments as payment_types;
 use error_stack::report;
 use router_env::{tracing, tracing::instrument};
 
 use crate::{
-    compatibility::{stripe, wrap},
+    compatibility::{stripe::errors, wrap},
     core::payments,
-    routes::AppState,
+    routes,
     services::api,
-    types::api::{
-        self as api_types, payments::PaymentsCaptureRequest, Authorize, Capture, PSync,
-        PaymentListConstraints, PaymentsCancelRequest, PaymentsRequest, PaymentsRetrieveRequest,
-        Void,
-    },
+    types::api::{self as api_types},
 };
 
 #[post("")]
 #[instrument(skip_all)]
 pub async fn payment_intents_create(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -28,11 +25,11 @@ pub async fn payment_intents_create(
         match qs_config.deserialize_bytes(&form_payload) {
             Ok(p) => p,
             Err(err) => {
-                return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
             }
         };
 
-    let create_payment_req: PaymentsRequest = payload.into();
+    let create_payment_req: payment_types::PaymentsRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
         _,
@@ -41,14 +38,14 @@ pub async fn payment_intents_create(
         _,
         _,
         types::StripePaymentIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         create_payment_req,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
@@ -66,11 +63,11 @@ pub async fn payment_intents_create(
 #[instrument(skip_all)]
 #[get("/{payment_id}")]
 pub async fn payment_intents_retrieve(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let payload = PaymentsRetrieveRequest {
+    let payload = payment_types::PaymentsRetrieveRequest {
         resource_id: api_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: None,
         force_sync: true,
@@ -91,13 +88,13 @@ pub async fn payment_intents_retrieve(
         _,
         _,
         types::StripePaymentIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -115,7 +112,7 @@ pub async fn payment_intents_retrieve(
 #[instrument(skip_all)]
 #[post("/{payment_id}")]
 pub async fn payment_intents_update(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -126,11 +123,11 @@ pub async fn payment_intents_update(
         match qs_config.deserialize_bytes(&form_payload) {
             Ok(p) => p,
             Err(err) => {
-                return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
             }
         };
 
-    let mut payload: PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
 
     let auth_type;
@@ -146,14 +143,14 @@ pub async fn payment_intents_update(
         _,
         _,
         types::StripePaymentIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -171,7 +168,7 @@ pub async fn payment_intents_update(
 #[instrument(skip_all)]
 #[post("/{payment_id}/confirm")]
 pub async fn payment_intents_confirm(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -182,11 +179,11 @@ pub async fn payment_intents_confirm(
         match qs_config.deserialize_bytes(&form_payload) {
             Ok(p) => p,
             Err(err) => {
-                return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
             }
         };
 
-    let mut payload: PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
@@ -203,14 +200,14 @@ pub async fn payment_intents_confirm(
         _,
         _,
         types::StripePaymentIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
@@ -227,20 +224,21 @@ pub async fn payment_intents_confirm(
 
 #[post("/{payment_id}/capture")]
 pub async fn payment_intents_capture(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let stripe_payload: PaymentsCaptureRequest = match qs_config.deserialize_bytes(&form_payload) {
-        Ok(p) => p,
-        Err(err) => {
-            return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
-        }
-    };
+    let stripe_payload: payment_types::PaymentsCaptureRequest =
+        match qs_config.deserialize_bytes(&form_payload) {
+            Ok(p) => p,
+            Err(err) => {
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
+            }
+        };
 
-    let capture_payload = PaymentsCaptureRequest {
+    let capture_payload = payment_types::PaymentsCaptureRequest {
         payment_id: Some(path.into_inner()),
         ..stripe_payload
     };
@@ -252,13 +250,13 @@ pub async fn payment_intents_capture(
         _,
         _,
         types::StripePaymentIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Capture, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -276,7 +274,7 @@ pub async fn payment_intents_capture(
 #[instrument(skip_all)]
 #[post("/{payment_id}/cancel")]
 pub async fn payment_intents_cancel(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -287,11 +285,11 @@ pub async fn payment_intents_cancel(
         match qs_config.deserialize_bytes(&form_payload) {
             Ok(p) => p,
             Err(err) => {
-                return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
             }
         };
 
-    let mut payload: PaymentsCancelRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;
 
     let auth_type = match api::get_auth_type(&req) {
@@ -306,13 +304,13 @@ pub async fn payment_intents_cancel(
         _,
         _,
         types::StripePaymentIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Void, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,
@@ -330,11 +328,11 @@ pub async fn payment_intents_cancel(
 #[instrument(skip_all)]
 #[get("/list")]
 pub async fn payment_intent_list(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     req: HttpRequest,
     payload: web::Query<types::StripePaymentListConstraints>,
 ) -> HttpResponse {
-    let payload = match PaymentListConstraints::try_from(payload.into_inner()) {
+    let payload = match payment_types::PaymentListConstraints::try_from(payload.into_inner()) {
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -345,7 +343,7 @@ pub async fn payment_intent_list(
         _,
         _,
         types::StripePaymentIntentListResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,

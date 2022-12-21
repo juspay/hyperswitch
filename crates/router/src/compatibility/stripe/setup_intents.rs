@@ -1,21 +1,22 @@
 mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use api_models::payments as payment_types;
 use error_stack::report;
 use router_env::{tracing, tracing::instrument};
 
 use crate::{
-    compatibility::{stripe, wrap},
+    compatibility::{stripe::errors, wrap},
     core::payments,
-    routes::AppState,
+    routes,
     services::api,
-    types::api::{self as api_types, PSync, PaymentsRequest, PaymentsRetrieveRequest, Verify},
+    types::api::{self as api_types},
 };
 
 #[post("")]
 #[instrument(skip_all)]
 pub async fn setup_intents_create(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -24,11 +25,11 @@ pub async fn setup_intents_create(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
         }
     };
 
-    let create_payment_req: PaymentsRequest = payload.into();
+    let create_payment_req: payment_types::PaymentsRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
         _,
@@ -37,14 +38,14 @@ pub async fn setup_intents_create(
         _,
         _,
         types::StripeSetupIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         create_payment_req,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
@@ -62,11 +63,11 @@ pub async fn setup_intents_create(
 #[instrument(skip_all)]
 #[get("/{setup_id}")]
 pub async fn setup_intents_retrieve(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let payload = PaymentsRetrieveRequest {
+    let payload = payment_types::PaymentsRetrieveRequest {
         resource_id: api_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: None,
         force_sync: true,
@@ -87,13 +88,13 @@ pub async fn setup_intents_retrieve(
         _,
         _,
         types::StripeSetupIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -111,7 +112,7 @@ pub async fn setup_intents_retrieve(
 #[instrument(skip_all)]
 #[post("/{setup_id}")]
 pub async fn setup_intents_update(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -122,11 +123,11 @@ pub async fn setup_intents_update(
         match qs_config.deserialize_bytes(&form_payload) {
             Ok(p) => p,
             Err(err) => {
-                return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
             }
         };
 
-    let mut payload: PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
     let auth_type;
@@ -142,14 +143,14 @@ pub async fn setup_intents_update(
         _,
         _,
         types::StripeSetupIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -167,7 +168,7 @@ pub async fn setup_intents_update(
 #[instrument(skip_all)]
 #[post("/{setup_id}/confirm")]
 pub async fn setup_intents_confirm(
-    state: web::Data<AppState>,
+    state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
@@ -178,11 +179,11 @@ pub async fn setup_intents_confirm(
         match qs_config.deserialize_bytes(&form_payload) {
             Ok(p) => p,
             Err(err) => {
-                return api::log_and_return_error_response(report!(stripe::ErrorCode::from(err)))
+                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
             }
         };
 
-    let mut payload: PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 
@@ -199,14 +200,14 @@ pub async fn setup_intents_confirm(
         _,
         _,
         types::StripeSetupIntentResponse,
-        stripe::ErrorCode,
+        errors::ErrorCode,
     >(
         &state,
         &req,
         payload,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,

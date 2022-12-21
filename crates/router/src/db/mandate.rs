@@ -93,7 +93,8 @@ impl MandateInterface for MockDb {
         _merchant_id: &str,
         _mandate_id: &str,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -101,7 +102,8 @@ impl MandateInterface for MockDb {
         _merchant_id: &str,
         _customer_id: &str,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -110,13 +112,15 @@ impl MandateInterface for MockDb {
         _mandate_id: &str,
         _mandate: storage::MandateUpdate,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_mandate(
         &self,
         _mandate: storage::MandateNew,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

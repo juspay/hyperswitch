@@ -159,7 +159,8 @@ impl MerchantAccountInterface for MockDb {
 
         match account {
             Some(account) => Ok(account.clone()),
-            None => todo!(),
+            // [#172]: Implement function for `MockDb`
+            None => Err(errors::StorageError::MockDbError)?,
         }
     }
 
@@ -168,7 +169,8 @@ impl MerchantAccountInterface for MockDb {
         _this: storage::MerchantAccount,
         _merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -190,13 +192,15 @@ impl MerchantAccountInterface for MockDb {
         &self,
         _publishable_key: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
         _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }
