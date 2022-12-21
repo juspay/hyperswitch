@@ -40,7 +40,6 @@ impl api::ConnectorCommon for Adyen {
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
 
-    //FIXME with enum
     fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.adyen.base_url
     }
@@ -60,7 +59,7 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
-    // TODO: Critical implement
+    // Issue: #173
 }
 
 impl api::PaymentSession for Adyen {}
@@ -362,7 +361,6 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")

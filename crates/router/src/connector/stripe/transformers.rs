@@ -348,7 +348,6 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // Redirect form not used https://juspay.atlassian.net/browse/ORCA-301
         let redirection_data = item.response.next_action.as_ref().map(
             |StripeNextActionResponse::RedirectToUrl(response)| {
                 let mut base_url = response.url.clone();
@@ -507,28 +506,23 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
 
 // Type definition for Stripe Refund Response
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
-    Processing,
-}
-
-// Default should be Processing
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Processing
-    }
+    #[default]
+    Pending,
+    RequiresAction,
 }
 
 impl From<self::RefundStatus> for enums::RefundStatus {
     fn from(item: self::RefundStatus) -> Self {
         match item {
-            self::RefundStatus::Succeeded => enums::RefundStatus::Success,
-            self::RefundStatus::Failed => enums::RefundStatus::Failure,
-            self::RefundStatus::Processing => enums::RefundStatus::Pending,
-            //TODO: Review mapping
+            self::RefundStatus::Succeeded => Self::Success,
+            self::RefundStatus::Failed => Self::Failure,
+            self::RefundStatus::Pending => Self::Pending,
+            self::RefundStatus::RequiresAction => Self::ManualReview,
         }
     }
 }
@@ -617,7 +611,7 @@ pub struct StripeRedirectResponse {
     pub payment_intent: String,
     pub payment_intent_client_secret: String,
     pub source_redirect_slug: Option<String>,
-    pub redirect_status: Option<String>,
+    pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<String>,
 }
 

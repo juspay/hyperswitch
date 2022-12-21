@@ -72,7 +72,7 @@ impl
         types::PaymentsResponseData,
     > for Aci
 {
-    // TODO: Critical Implement
+    // Issue: #173
 }
 
 impl
@@ -345,7 +345,6 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)

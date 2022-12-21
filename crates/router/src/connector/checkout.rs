@@ -77,7 +77,7 @@ impl
         types::PaymentsResponseData,
     > for Checkout
 {
-    // TODO: Critical Implement
+    // Issue: #173
 }
 
 impl
@@ -251,7 +251,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        //TODO: [ORCA-618] If 3ds fails, the response should be a redirect response, to redirect client to success/failed page
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -276,14 +275,12 @@ impl
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                //Considered all the codes here but have to look into the exact no.of codes
                 .join(" & "),
             message: response
                 .error_type
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
         })
-        //TODO : No sufficient information of error codes (no.of error codes to consider)
     }
 }
 
@@ -375,7 +372,6 @@ impl
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                //Considered all the codes here but have to look into the exact no.of codes
                 .join(" & "),
             message: response
                 .error_type
@@ -482,14 +478,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                //Considered all the codes here but have to look into the exact no.of codes
                 .join(" & "),
             message: response
                 .error_type
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
         })
-        //TODO : No sufficient information of error codes (no.of error codes to consider)
     }
 }
 
@@ -582,14 +576,12 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                //Considered all the codes here but have to look into the exact no.of codes
                 .join(" & "),
             message: response
                 .error_type
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
         })
-        //TODO : No sufficient information of error codes (no.of error codes to consider)
     }
 }
 

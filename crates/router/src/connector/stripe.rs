@@ -10,7 +10,10 @@ use self::transformers as stripe;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db::StorageInterface,
     headers, logger, services,
     types::{
@@ -606,7 +609,6 @@ impl
             reason: None,
         })
     }
-    // TODO CRITICAL: Implement for POC
 }
 
 impl api::Refund for Stripe {}
@@ -755,7 +757,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
@@ -946,13 +947,10 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if query.redirect_status.is_some() {
-            //TODO: Map the  redirect status of StripeRedirectResponse to AttemptStatus
-            Ok(crate::core::payments::CallConnectorAction::StatusUpdate(
-                types::storage::enums::AttemptStatus::Pending,
-            ))
-        } else {
-            Ok(crate::core::payments::CallConnectorAction::Trigger)
-        }
+        Ok(query
+            .redirect_status
+            .map_or(payments::CallConnectorAction::Trigger, |status| {
+                payments::CallConnectorAction::StatusUpdate(status.into())
+            }))
     }
 }
