@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -387,6 +387,24 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
+        let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+            .payment_intent
+            .metadata
+            .and_then(|metadata_value| {
+                Some(
+                    serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "metadata",
+                        })
+                        .attach_printable("unable to parse metadata"),
+                )
+            })
+            .transpose()?;
+
+        let order_details = parsed_metadata.map(|data| data.order_details);
+
         Ok(Self {
             payment_method_data: {
                 let payment_method_type = payment_data
@@ -411,6 +429,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
             browser_info,
+            order_details,
         })
     }
 }
@@ -462,9 +481,26 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
 }
 
 impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+            .payment_intent
+            .metadata
+            .and_then(|metadata_value| {
+                Some(
+                    serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "metadata",
+                        })
+                        .attach_printable("unable to parse metadata"),
+                )
+            })
+            .transpose()?;
+
+        let order_details = parsed_metadata.map(|data| data.order_details);
+
         Ok(Self {
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
@@ -473,6 +509,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
                 .billing
                 .and_then(|billing_address| billing_address.address.map(|address| address.country))
                 .flatten(),
+            order_details,
         })
     }
 }

@@ -27,7 +27,7 @@ impl api::ConnectorCommon for Klarna {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url(&self, connectors: settings::Connectors) -> String {
@@ -99,7 +99,7 @@ impl
         // encode only for for urlencoded things.
         let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(klarna_payment_logs=?klarna_req);
+        logger::debug!(klarna_session_request_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
 
@@ -124,9 +124,10 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        logger::debug!(klarna_session_response_logs=?res);
         let response: klarna::KlarnaSessionResponse = res
             .response
-            .parse_struct("KlarnaPaymentsResponse")
+            .parse_struct("KlarnaSessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -140,6 +141,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(klarna_session_error_logs=?res);
         let response: klarna::KlarnaErrorResponse = res
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

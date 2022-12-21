@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -41,19 +41,24 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
         let request = &item.request;
-        Ok(Self {
-            intent: KlarnaSessionIntent::Buy,
-            purchase_country: "US".to_string(),
-            purchase_currency: request.currency,
-            order_amount: request.amount,
-            locale: "en-US".to_string(),
-            order_lines: vec![OrderLines {
-                name: "Battery Power Pack".to_string(),
-                quantity: 1,
-                unit_price: request.amount,
-                total_amount: request.amount,
-            }],
-        })
+        match request.order_details.clone() {
+            Some(order_details) => Ok(Self {
+                intent: KlarnaSessionIntent::Buy,
+                purchase_country: "US".to_string(),
+                purchase_currency: request.currency,
+                order_amount: request.amount,
+                locale: "en-US".to_string(),
+                order_lines: vec![OrderLines {
+                    name: order_details.product_name,
+                    quantity: order_details.quantity,
+                    unit_price: request.amount,
+                    total_amount: request.amount,
+                }],
+            }),
+            None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                field_name: "product_name".to_string()
+            })),
+        }
     }
 }
 
@@ -81,17 +86,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let request = &item.request;
-        Ok(Self {
-            purchase_country: "US".to_string(),
-            purchase_currency: request.currency,
-            order_amount: request.amount,
-            order_lines: vec![OrderLines {
-                name: "Battery Power Pack".to_string(),
-                quantity: 1,
-                unit_price: request.amount,
-                total_amount: request.amount,
-            }],
-        })
+        match request.order_details.clone() {
+            Some(order_details) => Ok(Self {
+                purchase_country: "US".to_string(),
+                purchase_currency: request.currency,
+                order_amount: request.amount,
+                order_lines: vec![OrderLines {
+                    name: order_details.product_name,
+                    quantity: order_details.quantity,
+                    unit_price: request.amount,
+                    total_amount: request.amount,
+                }],
+            }),
+            None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                field_name: "product_name".to_string()
+            })),
+        }
     }
 }
 
@@ -129,7 +139,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
 #[derive(Debug, Serialize)]
 pub struct OrderLines {
     name: String,
-    quantity: u64,
+    quantity: u16,
     unit_price: i64,
     total_amount: i64,
 }

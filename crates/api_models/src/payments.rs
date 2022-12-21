@@ -15,6 +15,11 @@ pub enum PaymentOp {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Metadata {
+    pub order_details: OrderDetails,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "payment_id_type::deserialize_option")]
@@ -706,10 +711,28 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportedWallets {
+    Paypal,
+    ApplePay,
+    Klarna,
+    Gpay,
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct OrderDetails {
+    pub product_name: String,
+    pub quantity: u16,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
+    // pub wallets: Vec<SupportedWallets>,
+    // pub : Option<OrderDetails>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
