@@ -2,14 +2,14 @@ use api_models::{payments, refunds};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{core::errors, types::api::enums as api_enums};
+use crate::{core::errors, pii, types::api::enums as api_enums};
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
-    pub email: Option<String>,
+    pub email: Option<pii::Secret<String, pii::Email>>,
     pub name: Option<String>,
-    pub phone: Option<String>,
+    pub phone: Option<pii::Secret<String>>,
 }
 
 impl From<StripeBillingDetails> for payments::Address {
@@ -17,7 +17,7 @@ impl From<StripeBillingDetails> for payments::Address {
         Self {
             address: details.address,
             phone: Some(payments::PhoneDetails {
-                number: details.phone.map(masking::Secret::new),
+                number: details.phone,
                 country_code: None,
             }),
         }
@@ -26,10 +26,10 @@ impl From<StripeBillingDetails> for payments::Address {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeCard {
-    pub number: String,
-    pub exp_month: String,
-    pub exp_year: String,
-    pub cvc: String,
+    pub number: pii::Secret<String, pii::CardNumber>,
+    pub exp_month: pii::Secret<String>,
+    pub exp_year: pii::Secret<String>,
+    pub cvc: pii::Secret<String>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -67,11 +67,11 @@ pub enum StripePaymentMethodDetails {
 impl From<StripeCard> for payments::CCard {
     fn from(card: StripeCard) -> Self {
         Self {
-            card_number: masking::Secret::new(card.number),
-            card_exp_month: masking::Secret::new(card.exp_month),
-            card_exp_year: masking::Secret::new(card.exp_year),
+            card_number: card.number,
+            card_exp_month: card.exp_month,
+            card_exp_year: card.exp_year,
             card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
-            card_cvc: masking::Secret::new(card.cvc),
+            card_cvc: card.cvc,
         }
     }
 }
@@ -91,7 +91,7 @@ pub struct Shipping {
     pub address: Option<payments::AddressDetails>,
     pub name: Option<String>,
     pub carrier: Option<String>,
-    pub phone: Option<String>,
+    pub phone: Option<pii::Secret<String>>,
     pub tracking_number: Option<String>,
 }
 
@@ -100,7 +100,7 @@ impl From<Shipping> for payments::Address {
         Self {
             address: details.address,
             phone: Some(payments::PhoneDetails {
-                number: details.phone.map(masking::Secret::new),
+                number: details.phone,
                 country_code: None,
             }),
         }
@@ -144,10 +144,7 @@ impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .billing_details
                 .as_ref()
                 .and_then(|b| b.name.as_ref().map(|x| masking::Secret::new(x.to_owned()))),
-            phone: item
-                .shipping
-                .as_ref()
-                .and_then(|s| s.phone.as_ref().map(|x| masking::Secret::new(x.to_owned()))),
+            phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
             description: item.description,
             return_url: item.return_url,
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {

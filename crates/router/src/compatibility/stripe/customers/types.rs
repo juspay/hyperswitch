@@ -7,12 +7,12 @@ use crate::{pii, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerAddress {
-    pub city: Option<String>,
-    pub country: Option<String>,
-    pub line1: Option<String>,
-    pub line2: Option<String>,
-    pub postal_code: Option<String>,
-    pub state: Option<String>,
+    pub city: Option<pii::Secret<String>>,
+    pub country: Option<pii::Secret<String>>,
+    pub line1: Option<pii::Secret<String>>,
+    pub line2: Option<pii::Secret<String>>,
+    pub postal_code: Option<pii::Secret<String>>,
+    pub state: Option<pii::Secret<String>>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub struct CreateCustomerRequest {
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub invoice_prefix: Option<String>,
     pub name: Option<String>,
-    pub phone: Option<masking::Secret<String, masking::WithType>>,
+    pub phone: Option<masking::Secret<String>>,
     pub address: Option<CustomerAddress>,
 }
 
@@ -46,13 +46,13 @@ pub struct CreateCustomerResponse {
     pub phone: Option<masking::Secret<String, masking::WithType>>,
 }
 
-pub(crate) type CustomerRetrieveResponse = CreateCustomerResponse;
-pub(crate) type CustomerUpdateResponse = CreateCustomerResponse;
+pub type CustomerRetrieveResponse = CreateCustomerResponse;
+pub type CustomerUpdateResponse = CreateCustomerResponse;
 
 #[derive(Default, Serialize, PartialEq, Eq)]
-pub(crate) struct CustomerDeleteResponse {
-    pub(crate) id: String,
-    pub(crate) deleted: bool,
+pub struct CustomerDeleteResponse {
+    pub id: String,
+    pub deleted: bool,
 }
 
 impl From<CreateCustomerRequest> for api::CustomerRequest {
