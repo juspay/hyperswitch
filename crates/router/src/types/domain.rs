@@ -116,3 +116,24 @@ impl StorageExt<String> for AttemptIdCover {}
 
 pub type PaymentId = StorageWrapper<String, PaymentIdCover>;
 pub type AttemptId = StorageWrapper<String, AttemptIdCover>;
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    #[test]
+    fn test_from_string_payment_id() {
+        let payment_id = "pay_348u23403956kfdsgjb93y2".to_string();
+        let payment_id_new: PaymentId = payment_id.clone().into();
+
+        assert_eq!(payment_id, payment_id_new.into())
+    }
+
+    #[test]
+    fn test_deserialize_payment_id() {
+        let payment_id = "\"pay_348u23403956kfdsgjb93y2\"".to_string();
+        let payment_id_new: PaymentId = serde_json::from_str(&payment_id).unwrap();
+        println!("{}", payment_id_new)
+    }
+}
