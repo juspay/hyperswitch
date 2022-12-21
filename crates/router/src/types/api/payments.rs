@@ -87,7 +87,7 @@ impl PaymentIdTypeExt for PaymentIdType {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_) | Self::PaymentTxnId(_) => {
+            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
                 Err(errors::ValidationError::IncorrectValueProvided {
                     field_name: "payment_id",
                 })
@@ -178,7 +178,7 @@ pub trait Payment:
 
 #[cfg(test)]
 mod payments_test {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use super::*;
 

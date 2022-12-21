@@ -401,6 +401,7 @@ pub enum PaymentMethodType {
 pub enum WalletIssuer {
     GooglePay,
     ApplePay,
+    Paypal,
 }
 
 #[derive(
@@ -466,6 +467,34 @@ pub enum MandateStatus {
     Inactive,
     Pending,
     Revoked,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Connector {
+    Aci,
+    Adyen,
+    Applepay,
+    Authorizedotnet,
+    Braintree,
+    Checkout,
+    #[default]
+    Dummy,
+    Klarna,
+    Stripe,
 }
 
 impl From<AttemptStatus> for IntentStatus {

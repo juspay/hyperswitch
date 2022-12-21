@@ -76,6 +76,8 @@ pub enum StorageError {
     DuplicateValue(String),
     #[error("KV error")]
     KVError,
+    #[error("MockDb error")]
+    MockDbError,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -450,16 +452,4 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum CryptoError {
-    #[error("Failed to encode given message")]
-    EncodingFailed,
-    #[error("Failed to decode given message")]
-    DecodingFailed,
-    #[error("Failed to sign message")]
-    MessageSigningFailed,
-    #[error("Failed to verify signature")]
-    SignatureVerificationFailed,
 }

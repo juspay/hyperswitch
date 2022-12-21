@@ -490,6 +490,7 @@ fn mk_new_refund(
         refund_status: enums::RefundStatus::Pending,
         metadata: request.metadata,
         description: request.reason,
+        attempt_id: payment_attempt.attempt_id.clone(),
         ..storage::RefundNew::default()
     }
 }

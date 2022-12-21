@@ -69,7 +69,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", new.payment_id, new.merchant_id);
+                    let key = format!("{}_{}", new.merchant_id, new.payment_id);
                     let created_intent = PaymentIntent {
                         id: 0i32,
                         payment_id: new.payment_id.clone(),
@@ -110,7 +110,7 @@ mod storage {
                                     insertable: kv::Insertable::PaymentIntent(new),
                                 },
                             };
-                            let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
+                            let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
                                 crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                     merchant_id: &created_intent.merchant_id,
                                     payment_id: &created_intent.payment_id,
@@ -151,7 +151,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.payment_id, this.merchant_id);
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -176,7 +176,7 @@ mod storage {
                         },
                     };
 
-                    let stream_name = self.drainer_stream(&PaymentIntent::shard_key(
+                    let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
                         crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_intent.merchant_id,
                             payment_id: &updated_intent.payment_id,
@@ -214,7 +214,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", payment_id, merchant_id);
+                    let key = format!("{}_{}", merchant_id, payment_id);
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentIntent>(
                             &key,
@@ -249,10 +249,7 @@ mod storage {
                         .into_report()
                 }
 
-                enums::MerchantStorageScheme::RedisKv => {
-                    //TODO: Implement this
-                    Err(errors::StorageError::KVError.into())
-                }
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
     }
@@ -333,7 +330,8 @@ impl PaymentIntentInterface for MockDb {
         _pc: &api::PaymentListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -372,6 +370,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent)
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
         this: types::PaymentIntent,
@@ -387,6 +387,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,

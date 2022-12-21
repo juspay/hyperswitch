@@ -28,7 +28,7 @@ async fn drainer_handler(
     stream_index: u8,
     max_read_count: u64,
 ) -> errors::DrainerResult<()> {
-    let stream_name = utils::get_drainer_stream(store.clone(), stream_index);
+    let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
     let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
 
     if let Err(_e) = drainer_result {
@@ -76,6 +76,9 @@ async fn drainer(
                 kv::Insertable::PaymentAttempt(a) => {
                     macro_util::handle_resp!(a.insert(&conn).await, insert_op, payment_attempt)
                 }
+                kv::Insertable::Refund(a) => {
+                    macro_util::handle_resp!(a.insert(&conn).await, "ins", "ref")
+                }
             },
             kv::DBOperation::Update { updatable } => match updatable {
                 kv::Updateable::PaymentIntentUpdate(a) => {
@@ -91,6 +94,9 @@ async fn drainer(
                         update_op,
                         payment_attempt
                     )
+                }
+                kv::Updateable::RefundUpdate(a) => {
+                    macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "ref")
                 }
             },
             kv::DBOperation::Delete => todo!(),

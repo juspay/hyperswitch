@@ -16,7 +16,7 @@ use crate::{
     pii::Secret,
     routes::AppState,
     types::{
-        api::{self, PaymentIdTypeExt},
+        api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -106,7 +106,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .find_connector_response_by_payment_id_merchant_id_txn_id(
                 &payment_intent.payment_id,
                 &payment_intent.merchant_id,
-                &payment_attempt.txn_id,
+                &payment_attempt.attempt_id,
                 storage_scheme,
             )
             .await
@@ -257,6 +257,7 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        _request_connector: Option<api_enums::Connector>,
     ) -> RouterResult<api::ConnectorCallType> {
         let connectors = &state.conf.connectors;
         let db = &state.store;

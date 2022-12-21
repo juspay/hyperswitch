@@ -45,8 +45,8 @@ pub async fn trim_from_stream(
     minimum_entry_id: &str,
     redis: &redis::RedisConnectionPool,
 ) -> errors::DrainerResult<usize> {
-    let trim_kind = "MINID";
-    let trim_type = "EXACT";
+    let trim_kind = redis::StreamCapKind::MinID;
+    let trim_type = redis::StreamCapTrim::Exact;
     let trim_id = minimum_entry_id;
     let trim_result = redis
         .stream_trim_entries(stream_name, (trim_kind, trim_type, trim_id))
@@ -104,9 +104,9 @@ pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
 }
 
 pub(crate) fn get_stream_key_flag(store: Arc<services::Store>, stream_index: u8) -> String {
-    format!("{}_in_use", get_drainer_stream(store, stream_index))
+    format!("{}_in_use", get_drainer_stream_name(store, stream_index))
 }
 
-pub(crate) fn get_drainer_stream(store: Arc<services::Store>, stream_index: u8) -> String {
+pub(crate) fn get_drainer_stream_name(store: Arc<services::Store>, stream_index: u8) -> String {
     store.drainer_stream(format!("shard_{}", stream_index).as_str())
 }

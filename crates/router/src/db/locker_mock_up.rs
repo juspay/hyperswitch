@@ -64,20 +64,23 @@ impl LockerMockUpInterface for MockDb {
         &self,
         _card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_locker_mock_up(
         &self,
         _new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn delete_locker_mock_up(
         &self,
         _card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

@@ -13,8 +13,10 @@
     clippy::panic,
     clippy::panic_in_result_fn,
     clippy::panicking_unwrap,
+    clippy::todo,
     clippy::unreachable,
     clippy::unwrap_in_result,
+    clippy::unwrap_used
 )]
 #![recursion_limit = "256"]
 

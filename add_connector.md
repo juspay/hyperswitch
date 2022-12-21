@@ -293,7 +293,7 @@ Feel free to connect with us in case of queries and also if you want to confirm 
 
 Add connector name in :
 
-- `crates/router/src/types/connector.rs` in Connector enum
+- `crates/api_models/src/enums.rs` in Connector enum (in alphabetical order)
 - `crates/router/src/types/api/mod.rs` convert_connector function
 
 Configure the Connectors API credentials using the PaymentConnectors API.
