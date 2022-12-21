@@ -10,7 +10,7 @@ use crate::routes;
 pub struct StripeApis;
 
 impl StripeApis {
-    pub(crate) fn server(state: routes::AppState) -> Scope {
+    pub fn server(state: routes::AppState) -> Scope {
         let max_depth = 10;
         let strict = false;
         web::scope("/vs/v1")

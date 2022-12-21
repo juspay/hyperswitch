@@ -257,7 +257,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
@@ -285,8 +285,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .update_payment_attempt(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
+                    amount: payment_data.amount.into(),
+                    currency: payment_data.currency,
                     status: attempt_status,
                     payment_method,
+                    authentication_type: None,
                     browser_info,
                     connector,
                     payment_token,
@@ -303,11 +306,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payment_data.payment_intent.billing_address_id.clone(),
         );
 
+        let customer_id = customer.map(|c| c.customer_id);
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
-                storage::PaymentIntentUpdate::MerchantStatusUpdate {
+                storage::PaymentIntentUpdate::Update {
+                    amount: payment_data.amount.into(),
+                    currency: payment_data.currency,
                     status: intent_status,
+                    customer_id,
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                 },

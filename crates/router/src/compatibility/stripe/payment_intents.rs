@@ -21,13 +21,14 @@ pub async fn payment_intents_create(
     req: HttpRequest,
     form_payload: web::Bytes,
 ) -> HttpResponse {
-    let payload: types::StripePaymentIntentRequest =
-        match qs_config.deserialize_bytes(&form_payload) {
-            Ok(p) => p,
-            Err(err) => {
-                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
-            }
-        };
+    let payload: types::StripePaymentIntentRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+    {
+        Ok(p) => p,
+        Err(err) => {
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+        }
+    };
 
     let create_payment_req: payment_types::PaymentsRequest = payload.into();
 
@@ -38,7 +39,7 @@ pub async fn payment_intents_create(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -88,7 +89,7 @@ pub async fn payment_intents_retrieve(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -119,13 +120,14 @@ pub async fn payment_intents_update(
     path: web::Path<String>,
 ) -> HttpResponse {
     let payment_id = path.into_inner();
-    let stripe_payload: types::StripePaymentIntentRequest =
-        match qs_config.deserialize_bytes(&form_payload) {
-            Ok(p) => p,
-            Err(err) => {
-                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
-            }
-        };
+    let stripe_payload: types::StripePaymentIntentRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+    {
+        Ok(p) => p,
+        Err(err) => {
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+        }
+    };
 
     let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
@@ -143,7 +145,7 @@ pub async fn payment_intents_update(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -175,13 +177,14 @@ pub async fn payment_intents_confirm(
     path: web::Path<String>,
 ) -> HttpResponse {
     let payment_id = path.into_inner();
-    let stripe_payload: types::StripePaymentIntentRequest =
-        match qs_config.deserialize_bytes(&form_payload) {
-            Ok(p) => p,
-            Err(err) => {
-                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
-            }
-        };
+    let stripe_payload: types::StripePaymentIntentRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+    {
+        Ok(p) => p,
+        Err(err) => {
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+        }
+    };
 
     let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
@@ -200,7 +203,7 @@ pub async fn payment_intents_confirm(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -230,13 +233,14 @@ pub async fn payment_intents_capture(
     form_payload: web::Bytes,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let stripe_payload: payment_types::PaymentsCaptureRequest =
-        match qs_config.deserialize_bytes(&form_payload) {
-            Ok(p) => p,
-            Err(err) => {
-                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
-            }
-        };
+    let stripe_payload: payment_types::PaymentsCaptureRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+    {
+        Ok(p) => p,
+        Err(err) => {
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+        }
+    };
 
     let capture_payload = payment_types::PaymentsCaptureRequest {
         payment_id: Some(path.into_inner()),
@@ -250,7 +254,7 @@ pub async fn payment_intents_capture(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -281,13 +285,14 @@ pub async fn payment_intents_cancel(
     path: web::Path<String>,
 ) -> HttpResponse {
     let payment_id = path.into_inner();
-    let stripe_payload: types::StripePaymentCancelRequest =
-        match qs_config.deserialize_bytes(&form_payload) {
-            Ok(p) => p,
-            Err(err) => {
-                return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
-            }
-        };
+    let stripe_payload: types::StripePaymentCancelRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+    {
+        Ok(p) => p,
+        Err(err) => {
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+        }
+    };
 
     let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;
@@ -304,7 +309,7 @@ pub async fn payment_intents_cancel(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -343,7 +348,7 @@ pub async fn payment_intent_list(
         _,
         _,
         types::StripePaymentIntentListResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
