@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{
-    tracing::{self, instrument},
+    tracing, instrument,
     Flow,
 };
 

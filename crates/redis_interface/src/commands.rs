@@ -21,7 +21,7 @@ use fred::{
     },
 };
 use futures::StreamExt;
-use router_env::{logger, tracing, tracing::instrument};
+use router_env::{logger, tracing, instrument};
 
 use crate::{
     errors,

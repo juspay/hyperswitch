@@ -8,7 +8,7 @@ use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{
-    tracing::{self, instrument},
+    tracing, instrument,
     Tag,
 };
 use serde::Serialize;

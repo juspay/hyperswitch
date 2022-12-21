@@ -3,7 +3,7 @@ mod types;
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{tracing, tracing::instrument};
+use router_env::{tracing, instrument};
 
 use crate::{
     compatibility::{stripe::errors, wrap},

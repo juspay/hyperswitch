@@ -1,7 +1,7 @@
 mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
-use router_env::{tracing, tracing::instrument};
+use router_env::{tracing, instrument};
 
 use crate::{
     compatibility::{stripe::errors, wrap},

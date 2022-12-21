@@ -3,7 +3,7 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use router_env::{
-    tracing::{self, instrument},
+    tracing, instrument,
     Flow,
 };
 

@@ -6,7 +6,7 @@ use actix_web::{
 };
 use error_stack::report;
 use router_env::{
-    tracing::{self, instrument},
+    tracing, instrument,
     Flow,
 };
 

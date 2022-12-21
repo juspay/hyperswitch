@@ -1,5 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
+use router_env::{tracing, instrument};
 use time::PrimitiveDateTime;
 
 use super::generics;
