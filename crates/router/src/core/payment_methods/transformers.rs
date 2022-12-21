@@ -93,6 +93,7 @@ pub fn mk_add_card_response(
     card: api::CardDetail,
     response: AddCardResponse,
     req: api::CreatePaymentMethod,
+    merchant_id: &str,
 ) -> api::PaymentMethodResponse {
     let card = api::CardDetailFromLocker {
         scheme: None,
@@ -106,6 +107,8 @@ pub fn mk_add_card_response(
         card_holder_name: None,
     };
     api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id,
         payment_method_id: response.card_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
@@ -174,7 +177,7 @@ pub fn get_card_detail(
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.clone(),
         issuer_country: pm.issuer_country.clone(),
-        last4_digits: None, //.split_off(12)), //TODO: we need card number as well
+        last4_digits: Some(card_number.peek().to_owned().split_off(12)),
         card_number: Some(card_number),
         expiry_month: response.card_exp_month,
         expiry_year: response.card_exp_year,
