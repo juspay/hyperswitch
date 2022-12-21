@@ -6,13 +6,13 @@ use crate::connection::{diesel_make_pg_pool, PgPool};
 pub struct Store {
     pub master_pool: PgPool,
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
-    pub(crate) config: StoreConfig,
+    pub config: StoreConfig,
 }
 
 #[derive(Clone)]
-pub(crate) struct StoreConfig {
-    pub(crate) drainer_stream_name: String,
-    pub(crate) drainer_num_partitions: u8,
+pub struct StoreConfig {
+    pub drainer_stream_name: String,
+    pub drainer_num_partitions: u8,
 }
 
 impl Store {
