@@ -1,11 +1,11 @@
 use async_trait::async_trait;
-use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
-        payments::{self, helpers, transformers, PaymentData},
+        errors::{ConnectorErrorExt, RouterResult},
+        mandate,
+        payments::{self, transformers, PaymentData},
     },
     routes::AppState,
     services,
@@ -74,7 +74,7 @@ impl types::VerifyRouterData {
                     types::VerifyRequestData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let mut resp = services::execute_connector_processing_step(
+                let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     self,
@@ -82,60 +82,31 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-
-                match &self.request.mandate_id {
-                    Some(mandate_id) => {
-                        let mandate = state
-                            .store
-                            .find_mandate_by_merchant_id_mandate_id(&resp.merchant_id, mandate_id)
-                            .await
-                            .change_context(errors::ApiErrorResponse::MandateNotFound)?;
-                        resp.payment_method_id = Some(mandate.payment_method_id);
-                    }
-                    None => {
-                        if self.request.setup_future_usage.is_some() {
-                            let payment_method_id = helpers::call_payment_method(
-                                state,
-                                &self.merchant_id,
-                                Some(&self.request.payment_method_data),
-                                Some(self.payment_method),
-                                maybe_customer,
-                            )
-                            .await?
-                            .payment_method_id;
-
-                            resp.payment_method_id = Some(payment_method_id.clone());
-                            let mandate_reference = match resp.response.as_ref().ok() {
-                                Some(types::PaymentsResponseData::TransactionResponse {
-                                    mandate_reference,
-                                    ..
-                                }) => mandate_reference.clone(),
-                                _ => None,
-                            };
-
-                            if let Some(new_mandate_data) = helpers::generate_mandate(
-                                self.merchant_id.clone(),
-                                self.connector.clone(),
-                                self.request.setup_mandate_details.clone(),
-                                maybe_customer,
-                                payment_method_id,
-                                mandate_reference,
-                            ) {
-                                resp.request.mandate_id = Some(new_mandate_data.mandate_id.clone());
-                                state.store.insert_mandate(new_mandate_data).await.map_err(
-                                    |err| {
-                                        err.to_duplicate_response(
-                                            errors::ApiErrorResponse::DuplicateMandate,
-                                        )
-                                    },
-                                )?;
-                            }
-                        }
-                    }
-                }
-                Ok(resp)
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
             }
             _ => Ok(self.clone()),
         }
+    }
+}
+
+impl mandate::MandateBehaviour for types::VerifyRequestData {
+    fn get_amount(&self) -> i64 {
+        0
+    }
+
+    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+        self.setup_future_usage
+    }
+
+    fn get_mandate_id(&self) -> Option<&String> {
+        self.mandate_id.as_ref()
+    }
+
+    fn set_mandate_id(&mut self, new_mandate_id: String) {
+        self.mandate_id = Some(new_mandate_id);
+    }
+
+    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod {
+        self.payment_method_data.clone()
     }
 }
