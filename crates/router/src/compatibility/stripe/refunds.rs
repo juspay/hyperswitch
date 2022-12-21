@@ -28,7 +28,7 @@ pub async fn refund_create(
         _,
         _,
         types::StripeCreateRefundResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -54,7 +54,7 @@ pub async fn refund_retrieve(
         _,
         _,
         types::StripeCreateRefundResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
@@ -91,7 +91,7 @@ pub async fn refund_update(
         _,
         _,
         types::StripeCreateRefundResponse,
-        errors::ErrorCode,
+        errors::StripeErrorCode,
     >(
         &state,
         &req,
