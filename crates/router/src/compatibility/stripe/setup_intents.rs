@@ -10,7 +10,7 @@ use crate::{
     core::payments,
     routes,
     services::api,
-    types::api::{self as api_types},
+    types::api as api_types,
 };
 
 #[post("")]

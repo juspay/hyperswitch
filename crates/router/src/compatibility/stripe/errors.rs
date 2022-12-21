@@ -3,7 +3,7 @@ use crate::core::errors;
 
 #[derive(Debug, router_derive::ApiError)]
 #[error(error_type_enum = StripeErrorType)]
-pub(crate) enum ErrorCode {
+pub enum ErrorCode {
     /*
     "error": {
         "message": "Invalid API Key provided: sk_jkjgs****nlgs",
@@ -304,7 +304,7 @@ impl ::core::fmt::Display for ErrorCode {
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum StripeErrorType {
+pub enum StripeErrorType {
     ApiError,
     CardError,
     InvalidRequestError,

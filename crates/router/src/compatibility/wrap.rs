@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[instrument(skip(request, payload, state, func))]
-pub(crate) async fn compatibility_api_wrap<'a, 'b, A, T, Q, F, Fut, S, E>(
+pub async fn compatibility_api_wrap<'a, 'b, A, T, Q, F, Fut, S, E>(
     state: &'b routes::AppState,
     request: &'a HttpRequest,
     payload: T,

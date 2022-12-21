@@ -13,7 +13,7 @@ use crate::{
 
 #[instrument(skip_all)]
 #[post("")]
-pub(crate) async fn refund_create(
+pub async fn refund_create(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     form_payload: web::Form<types::StripeCreateRefundRequest>,
@@ -41,7 +41,7 @@ pub(crate) async fn refund_create(
 
 #[instrument(skip_all)]
 #[get("/{refund_id}")]
-pub(crate) async fn refund_retrieve(
+pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
@@ -74,7 +74,7 @@ pub(crate) async fn refund_retrieve(
 
 #[instrument(skip_all)]
 #[post("/{refund_id}")]
-pub(crate) async fn refund_update(
+pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
