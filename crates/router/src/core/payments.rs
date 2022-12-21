@@ -183,6 +183,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone,
+    FData: std::marker::Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
@@ -196,9 +197,8 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    FData: std::marker::Send, // To create merchant response
-{
-    let (payment_data, req, customer) = payments_operation_core(
+    {
+        let (payment_data, req, customer) = payments_operation_core(
         state,
         merchant_account,
         operation.clone(),
