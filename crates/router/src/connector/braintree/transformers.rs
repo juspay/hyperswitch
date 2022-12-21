@@ -209,7 +209,6 @@ impl<F, T>
                 ),
                 redirection_data: None,
                 redirect: false,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data
