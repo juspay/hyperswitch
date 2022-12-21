@@ -2,14 +2,13 @@ use std::{collections::HashMap, sync::Arc};
 
 use error_stack::{IntoReport, ResultExt};
 use redis_interface as redis;
-use router::services::Store;
 
-use crate::errors;
+use crate::{errors, services};
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
-pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::Store>) -> bool {
+pub async fn is_stream_available(stream_index: u8, store: Arc<services::Store>) -> bool {
     let stream_key_flag = get_stream_key_flag(store.clone(), stream_index);
 
     match store
@@ -55,7 +54,7 @@ pub async fn trim_from_stream(
         .change_context(errors::DrainerError::StreamTrimFailed(
             stream_name.to_owned(),
         ))?;
-
+    
     // Since xtrim deletes entires below given id excluding the given id.
     // Hence, deleting the minimum entry id
     redis
@@ -104,10 +103,10 @@ pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
     }
 }
 
-pub(crate) fn get_stream_key_flag(store: Arc<router::services::Store>, stream_index: u8) -> String {
+pub(crate) fn get_stream_key_flag(store: Arc<services::Store>, stream_index: u8) -> String {
     format!("{}_in_use", get_drainer_stream(store, stream_index))
 }
 
-pub(crate) fn get_drainer_stream(store: Arc<Store>, stream_index: u8) -> String {
+pub(crate) fn get_drainer_stream(store: Arc<services::Store>, stream_index: u8) -> String {
     store.drainer_stream(format!("shard_{}", stream_index).as_str())
 }

@@ -1,8 +1,11 @@
+mod connection;
 pub mod errors;
+pub mod services;
+pub mod settings;
 mod utils;
 use std::sync::Arc;
 
-use router::{connection::pg_connection, services::Store};
+use crate::{connection::pg_connection, services::Store};
 use storage_models::kv;
 
 pub async fn start_drainer(
@@ -94,12 +97,16 @@ async fn drainer(
         };
     }
 
+    
     let entries_trimmed =
-        utils::trim_from_stream(stream_name, last_entry_id.as_str(), &store.redis_conn).await?;
+        utils::trim_from_stream(stream_name, last_entry_id.as_str(), &store.redis_conn).await;
+        
+    println!("entries_trimmed {:?}", entries_trimmed);
 
-    if read_count != entries_trimmed {
-        // TODO: log
-    }
+    // if read_count != entries_trimmed {
+    //     // TODO: log
+    //     // println!("fails:: {read_count}::{entries_trimmed}");
+    // }
 
     Ok(())
 }

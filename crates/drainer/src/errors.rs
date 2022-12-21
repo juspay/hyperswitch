@@ -14,6 +14,14 @@ pub enum DrainerError {
     NoStreamEntry(String),
     #[error("Error in making stream: {0} available")]
     DeleteKeyFailed(String),
+    #[error("Application configuration error: {0}")]
+    ConfigurationError(config::ConfigError),
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;
+
+impl From<config::ConfigError> for DrainerError {
+    fn from(err: config::ConfigError) -> Self {
+        Self::ConfigurationError(err)
+    }
+}
