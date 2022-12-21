@@ -76,6 +76,8 @@ pub enum StorageError {
     DuplicateValue(String),
     #[error("KV error")]
     KVError,
+    #[error("MockDb error")]
+    MockDbError,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {

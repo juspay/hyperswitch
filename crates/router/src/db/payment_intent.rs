@@ -249,10 +249,7 @@ mod storage {
                         .into_report()
                 }
 
-                enums::MerchantStorageScheme::RedisKv => {
-                    //TODO: Implement this
-                    Err(errors::StorageError::KVError.into())
-                }
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
     }
@@ -333,7 +330,8 @@ impl PaymentIntentInterface for MockDb {
         _pc: &api::PaymentListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -372,6 +370,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent)
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
         this: types::PaymentIntent,
@@ -387,6 +387,8 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,

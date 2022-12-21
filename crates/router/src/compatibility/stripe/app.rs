@@ -1,12 +1,12 @@
 use actix_web::{web, Scope};
 
 use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*};
-use crate::routes::AppState;
+use crate::routes;
 
 pub struct PaymentIntents;
 
 impl PaymentIntents {
-    pub fn server(state: AppState) -> Scope {
+    pub fn server(state: routes::AppState) -> Scope {
         web::scope("/payment_intents")
             .app_data(web::Data::new(state))
             .service(payment_intents_create)
@@ -20,7 +20,7 @@ impl PaymentIntents {
 pub struct SetupIntents;
 
 impl SetupIntents {
-    pub fn server(state: AppState) -> Scope {
+    pub fn server(state: routes::AppState) -> Scope {
         web::scope("/setup_intents")
             .app_data(web::Data::new(state))
             .service(setup_intents_create)
@@ -33,7 +33,7 @@ impl SetupIntents {
 pub struct Refunds;
 
 impl Refunds {
-    pub fn server(config: AppState) -> Scope {
+    pub fn server(config: routes::AppState) -> Scope {
         web::scope("/refunds")
             .app_data(web::Data::new(config))
             .service(refund_create)
@@ -45,7 +45,7 @@ impl Refunds {
 pub struct Customers;
 
 impl Customers {
-    pub fn server(config: AppState) -> Scope {
+    pub fn server(config: routes::AppState) -> Scope {
         web::scope("/customers")
             .app_data(web::Data::new(config))
             .service(customer_create)

@@ -76,6 +76,7 @@ pub trait ProcessTrackerWorkflow: Send + Sync {
 
 #[cfg(test)]
 mod workflow_tests {
+    #![allow(clippy::unwrap_used)]
     use super::PTRunner;
     use crate::utils::StringExt;
 

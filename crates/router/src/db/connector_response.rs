@@ -110,9 +110,12 @@ impl ConnectorResponseInterface for MockDb {
         _txn_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
+    // safety: interface only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn update_connector_response(
         &self,
         this: storage::ConnectorResponse,

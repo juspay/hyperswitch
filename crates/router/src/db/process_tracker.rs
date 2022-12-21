@@ -167,7 +167,8 @@ impl ProcessTrackerInterface for MockDb {
         _ids: Vec<String>,
         _schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_processes_by_time_status(
@@ -177,7 +178,8 @@ impl ProcessTrackerInterface for MockDb {
         _status: enums::ProcessTrackerStatus,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_process(
@@ -209,7 +211,8 @@ impl ProcessTrackerInterface for MockDb {
         _this: storage::ProcessTracker,
         _process: storage::ProcessTrackerUpdate,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_process_tracker(
@@ -217,7 +220,8 @@ impl ProcessTrackerInterface for MockDb {
         _this: storage::ProcessTracker,
         _process: storage::ProcessTrackerUpdate,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn process_tracker_update_process_status_by_ids(
@@ -225,6 +229,7 @@ impl ProcessTrackerInterface for MockDb {
         _task_ids: Vec<String>,
         _task_update: storage::ProcessTrackerUpdate,
     ) -> CustomResult<usize, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

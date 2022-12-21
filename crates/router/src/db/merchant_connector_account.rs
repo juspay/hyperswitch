@@ -129,6 +129,8 @@ impl MerchantConnectorAccountInterface for Store {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for MockDb {
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
     async fn find_merchant_connector_account_by_merchant_id_connector(
         &self,
         merchant_id: &str,
@@ -150,7 +152,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         _merchant_id: &str,
         _merchant_connector_id: &i32,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -181,7 +184,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         _merchant_id: &str,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_merchant_connector_account(
@@ -189,7 +193,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         _this: storage::MerchantConnectorAccount,
         _merchant_connector_account: storage::MerchantConnectorAccountUpdate,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -197,6 +202,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         _merchant_id: &str,
         _merchant_connector_id: &i32,
     ) -> CustomResult<bool, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }
