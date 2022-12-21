@@ -246,7 +246,7 @@ pub async fn payments_confirm(
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
-pub(crate) async fn payments_capture(
+pub async fn payments_capture(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<PaymentsCaptureRequest>,
@@ -278,7 +278,7 @@ pub(crate) async fn payments_capture(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
-pub(crate) async fn payments_connector_session(
+pub async fn payments_connector_session(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<PaymentsSessionRequest>,

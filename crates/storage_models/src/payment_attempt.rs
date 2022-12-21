@@ -95,7 +95,10 @@ pub enum PaymentAttemptUpdate {
         authentication_type: storage_enums::AuthenticationType,
     },
     ConfirmUpdate {
+        amount: i64,
+        currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
+        authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethodType>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
@@ -199,12 +202,18 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 ..Default::default()
             },
             PaymentAttemptUpdate::ConfirmUpdate {
+                amount,
+                currency,
+                authentication_type,
                 status,
                 payment_method,
                 browser_info,
                 connector,
                 payment_token,
             } => Self {
+                amount: Some(amount),
+                currency: Some(currency),
+                authentication_type,
                 status: Some(status),
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),

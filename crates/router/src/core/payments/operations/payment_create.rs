@@ -185,6 +185,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let operation = payments::if_not_create_change_operation::<_, F>(
             is_update,
             payment_intent.status,
+            request.confirm,
             self,
         );
 
@@ -280,10 +281,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
+        _state: &'a AppState,
+        _payment_attempt: &storage::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        Ok(())
     }
 
     async fn get_connector<'a>(
@@ -387,6 +388,13 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             ),
             None => None,
         };
+
+        if let Some(true) = request.confirm {
+            helpers::validate_pm_or_token_given(
+                &request.payment_token,
+                &request.payment_method_data,
+            )?;
+        }
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)

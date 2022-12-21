@@ -23,13 +23,21 @@ pub async fn customer_create(
     let payload: types::CreateCustomerRequest = match qs_config.deserialize_bytes(&form_payload) {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
 
     let create_cust_req: customer_types::CustomerRequest = payload.into();
 
-    wrap::compatibility_api_wrap::<_, _, _, _, _, types::CreateCustomerResponse, errors::ErrorCode>(
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::CreateCustomerResponse,
+        errors::StripeErrorCode,
+    >(
         &state,
         &req,
         create_cust_req,
@@ -52,7 +60,15 @@ pub async fn customer_retrieve(
         customer_id: path.into_inner(),
     };
 
-    wrap::compatibility_api_wrap::<_, _, _, _, _, types::CustomerRetrieveResponse, errors::ErrorCode>(
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::CustomerRetrieveResponse,
+        errors::StripeErrorCode,
+    >(
         &state,
         &req,
         payload,
@@ -76,7 +92,7 @@ pub async fn customer_update(
     let payload: types::CustomerUpdateRequest = match qs_config.deserialize_bytes(&form_payload) {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::ErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
 
@@ -84,7 +100,15 @@ pub async fn customer_update(
     let mut cust_update_req: customer_types::CustomerRequest = payload.into();
     cust_update_req.customer_id = customer_id;
 
-    wrap::compatibility_api_wrap::<_, _, _, _, _, types::CustomerUpdateResponse, errors::ErrorCode>(
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::CustomerUpdateResponse,
+        errors::StripeErrorCode,
+    >(
         &state,
         &req,
         cust_update_req,
@@ -107,7 +131,15 @@ pub async fn customer_delete(
         customer_id: path.into_inner(),
     };
 
-    wrap::compatibility_api_wrap::<_, _, _, _, _, types::CustomerDeleteResponse, errors::ErrorCode>(
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::CustomerDeleteResponse,
+        errors::StripeErrorCode,
+    >(
         &state,
         &req,
         payload,
