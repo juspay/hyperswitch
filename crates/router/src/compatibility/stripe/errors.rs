@@ -1,5 +1,5 @@
 #![allow(unused_variables)]
-use crate::core::errors::ApiErrorResponse;
+use crate::core::errors;
 
 #[derive(Debug, router_derive::ApiError)]
 #[error(error_type_enum = StripeErrorType)]
@@ -310,90 +310,100 @@ pub(crate) enum StripeErrorType {
     InvalidRequestError,
 }
 
-impl From<ApiErrorResponse> for ErrorCode {
-    fn from(value: ApiErrorResponse) -> Self {
+impl From<errors::ApiErrorResponse> for ErrorCode {
+    fn from(value: errors::ApiErrorResponse) -> Self {
         match value {
-            ApiErrorResponse::Unauthorized | ApiErrorResponse::InvalidEphermeralKey => {
-                ErrorCode::Unauthorized
+            errors::ApiErrorResponse::Unauthorized
+            | errors::ApiErrorResponse::InvalidEphermeralKey => ErrorCode::Unauthorized,
+            errors::ApiErrorResponse::InvalidRequestUrl
+            | errors::ApiErrorResponse::InvalidHttpMethod => ErrorCode::InvalidRequestUrl,
+            errors::ApiErrorResponse::MissingRequiredField { field_name } => {
+                ErrorCode::ParameterMissing {
+                    field_name: field_name.to_owned(),
+                    param: field_name,
+                }
             }
-            ApiErrorResponse::InvalidRequestUrl | ApiErrorResponse::InvalidHttpMethod => {
-                ErrorCode::InvalidRequestUrl
-            }
-            ApiErrorResponse::MissingRequiredField { field_name } => ErrorCode::ParameterMissing {
-                field_name: field_name.to_owned(),
-                param: field_name,
-            },
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
-            ApiErrorResponse::InvalidDataFormat {
+            errors::ApiErrorResponse::InvalidDataFormat {
                 field_name,
                 expected_format,
             } => ErrorCode::ParameterUnknown {
                 field_name,
                 expected_format,
             },
-            ApiErrorResponse::RefundAmountExceedsPaymentAmount => {
+            errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount => {
                 ErrorCode::RefundAmountExceedsPaymentAmount {
                     param: "amount".to_owned(),
                 }
             }
-            ApiErrorResponse::PaymentAuthorizationFailed { data }
-            | ApiErrorResponse::PaymentAuthenticationFailed { data } => {
+            errors::ApiErrorResponse::PaymentAuthorizationFailed { data }
+            | errors::ApiErrorResponse::PaymentAuthenticationFailed { data } => {
                 ErrorCode::PaymentIntentAuthenticationFailure { data }
             }
-            ApiErrorResponse::VerificationFailed { data } => ErrorCode::VerificationFailed { data },
-            ApiErrorResponse::PaymentCaptureFailed { data } => {
+            errors::ApiErrorResponse::VerificationFailed { data } => {
+                ErrorCode::VerificationFailed { data }
+            }
+            errors::ApiErrorResponse::PaymentCaptureFailed { data } => {
                 ErrorCode::PaymentIntentPaymentAttemptFailed { data }
             }
-            ApiErrorResponse::InvalidCardData { data } => ErrorCode::InvalidCardType, // Maybe it is better to de generalize this router error
-            ApiErrorResponse::CardExpired { data } => ErrorCode::ExpiredCard,
-            ApiErrorResponse::RefundFailed { data } => ErrorCode::RefundFailed, // Nothing at stripe to map
+            errors::ApiErrorResponse::InvalidCardData { data } => ErrorCode::InvalidCardType, // Maybe it is better to de generalize this router error
+            errors::ApiErrorResponse::CardExpired { data } => ErrorCode::ExpiredCard,
+            errors::ApiErrorResponse::RefundFailed { data } => ErrorCode::RefundFailed, // Nothing at stripe to map
 
-            ApiErrorResponse::InternalServerError => ErrorCode::InternalServerError, // not a stripe code
-            ApiErrorResponse::IncorrectConnectorNameGiven => ErrorCode::InternalServerError,
-            ApiErrorResponse::MandateActive => ErrorCode::MandateActive, //not a stripe code
-            ApiErrorResponse::CustomerRedacted => ErrorCode::CustomerRedacted, //not a stripe code
-            ApiErrorResponse::DuplicateRefundRequest => ErrorCode::DuplicateRefundRequest,
-            ApiErrorResponse::RefundNotFound => ErrorCode::RefundNotFound,
-            ApiErrorResponse::CustomerNotFound => ErrorCode::CustomerNotFound,
-            ApiErrorResponse::PaymentNotFound => ErrorCode::PaymentNotFound,
-            ApiErrorResponse::PaymentMethodNotFound => ErrorCode::PaymentMethodNotFound,
-            ApiErrorResponse::ClientSecretNotGiven => ErrorCode::ClientSecretNotFound,
-            ApiErrorResponse::MerchantAccountNotFound => ErrorCode::MerchantAccountNotFound,
-            ApiErrorResponse::ResourceIdNotFound => ErrorCode::ResourceIdNotFound,
-            ApiErrorResponse::MerchantConnectorAccountNotFound => {
+            errors::ApiErrorResponse::InternalServerError => ErrorCode::InternalServerError, // not a stripe code
+            errors::ApiErrorResponse::IncorrectConnectorNameGiven => ErrorCode::InternalServerError,
+            errors::ApiErrorResponse::MandateActive => ErrorCode::MandateActive, //not a stripe code
+            errors::ApiErrorResponse::CustomerRedacted => ErrorCode::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::DuplicateRefundRequest => ErrorCode::DuplicateRefundRequest,
+            errors::ApiErrorResponse::RefundNotFound => ErrorCode::RefundNotFound,
+            errors::ApiErrorResponse::CustomerNotFound => ErrorCode::CustomerNotFound,
+            errors::ApiErrorResponse::PaymentNotFound => ErrorCode::PaymentNotFound,
+            errors::ApiErrorResponse::PaymentMethodNotFound => ErrorCode::PaymentMethodNotFound,
+            errors::ApiErrorResponse::ClientSecretNotGiven => ErrorCode::ClientSecretNotFound,
+            errors::ApiErrorResponse::MerchantAccountNotFound => ErrorCode::MerchantAccountNotFound,
+            errors::ApiErrorResponse::ResourceIdNotFound => ErrorCode::ResourceIdNotFound,
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
                 ErrorCode::MerchantConnectorAccountNotFound
             }
-            ApiErrorResponse::MandateNotFound => ErrorCode::MandateNotFound,
-            ApiErrorResponse::MandateValidationFailed { reason } => {
+            errors::ApiErrorResponse::MandateNotFound => ErrorCode::MandateNotFound,
+            errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 ErrorCode::PaymentIntentMandateInvalid { message: reason }
             }
-            ApiErrorResponse::ReturnUrlUnavailable => ErrorCode::ReturnUrlUnavailable,
-            ApiErrorResponse::DuplicateMerchantAccount => ErrorCode::DuplicateMerchantAccount,
-            ApiErrorResponse::DuplicateMerchantConnectorAccount => {
+            errors::ApiErrorResponse::ReturnUrlUnavailable => ErrorCode::ReturnUrlUnavailable,
+            errors::ApiErrorResponse::DuplicateMerchantAccount => {
+                ErrorCode::DuplicateMerchantAccount
+            }
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount => {
                 ErrorCode::DuplicateMerchantConnectorAccount
             }
-            ApiErrorResponse::DuplicatePaymentMethod => ErrorCode::DuplicatePaymentMethod,
-            ApiErrorResponse::ClientSecretInvalid => ErrorCode::PaymentIntentInvalidParameter {
-                param: "client_secret".to_owned(),
-            },
-            ApiErrorResponse::InvalidRequestData { message } => {
+            errors::ApiErrorResponse::DuplicatePaymentMethod => ErrorCode::DuplicatePaymentMethod,
+            errors::ApiErrorResponse::ClientSecretInvalid => {
+                ErrorCode::PaymentIntentInvalidParameter {
+                    param: "client_secret".to_owned(),
+                }
+            }
+            errors::ApiErrorResponse::InvalidRequestData { message } => {
                 ErrorCode::InvalidRequestData { message }
             }
-            ApiErrorResponse::PreconditionFailed { message } => {
+            errors::ApiErrorResponse::PreconditionFailed { message } => {
                 ErrorCode::PreconditionFailed { message }
             }
-            ApiErrorResponse::BadCredentials => ErrorCode::Unauthorized,
-            ApiErrorResponse::InvalidDataValue { field_name } => ErrorCode::ParameterMissing {
-                field_name: field_name.to_owned(),
-                param: field_name.to_owned(),
-            },
-            ApiErrorResponse::MaximumRefundCount => ErrorCode::MaximumRefundCount,
-            ApiErrorResponse::PaymentNotSucceeded => ErrorCode::PaymentFailed,
-            ApiErrorResponse::DuplicateMandate => ErrorCode::DuplicateMandate,
-            ApiErrorResponse::SuccessfulPaymentNotFound => ErrorCode::SuccessfulPaymentNotFound,
-            ApiErrorResponse::AddressNotFound => ErrorCode::AddressNotFound,
-            ApiErrorResponse::NotImplemented => ErrorCode::Unauthorized,
-            ApiErrorResponse::PaymentUnexpectedState {
+            errors::ApiErrorResponse::BadCredentials => ErrorCode::Unauthorized,
+            errors::ApiErrorResponse::InvalidDataValue { field_name } => {
+                ErrorCode::ParameterMissing {
+                    field_name: field_name.to_owned(),
+                    param: field_name.to_owned(),
+                }
+            }
+            errors::ApiErrorResponse::MaximumRefundCount => ErrorCode::MaximumRefundCount,
+            errors::ApiErrorResponse::PaymentNotSucceeded => ErrorCode::PaymentFailed,
+            errors::ApiErrorResponse::DuplicateMandate => ErrorCode::DuplicateMandate,
+            errors::ApiErrorResponse::SuccessfulPaymentNotFound => {
+                ErrorCode::SuccessfulPaymentNotFound
+            }
+            errors::ApiErrorResponse::AddressNotFound => ErrorCode::AddressNotFound,
+            errors::ApiErrorResponse::NotImplemented => ErrorCode::Unauthorized,
+            errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,
                 current_value,

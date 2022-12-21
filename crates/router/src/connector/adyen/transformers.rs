@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts,
     core::errors,
-    pii::{PeekInterface, Secret},
+    pii::{self, PeekInterface},
     services,
     types::{
         self,
@@ -153,9 +153,9 @@ pub enum AdyenPaymentMethod {
 pub struct AdyenCard {
     #[serde(rename = "type")]
     payment_type: String,
-    number: Option<Secret<String>>,
-    expiry_month: Option<Secret<String>>,
-    expiry_year: Option<Secret<String>>,
+    number: Option<pii::Secret<String>>,
+    expiry_month: Option<pii::Secret<String>>,
+    expiry_year: Option<pii::Secret<String>>,
     cvc: Option<String>,
 }
 
@@ -340,6 +340,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                     };
                     Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
                 }
+
+                api_enums::WalletIssuer::Paypal => Err(errors::ConnectorError::NotImplemented(
+                    "Adyen - Paypal".to_string(),
+                )),
             },
 
             storage_enums::PaymentMethodType::Paypal => {

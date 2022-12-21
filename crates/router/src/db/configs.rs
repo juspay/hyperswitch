@@ -64,14 +64,16 @@ impl ConfigInterface for MockDb {
         &self,
         _config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_config_by_key(
         &self,
         _key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_config_by_key(
@@ -79,6 +81,7 @@ impl ConfigInterface for MockDb {
         _key: &str,
         _config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

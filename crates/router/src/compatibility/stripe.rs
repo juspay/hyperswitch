@@ -5,21 +5,19 @@ mod refunds;
 mod setup_intents;
 use actix_web::{web, Scope};
 mod errors;
-pub(crate) use errors::ErrorCode;
 
-pub(crate) use self::app::{Customers, PaymentIntents, Refunds, SetupIntents};
-use crate::routes::AppState;
+use crate::routes;
 pub struct StripeApis;
 
 impl StripeApis {
-    pub(crate) fn server(state: AppState) -> Scope {
+    pub(crate) fn server(state: routes::AppState) -> Scope {
         let max_depth = 10;
         let strict = false;
         web::scope("/vs/v1")
             .app_data(web::Data::new(serde_qs::Config::new(max_depth, strict)))
-            .service(SetupIntents::server(state.clone()))
-            .service(PaymentIntents::server(state.clone()))
-            .service(Refunds::server(state.clone()))
-            .service(Customers::server(state))
+            .service(app::SetupIntents::server(state.clone()))
+            .service(app::PaymentIntents::server(state.clone()))
+            .service(app::Refunds::server(state.clone()))
+            .service(app::Customers::server(state))
     }
 }

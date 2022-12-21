@@ -126,7 +126,10 @@ impl QueueInterface for MockDb {
         _group_name: &str,
         _consumer_name: &str,
     ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(ProcessTrackerError::ResourceFetchingFailed {
+            resource_name: "consumer_tasks".to_string(),
+        })?
     }
 
     async fn consumer_group_create(
@@ -135,7 +138,8 @@ impl QueueInterface for MockDb {
         _group: &str,
         _id: &RedisEntryId,
     ) -> CustomResult<(), RedisError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(RedisError::ConsumerGroupCreateFailed)?
     }
 
     async fn acquire_pt_lock(
@@ -145,11 +149,13 @@ impl QueueInterface for MockDb {
         _lock_val: &str,
         _ttl: i64,
     ) -> bool {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        false
     }
 
     async fn release_pt_lock(&self, _tag: &str, _lock_key: &str) -> bool {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        false
     }
 
     async fn stream_append_entry(
@@ -158,7 +164,8 @@ impl QueueInterface for MockDb {
         _entry_id: &RedisEntryId,
         _fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(RedisError::StreamAppendFailed)?
     }
 
     async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
