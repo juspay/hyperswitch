@@ -295,7 +295,9 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
             StripePaymentStatus::Failed => enums::AttemptStatus::Failure,
             StripePaymentStatus::Processing => enums::AttemptStatus::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => enums::AttemptStatus::PendingVbv,
+            StripePaymentStatus::RequiresCustomerAction => {
+                enums::AttemptStatus::PendingCustomerAuthentication
+            }
             StripePaymentStatus::RequiresPaymentMethod => {
                 enums::AttemptStatus::PaymentMethodAwaited
             }
