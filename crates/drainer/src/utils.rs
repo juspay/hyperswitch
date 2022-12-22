@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
 use error_stack::{IntoReport, ResultExt};
-use fred::types as fred;
 use redis_interface as redis;
 use router::services::Store;
 
@@ -31,11 +30,10 @@ pub async fn read_from_stream(
     max_read_count: u64,
     redis: &redis::RedisConnectionPool,
 ) -> errors::DrainerResult<StreamReadResult> {
-    let stream_key = fred::MultipleKeys::from(stream_name);
     // "0-0" id gives first entry
     let stream_id = "0-0";
     let entries = redis
-        .stream_read_entries(stream_key, stream_id, Some(max_read_count))
+        .stream_read_entries(stream_name, stream_id, Some(max_read_count))
         .await
         .change_context(errors::DrainerError::StreamReadError(
             stream_name.to_owned(),
@@ -48,17 +46,11 @@ pub async fn trim_from_stream(
     minimum_entry_id: &str,
     redis: &redis::RedisConnectionPool,
 ) -> errors::DrainerResult<usize> {
-    let trim_kind = fred::XCapKind::MinID;
-    let trim_type = fred::XCapTrim::Exact;
-    let trim_id = fred::StringOrNumber::String(minimum_entry_id.into());
-    let xcap = fred::XCap::try_from((trim_kind, trim_type, trim_id))
-        .into_report()
-        .change_context(errors::DrainerError::StreamTrimFailed(
-            stream_name.to_owned(),
-        ))?;
-
+    let trim_kind = redis::StreamCapKind::MinID;
+    let trim_type = redis::StreamCapTrim::Exact;
+    let trim_id = minimum_entry_id;
     let trim_result = redis
-        .stream_trim_entries(stream_name, xcap)
+        .stream_trim_entries(stream_name, (trim_kind, trim_type, trim_id))
         .await
         .change_context(errors::DrainerError::StreamTrimFailed(
             stream_name.to_owned(),
