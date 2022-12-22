@@ -74,11 +74,15 @@ fn implement_error_type(
             Fields::Unnamed(..) => quote! { (..) },
             Fields::Named(..) => quote! { {..} },
         };
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let error_type = properties.error_type.as_ref().unwrap();
 
         arms.push(quote! { #enum_name::#ident #params => #error_type });
     }
 
+    // Safety: Missing attributes are already checked before this function is called.
+    #[allow(clippy::unwrap_used)]
     let error_type_enum = type_properties.error_type_enum.as_ref().unwrap();
     quote! {
         pub fn error_type(&self) -> #error_type_enum {
@@ -101,6 +105,8 @@ fn implement_error_code(
             Fields::Unnamed(..) => quote! { (..) },
             Fields::Named(..) => quote! { {..} },
         };
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let error_code = properties.code.as_ref().unwrap();
 
         arms.push(quote! { #enum_name::#ident #params => #error_code.to_string() });
@@ -129,11 +135,17 @@ fn implement_error_message(
                 let fields = fields
                     .named
                     .iter()
-                    .map(|f| f.ident.as_ref().unwrap())
+                    .map(|f| {
+                        // Safety: Named fields are guaranteed to have an identifier.
+                        #[allow(clippy::unwrap_used)]
+                        f.ident.as_ref().unwrap()
+                    })
                     .collect::<Punctuated<&Ident, Comma>>();
                 quote! { {#fields} }
             }
         };
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let error_message = properties.message.as_ref().unwrap();
 
         arms.push(quote! { #enum_name::#ident #params => format!(#error_message) });
@@ -150,7 +162,7 @@ fn implement_error_message(
 
 fn implement_serialize(
     enum_name: &Ident,
-    generics: (&ImplGenerics, &TypeGenerics, Option<&WhereClause>),
+    generics: (&ImplGenerics<'_>, &TypeGenerics<'_>, Option<&WhereClause>),
     type_properties: &ErrorTypeProperties,
     variants_properties_map: &HashMap<&Variant, ErrorVariantProperties>,
 ) -> TokenStream {
@@ -165,14 +177,22 @@ fn implement_serialize(
                 let fields = fields
                     .named
                     .iter()
-                    .map(|f| f.ident.as_ref().unwrap())
+                    .map(|f| {
+                        // Safety: Named fields are guaranteed to have an identifier.
+                        #[allow(clippy::unwrap_used)]
+                        f.ident.as_ref().unwrap()
+                    })
                     .collect::<Punctuated<&Ident, Comma>>();
                 quote! { {#fields} }
             }
         };
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let error_message = properties.message.as_ref().unwrap();
-        let msg_unused_fields = get_unused_fields(&variant.fields, &error_message.value()).unwrap();
+        let msg_unused_fields = get_unused_fields(&variant.fields, &error_message.value());
 
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let error_type_enum = type_properties.error_type_enum.as_ref().unwrap();
         let response_definition = if msg_unused_fields.is_empty() {
             quote! {
@@ -188,6 +208,8 @@ fn implement_serialize(
             let mut extra_fields = Vec::new();
             for field in &msg_unused_fields {
                 let vis = &field.vis;
+                // Safety: `msq_unused_fields` is expected to contain named fields only.
+                #[allow(clippy::unwrap_used)]
                 let ident = &field.ident.as_ref().unwrap();
                 let ty = &field.ty;
                 extra_fields.push(quote! { #vis #ident: #ty });
@@ -204,12 +226,20 @@ fn implement_serialize(
             }
         };
 
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let error_type = properties.error_type.as_ref().unwrap();
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let code = properties.code.as_ref().unwrap();
+        // Safety: Missing attributes are already checked before this function is called.
+        #[allow(clippy::unwrap_used)]
         let message = properties.message.as_ref().unwrap();
         let extra_fields = msg_unused_fields
             .iter()
             .map(|field| {
+                // Safety: `extra_fields` is expected to contain named fields only.
+                #[allow(clippy::unwrap_used)]
                 let field_name = field.ident.as_ref().unwrap();
                 quote! { #field_name: #field_name.to_owned() }
             })

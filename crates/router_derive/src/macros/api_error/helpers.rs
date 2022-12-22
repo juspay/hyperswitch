@@ -24,7 +24,7 @@ enum EnumMeta {
 }
 
 impl Parse for EnumMeta {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::error_type_enum) {
             let keyword = input.parse()?;
@@ -83,6 +83,13 @@ impl HasErrorTypeProperties for DeriveInput {
             }
         }
 
+        if output.error_type_enum.is_none() {
+            return Err(syn::Error::new(
+                self.span(),
+                "error(error_type_enum) attribute not found",
+            ));
+        }
+
         Ok(output)
     }
 }
@@ -103,7 +110,7 @@ enum VariantMeta {
 }
 
 impl Parse for VariantMeta {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::error_type) {
             let keyword = input.parse()?;
@@ -220,19 +227,21 @@ pub(super) fn check_missing_attributes(
 }
 
 /// Get all the fields not used in the error message.
-pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> syn::Result<Vec<Field>> {
+pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> Vec<Field> {
     let fields = match fields {
         syn::Fields::Unit => Vec::new(),
         syn::Fields::Unnamed(_) => Vec::new(),
         syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),
     };
 
-    Ok(fields
+    fields
         .iter()
         .filter(|&field| {
+            // Safety: Named fields are guaranteed to have an identifier.
+            #[allow(clippy::unwrap_used)]
             let field_name = format!("{}", field.ident.as_ref().unwrap());
             !message.contains(&field_name)
         })
         .cloned()
-        .collect())
+        .collect()
 }

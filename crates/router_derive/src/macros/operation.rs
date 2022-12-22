@@ -91,6 +91,7 @@ impl From<String> for Conversion {
             "update_tracker" => Self::UpdateTracker,
             "post_tracker" => Self::PostUpdateTracker,
             "all" => Self::All,
+            #[allow(clippy::panic)] // FIXME: Use `compile_error!()` instead
             _ => panic!("Invalid conversion identifier {}", s),
         }
     }
@@ -205,6 +206,7 @@ impl Conversion {
 }
 
 fn find_operation_attr(a: &[syn::Attribute]) -> syn::Attribute {
+    #[allow(clippy::expect_used)] // FIXME: Use `compile_error!()` instead
     a.iter()
         .find(|a| {
             a.path
@@ -232,6 +234,9 @@ fn find_value(v: NestedMeta) -> Option<(String, Vec<String>)> {
         _ => None,
     }
 }
+
+// FIXME: Propagate errors in a better manner instead of `expect()`, maybe use `compile_error!()`
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 fn find_properties(attr: &syn::Attribute) -> Option<HashMap<String, Vec<String>>> {
     let meta = attr.parse_meta();
     match meta {
@@ -251,6 +256,8 @@ fn find_properties(attr: &syn::Attribute) -> Option<HashMap<String, Vec<String>>
     }
 }
 
+// FIXME: Propagate errors in a better manner instead of `expect()`, maybe use `compile_error!()`
+#[allow(clippy::expect_used)]
 pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(token as DeriveInput);
     let struct_name = &input.ident;
