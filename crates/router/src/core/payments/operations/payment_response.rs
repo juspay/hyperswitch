@@ -145,11 +145,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
         F: 'b + Send,
     {
         payment_data.mandate_id = payment_data.mandate_id.or_else(|| {
-            router_data
-                .request
-                .mandate_id
-                .clone()
-                .map(api_models::payments::MandateIds::new)
+            router_data.request.mandate_id.clone()
+            // .map(api_models::payments::MandateIds::new)
         });
 
         payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)

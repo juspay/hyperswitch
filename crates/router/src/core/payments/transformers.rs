@@ -482,10 +482,6 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        let connector_mandate_id = payment_data
-            .mandate_id
-            .clone()
-            .and_then(|mandate_ids| mandate_ids.connector_mandate_id);
         Ok(Self {
             confirm: true,
             payment_method_data: {
@@ -503,8 +499,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
             },
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
-            off_session: connector_mandate_id.as_ref().map(|_| true),
-            mandate_id: connector_mandate_id,
+            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
         })
     }
