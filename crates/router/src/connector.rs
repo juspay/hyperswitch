@@ -11,5 +11,5 @@ pub mod shift4;
 
 pub use self::{
     aci::Aci, adyen::Adyen, applepay::Applepay, authorizedotnet::Authorizedotnet,
-    braintree::Braintree, checkout::Checkout, klarna::Klarna, stripe::Stripe, shift4::Shift4
+    braintree::Braintree, checkout::Checkout, klarna::Klarna, shift4::Shift4, stripe::Stripe,
 };

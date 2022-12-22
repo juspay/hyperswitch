@@ -494,8 +494,8 @@ pub enum Connector {
     #[default]
     Dummy,
     Klarna,
+    Shift4,
     Stripe,
-    Shift4
 }
 
 impl From<AttemptStatus> for IntentStatus {

@@ -6,7 +6,7 @@ use bytes::Bytes;
 use error_stack::ResultExt;
 
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     utils::{self, BytesExt},
     core::{
         errors::{self, CustomResult},
@@ -36,8 +36,8 @@ impl api::ConnectorCommon for {{project-name | downcase | pascal_case}} {
         // Ex: "application/x-www-form-urlencoded"
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
-        connectors.{{project-name}}.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.{{project-name}}.base_url.as_ref()
     }
 
     fn get_auth_header(&self,_auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
@@ -120,7 +120,7 @@ impl
         todo!()
     }
 
-    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, connectors: Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         todo!()
     }
 
@@ -169,7 +169,7 @@ impl
         todo!()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, connectors: Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         todo!()
     }
 
@@ -178,7 +178,7 @@ impl
         Ok(Some({{project-name | downcase}}_req))
     }
 
-    fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
+    fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
@@ -224,7 +224,7 @@ impl
         todo!()
     }
 
-    fn get_url(&self, _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,_connectors: Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(&self, _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         todo!()
     }
 

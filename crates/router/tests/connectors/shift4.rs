@@ -35,27 +35,27 @@ impl utils::Connector for Shift4 {
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = Shift4 {}.authorize_payment(None).await;
-    utils::assert_equals(response.status, enums::AttemptStatus::Authorized);
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
 
 #[actix_web::test]
 async fn should_authorize_and_capture_payment() {
     let response = Shift4 {}.make_payment(None).await;
-    utils::assert_equals(response.status, enums::AttemptStatus::Charged);
+    assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Shift4 {};
     let authorize_response = connector.authorize_payment(None).await;
-    utils::assert_equals(authorize_response.status, enums::AttemptStatus::Authorized);
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector.capture_payment(transaction_id, None).await.status
         })
         .into();
-    utils::assert_equals(response.await, Some(enums::AttemptStatus::Charged));
+    assert_eq!(response.await, Some(enums::AttemptStatus::Charged));
 }
 
 #[actix_web::test]
@@ -70,7 +70,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         }))
         .await;
     let x = response.response.unwrap_err();
-    utils::assert_equals(
+    assert_eq!(
         x.message,
         "The card's security code failed verification.".to_string(),
     );
@@ -85,7 +85,7 @@ async fn should_refund_succeeded_payment() {
     //try refund for previous payment
     if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
         let response = connector.refund_payment(transaction_id, None).await;
-        utils::assert_equals(
+        assert_eq!(
             response.response.unwrap().refund_status,
             enums::RefundStatus::Success,
         );

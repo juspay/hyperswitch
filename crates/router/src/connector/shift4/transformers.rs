@@ -6,7 +6,6 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4PaymentsRequest {
@@ -21,20 +20,12 @@ pub struct Shift4PaymentsRequest {
 pub struct DeviceData;
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PaymentOptions {
-    submit_for_settlement: bool,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     number: String,
-    #[serde(rename = "expMonth")]
     exp_month: String,
-    #[serde(rename = "expYear")]
     exp_year: String,
-    #[serde(rename = "cardholderName")]
-    card_holder_name: String,
+    cardholder_name: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
@@ -46,13 +37,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None
                 );
-                let payment_request = Shift4PaymentsRequest {
+                let payment_request = Self {
                     amount: item.request.amount.to_string(),
                     card: Card {
                         number: ccard.card_number.peek().clone(),
                         exp_month: ccard.card_exp_month.peek().clone(),
                         exp_year: ccard.card_exp_year.peek().clone(),
-                        card_holder_name: ccard.card_holder_name.peek().clone(),
+                        cardholder_name: ccard.card_holder_name.peek().clone(),
                     },
                     currency: item.request.currency.to_string(),
                     description: item.description.clone(),
@@ -67,7 +58,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct Shift4AuthType {
     pub(super) api_key: String,
@@ -76,7 +66,7 @@ pub struct Shift4AuthType {
 impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1: _ } = item {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
                 api_key: api_key.to_string(),
             })
@@ -86,28 +76,21 @@ impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Shift4PaymentStatus {
     Successful,
     Failed,
+    #[default]
     Pending,
-}
-
-// Default should be Processing
-impl Default for Shift4PaymentStatus {
-    fn default() -> Self {
-        Shift4PaymentStatus::Pending
-    }
 }
 
 impl From<Shift4PaymentStatus> for enums::AttemptStatus {
     fn from(item: Shift4PaymentStatus) -> Self {
         match item {
-            Shift4PaymentStatus::Successful => enums::AttemptStatus::Charged,
-            Shift4PaymentStatus::Failed => enums::AttemptStatus::Failure,
-            Shift4PaymentStatus::Pending => enums::AttemptStatus::Pending,
+            Shift4PaymentStatus::Successful => Self::Charged,
+            Shift4PaymentStatus::Failed => Self::Failure,
+            Shift4PaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -115,7 +98,12 @@ impl From<Shift4PaymentStatus> for enums::AttemptStatus {
 #[derive(Debug, Deserialize)]
 pub struct Shift4WebhookObjectEventType {
     #[serde(rename = "type")]
-    pub event_type: String,
+    pub event_type: Shift4WebhookEvent,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum Shift4WebhookEvent {
+    ChargeSucceeded,
 }
 
 #[derive(Debug, Deserialize)]
@@ -133,18 +121,16 @@ pub struct Shift4WebhookObjectResource {
     pub data: serde_json::Value,
 }
 
-fn get_payment_status(response: Shift4PaymentsResponse) -> enums::AttemptStatus {
-    let attemp_status = enums::AttemptStatus::from(response.status.clone());
+fn get_payment_status(response: &Shift4PaymentsResponse) -> enums::AttemptStatus {
     let is_authorized =
         !response.captured && matches!(response.status, Shift4PaymentStatus::Successful);
     if is_authorized {
         enums::AttemptStatus::Authorized
     } else {
-        attemp_status
+        enums::AttemptStatus::from(response.status.clone())
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Shift4PaymentsResponse {
     id: String,
@@ -164,12 +150,11 @@ impl<F, T>
         item: types::ResponseRouterData<F, Shift4PaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(types::RouterData {
-            status: get_payment_status(item.response.clone()),
+            status: get_payment_status(&item.response),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data
@@ -177,12 +162,11 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Shift4RefundRequest {
-    #[serde(rename = "chargeId")]
     charge_id: String,
     amount: i64,
 }
@@ -190,7 +174,7 @@ pub struct Shift4RefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(Shift4RefundRequest {
+        Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
             amount: item.request.amount,
         })
@@ -200,9 +184,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
 impl From<self::Shift4RefundStatus> for enums::RefundStatus {
     fn from(item: self::Shift4RefundStatus) -> Self {
         match item {
-            self::Shift4RefundStatus::Successful => enums::RefundStatus::Success,
-            self::Shift4RefundStatus::Failed => enums::RefundStatus::Failure,
-            self::Shift4RefundStatus::Processing => enums::RefundStatus::Pending,
+            self::Shift4RefundStatus::Successful => Self::Success,
+            self::Shift4RefundStatus::Failed => Self::Failure,
+            self::Shift4RefundStatus::Processing => Self::Pending,
         }
     }
 }
@@ -216,18 +200,13 @@ pub struct RefundResponse {
     pub status: Shift4RefundStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Shift4RefundStatus {
     Successful,
     Processing,
+    #[default]
     Failed,
-}
-
-impl Default for Shift4RefundStatus {
-    fn default() -> Self {
-        Shift4RefundStatus::Processing
-    }
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>

@@ -9,12 +9,14 @@ pub mod webhooks;
 
 use std::{fmt::Debug, marker, str::FromStr};
 
+use bytes::Bytes;
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{admin::*, customers::*, payment_methods::*, payments::*, refunds::*, webhooks::*};
+use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,
-    connector,
+    connector, consts,
     core::errors::{self, CustomResult},
     services::ConnectorRedirectResponse,
     types::{self, api::enums as api_enums},
@@ -44,6 +46,29 @@ pub trait ConnectorCommon {
     // TODO: Pass the connectors as borrow
     /// The base URL for interacting with the connector's API.
     fn base_url(&self, connectors: Connectors) -> String;
+
+    //common error response for a connector if it is same in all case
+    fn build_error_response(
+        &self,
+        _res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        Ok(ErrorResponse {
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: "".to_string(),
+            reason: None,
+        })
+    }
+}
+
+//Extended trait for connector common to allow functions with generic type
+pub trait ConnectorCommonExt: ConnectorCommon {
+    //common header builder when every request for the connector have same headers
+    fn build_headers<Flow, Request, Response>(
+        &self,
+        _req: &types::RouterData<Flow, Request, Response>,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        Ok(Vec::new())
+    }
 }
 
 pub trait Router {}

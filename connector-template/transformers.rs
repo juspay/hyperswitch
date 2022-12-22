@@ -24,19 +24,13 @@ impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_c
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum {{project-name | downcase | pascal_case}}PaymentStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
-}
-
-// Default should be Processing
-impl Default for {{project-name | downcase | pascal_case}}PaymentStatus {
-    fn default() -> Self {
-        {{project-name | downcase | pascal_case}}PaymentStatus::Processing
-    }
 }
 
 impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::AttemptStatus {
@@ -76,18 +70,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pa
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
-}
-
-// Default should be Processing
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Processing
-    }
 }
 
 impl From<self::RefundStatus> for enums::RefundStatus {

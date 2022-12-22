@@ -4,11 +4,11 @@ use std::fmt::Debug;
 
 use bytes::Bytes;
 use common_utils::ext_traits::ByteSliceExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as shift4;
 
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -17,7 +17,7 @@ use crate::{
     headers, logger, services,
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -26,17 +26,36 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Shift4;
 
+impl api::ConnectorCommonExt for Shift4 {
+    fn build_headers<Flow, Request, Response>(
+        &self,
+        req: &types::RouterData<Flow, Request, Response>,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                self.common_get_content_type().to_string(),
+            ),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
+    }
+}
 impl api::ConnectorCommon for Shift4 {
     fn id(&self) -> &'static str {
         "shift4"
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json"
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.shift4.base_url
     }
 
@@ -48,6 +67,24 @@ impl api::ConnectorCommon for Shift4 {
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: shift4::ErrorResponse = res
+            .parse_struct("Shift4 ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response.error.message,
+            reason: None,
+        })
     }
 }
 
@@ -83,26 +120,17 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
-        Ok(headers)
+        self.build_headers(req)
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req
             .request
@@ -119,14 +147,13 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSyncType::get_headers(self, req)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -135,25 +162,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: shift4::ErrorResponse = res
-            .parse_struct("Shift4 ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response.error.message,
-            reason: None,
-        })
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
+        self.build_error_response(res)
     }
 
     fn handle_response(
@@ -186,47 +195,26 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
-        Ok(headers)
+        self.build_headers(req)
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_request_body(
         &self,
-        _req: &types::RouterData<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-        connectors: Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -240,11 +228,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<
         types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
@@ -271,12 +255,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::RouterData<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-        connectors: Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -290,18 +270,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: shift4::ErrorResponse = res
-            .parse_struct("Shift4 ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response.error.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -330,23 +299,17 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req)
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}charges", self.base_url(connectors)))
     }
@@ -367,7 +330,7 @@ impl
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -403,19 +366,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        logger::debug!(shift4payments_create_response=?res);
-
-        let response: shift4::ErrorResponse = res
-            .parse_struct("Shift4 ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response.error.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -430,26 +381,17 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
-        Ok(headers)
+        self.build_headers(req)
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/refunds", self.base_url(connectors),))
     }
@@ -466,7 +408,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -500,18 +442,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: shift4::ErrorResponse = res
-            .parse_struct("Shift4 ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response.error.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -522,26 +453,17 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
-        Ok(headers)
+        self.build_headers(req)
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/refunds", self.base_url(connectors),))
     }
@@ -572,18 +494,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: shift4::ErrorResponse = res
-            .parse_struct("Shift4 ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response.error.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -607,9 +518,10 @@ impl api::IncomingWebhook for Shift4 {
         let details: shift4::Shift4WebhookObjectEventType = body
             .parse_struct("Shift4WebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(match details.event_type.as_str() {
-            "CHARGE_SUCCEEDED" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match details.event_type {
+            shift4::Shift4WebhookEvent::ChargeSucceeded => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
         })
     }
 
