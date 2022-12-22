@@ -19,7 +19,7 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
-            Ok(AciAuthType {
+            Ok(Self {
                 api_key: api_key.to_string(),
                 entity_id: key1.to_string(),
             })
@@ -117,7 +117,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
-        let aci_payment_request = AciPaymentsRequest {
+        let aci_payment_request = Self {
             payment_method: payment_details,
             entity_id: auth.entity_id,
             amount: item.request.amount,
@@ -132,7 +132,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
-        let aci_payment_request = AciCancelRequest {
+        let aci_payment_request = Self {
             entity_id: auth.entity_id,
             payment_type: AciPaymentType::Reversal,
         };
@@ -152,9 +152,9 @@ pub enum AciPaymentStatus {
 impl From<AciPaymentStatus> for enums::AttemptStatus {
     fn from(item: AciPaymentStatus) -> Self {
         match item {
-            AciPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            AciPaymentStatus::Failed => enums::AttemptStatus::Failure,
-            AciPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
+            AciPaymentStatus::Succeeded => Self::Charged,
+            AciPaymentStatus::Failed => Self::Failure,
+            AciPaymentStatus::Pending => Self::Authorizing,
         }
     }
 }
@@ -209,7 +209,7 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
                 &item.response.result.code,
             )?),
@@ -241,7 +241,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
         let payment_type = AciPaymentType::Refund;
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
 
-        Ok(AciRefundRequest {
+        Ok(Self {
             amount,
             currency: currency.to_string(),
             payment_type,
@@ -275,12 +275,12 @@ impl FromStr for AciRefundStatus {
     }
 }
 
-impl From<self::AciRefundStatus> for enums::RefundStatus {
-    fn from(item: self::AciRefundStatus) -> Self {
+impl From<AciRefundStatus> for enums::RefundStatus {
+    fn from(item: AciRefundStatus) -> Self {
         match item {
-            self::AciRefundStatus::Succeeded => enums::RefundStatus::Success,
-            self::AciRefundStatus::Failed => enums::RefundStatus::Failure,
-            self::AciRefundStatus::Pending => enums::RefundStatus::Pending,
+            AciRefundStatus::Succeeded => Self::Success,
+            AciRefundStatus::Failed => Self::Failure,
+            AciRefundStatus::Pending => Self::Pending,
         }
     }
 }
@@ -304,7 +304,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<F, AciRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(AciRefundStatus::from_str(

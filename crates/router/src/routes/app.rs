@@ -18,7 +18,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> AppState {
+    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> Self {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
@@ -27,7 +27,7 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
-        AppState {
+        Self {
             flow_name: String::from("default"),
             store,
             conf,
@@ -35,8 +35,8 @@ impl AppState {
     }
 
     #[allow(unused_variables)]
-    pub async fn new(conf: Settings) -> AppState {
-        AppState::with_storage(conf, StorageImpl::Postgresql).await
+    pub async fn new(conf: Settings) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql).await
     }
 }
 

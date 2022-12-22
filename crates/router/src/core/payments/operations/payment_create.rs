@@ -503,7 +503,7 @@ impl PaymentCreate {
         storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
-            txn_id: payment_attempt.attempt_id.clone(),
+            attempt_id: payment_attempt.attempt_id.clone(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
             connector_name: payment_attempt.connector.clone(),
