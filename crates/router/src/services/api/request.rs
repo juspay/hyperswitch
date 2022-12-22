@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections, str::FromStr};
 
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -10,7 +10,7 @@ use crate::{
     logger,
 };
 
-pub(crate) type Headers = Vec<(String, String)>;
+pub(crate) type Headers = collections::HashSet<(String, String)>;
 
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
@@ -42,11 +42,11 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(method: Method, url: &str) -> Request {
-        Request {
+    pub fn new(method: Method, url: &str) -> Self {
+        Self {
             method,
             url: String::from(url),
-            headers: Vec::new(),
+            headers: collections::HashSet::new(),
             payload: None,
             content_type: None,
             certificate: None,
@@ -60,7 +60,7 @@ impl Request {
 
     pub fn add_header(&mut self, header: &str, value: &str) {
         self.headers
-            .push((String::from(header), String::from(value)));
+            .insert((String::from(header), String::from(value)));
     }
 
     pub fn add_content_type(&mut self, content_type: ContentType) {
@@ -87,11 +87,11 @@ pub struct RequestBuilder {
 }
 
 impl RequestBuilder {
-    pub fn new() -> RequestBuilder {
-        RequestBuilder {
+    pub fn new() -> Self {
+        Self {
             method: Method::Get,
             url: String::with_capacity(1024),
-            headers: Vec::new(),
+            headers: std::collections::HashSet::new(),
             payload: None,
             content_type: None,
             certificate: None,
@@ -99,44 +99,43 @@ impl RequestBuilder {
         }
     }
 
-    pub fn url(mut self, url: &str) -> RequestBuilder {
+    pub fn url(mut self, url: &str) -> Self {
         self.url = url.into();
         self
     }
 
-    pub fn method(mut self, method: Method) -> RequestBuilder {
+    pub fn method(mut self, method: Method) -> Self {
         self.method = method;
         self
     }
 
-    pub fn header(mut self, header: &str, value: &str) -> RequestBuilder {
-        self.headers.push((header.into(), value.into()));
+    pub fn header(mut self, header: &str, value: &str) -> Self {
+        self.headers.insert((header.into(), value.into()));
         self
     }
 
-    pub fn headers(mut self, headers: Vec<(String, String)>) -> RequestBuilder {
-        // Fixme add union property
-        let mut h = headers.into_iter().map(|(h, v)| (h, v)).collect();
-        self.headers.append(&mut h);
+    pub fn headers(mut self, headers: Vec<(String, String)>) -> Self {
+        let mut h = headers.into_iter().map(|(h, v)| (h, v));
+        self.headers.extend(&mut h);
         self
     }
 
-    pub fn body(mut self, body: Option<String>) -> RequestBuilder {
+    pub fn body(mut self, body: Option<String>) -> Self {
         self.payload = body.map(From::from);
         self
     }
 
-    pub fn content_type(mut self, content_type: ContentType) -> RequestBuilder {
+    pub fn content_type(mut self, content_type: ContentType) -> Self {
         self.content_type = Some(content_type);
         self
     }
 
-    pub fn add_certificate(mut self, certificate: Option<String>) -> RequestBuilder {
+    pub fn add_certificate(mut self, certificate: Option<String>) -> Self {
         self.certificate = certificate;
         self
     }
 
-    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> RequestBuilder {
+    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> Self {
         self.certificate_key = certificate_key;
         self
     }

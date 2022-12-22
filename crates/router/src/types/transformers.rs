@@ -90,25 +90,25 @@ where
 
 impl From<F<api_enums::RoutingAlgorithm>> for F<storage_enums::RoutingAlgorithm> {
     fn from(algo: F<api_enums::RoutingAlgorithm>) -> Self {
-        Foreign(frunk::labelled_convert_from(algo.0))
+        Self(frunk::labelled_convert_from(algo.0))
     }
 }
 
 impl From<F<storage_enums::RoutingAlgorithm>> for F<api_enums::RoutingAlgorithm> {
     fn from(algo: F<storage_enums::RoutingAlgorithm>) -> Self {
-        Foreign(frunk::labelled_convert_from(algo.0))
+        Self(frunk::labelled_convert_from(algo.0))
     }
 }
 
 impl From<F<api_enums::ConnectorType>> for F<storage_enums::ConnectorType> {
     fn from(conn: F<api_enums::ConnectorType>) -> Self {
-        Foreign(frunk::labelled_convert_from(conn.0))
+        Self(frunk::labelled_convert_from(conn.0))
     }
 }
 
 impl From<F<storage_enums::ConnectorType>> for F<api_enums::ConnectorType> {
     fn from(conn: F<storage_enums::ConnectorType>) -> Self {
-        Foreign(frunk::labelled_convert_from(conn.0))
+        Self(frunk::labelled_convert_from(conn.0))
     }
 }
 
@@ -124,49 +124,49 @@ impl From<F<api_models::refunds::RefundType>> for F<storage_enums::RefundType> {
 
 impl From<F<storage_enums::MandateStatus>> for F<api_enums::MandateStatus> {
     fn from(status: F<storage_enums::MandateStatus>) -> Self {
-        Foreign(frunk::labelled_convert_from(status.0))
+        Self(frunk::labelled_convert_from(status.0))
     }
 }
 
 impl From<F<api_enums::PaymentMethodType>> for F<storage_enums::PaymentMethodType> {
     fn from(pm_type: F<api_enums::PaymentMethodType>) -> Self {
-        Foreign(frunk::labelled_convert_from(pm_type.0))
+        Self(frunk::labelled_convert_from(pm_type.0))
     }
 }
 
 impl From<F<storage_enums::PaymentMethodType>> for F<api_enums::PaymentMethodType> {
     fn from(pm_type: F<storage_enums::PaymentMethodType>) -> Self {
-        Foreign(frunk::labelled_convert_from(pm_type.0))
+        Self(frunk::labelled_convert_from(pm_type.0))
     }
 }
 
 impl From<F<api_enums::PaymentMethodSubType>> for F<storage_enums::PaymentMethodSubType> {
     fn from(pm_subtype: F<api_enums::PaymentMethodSubType>) -> Self {
-        Foreign(frunk::labelled_convert_from(pm_subtype.0))
+        Self(frunk::labelled_convert_from(pm_subtype.0))
     }
 }
 
 impl From<F<storage_enums::PaymentMethodSubType>> for F<api_enums::PaymentMethodSubType> {
     fn from(pm_subtype: F<storage_enums::PaymentMethodSubType>) -> Self {
-        Foreign(frunk::labelled_convert_from(pm_subtype.0))
+        Self(frunk::labelled_convert_from(pm_subtype.0))
     }
 }
 
 impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMethodIssuerCode> {
     fn from(issuer_code: F<storage_enums::PaymentMethodIssuerCode>) -> Self {
-        Foreign(frunk::labelled_convert_from(issuer_code.0))
+        Self(frunk::labelled_convert_from(issuer_code.0))
     }
 }
 
 impl From<F<storage_enums::IntentStatus>> for F<api_enums::IntentStatus> {
     fn from(status: F<storage_enums::IntentStatus>) -> Self {
-        Foreign(frunk::labelled_convert_from(status.0))
+        Self(frunk::labelled_convert_from(status.0))
     }
 }
 
 impl From<F<api_enums::IntentStatus>> for F<storage_enums::IntentStatus> {
     fn from(status: F<api_enums::IntentStatus>) -> Self {
-        Foreign(frunk::labelled_convert_from(status.0))
+        Self(frunk::labelled_convert_from(status.0))
     }
 }
 
@@ -228,55 +228,55 @@ impl TryFrom<F<api_enums::IntentStatus>> for F<storage_enums::EventType> {
 
 impl From<F<storage_enums::EventType>> for F<api_enums::EventType> {
     fn from(event_type: F<storage_enums::EventType>) -> Self {
-        Foreign(frunk::labelled_convert_from(event_type.0))
+        Self(frunk::labelled_convert_from(event_type.0))
     }
 }
 
 impl From<F<api_enums::FutureUsage>> for F<storage_enums::FutureUsage> {
     fn from(future_usage: F<api_enums::FutureUsage>) -> Self {
-        Foreign(frunk::labelled_convert_from(future_usage.0))
+        Self(frunk::labelled_convert_from(future_usage.0))
     }
 }
 
 impl From<F<storage_enums::FutureUsage>> for F<api_enums::FutureUsage> {
     fn from(future_usage: F<storage_enums::FutureUsage>) -> Self {
-        Foreign(frunk::labelled_convert_from(future_usage.0))
+        Self(frunk::labelled_convert_from(future_usage.0))
     }
 }
 
 impl From<F<storage_enums::RefundStatus>> for F<api_enums::RefundStatus> {
     fn from(status: F<storage_enums::RefundStatus>) -> Self {
-        Foreign(frunk::labelled_convert_from(status.0))
+        Self(frunk::labelled_convert_from(status.0))
     }
 }
 
 impl From<F<api_enums::CaptureMethod>> for F<storage_enums::CaptureMethod> {
     fn from(capture_method: F<api_enums::CaptureMethod>) -> Self {
-        Foreign(frunk::labelled_convert_from(capture_method.0))
+        Self(frunk::labelled_convert_from(capture_method.0))
     }
 }
 
 impl From<F<storage_enums::CaptureMethod>> for F<api_enums::CaptureMethod> {
     fn from(capture_method: F<storage_enums::CaptureMethod>) -> Self {
-        Foreign(frunk::labelled_convert_from(capture_method.0))
+        Self(frunk::labelled_convert_from(capture_method.0))
     }
 }
 
 impl From<F<api_enums::AuthenticationType>> for F<storage_enums::AuthenticationType> {
     fn from(auth_type: F<api_enums::AuthenticationType>) -> Self {
-        Foreign(frunk::labelled_convert_from(auth_type.0))
+        Self(frunk::labelled_convert_from(auth_type.0))
     }
 }
 
 impl From<F<storage_enums::AuthenticationType>> for F<api_enums::AuthenticationType> {
     fn from(auth_type: F<storage_enums::AuthenticationType>) -> Self {
-        Foreign(frunk::labelled_convert_from(auth_type.0))
+        Self(frunk::labelled_convert_from(auth_type.0))
     }
 }
 
 impl From<F<api_enums::Currency>> for F<storage_enums::Currency> {
     fn from(currency: F<api_enums::Currency>) -> Self {
-        Foreign(frunk::labelled_convert_from(currency.0))
+        Self(frunk::labelled_convert_from(currency.0))
     }
 }
 

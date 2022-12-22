@@ -52,7 +52,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
         item: types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Klarna {
                     session_token: response.client_token.clone(),
@@ -109,9 +109,9 @@ pub enum KlarnaPaymentStatus {
 impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
     fn from(item: KlarnaPaymentStatus) -> Self {
         match item {
-            KlarnaPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            KlarnaPaymentStatus::Failed => enums::AttemptStatus::Failure,
-            KlarnaPaymentStatus::Processing => enums::AttemptStatus::Authorizing,
+            KlarnaPaymentStatus::Succeeded => Self::Charged,
+            KlarnaPaymentStatus::Failed => Self::Failure,
+            KlarnaPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }

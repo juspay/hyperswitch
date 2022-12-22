@@ -42,18 +42,18 @@ impl ConnectorResponse {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_payment_id_and_merchant_id_transaction_id(
+    pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-        transaction_id: &str,
+        attempt_id: &str,
     ) -> StorageResult<ConnectorResponse> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()).and(
                 dsl::payment_id
                     .eq(payment_id.to_owned())
-                    .and(dsl::txn_id.eq(transaction_id.to_owned())),
+                    .and(dsl::attempt_id.eq(attempt_id.to_owned())),
             ),
         )
         .await

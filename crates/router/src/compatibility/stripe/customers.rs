@@ -1,4 +1,4 @@
-mod types;
+pub mod types;
 
 use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
 use error_stack::report;
