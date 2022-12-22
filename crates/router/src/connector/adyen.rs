@@ -40,8 +40,8 @@ impl api::ConnectorCommon for Adyen {
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
-        connectors.adyen.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.adyen.base_url.as_ref()
     }
 }
 
@@ -153,7 +153,7 @@ impl
     fn get_url(
         &self,
         _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -165,7 +165,7 @@ impl
     fn build_request(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -245,7 +245,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
@@ -266,7 +266,7 @@ impl
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -340,7 +340,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/cancel"))
     }
@@ -356,7 +356,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -428,7 +428,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -450,7 +450,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
