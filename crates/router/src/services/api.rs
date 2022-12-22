@@ -618,10 +618,9 @@ pub(crate) async fn authenticate_eph_key<'a>(
             .get_ephemeral_key(api_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
-        utils::when(
-            ek.customer_id.ne(&customer_id),
-            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey)),
-        )?;
+        utils::when(ek.customer_id.ne(&customer_id), || {
+            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey))
+        })?;
         Ok(MerchantAuthentication::MerchantId(Cow::Owned(
             ek.merchant_id,
         )))

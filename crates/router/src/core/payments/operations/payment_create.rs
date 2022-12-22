@@ -509,6 +509,7 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
+            metadata: request.metadata.clone(),
             ..storage::PaymentIntentNew::default()
         }
     }

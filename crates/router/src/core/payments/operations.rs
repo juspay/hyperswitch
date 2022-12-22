@@ -141,7 +141,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 }
 
 #[async_trait]
-pub trait UpdateTracker<F, D, R>: Send {
+pub trait UpdateTracker<F, D, Req>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -149,7 +149,7 @@ pub trait UpdateTracker<F, D, R>: Send {
         payment_data: D,
         customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, F, R>, D)>
+    ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;
 }

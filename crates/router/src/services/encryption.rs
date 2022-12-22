@@ -293,11 +293,10 @@ pub async fn decrypt_jwe(
         .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jwe")?;
-    utils::when(
-        resp_key_id.ne(key_id),
+    utils::when(resp_key_id.ne(key_id), || {
         Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
-            .attach_printable("key_id mismatch, Error authenticating response"),
-    )?;
+            .attach_printable("key_id mismatch, Error authenticating response")
+    })?;
     let resp = String::from_utf8(dst_payload)
         .into_report()
         .change_context(errors::EncryptionError)

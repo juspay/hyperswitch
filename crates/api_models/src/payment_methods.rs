@@ -6,7 +6,6 @@ use crate::enums as api_enums;
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CreatePaymentMethod {
-    pub merchant_id: Option<String>,
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
     pub payment_method_issuer: Option<String>,
@@ -35,6 +34,8 @@ pub struct CardDetail {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodResponse {
+    pub merchant_id: String,
+    pub customer_id: Option<String>,
     pub payment_method_id: String,
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
