@@ -10,6 +10,7 @@ pub(crate) struct ConnectorAuthentication {
 
 impl ConnectorAuthentication {
     pub(crate) fn new() -> Self {
+        #[allow(clippy::expect_used)]
         toml::de::from_slice(
             &std::fs::read("tests/connectors/auth.toml")
                 .expect("connector authentication config file not found"),
