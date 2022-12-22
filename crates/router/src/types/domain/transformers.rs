@@ -7,7 +7,7 @@ type F<T> = Foreign<T>;
 impl From<F<storage::payment_attempt::PaymentAttempt>> for F<domain::PaymentAttempt> {
     fn from(item: F<storage::payment_attempt::PaymentAttempt>) -> Self {
         let item = item.0;
-        Foreign(domain::PaymentAttempt {
+        Self(domain::PaymentAttempt {
             id: item.id,
             payment_id: item.payment_id.into(),
             merchant_id: item.merchant_id,
@@ -46,7 +46,7 @@ impl From<F<storage::payment_attempt::PaymentAttempt>> for F<domain::PaymentAtte
 impl From<F<domain::PaymentAttempt>> for F<storage::payment_attempt::PaymentAttempt> {
     fn from(item: F<domain::PaymentAttempt>) -> Self {
         let item = item.0;
-        Foreign(storage::payment_attempt::PaymentAttempt {
+        Self(storage::payment_attempt::PaymentAttempt {
             id: item.id,
             payment_id: item.payment_id.into(),
             merchant_id: item.merchant_id,

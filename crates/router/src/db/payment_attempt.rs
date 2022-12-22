@@ -30,9 +30,9 @@ pub trait PaymentAttemptInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentAttempt, errors::StorageError>;
 
-    async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        transaction_id: &str,
+        connector_transaction_id: &str,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
@@ -113,17 +113,17 @@ mod storage {
                 .into_report()
         }
 
-        async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
+        async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
             &self,
-            transaction_id: &str,
+            connector_transaction_id: &str,
             payment_id: &str,
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let conn = pg_connection(&self.master_pool).await;
-            PaymentAttempt::find_by_transaction_id_payment_id_merchant_id(
+            PaymentAttempt::find_by_connector_transaction_id_payment_id_merchant_id(
                 &conn,
-                transaction_id,
+                connector_transaction_id,
                 payment_id,
                 merchant_id,
             )
@@ -281,9 +281,9 @@ impl PaymentAttemptInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        _transaction_id: &str,
+        _connector_transaction_id: &str,
         _payment_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -573,15 +573,15 @@ mod storage {
             }
         }
 
-        async fn find_payment_attempt_by_transaction_id_payment_id_merchant_id(
+        async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
             &self,
-            transaction_id: &str,
+            connector_transaction_id: &str,
             _payment_id: &str,
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAttempt, errors::StorageError> {
             // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-            let lookup_id = format!("{merchant_id}_{transaction_id}");
+            let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
             let lookup = self
                 .get_lookup_by_lookup_id(&lookup_id)
                 .await

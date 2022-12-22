@@ -18,9 +18,7 @@ pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
     core::{
-        errors::{
-            self, ApiClientErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
-        },
+        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
         payments,
     },
     db::StorageInterface,
@@ -173,7 +171,8 @@ where
                             logger::debug!(?response);
                             Ok(response)
                         }
-                        Err(error) => Err(error.to_unsuccessful_processing_step_response()),
+                        Err(error) => Err(error
+                            .change_context(errors::ConnectorError::ProcessingStepFailed(None))),
                     }
                 }
                 None => Ok(router_data),
@@ -205,7 +204,6 @@ async fn send_request(
     logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
     let url = &request.url;
     let should_bypass_proxy = client::proxy_bypass_urls(&state.conf.locker).contains(url);
-    // TODO propogate error for request timeout
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -247,8 +245,11 @@ async fn send_request(
         Method::Put => client.put(url).add_headers(headers).send().await,
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
+    .map_err(|error| match error {
+        error if error.is_timeout() => errors::ApiClientError::RequestTimeoutReceived,
+        _ => errors::ApiClientError::RequestNotSent,
+    })
     .into_report()
-    .change_context(errors::ApiClientError::RequestNotSent)
     .attach_printable("Unable to send request to connector")
 }
 
@@ -306,18 +307,15 @@ async fn handle_response(
                         _ => errors::ApiClientError::UnexpectedServerResponse,
                     };
                     Err(report!(error).attach_printable("Client error response received"))
-                    */
+                        */
                     Ok(Err(Response {
                         response: bytes,
                         status_code,
                     }))
                 }
 
-                _ => {
-                    // FIXME: may need to understand redirects
-                    Err(report!(errors::ApiClientError::UnexpectedServerResponse)
-                        .attach_printable("Unexpected response from server"))
-                }
+                _ => Err(report!(errors::ApiClientError::UnexpectedServerResponse)
+                    .attach_printable("Unexpected response from server")),
             }
         })?
         .await
@@ -541,24 +539,16 @@ pub async fn authenticate_merchant<'a>(
             authenticate_by_api_key(store, api_key).await
         }
 
-        MerchantAuthentication::MerchantId(merchant_id) => {
-            store
-                .find_merchant_account_by_merchant_id(&merchant_id)
-                .await
-                .map_err(|error| {
-                    // TODO: The BadCredentials error is too specific for api keys, and inappropriate for AdminApiKey/MerchantID
-                    // https://juspay.atlassian.net/browse/ORCA-366
-                    error.to_not_found_response(errors::ApiErrorResponse::BadCredentials)
-                })
-        }
+        MerchantAuthentication::MerchantId(merchant_id) => store
+            .find_merchant_account_by_merchant_id(&merchant_id)
+            .await
+            .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized)),
 
         MerchantAuthentication::AdminApiKey => {
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
             if admin_api_key != "test_admin" {
-                // TODO: The BadCredentials error is too specific for api keys, and inappropriate
-                // for AdminApiKey/MerchantID
-                Err(report!(errors::ApiErrorResponse::BadCredentials)
+                Err(report!(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Admin Authentication Failure"))?;
             }
 
@@ -599,7 +589,7 @@ pub async fn authenticate_connector<'a>(
         ConnectorAuthentication::MerchantId(merchant_id) => store
             .find_merchant_account_by_merchant_id(merchant_id)
             .await
-            .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::BadCredentials)),
+            .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized)),
     }
 }
 
@@ -627,7 +617,7 @@ pub(crate) async fn authenticate_eph_key<'a>(
         let ek = store
             .get_ephemeral_key(api_key)
             .await
-            .change_context(errors::ApiErrorResponse::BadCredentials)?;
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
         utils::when(
             ek.customer_id.ne(&customer_id),
             Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey)),
@@ -657,7 +647,7 @@ pub async fn authenticate_by_api_key(
     store
         .find_merchant_account_by_api_key(api_key)
         .await
-        .change_context(errors::ApiErrorResponse::BadCredentials)
+        .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Merchant not authenticated")
 }
 
@@ -668,7 +658,7 @@ async fn authenticate_by_publishable_key(
     store
         .find_merchant_account_by_publishable_key(publishable_key)
         .await
-        .change_context(errors::ApiErrorResponse::BadCredentials)
+        .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Merchant not authenticated")
 }
 

@@ -28,7 +28,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            Ok(MerchantAuthentication {
+            Ok(Self {
                 name: api_key.clone(),
                 transaction_key: key1.clone(),
             })
@@ -164,7 +164,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
 
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        Ok(CreateTransactionRequest {
+        Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
                 transaction_request,
@@ -209,11 +209,11 @@ pub type AuthorizedotnetRefundStatus = AuthorizedotnetPaymentStatus;
 impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
     fn from(item: AuthorizedotnetPaymentStatus) -> Self {
         match item {
-            AuthorizedotnetPaymentStatus::Approved => enums::AttemptStatus::Charged,
+            AuthorizedotnetPaymentStatus::Approved => Self::Charged,
             AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
-                enums::AttemptStatus::Failure
+                Self::Failure
             }
-            AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Pending,
+            AuthorizedotnetPaymentStatus::HeldForReview => Self::Pending,
         }
     }
 }
@@ -293,7 +293,7 @@ impl<F, T>
                 })
             });
 
-        Ok(types::RouterData {
+        Ok(Self {
             status,
             response: match error {
                 Some(err) => Err(err),
@@ -369,7 +369,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
 
-        Ok(CreateRefundRequest {
+        Ok(Self {
             create_transaction_request: AuthorizedotnetRefundRequest {
                 merchant_authentication,
                 transaction_request,
@@ -381,11 +381,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
 impl From<self::AuthorizedotnetPaymentStatus> for enums::RefundStatus {
     fn from(item: self::AuthorizedotnetRefundStatus) -> Self {
         match item {
-            AuthorizedotnetPaymentStatus::Approved => enums::RefundStatus::Success,
+            AuthorizedotnetPaymentStatus::Approved => Self::Success,
             AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
-                enums::RefundStatus::Failure
+                Self::Failure
             }
-            AuthorizedotnetPaymentStatus::HeldForReview => enums::RefundStatus::Pending,
+            AuthorizedotnetPaymentStatus::HeldForReview => Self::Pending,
         }
     }
 }
@@ -414,7 +414,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
             })
         });
 
-        Ok(types::RouterData {
+        Ok(Self {
             response: match error {
                 Some(err) => Err(err),
                 None => Ok(types::RefundsResponseData {
@@ -451,7 +451,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncReque
             .ok();
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        let payload = AuthorizedotnetCreateSyncRequest {
+        let payload = Self {
             get_transaction_details_request: TransactionDetails {
                 merchant_authentication,
                 transaction_id,
@@ -484,7 +484,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
 
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        let payload = AuthorizedotnetCreateSyncRequest {
+        let payload = Self {
             get_transaction_details_request: TransactionDetails {
                 merchant_authentication,
                 transaction_id,
@@ -523,9 +523,9 @@ pub struct AuthorizedotnetSyncResponse {
 impl From<SyncStatus> for enums::RefundStatus {
     fn from(transaction_status: SyncStatus) -> Self {
         match transaction_status {
-            SyncStatus::RefundSettledSuccessfully => enums::RefundStatus::Success,
-            SyncStatus::RefundPendingSettlement => enums::RefundStatus::Pending,
-            _ => enums::RefundStatus::Failure,
+            SyncStatus::RefundSettledSuccessfully => Self::Success,
+            SyncStatus::RefundPendingSettlement => Self::Pending,
+            _ => Self::Failure,
         }
     }
 }
@@ -534,13 +534,13 @@ impl From<SyncStatus> for enums::AttemptStatus {
     fn from(transaction_status: SyncStatus) -> Self {
         match transaction_status {
             SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
-                enums::AttemptStatus::Charged
+                Self::Charged
             }
-            SyncStatus::Declined => enums::AttemptStatus::AuthenticationFailed,
-            SyncStatus::Voided => enums::AttemptStatus::Voided,
-            SyncStatus::CouldNotVoid => enums::AttemptStatus::VoidFailed,
-            SyncStatus::GeneralError => enums::AttemptStatus::Failure,
-            _ => enums::AttemptStatus::Pending,
+            SyncStatus::Declined => Self::AuthenticationFailed,
+            SyncStatus::Voided => Self::Voided,
+            SyncStatus::CouldNotVoid => Self::VoidFailed,
+            SyncStatus::GeneralError => Self::Failure,
+            _ => Self::Pending,
         }
     }
 }
@@ -554,7 +554,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
         item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.transaction.transaction_status);
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction.transaction_id.clone(),
                 refund_status,
@@ -581,7 +581,7 @@ impl<F, Req>
     ) -> Result<Self, Self::Error> {
         let payment_status =
             enums::AttemptStatus::from(item.response.transaction.transaction_status);
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction.transaction_id,

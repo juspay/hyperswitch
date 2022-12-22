@@ -234,7 +234,7 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
 }
 
 pub fn get_key_id(keys: &Jwekey) -> &str {
-    let key_identifier = "1"; //TODO https://github.com/juspay/orca/issues/46
+    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
     if key_identifier == "1" {
         &keys.locker_key_identifier1
     } else {

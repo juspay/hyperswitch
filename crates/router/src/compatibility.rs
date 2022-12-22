@@ -1,2 +1,2 @@
-pub(crate) mod stripe;
-pub(crate) mod wrap;
+pub mod stripe;
+pub mod wrap;
