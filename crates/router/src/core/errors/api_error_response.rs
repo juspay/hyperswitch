@@ -19,15 +19,9 @@ pub enum ErrorType {
 pub enum ApiErrorResponse {
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_01",
-        message = "API key not provided. Provide API key in the Authorization header, using api-key (e.g api-key: API_KEY)."
+        message = "API key not provided or invalid API key used. Provide API key in the Authorization header or create new API key, using api-key (e.g api-key: API_KEY)."
     )]
     Unauthorized,
-    #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_02",
-        message = "Access forbidden, invalid API key was used. Please create your new API key from \
-                    the Dashboard Settings section."
-    )]
-    BadCredentials,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "Unrecognized request URL.")]
     InvalidRequestUrl,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
@@ -148,20 +142,18 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::BadCredentials | Self::InvalidEphermeralKey => {
-                StatusCode::UNAUTHORIZED
-            } // 401
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::Unauthorized | Self::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
+            Self::InvalidRequestUrl => StatusCode::NOT_FOUND,                            // 404
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                   // 405
             Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {
                 StatusCode::BAD_REQUEST
             } // 400
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST, // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,           // 400
+            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                         // 400
+            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                  // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
