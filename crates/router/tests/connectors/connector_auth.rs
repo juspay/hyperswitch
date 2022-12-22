@@ -27,7 +27,7 @@ pub(crate) struct BodyKey {
 
 impl From<BodyKey> for ConnectorAuthType {
     fn from(key: BodyKey) -> Self {
-        ConnectorAuthType::BodyKey {
+        Self::BodyKey {
             api_key: key.api_key,
             key1: key.key1,
         }

@@ -30,7 +30,7 @@ impl Parse for EnumMeta {
             let keyword = input.parse()?;
             input.parse::<Token![=]>()?;
             let value = input.parse()?;
-            Ok(EnumMeta::ErrorTypeEnum { keyword, value })
+            Ok(Self::ErrorTypeEnum { keyword, value })
         } else {
             Err(lookahead.error())
         }
@@ -40,7 +40,7 @@ impl Parse for EnumMeta {
 impl Spanned for EnumMeta {
     fn span(&self) -> proc_macro2::Span {
         match self {
-            EnumMeta::ErrorTypeEnum { keyword, .. } => keyword.span(),
+            Self::ErrorTypeEnum { keyword, .. } => keyword.span(),
         }
     }
 }
@@ -116,17 +116,17 @@ impl Parse for VariantMeta {
             let keyword = input.parse()?;
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
-            Ok(VariantMeta::ErrorType { keyword, value })
+            Ok(Self::ErrorType { keyword, value })
         } else if lookahead.peek(keyword::code) {
             let keyword = input.parse()?;
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
-            Ok(VariantMeta::Code { keyword, value })
+            Ok(Self::Code { keyword, value })
         } else if lookahead.peek(keyword::message) {
             let keyword = input.parse()?;
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
-            Ok(VariantMeta::Message { keyword, value })
+            Ok(Self::Message { keyword, value })
         } else {
             Err(lookahead.error())
         }
@@ -136,9 +136,9 @@ impl Parse for VariantMeta {
 impl Spanned for VariantMeta {
     fn span(&self) -> proc_macro2::Span {
         match self {
-            VariantMeta::ErrorType { keyword, .. } => keyword.span,
-            VariantMeta::Code { keyword, .. } => keyword.span,
-            VariantMeta::Message { keyword, .. } => keyword.span,
+            Self::ErrorType { keyword, .. } => keyword.span,
+            Self::Code { keyword, .. } => keyword.span,
+            Self::Message { keyword, .. } => keyword.span,
         }
     }
 }

@@ -11,7 +11,7 @@ rustflags = [
     "-Wclippy::unreachable",
     "-Wclippy::unwrap_in_result",
     "-Wclippy::unwrap_used",
-    # "-Wclippy::use_self",
+    "-Wclippy::use_self",
     "-Wrust_2018_idioms",
     "-Wunused_qualifications",
 ]

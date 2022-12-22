@@ -66,8 +66,8 @@ pub struct AppClient<T> {
 }
 
 impl AppClient<Guest> {
-    pub fn guest() -> AppClient<Guest> {
-        AppClient { state: Guest }
+    pub fn guest() -> Self {
+        Self { state: Guest }
     }
 }
 

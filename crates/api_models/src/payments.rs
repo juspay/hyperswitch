@@ -72,7 +72,7 @@ impl From<Amount> for i64 {
 
 impl From<i64> for Amount {
     fn from(val: i64) -> Self {
-        NonZeroI64::new(val).map_or(Amount::Zero, Amount::Value)
+        NonZeroI64::new(val).map_or(Self::Zero, Amount::Value)
     }
 }
 
@@ -216,10 +216,11 @@ pub struct PayLaterData {
     pub country: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethod {
     #[serde(rename(deserialize = "card"))]
     Card(CCard),
+    #[default]
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
     #[serde(rename(deserialize = "wallet"))]
@@ -252,12 +253,6 @@ pub enum PaymentMethodDataResponse {
     Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
-}
-
-impl Default for PaymentMethod {
-    fn default() -> Self {
-        PaymentMethod::BankTransfer
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -655,13 +650,11 @@ impl From<CCard> for CCardResponse {
 impl From<PaymentMethod> for PaymentMethodDataResponse {
     fn from(payment_method_data: PaymentMethod) -> Self {
         match payment_method_data {
-            PaymentMethod::Card(card) => PaymentMethodDataResponse::Card(CCardResponse::from(card)),
-            PaymentMethod::BankTransfer => PaymentMethodDataResponse::BankTransfer,
-            PaymentMethod::PayLater(pay_later_data) => {
-                PaymentMethodDataResponse::PayLater(pay_later_data)
-            }
-            PaymentMethod::Wallet(wallet_data) => PaymentMethodDataResponse::Wallet(wallet_data),
-            PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
+            PaymentMethod::Card(card) => Self::Card(CCardResponse::from(card)),
+            PaymentMethod::BankTransfer => Self::BankTransfer,
+            PaymentMethod::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
+            PaymentMethod::Wallet(wallet_data) => Self::Wallet(wallet_data),
+            PaymentMethod::Paypal => Self::Paypal,
         }
     }
 }
