@@ -907,13 +907,24 @@ mod amount {
         where
             E: de::Error,
         {
-            self.visit_i64(v as i64)
+            let v = i64::try_from(v).map_err(|_| {
+                E::custom(format!(
+                    "invalid value `{v}`, expected an integer between 0 and {}",
+                    i64::MAX
+                ))
+            })?;
+            self.visit_i64(v)
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
+            if v.is_negative() {
+                return Err(E::custom(format!(
+                    "invalid value `{v}`, expected a positive integer"
+                )));
+            }
             Ok(Amount::from(v))
         }
     }
