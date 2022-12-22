@@ -42,7 +42,7 @@ pub(crate) enum StripePaymentMethodType {
 impl From<StripePaymentMethodType> for api_enums::PaymentMethodType {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
-            StripePaymentMethodType::Card => api_enums::PaymentMethodType::Card,
+            StripePaymentMethodType::Card => Self::Card,
         }
     }
 }
@@ -78,10 +78,8 @@ impl From<StripeCard> for payments::CCard {
 impl From<StripePaymentMethodDetails> for payments::PaymentMethod {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
-            StripePaymentMethodDetails::Card(card) => {
-                payments::PaymentMethod::Card(payments::CCard::from(card))
-            }
-            StripePaymentMethodDetails::BankTransfer => payments::PaymentMethod::BankTransfer,
+            StripePaymentMethodDetails::Card(card) => Self::Card(payments::CCard::from(card)),
+            StripePaymentMethodDetails::BankTransfer => Self::BankTransfer,
         }
     }
 }
@@ -131,7 +129,7 @@ pub(crate) struct StripePaymentIntentRequest {
 
 impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
     fn from(item: StripePaymentIntentRequest) -> Self {
-        payments::PaymentsRequest {
+        Self {
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
             currency: item.currency.as_ref().map(|c| c.to_uppercase()),
@@ -193,18 +191,14 @@ pub(crate) enum StripePaymentStatus {
 impl From<api_enums::IntentStatus> for StripePaymentStatus {
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
-            api_enums::IntentStatus::Succeeded => StripePaymentStatus::Succeeded,
-            api_enums::IntentStatus::Failed => StripePaymentStatus::Canceled, // TODO: should we show canceled or  processing
-            api_enums::IntentStatus::Processing => StripePaymentStatus::Processing,
-            api_enums::IntentStatus::RequiresCustomerAction => StripePaymentStatus::RequiresAction,
-            api_enums::IntentStatus::RequiresPaymentMethod => {
-                StripePaymentStatus::RequiresPaymentMethod
-            }
-            api_enums::IntentStatus::RequiresConfirmation => {
-                StripePaymentStatus::RequiresConfirmation
-            }
-            api_enums::IntentStatus::RequiresCapture => StripePaymentStatus::RequiresCapture,
-            api_enums::IntentStatus::Cancelled => StripePaymentStatus::Canceled,
+            api_enums::IntentStatus::Succeeded => Self::Succeeded,
+            api_enums::IntentStatus::Failed => Self::Canceled, // TODO: should we show canceled or  processing
+            api_enums::IntentStatus::Processing => Self::Processing,
+            api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
+            api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
+            api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
+            api_enums::IntentStatus::RequiresCapture => Self::RequiresCapture,
+            api_enums::IntentStatus::Cancelled => Self::Canceled,
         }
     }
 }

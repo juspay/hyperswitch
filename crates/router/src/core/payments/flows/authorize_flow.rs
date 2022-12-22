@@ -83,7 +83,7 @@ impl PaymentsAuthorizeRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentsAuthorizeRouterData> {
+    ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<

@@ -92,14 +92,14 @@ impl ConnectorData {
         connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
-    ) -> CustomResult<ConnectorData, errors::ApiErrorResponse> {
+    ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        Ok(ConnectorData {
+        Ok(Self {
             connector,
             connector_name,
             get_token: connector_type,
