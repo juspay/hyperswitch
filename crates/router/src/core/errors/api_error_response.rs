@@ -142,20 +142,18 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::InvalidEphermeralKey => {
-                StatusCode::UNAUTHORIZED
-            } // 401
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::Unauthorized | Self::InvalidEphermeralKey => StatusCode::UNAUTHORIZED, // 401
+            Self::InvalidRequestUrl => StatusCode::NOT_FOUND,                            // 404
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                   // 405
             Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {
                 StatusCode::BAD_REQUEST
             } // 400
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST, // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,           // 400
+            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                         // 400
+            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                  // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
