@@ -9,7 +9,7 @@ use crate::errors;
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
-pub async fn is_stream_available(stream_index: u8, store: Arc<router::services::Store>) -> bool {
+pub async fn is_stream_available(stream_index: u8, store: Arc<Store>) -> bool {
     let stream_key_flag = get_stream_key_flag(store.clone(), stream_index);
 
     match store
@@ -104,7 +104,7 @@ pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
     }
 }
 
-pub(crate) fn get_stream_key_flag(store: Arc<router::services::Store>, stream_index: u8) -> String {
+pub(crate) fn get_stream_key_flag(store: Arc<Store>, stream_index: u8) -> String {
     format!("{}_in_use", get_drainer_stream_name(store, stream_index))
 }
 
