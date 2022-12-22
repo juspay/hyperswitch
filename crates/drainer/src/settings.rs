@@ -68,12 +68,11 @@ impl Settings {
             ))
             .add_source(File::from(config_path).required(true))
             .add_source(
-                Environment::with_prefix("ROUTER")
+                Environment::with_prefix("DRAINER")
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("connectors.supported.wallets"),
+                    .with_list_parse_key("redis.cluster_urls"),
             )
             .build()?;
 
