@@ -759,7 +759,7 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "connector_name")]
+#[serde(tag = "wallet_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
