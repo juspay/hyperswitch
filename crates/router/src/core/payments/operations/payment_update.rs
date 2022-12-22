@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_derive::PaymentOperation;
@@ -126,6 +127,21 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .attach_printable("Database error when finding connector response")
             })?;
 
+        let mandate_id = request
+            .mandate_id
+            .as_ref()
+            .async_and_then(|mandate_id| async {
+                let mandate = db
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::MandateNotFound);
+                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
+                    mandate_id: mandate_obj.mandate_id,
+                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                }))
+            })
+            .await
+            .transpose()?;
         let next_operation: BoxedOperation<'a, F, api::PaymentsRequest> =
             if request.confirm.unwrap_or(false) {
                 Box::new(operations::PaymentConfirm)
@@ -149,7 +165,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_attempt,
                     currency,
                     amount,
-                    mandate_id: request.mandate_id.clone(),
+                    mandate_id,
                     token,
                     setup_mandate,
                     address: PaymentAddress {

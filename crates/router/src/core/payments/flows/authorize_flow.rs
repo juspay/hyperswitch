@@ -111,7 +111,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_amount(&self) -> i64 {
         self.amount
     }
-    fn get_mandate_id(&self) -> Option<&String> {
+    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod {
@@ -120,7 +120,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn set_mandate_id(&mut self, new_mandate_id: String) {
+    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
         self.mandate_id = Some(new_mandate_id);
     }
 }

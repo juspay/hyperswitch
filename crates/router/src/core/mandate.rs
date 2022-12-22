@@ -93,6 +93,7 @@ where
 {
     match resp.request.get_mandate_id() {
         Some(mandate_id) => {
+            let mandate_id = &mandate_id.mandate_id;
             let mandate = state
                 .store
                 .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
@@ -157,7 +158,10 @@ where
                     mandate_reference,
                 ) {
                     resp.request
-                        .set_mandate_id(new_mandate_data.mandate_id.clone());
+                        .set_mandate_id(api_models::payments::MandateIds {
+                            mandate_id: new_mandate_data.mandate_id.clone(),
+                            connector_mandate_id: new_mandate_data.connector_mandate_id.clone(),
+                        });
                     state
                         .store
                         .insert_mandate(new_mandate_data)
@@ -178,7 +182,7 @@ where
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
-    fn get_mandate_id(&self) -> Option<&String>;
-    fn set_mandate_id(&mut self, new_mandate_id: String);
+    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
+    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod;
 }
