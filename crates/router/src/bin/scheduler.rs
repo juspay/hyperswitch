@@ -15,7 +15,11 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     // console_subscriber::init();
 
     let cmd_line = CmdLineConf::from_args();
-    let conf = Settings::with_config_path(cmd_line.config_path).unwrap();
+
+    #[allow(clippy::expect_used)]
+    let conf = Settings::with_config_path(cmd_line.config_path)
+        .expect("Unable to construct application configuration");
+
     let mut state = routes::AppState::new(conf).await;
     let _guard =
         logger::setup(&state.conf.log).map_err(|_| errors::ProcessTrackerError::UnexpectedFlow)?;
@@ -57,8 +61,12 @@ async fn start_scheduler(
         },
     };
 
+    #[allow(clippy::expect_used)]
     let flow = std::env::var(SCHEDULER_FLOW).expect("SCHEDULER_FLOW environment variable not set");
-    let flow = scheduler::SchedulerFlow::from_str(&flow).unwrap();
+    #[allow(clippy::expect_used)]
+    let flow = scheduler::SchedulerFlow::from_str(&flow)
+        .expect("Unable to parse SchedulerFlow from environment variable");
+
     let scheduler_settings = state
         .conf
         .scheduler
