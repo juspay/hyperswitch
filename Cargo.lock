@@ -1149,7 +1149,6 @@ name = "drainer"
 version = "0.1.0"
 dependencies = [
  "error-stack",
- "fred",
  "redis_interface",
  "router",
  "serde_json",

@@ -497,6 +497,7 @@ fn mk_new_refund(
 
 impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+
     fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
         let refund_id = data.request.refund_id.to_string();
         let response = data.response;
@@ -506,7 +507,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
             Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
         };
 
-        Ok(refunds::RefundResponse {
+        Ok(Self {
             payment_id: data.payment_id,
             refund_id,
             amount: data.request.amount / 100,

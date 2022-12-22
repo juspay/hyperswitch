@@ -67,7 +67,7 @@ impl PaymentsCancelRouterData {
         _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<PaymentsCancelRouterData> {
+    ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             api::Void,
             types::PaymentsCancelData,
