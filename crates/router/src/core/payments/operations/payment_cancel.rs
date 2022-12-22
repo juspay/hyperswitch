@@ -9,13 +9,14 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
+        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -63,6 +64,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
+        let shipping_address = helpers::get_address_for_payment_request(
+            db,
+            None,
+            payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
+        )
+        .await?;
+        let billing_address = helpers::get_address_for_payment_request(
+            db,
+            None,
+            payment_intent.billing_address_id.as_deref(),
+            merchant_id,
+            &payment_intent.customer_id,
+        )
+        .await?;
+
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_txn_id(
                 &payment_attempt.payment_id,
@@ -98,7 +116,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                     mandate_id: None,
                     setup_mandate: None,
                     token: None,
-                    address: PaymentAddress::default(),
+                    address: PaymentAddress {
+                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    },
                     confirm: None,
                     payment_method_data: None,
                     force_sync: None,

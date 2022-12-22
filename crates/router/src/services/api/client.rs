@@ -20,10 +20,10 @@ impl ProxyType {
         use std::env::var;
 
         match self {
-            ProxyType::Http => var(HTTP_PROXY)
+            Self::Http => var(HTTP_PROXY)
                 .or_else(|_| proxy.http_url.clone().ok_or(()))
                 .ok(),
-            ProxyType::Https => var(HTTPS_PROXY)
+            Self::Https => var(HTTPS_PROXY)
                 .or_else(|_| proxy.https_url.clone().ok_or(()))
                 .ok(),
         }

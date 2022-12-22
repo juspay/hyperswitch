@@ -205,17 +205,17 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
 impl ResponseError for BachError {
     fn status_code(&self) -> StatusCode {
         match self {
-            BachError::EParsingError(_)
-            | BachError::EAuthenticationError(_)
-            | BachError::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
+            Self::EParsingError(_)
+            | Self::EAuthenticationError(_)
+            | Self::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
 
-            BachError::EDatabaseError(_)
-            | BachError::NotImplementedByConnector(_)
-            | BachError::EMetrics(_)
-            | BachError::EIo(_)
-            | BachError::ConfigurationError(_)
-            | BachError::EEncryptionError(_)
-            | BachError::EUnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::EDatabaseError(_)
+            | Self::NotImplementedByConnector(_)
+            | Self::EMetrics(_)
+            | Self::EIo(_)
+            | Self::ConfigurationError(_)
+            | Self::EEncryptionError(_)
+            | Self::EUnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

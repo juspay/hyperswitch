@@ -1,10 +1,10 @@
-mod app;
-mod customers;
-mod payment_intents;
-mod refunds;
-mod setup_intents;
+pub mod app;
+pub mod customers;
+pub mod payment_intents;
+pub mod refunds;
+pub mod setup_intents;
 use actix_web::{web, Scope};
-mod errors;
+pub mod errors;
 
 use crate::routes;
 pub struct StripeApis;

@@ -16,7 +16,8 @@
     clippy::todo,
     clippy::unreachable,
     clippy::unwrap_in_result,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    clippy::use_self
 )]
 #![recursion_limit = "256"]
 

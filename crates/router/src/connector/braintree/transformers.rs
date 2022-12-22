@@ -121,7 +121,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             payment_method_data_type,
             kind,
         };
-        Ok(BraintreePaymentsRequest {
+        Ok(Self {
             transaction: braintree_transaction_body,
         })
     }
@@ -146,7 +146,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BraintreePaymentStatus {
     Succeeded,
@@ -157,6 +157,7 @@ pub enum BraintreePaymentStatus {
     GatewayRejected,
     Voided,
     SubmittedForSettlement,
+    #[default]
     Settling,
     Settled,
     SettlementPending,
@@ -164,26 +165,20 @@ pub enum BraintreePaymentStatus {
     SettlementConfirmed,
 }
 
-impl Default for BraintreePaymentStatus {
-    fn default() -> Self {
-        BraintreePaymentStatus::Settling
-    }
-}
-
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
             BraintreePaymentStatus::Succeeded | BraintreePaymentStatus::SubmittedForSettlement => {
-                enums::AttemptStatus::Charged
+                Self::Charged
             }
-            BraintreePaymentStatus::AuthorizedExpired => enums::AttemptStatus::AuthorizationFailed,
+            BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
             | BraintreePaymentStatus::ProcessorDeclined
-            | BraintreePaymentStatus::SettlementDeclined => enums::AttemptStatus::Failure,
-            BraintreePaymentStatus::Authorized => enums::AttemptStatus::Authorized,
-            BraintreePaymentStatus::Voided => enums::AttemptStatus::Voided,
-            _ => enums::AttemptStatus::Pending,
+            | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
+            BraintreePaymentStatus::Authorized => Self::Authorized,
+            BraintreePaymentStatus::Voided => Self::Voided,
+            _ => Self::Pending,
         }
     }
 }
@@ -201,7 +196,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.transaction.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -230,7 +225,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Paypal {
                     session_token: item.response.client_token.value,
@@ -292,32 +287,27 @@ pub struct Amount {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(BraintreeRefundRequest {
+        Ok(Self {
             transaction: Amount { amount: None },
         })
     }
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
 }
 
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Processing
-    }
-}
-
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
-            self::RefundStatus::Succeeded => enums::RefundStatus::Success,
-            self::RefundStatus::Failed => enums::RefundStatus::Failure,
-            self::RefundStatus::Processing => enums::RefundStatus::Pending,
+            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Processing => Self::Pending,
         }
     }
 }
@@ -335,7 +325,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
@@ -352,7 +342,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
