@@ -8,10 +8,13 @@ rustflags = [
     "-Wclippy::panic",
     "-Wclippy::panicking_unwrap",
     "-Wclippy::todo",
+    "-Wclippy::unimplemented",
     "-Wclippy::unreachable",
     "-Wclippy::unwrap_in_result",
     "-Wclippy::unwrap_used",
     "-Wclippy::use_self",
+    # "-Wmissing_debug_implementations",
+    # "-Wmissing_docs",
     "-Wrust_2018_idioms",
     "-Wunused_qualifications",
 ]
