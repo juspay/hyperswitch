@@ -60,9 +60,11 @@ pub fn validate_refund_amount(
 
     utils::when(
         refund_amount > (payment_attempt_amount - total_refunded_amount),
-        Err(report!(
-            RefundValidationError::RefundAmountExceedsPaymentAmount
-        )),
+        || {
+            Err(report!(
+                RefundValidationError::RefundAmountExceedsPaymentAmount
+            ))
+        },
     )
 }
 
@@ -74,7 +76,7 @@ pub fn validate_payment_order_age(
 
     utils::when(
         (current_time - *created_at).whole_days() > REFUND_MAX_AGE,
-        Err(report!(RefundValidationError::OrderExpired)),
+        || Err(report!(RefundValidationError::OrderExpired)),
     )
 }
 
@@ -83,10 +85,9 @@ pub fn validate_maximum_refund_against_payment_attempt(
     all_refunds: &[storage::Refund],
 ) -> CustomResult<(), RefundValidationError> {
     // TODO: Make this configurable
-    utils::when(
-        all_refunds.len() > REFUND_MAX_ATTEMPTS,
-        Err(report!(RefundValidationError::MaxRefundCountReached)),
-    )
+    utils::when(all_refunds.len() > REFUND_MAX_ATTEMPTS, || {
+        Err(report!(RefundValidationError::MaxRefundCountReached))
+    })
 }
 
 #[instrument(skip(db))]
