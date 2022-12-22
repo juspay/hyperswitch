@@ -76,7 +76,7 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ApplepaySessionResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: {
                     api_models::payments::SessionToken::Applepay {

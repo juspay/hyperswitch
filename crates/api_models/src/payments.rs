@@ -131,6 +131,21 @@ pub enum MandateTxnType {
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct MandateIds {
+    pub mandate_id: String,
+    pub connector_mandate_id: Option<String>,
+}
+
+impl MandateIds {
+    pub fn new(mandate_id: String) -> Self {
+        Self {
+            mandate_id,
+            connector_mandate_id: None,
+        }
+    }
+}
+
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
