@@ -32,8 +32,11 @@ impl<I, T: StorageExt<I>> StorageWrapper<I, T> {
         self.inner
     }
 
-    pub fn into(self) -> I {
-        self.into_inner()
+    pub fn into<F>(self) -> F
+    where
+        F: From<I>,
+    {
+        self.into_inner().into()
     }
 }
 
@@ -127,7 +130,7 @@ mod tests {
         let payment_id = "pay_348u23403956kfdsgjb93y2".to_string();
         let payment_id_new: PaymentId = payment_id.clone().into();
 
-        assert_eq!(payment_id, payment_id_new.into())
+        assert_eq!(payment_id, payment_id_new.into::<String>())
     }
 
     #[test]

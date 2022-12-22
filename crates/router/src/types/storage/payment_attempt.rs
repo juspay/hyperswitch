@@ -43,7 +43,7 @@ mod tests {
             .unwrap();
         eprintln!("{:?}", response);
 
-        assert_eq!(response.payment_id.into(), payment_id.clone());
+        assert_eq!(response.payment_id.into_inner(), payment_id.clone());
     }
 
     #[actix_rt::test]
@@ -84,7 +84,7 @@ mod tests {
 
         eprintln!("{:?}", response);
 
-        assert_eq!(response.payment_id.into(), payment_id);
+        assert_eq!(response.payment_id.into_inner(), payment_id);
     }
 
     #[actix_rt::test]
