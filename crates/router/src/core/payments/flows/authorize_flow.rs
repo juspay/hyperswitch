@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -101,7 +100,6 @@ impl PaymentsAuthorizeRouterData {
                 .await
                 .map_err(|error| error.to_payment_failed_response())?;
 
-                logger::error!("M: {:?}", resp);
                 Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
             }
             _ => Ok(self.clone()),

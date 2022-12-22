@@ -91,7 +91,6 @@ pub async fn mandate_procedure<F, FData>(
 where
     FData: MandateBehaviour,
 {
-    logger::error!("====================================");
     match resp.request.get_mandate_id() {
         Some(mandate_id) => {
             let mandate_id = &mandate_id.mandate_id;
