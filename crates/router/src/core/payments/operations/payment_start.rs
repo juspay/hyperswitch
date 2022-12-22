@@ -16,7 +16,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, enums as api_enums, PaymentIdTypeExt},
-        storage::{self, enums, Customer},
+        storage::{self, enums},
         transformers::ForeignInto,
     },
     utils::OptionExt,
@@ -158,7 +158,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<Customer>,
+        _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,

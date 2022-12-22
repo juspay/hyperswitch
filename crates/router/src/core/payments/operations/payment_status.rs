@@ -109,7 +109,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
+    ) -> CustomResult<(), ApiErrorResponse> {
         helpers::add_domain_task_to_pt(self, state, payment_attempt).await
     }
 
@@ -118,7 +118,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request_connector: Option<api_enums::Connector>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorCallType, ApiErrorResponse> {
         helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }

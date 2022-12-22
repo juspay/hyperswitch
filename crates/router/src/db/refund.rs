@@ -1,9 +1,8 @@
-use error_stack::Report;
 use storage_models::errors::DatabaseError;
 
 use super::MockDb;
 use crate::{
-    core::errors::{self, CustomResult, StorageError},
+    core::errors::{self, CustomResult},
     types::storage::{self as storage_types, enums},
 };
 
@@ -571,6 +570,7 @@ impl RefundInterface for MockDb {
         let current_time = common_utils::date_time::now();
 
         let refund = storage_types::Refund {
+            #[allow(clippy::as_conversions)]
             id: refunds.len() as i32,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,
@@ -638,9 +638,7 @@ impl RefundInterface for MockDb {
             .find(|refund| refund.merchant_id == merchant_id && refund.refund_id == refund_id)
             .cloned()
             .ok_or_else(|| {
-                Report::from(StorageError::DatabaseError(Report::from(
-                    DatabaseError::NotFound,
-                )))
+                errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
             })
     }
 

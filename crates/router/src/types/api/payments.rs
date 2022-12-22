@@ -1,4 +1,3 @@
-use api_models::payments;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, CCard,
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
@@ -115,7 +114,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
     fn from(item: Foreign<storage::PaymentIntent>) -> Self {
         let item = item.0;
-        payments::PaymentsResponse {
+        PaymentsResponse {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
             status: item.status.foreign_into(),

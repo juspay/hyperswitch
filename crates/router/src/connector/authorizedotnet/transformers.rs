@@ -192,18 +192,29 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
     }
 }
 
-#[derive(
-    Debug, Clone, Default, PartialEq, Eq, serde_repr::Serialize_repr, serde_repr::Deserialize_repr,
-)]
-#[repr(u8)]
-pub enum AuthorizedotnetPaymentStatus {
-    Approved = 1,
-    Declined = 2,
-    Error = 3,
-    #[default]
-    HeldForReview = 4,
+// Safety: Enum as u8 conversions, we are specifying discriminants which are well within the range
+// of u8
+#[allow(clippy::as_conversions)]
+mod status {
+    #[derive(
+        Debug,
+        Clone,
+        Default,
+        PartialEq,
+        Eq,
+        serde_repr::Serialize_repr,
+        serde_repr::Deserialize_repr,
+    )]
+    #[repr(u8)]
+    pub enum AuthorizedotnetPaymentStatus {
+        Approved = 1,
+        Declined = 2,
+        Error = 3,
+        #[default]
+        HeldForReview = 4,
+    }
 }
-
+pub use status::AuthorizedotnetPaymentStatus;
 pub type AuthorizedotnetRefundStatus = AuthorizedotnetPaymentStatus;
 
 impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
@@ -378,8 +389,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
     }
 }
 
-impl From<self::AuthorizedotnetPaymentStatus> for enums::RefundStatus {
-    fn from(item: self::AuthorizedotnetRefundStatus) -> Self {
+impl From<AuthorizedotnetPaymentStatus> for enums::RefundStatus {
+    fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
             AuthorizedotnetPaymentStatus::Approved => Self::Success,
             AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {

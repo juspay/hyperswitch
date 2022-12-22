@@ -1,9 +1,10 @@
 use std::{convert::From, default::Default};
 
+use common_utils::date_time;
 use masking;
 use serde::{Deserialize, Serialize};
 
-use crate::{pii, types::api};
+use crate::{logger, pii, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerAddress {
@@ -90,7 +91,18 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
         Self {
             id: cust.customer_id,
             object: "customer".to_owned(),
-            created: cust.created_at.assume_utc().unix_timestamp() as u64,
+            created: u64::try_from(cust.created_at.assume_utc().unix_timestamp()).unwrap_or_else(
+                |error| {
+                    logger::error!(
+                        %error,
+                        "incorrect value for `customer.created_at` provided {}", cust.created_at
+                    );
+                    // Current timestamp converted to Unix timestamp should have a positive value
+                    // for many years to come
+                    u64::try_from(date_time::now().assume_utc().unix_timestamp())
+                        .unwrap_or_default()
+                },
+            ),
             description: cust.description,
             email: cust.email,
             metadata: cust.metadata,

@@ -13,7 +13,6 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums as storage_enums},
-        PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
 };
 
@@ -74,7 +73,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 }
 
-impl PaymentsAuthorizeRouterData {
+impl types::PaymentsAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -87,9 +86,10 @@ impl PaymentsAuthorizeRouterData {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
                     api::Authorize,
-                    PaymentsAuthorizeData,
-                    PaymentsResponseData,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
                 let resp = services::execute_connector_processing_step(
                     state,

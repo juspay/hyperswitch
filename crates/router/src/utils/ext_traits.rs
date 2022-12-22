@@ -109,7 +109,7 @@ pub(crate) fn merge_json_values(a: &mut serde_json::Value, b: &serde_json::Value
 pub trait ValidateVar {
     fn validate(self) -> CustomResult<Self, errors::ValidationError>
     where
-        Self: std::marker::Sized;
+        Self: Sized;
 }
 
 pub trait ValidateCall<T, F> {

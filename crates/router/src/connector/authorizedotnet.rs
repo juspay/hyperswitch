@@ -23,7 +23,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Authorizedotnet;
 
-impl api::ConnectorCommon for Authorizedotnet {
+impl ConnectorCommon for Authorizedotnet {
     fn id(&self) -> &'static str {
         "authorizedotnet"
     }

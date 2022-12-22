@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Klarna;
 
-impl api::ConnectorCommon for Klarna {
+impl ConnectorCommon for Klarna {
     fn id(&self) -> &'static str {
         "klarna"
     }

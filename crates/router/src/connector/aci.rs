@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Aci;
 
-impl api::ConnectorCommon for Aci {
+impl ConnectorCommon for Aci {
     fn id(&self) -> &'static str {
         "aci"
     }
