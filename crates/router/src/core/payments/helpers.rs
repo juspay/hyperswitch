@@ -390,7 +390,7 @@ pub fn verify_mandate_details(
         mandate
             .mandate_currency
             .map(|mandate_currency| mandate_currency.to_string() != request_currency)
-            .unwrap_or(true),
+            .unwrap_or(false),
         Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "cross currency mandates not supported".to_string()
         })),
@@ -469,17 +469,6 @@ where
     PaymentResponse: Operation<F, R>,
 {
     Box::new(PaymentResponse)
-}
-
-pub async fn amap<A, B, E, F, Fut>(value: Result<A, E>, func: F) -> Result<B, E>
-where
-    F: FnOnce(A) -> Fut,
-    Fut: futures::Future<Output = Result<B, E>>,
-{
-    match value {
-        Ok(a) => func(a).await,
-        Err(err) => Err(err),
-    }
 }
 
 #[instrument(skip_all)]

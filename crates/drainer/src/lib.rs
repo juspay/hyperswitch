@@ -60,15 +60,18 @@ async fn drainer(
         };
 
         let conn = pg_connection(&store.master_pool).await;
-
+        let insert_op = "insert";
+        let update_op = "update";
+        let payment_intent = "payment_intent";
+        let payment_attempt = "payment_attempt";
         match db_op {
             // TODO: Handle errors
             kv::DBOperation::Insert { insertable } => match insertable {
                 kv::Insertable::PaymentIntent(a) => {
-                    macro_util::handle_resp!(a.insert(&conn).await, "ins", "pi")
+                    macro_util::handle_resp!(a.insert(&conn).await, insert_op, payment_intent)
                 }
                 kv::Insertable::PaymentAttempt(a) => {
-                    macro_util::handle_resp!(a.insert(&conn).await, "ins", "pa")
+                    macro_util::handle_resp!(a.insert(&conn).await, insert_op, payment_attempt)
                 }
                 kv::Insertable::Refund(a) => {
                     macro_util::handle_resp!(a.insert(&conn).await, "ins", "ref")
@@ -76,10 +79,18 @@ async fn drainer(
             },
             kv::DBOperation::Update { updatable } => match updatable {
                 kv::Updateable::PaymentIntentUpdate(a) => {
-                    macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "pi")
+                    macro_util::handle_resp!(
+                        a.orig.update(&conn, a.update_data).await,
+                        update_op,
+                        payment_intent
+                    )
                 }
                 kv::Updateable::PaymentAttemptUpdate(a) => {
-                    macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "pa")
+                    macro_util::handle_resp!(
+                        a.orig.update(&conn, a.update_data).await,
+                        update_op,
+                        payment_attempt
+                    )
                 }
                 kv::Updateable::RefundUpdate(a) => {
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "ref")

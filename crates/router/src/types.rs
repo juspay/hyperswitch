@@ -97,7 +97,7 @@ pub struct PaymentsAuthorizeData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<String>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
@@ -134,7 +134,7 @@ pub struct VerifyRequestData {
     pub payment_method_data: payments::PaymentMethod,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    pub mandate_id: Option<String>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
