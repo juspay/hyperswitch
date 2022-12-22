@@ -90,7 +90,6 @@ pub struct PaymentIntentRequest {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SetupIntentRequest {
-    pub statement_descriptor_suffix: Option<String>,
     #[serde(rename = "metadata[order_id]")]
     pub metadata_order_id: String,
     #[serde(rename = "metadata[txn_id]")]
@@ -98,7 +97,7 @@ pub struct SetupIntentRequest {
     #[serde(rename = "metadata[txn_uuid]")]
     pub metadata_txn_uuid: String,
     pub confirm: bool,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
@@ -153,7 +152,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
 
         let (payment_data, mandate) = {
-            match item.request.mandate_id.clone() {
+            match item
+                .request
+                .mandate_id
+                .clone()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
+            {
                 None => (
                     Some(match item.request.payment_method_data {
                         api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
@@ -257,9 +261,8 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             payment_data,
-            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             off_session: item.request.off_session,
-            setup_future_usage: item.request.setup_future_usage,
+            usage: item.request.setup_future_usage,
         })
     }
 }
