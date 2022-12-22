@@ -345,6 +345,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
             Some(id_type) => Some(
                 id_type
                     .get_payment_intent_id()
+                    .map(|value| value.into_inner())
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
             ),
             None => None,

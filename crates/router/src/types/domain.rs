@@ -3,7 +3,10 @@ use std::{
     marker, ops,
 };
 pub(crate) mod payments;
+use common_utils::errors;
 pub use payments::*;
+
+use crate::consts;
 mod transformers;
 ///
 /// This is a wrapper that acts as a extension to existing types
@@ -86,6 +89,15 @@ impl<I: Clone, T: StorageExt<I>> Clone for StorageWrapper<I, T> {
     }
 }
 
+impl<I: Default, T: StorageExt<I>> Default for StorageWrapper<I, T> {
+    fn default() -> Self {
+        Self {
+            marker: marker::PhantomData,
+            inner: I::default(),
+        }
+    }
+}
+
 impl<I: serde::Serialize, T: StorageExt<I>> serde::Serialize for StorageWrapper<I, T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -111,8 +123,37 @@ impl<'de, I: serde::Deserialize<'de>, T: StorageExt<I>> serde::Deserialize<'de>
 
 pub trait StorageExt<I> {}
 
+pub trait IdExt<I>: Sized + StorageExt<I> {
+    // FIXME: Added for POC removed once
+    fn key<'a>() -> &'a str;
+    fn validate(
+        item: StorageWrapper<I, Self>,
+    ) -> Result<StorageWrapper<I, Self>, errors::ValidationError>;
+    fn generate() -> StorageWrapper<I, Self>;
+}
+
 pub struct PaymentIdCover;
 impl StorageExt<String> for PaymentIdCover {}
+
+impl IdExt<String> for PaymentIdCover {
+    fn validate(item: PaymentId) -> Result<PaymentId, errors::ValidationError> {
+        if item.len() > consts::MAX_ID_LENGTH {
+            Err(errors::ValidationError::InvalidValue {
+                message: "invalid length for payment_id".to_string(),
+            })
+        } else {
+            Ok(item)
+        }
+    }
+
+    fn generate() -> PaymentId {
+        common_utils::generate_id(consts::ID_LENGTH, "pay").into()
+    }
+
+    fn key<'a>() -> &'a str {
+        "payment_id"
+    }
+}
 
 pub struct AttemptIdCover;
 impl StorageExt<String> for AttemptIdCover {}

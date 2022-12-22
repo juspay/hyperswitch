@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use error_stack::ResultExt;
-use router_env::tracing::{self, instrument};
+use router_env::{
+    logger,
+    tracing::{self, instrument},
+};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{
@@ -102,6 +105,18 @@ pub fn get_or_generate_id(
     provided_id
         .clone()
         .map_or(Ok(generate_id(consts::ID_LENGTH, prefix)), validate_id)
+}
+
+pub fn get_or_generate_id_interface<I, W: domain::IdExt<I>>(
+    provided_id: Option<domain::StorageWrapper<I, W>>,
+) -> Result<domain::StorageWrapper<I, W>, errors::ApiErrorResponse> {
+    provided_id
+        .map_or(Ok(W::generate()), W::validate)
+        .map_err(|err| {
+            // used error encapsulation with hierarchy or CustomResult
+            logger::error!("{:?}", err);
+            invalid_id_format_error(W::key())
+        })
 }
 
 fn invalid_id_format_error(key: &str) -> errors::ApiErrorResponse {

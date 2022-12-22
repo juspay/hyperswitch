@@ -509,7 +509,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
         };
 
         Ok(Self {
-            payment_id: data.payment_id,
+            payment_id: data.payment_id.into_inner(),
             refund_id,
             amount: data.request.amount / 100,
             currency: data.request.currency.to_string(),

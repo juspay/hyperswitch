@@ -47,13 +47,13 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
         let mandate_type = helpers::validate_mandate(request)?;
-        let validation_id = core_utils::get_or_generate_id("validation_id", &None, "val")?;
+        let validation_id = core_utils::get_or_generate_id_interface(None::<domain::PaymentId>)?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(validation_id),
+                payment_id: api::PaymentIdType::PaymentIntentId(validation_id.into()),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
             },

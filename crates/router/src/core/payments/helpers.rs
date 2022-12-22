@@ -994,7 +994,7 @@ pub(super) fn validate_payment_list_request(
 }
 
 pub fn get_handle_response_url(
-    payment_id: String,
+    payment_id: domain::PaymentId,
     merchant_account: &storage::MerchantAccount,
     response: api::PaymentsResponse,
     connector: String,
@@ -1090,12 +1090,12 @@ pub async fn delete_ephemeral_key(
 }
 
 pub fn make_pg_redirect_response(
-    payment_id: String,
+    payment_id: domain::PaymentId,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> api::PgRedirectResponse {
     api::PgRedirectResponse {
-        payment_id,
+        payment_id: payment_id.into_inner(),
         status: response.status,
         gateway_id: connector,
         customer_id: response.customer_id.to_owned(),

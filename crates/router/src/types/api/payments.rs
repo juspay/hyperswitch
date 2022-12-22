@@ -80,13 +80,17 @@ pub struct Session;
 pub struct Verify;
 
 pub(crate) trait PaymentIdTypeExt {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<types::domain::PaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<types::domain::PaymentId, errors::ValidationError> {
         match self {
-            Self::PaymentIntentId(id) => Ok(id.clone()),
+            Self::PaymentIntentId(id) => Ok(id.clone().into()),
             Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
                 Err(errors::ValidationError::IncorrectValueProvided {
                     field_name: "payment_id",

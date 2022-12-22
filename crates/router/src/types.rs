@@ -65,7 +65,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
     pub connector: String,
-    pub payment_id: String,
+    pub payment_id: domain::PaymentId,
     pub status: storage_enums::AttemptStatus,
     pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
@@ -227,7 +227,7 @@ pub enum Redirection {
 pub struct ConnectorResponse {
     pub merchant_id: String,
     pub connector: String,
-    pub payment_id: String,
+    pub payment_id: domain::PaymentId,
     pub amount: i64,
     pub connector_transaction_id: String,
     pub return_url: Option<String>,

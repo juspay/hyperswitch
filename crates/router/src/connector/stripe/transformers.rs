@@ -498,7 +498,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         Ok(Self {
             amount: Some(amount),
             payment_intent,
-            metadata_order_id: item.payment_id.clone(),
+            metadata_order_id: item.payment_id.clone().into(),
             metadata_txn_id,
             metadata_txn_uuid,
         })

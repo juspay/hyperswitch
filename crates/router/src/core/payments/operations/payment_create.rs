@@ -427,7 +427,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
-        let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+        let payment_id = core_utils::get_or_generate_id_interface(given_payment_id)?;
 
         let mandate_type = helpers::validate_mandate(request)?;
 
@@ -435,7 +435,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
+                payment_id: api::PaymentIdType::PaymentIntentId(payment_id.into()),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
             },
