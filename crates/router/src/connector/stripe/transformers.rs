@@ -175,13 +175,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         api::PaymentMethod::PayLater(ref pay_later_data) => match pay_later_data {
                             api_models::payments::PayLaterData::KlarnaRedirect {
                                 billing_email,
-                                country,
+                                billing_country,
                                 ..
                             } => StripePaymentMethodData::Klarna(StripeKlarnaData {
                                 payment_method_types: "klarna".to_string(),
                                 payment_method_data_type: "klarna".to_string(),
-                                billing_email: billing_email.clone(),
-                                billing_country: country.clone(),
+                                billing_email: billing_email.to_string(),
+                                billing_country: billing_country.to_string(),
                             }),
                             api_models::payments::PayLaterData::KlarnaSdk { .. } => Err(
                                 error_stack::report!(errors::ApiErrorResponse::NotImplemented)
@@ -792,7 +792,7 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
             api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email,
-                    country,
+                    billing_country: country,
                     ..
                 } => Ok(StripePaymentMethodData::Klarna(StripeKlarnaData {
                     payment_method_types: "klarna".to_string(),

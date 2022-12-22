@@ -218,7 +218,7 @@ pub enum PayLaterData {
     KlarnaRedirect {
         issuer_name: KlarnaRedirectIssuer,
         billing_email: String,
-        country: String,
+        billing_country: String,
     },
     KlarnaSdk {
         issuer_name: KlarnaSdkIssuer,
