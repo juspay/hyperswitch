@@ -169,7 +169,8 @@ where
             client_secret: payment_data
                 .payment_intent
                 .client_secret
-                .get_required_value("client_secret")?,
+                .get_required_value("client_secret")?
+                .into(),
         }))
     }
 }
