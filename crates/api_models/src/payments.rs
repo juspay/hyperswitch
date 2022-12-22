@@ -828,7 +828,7 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
@@ -843,7 +843,7 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for OptionalPaymentIdVisitor {
         type Value = Option<PaymentIdType>;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
@@ -899,7 +899,7 @@ mod amount {
     impl<'de> de::Visitor<'de> for AmountVisitor {
         type Value = Amount;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "amount as integer")
         }
 
@@ -921,7 +921,7 @@ mod amount {
     impl<'de> de::Visitor<'de> for OptionalAmountVisitor {
         type Value = Option<Amount>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "option of amount (as integer)")
         }
 
@@ -957,6 +957,7 @@ mod amount {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
