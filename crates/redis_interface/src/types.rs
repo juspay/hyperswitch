@@ -142,3 +142,33 @@ impl fred::types::FromRedis for MsetnxReply {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum StreamCapKind {
+    MinID,
+    MaxLen,
+}
+
+impl From<StreamCapKind> for fred::types::XCapKind {
+    fn from(item: StreamCapKind) -> Self {
+        match item {
+            StreamCapKind::MaxLen => Self::MaxLen,
+            StreamCapKind::MinID => Self::MinID,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum StreamCapTrim {
+    Exact,
+    AlmostExact,
+}
+
+impl From<StreamCapTrim> for fred::types::XCapTrim {
+    fn from(item: StreamCapTrim) -> Self {
+        match item {
+            StreamCapTrim::Exact => Self::Exact,
+            StreamCapTrim::AlmostExact => Self::AlmostExact,
+        }
+    }
+}

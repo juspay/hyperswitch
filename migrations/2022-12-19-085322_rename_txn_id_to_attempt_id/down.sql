@@ -1,2 +1,2 @@
-ALTER TABLE payment_id
-RENAME attempt_id to txn_id;
+ALTER TABLE payment_attempt
+RENAME COLUMN attempt_id to txn_id;

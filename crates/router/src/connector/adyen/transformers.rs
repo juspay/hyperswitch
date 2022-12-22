@@ -363,7 +363,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             None
         };
 
-        Ok(AdyenPaymentRequest {
+        Ok(Self {
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -384,7 +384,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(AdyenCancelRequest {
+        Ok(Self {
             merchant_account: auth_type.merchant_account,
             original_reference: item.request.connector_transaction_id.to_string(),
             reference: item.payment_id.to_string(),
@@ -404,7 +404,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
             "processing" => storage_enums::AttemptStatus::Pending,
             _ => storage_enums::AttemptStatus::VoidFailed,
         };
-        Ok(types::RouterData {
+        Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
@@ -536,7 +536,7 @@ impl<F, Req>
             }
         };
 
-        Ok(types::RouterData {
+        Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
 
@@ -583,7 +583,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(AdyenRefundRequest {
+        Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference: item.request.refund_id.clone(),
         })
@@ -604,7 +604,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
             "received" => storage_enums::RefundStatus::Success,
             _ => storage_enums::RefundStatus::Pending,
         };
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.reference,
                 refund_status,

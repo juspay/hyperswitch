@@ -36,27 +36,6 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
     }
 }
 
-pub(crate) trait ApiClientErrorExt {
-    fn to_unsuccessful_processing_step_response(
-        self,
-    ) -> error_stack::Report<errors::ConnectorError>;
-}
-
-impl ApiClientErrorExt for error_stack::Report<errors::ApiClientError> {
-    fn to_unsuccessful_processing_step_response(
-        self,
-    ) -> error_stack::Report<errors::ConnectorError> {
-        let data = match self.current_context() {
-            errors::ApiClientError::BadRequestReceived(bytes)
-            | errors::ApiClientError::UnauthorizedReceived(bytes)
-            | errors::ApiClientError::NotFoundReceived(bytes)
-            | errors::ApiClientError::UnprocessableEntityReceived(bytes) => Some(bytes.clone()),
-            _ => None,
-        };
-        self.change_context(errors::ConnectorError::ProcessingStepFailed(data))
-    }
-}
-
 pub(crate) trait ConnectorErrorExt {
     fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;

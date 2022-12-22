@@ -1,4 +1,4 @@
-mod types;
+pub mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
