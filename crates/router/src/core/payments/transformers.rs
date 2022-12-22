@@ -400,7 +400,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
                     })
                     .attach_printable("unable to parse metadata")
             })
-            .transpose()?;
+            .transpose()
+            .unwrap_or_default();
 
         let order_details = parsed_metadata.map(|data| data.order_details);
 
@@ -494,7 +495,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
                     })
                     .attach_printable("unable to parse metadata")
             })
-            .transpose()?;
+            .transpose()
+            .unwrap_or_default();
 
         let order_details = parsed_metadata.map(|data| data.order_details);
 
