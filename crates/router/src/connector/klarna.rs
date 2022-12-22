@@ -113,7 +113,6 @@ impl
                 .method(services::Method::Post)
                 .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSessionType::get_headers(self, req)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsSessionType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -254,7 +253,6 @@ impl
                     self, req, connectors,
                 )?)
                 .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
