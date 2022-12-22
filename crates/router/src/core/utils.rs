@@ -113,7 +113,7 @@ pub fn get_or_generate_id_interface<I, W: domain::IdExt<I>>(
     provided_id
         .map_or(Ok(W::generate()), W::validate)
         .map_err(|err| {
-            // used error encapsulation with hierarchy or CustomResult
+            // [TODO-POC]: use error encapsulation with hierarchy or CustomResult
             logger::error!("{:?}", err);
             invalid_id_format_error(W::key())
         })

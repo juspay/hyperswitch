@@ -124,7 +124,7 @@ impl<'de, I: serde::Deserialize<'de>, T: StorageExt<I>> serde::Deserialize<'de>
 pub trait StorageExt<I> {}
 
 pub trait IdExt<I>: Sized + StorageExt<I> {
-    // FIXME: Added for POC removed once
+    // FIXME: Added for POC removed after fixing error handling in validator
     fn key<'a>() -> &'a str;
     fn validate(
         item: StorageWrapper<I, Self>,
