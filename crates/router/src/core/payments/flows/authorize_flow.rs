@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -100,6 +101,7 @@ impl PaymentsAuthorizeRouterData {
                 .await
                 .map_err(|error| error.to_payment_failed_response())?;
 
+                logger::error!("M: {:?}", resp);
                 Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
             }
             _ => Ok(self.clone()),
@@ -120,6 +122,10 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
         self.setup_future_usage
     }
+    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+        self.setup_mandate_details.as_ref()
+    }
+
     fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
         self.mandate_id = Some(new_mandate_id);
     }
