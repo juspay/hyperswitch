@@ -222,10 +222,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         )
         .await?;
 
-        utils::when(
-            payment_method.is_none(),
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound),
-        )?;
+        utils::when(payment_method.is_none(), || {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
 
         Ok((op, payment_method, payment_token))
     }
