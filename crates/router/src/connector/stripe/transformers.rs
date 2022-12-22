@@ -768,7 +768,7 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
         (pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType),
     ) -> Result<Self, Self::Error> {
         match pm_data {
-            api::PaymentMethod::Card(ref ccard) => Ok(StripePaymentMethodData::Card({
+            api::PaymentMethod::Card(ref ccard) => Ok(Self::Card({
                 let payment_method_auth_type = match auth_type {
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
@@ -783,13 +783,13 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     payment_method_auth_type,
                 }
             })),
-            api::PaymentMethod::BankTransfer => Ok(StripePaymentMethodData::Bank),
+            api::PaymentMethod::BankTransfer => Ok(Self::Bank),
             api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email,
                     billing_country: country,
                     ..
-                } => Ok(StripePaymentMethodData::Klarna(StripeKlarnaData {
+                } => Ok(Self::Klarna(StripeKlarnaData {
                     payment_method_types: "klarna".to_string(),
                     payment_method_data_type: "klarna".to_string(),
                     billing_email,
@@ -801,8 +801,8 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                 .attach_printable("Stripe does not support klarna sdk payments".to_string())
                 .change_context(errors::ParsingError))?,
             },
-            api::PaymentMethod::Wallet(_) => Ok(StripePaymentMethodData::Wallet),
-            api::PaymentMethod::Paypal => Ok(StripePaymentMethodData::Paypal),
+            api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethod::Paypal => Ok(Self::Paypal),
         }
     }
 }

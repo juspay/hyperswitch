@@ -125,7 +125,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                     .map(|(k, v)| (k.to_string(), v.to_string())),
             ),
         };
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
                 redirect: true,
