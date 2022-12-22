@@ -95,11 +95,12 @@ pub fn mk_add_card_response(
     req: api::CreatePaymentMethod,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
+    let mut card_number = card.card_number.peek().to_owned();
     let card = api::CardDetailFromLocker {
         scheme: None,
-        last4_digits: Some(card.card_number.peek().to_owned().split_off(12)),
+        last4_digits: Some(card_number.split_off(card_number.len() - 4)),
         issuer_country: None, // TODO bin mapping
-        card_number: None,
+        card_number: Some(card.card_number),
         expiry_month: Some(card.card_exp_month),
         expiry_year: Some(card.card_exp_year),
         card_token: Some(response.external_id.into()), // TODO ?
@@ -174,10 +175,11 @@ pub fn get_card_detail(
         .card_number
         .get_required_value("card_number")
         .change_context(errors::CardVaultError::FetchCardFailed)?;
+    let mut last4_digits = card_number.peek().to_owned();
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.clone(),
         issuer_country: pm.issuer_country.clone(),
-        last4_digits: Some(card_number.peek().to_owned().split_off(12)),
+        last4_digits: Some(last4_digits.split_off(last4_digits.len() - 4)),
         card_number: Some(card_number),
         expiry_month: response.card_exp_month,
         expiry_year: response.card_exp_year,
