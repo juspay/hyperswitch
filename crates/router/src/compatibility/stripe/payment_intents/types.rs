@@ -188,12 +188,11 @@ pub enum StripePaymentStatus {
     RequiresCapture,
 }
 
-// TODO: Verigy if the status are correct
 impl From<api_enums::IntentStatus> for StripePaymentStatus {
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
             api_enums::IntentStatus::Succeeded => Self::Succeeded,
-            api_enums::IntentStatus::Failed => Self::Canceled, // TODO: should we show canceled or  processing
+            api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,

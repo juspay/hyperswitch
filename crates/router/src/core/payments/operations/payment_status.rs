@@ -251,12 +251,14 @@ async fn get_tracker_for_sync<
 
     utils::when(
         request.force_sync && !helpers::can_call_connector(payment_intent.status),
-        Err(ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "cannot perform force_sync as status: {}",
-                payment_intent.status
-            ),
-        }),
+        || {
+            Err(ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "cannot perform force_sync as status: {}",
+                    payment_intent.status
+                ),
+            })
+        },
     )?;
 
     let refunds = db

@@ -31,13 +31,12 @@ where
     T: std::fmt::Debug,
 {
     fn check_value_present(&self, field_name: &str) -> RouterResult<()> {
-        when(
-            self.is_none(),
+        when(self.is_none(), || {
             Err(Report::new(ApiErrorResponse::MissingRequiredField {
                 field_name: field_name.to_string(),
             })
-            .attach_printable(format!("Missing required field {field_name} in {self:?}"))),
-        )
+            .attach_printable(format!("Missing required field {field_name} in {self:?}")))
+        })
     }
 
     fn get_required_value(self, field_name: &str) -> RouterResult<T> {
@@ -103,13 +102,6 @@ pub(crate) fn merge_json_values(a: &mut serde_json::Value, b: &serde_json::Value
             *a = b.clone();
         }
     }
-}
-
-// TODO: change Name
-pub trait ValidateVar {
-    fn validate(self) -> CustomResult<Self, errors::ValidationError>
-    where
-        Self: std::marker::Sized;
 }
 
 pub trait ValidateCall<T, F> {
