@@ -498,7 +498,6 @@ pub(crate) async fn call_payment_method(
                         Some(customer) => {
                             let customer_id = customer.customer_id.clone();
                             let payment_method_request = api::CreatePaymentMethod {
-                                merchant_id: Some(merchant_id.to_string()),
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
                                 payment_method_issuer: None,
@@ -530,7 +529,6 @@ pub(crate) async fn call_payment_method(
                 }
                 _ => {
                     let payment_method_request = api::CreatePaymentMethod {
-                        merchant_id: Some(merchant_id.to_string()),
                         payment_method: payment_method_type.foreign_into(),
                         payment_method_type: None,
                         payment_method_issuer: None,
