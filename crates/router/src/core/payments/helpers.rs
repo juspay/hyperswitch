@@ -18,6 +18,7 @@ use crate::{
         payment_methods::cards,
     },
     db::StorageInterface,
+    logger,
     pii::Secret,
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
@@ -836,8 +837,8 @@ impl Vault {
         let db = &*state.store;
         if let Some(id) = lookup_key {
             match cards::mock_delete_card(db, id).await {
-                Ok(_) => print!("Card Deleted from locker mock up"),
-                Err(_) => print!("Err: Card Delete from locker Failed"),
+                Ok(_) => logger::info!("Card Deleted from locker mock up"),
+                Err(_) => logger::error!("Err: Card Delete from locker Failed"),
             }
         }
     }
@@ -914,12 +915,12 @@ impl Vault {
             match delete_resp {
                 Ok(resp) => {
                     if resp == "Ok" {
-                        print!("Card From locker deleted Successfully")
+                        logger::info!("Card From locker deleted Successfully")
                     } else {
-                        print!("Error: Deleting Card From Locker")
+                        logger::error!("Error: Deleting Card From Locker")
                     }
                 }
-                Err(_) => print!("Err: Deleting Card From Locker"),
+                Err(_) => logger::error!("Err: Deleting Card From Locker"),
             }
         }
     }
