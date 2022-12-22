@@ -130,7 +130,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let mandate_id = request
             .mandate_id
             .as_ref()
-            .async_map(|mandate_id| async {
+            .async_and_then(|mandate_id| async {
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await

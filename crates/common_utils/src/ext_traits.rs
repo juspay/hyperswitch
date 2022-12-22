@@ -291,13 +291,21 @@ pub trait AsyncExt<A, B> {
     async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
+        Fut: futures::Future<Output = B> + Send;
+
+    ///
+    /// Extending the `and_then` by allowing functions which are async
+    ///
+    async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
+    where
+        F: FnOnce(A) -> Fut + Send,
         Fut: futures::Future<Output = Self::WrappedSelf<B>> + Send;
 }
 
 #[async_trait::async_trait]
 impl<A: std::marker::Send, B, E: std::marker::Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
-    async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
+    async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
         Fut: futures::Future<Output = Self::WrappedSelf<B>> + Send,
@@ -307,18 +315,40 @@ impl<A: std::marker::Send, B, E: std::marker::Send> AsyncExt<A, B> for Result<A,
             Err(err) => Err(err),
         }
     }
+
+    async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
+    where
+        F: FnOnce(A) -> Fut + Send,
+        Fut: futures::Future<Output = B> + Send,
+    {
+        match self {
+            Ok(a) => Ok(func(a).await),
+            Err(err) => Err(err),
+        }
+    }
 }
 
 #[async_trait::async_trait]
 impl<A: std::marker::Send, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
-    async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
+    async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
         Fut: futures::Future<Output = Self::WrappedSelf<B>> + Send,
     {
         match self {
             Some(a) => func(a).await,
+            None => None,
+        }
+    }
+
+    async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
+    where
+        F: FnOnce(A) -> Fut + Send,
+        Fut: futures::Future<Output = B> + Send,
+    {
+        match self {
+            Some(a) => Some(func(a).await),
             None => None,
         }
     }

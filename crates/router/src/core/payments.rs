@@ -342,7 +342,7 @@ where
         .await;
 
     let response = res
-        .async_map(|response| async {
+        .async_and_then(|response| async {
             let operation = helpers::response_operation::<F, Req>();
             let payment_data = operation
                 .to_post_update_tracker()?
