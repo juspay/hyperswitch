@@ -392,8 +392,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             .payment_intent
             .metadata
             .map(|metadata_value| {
-                serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
-                    .into_report()
+                metadata_value
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "metadata",
                     })
@@ -486,8 +486,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
             .payment_intent
             .metadata
             .map(|metadata_value| {
-                serde_json::from_value::<api_models::payments::Metadata>(metadata_value)
-                    .into_report()
+                metadata_value
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "metadata",
                     })
