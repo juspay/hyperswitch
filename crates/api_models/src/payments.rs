@@ -721,7 +721,6 @@ pub enum SupportedWallets {
 }
 
 #[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
 pub struct OrderDetails {
     pub product_name: String,
     pub quantity: u16,
@@ -731,8 +730,6 @@ pub struct OrderDetails {
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
-    // pub wallets: Vec<SupportedWallets>,
-    // pub : Option<OrderDetails>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

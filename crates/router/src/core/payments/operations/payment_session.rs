@@ -157,11 +157,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn StorageInterface,
+        db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
+        mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -169,6 +169,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     where
         F: 'b + Send,
     {
+        let metadata = payment_data.payment_intent.metadata.clone();
+        payment_data.payment_intent = match metadata {
+            Some(metadata) => db
+                .update_payment_intent(
+                    payment_data.payment_intent,
+                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
+                    storage_scheme,
+                )
+                .await
+                .map_err(|error| {
+                    error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                })?,
+            None => payment_data.payment_intent,
+        };
+
         Ok((Box::new(self), payment_data))
     }
 }
