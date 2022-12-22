@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
