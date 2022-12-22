@@ -165,6 +165,12 @@ where
     ) -> RouterResponse<Self> {
         Ok(services::BachResponse::Json(Self {
             session_token: payment_data.sessions_token,
+            payment_id: payment_data.payment_attempt.payment_id,
+            client_secret: payment_data
+                .payment_intent
+                .client_secret
+                .get_required_value("client_secret")?
+                .into(),
         }))
     }
 }

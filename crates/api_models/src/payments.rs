@@ -586,9 +586,12 @@ impl From<PaymentsSessionRequest> for PaymentsResponse {
 }
 
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
-    fn from(_item: PaymentsSessionRequest) -> Self {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
         Self {
             session_token: vec![],
+            payment_id: item.payment_id,
+            client_secret,
         }
     }
 }
@@ -790,6 +793,8 @@ pub enum SessionToken {
 
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
+    pub payment_id: String,
+    pub client_secret: Secret<String, pii::ClientSecret>,
     pub session_token: Vec<SessionToken>,
 }
 
