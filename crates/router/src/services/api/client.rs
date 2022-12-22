@@ -20,10 +20,10 @@ impl ProxyType {
         use std::env::var;
 
         match self {
-            ProxyType::Http => var(HTTP_PROXY)
+            Self::Http => var(HTTP_PROXY)
                 .or_else(|_| proxy.http_url.clone().ok_or(()))
                 .ok(),
-            ProxyType::Https => var(HTTPS_PROXY)
+            Self::Https => var(HTTPS_PROXY)
                 .or_else(|_| proxy.https_url.clone().ok_or(()))
                 .ok(),
         }
@@ -100,7 +100,6 @@ pub(super) fn create_client(
         .attach_printable_lazy(|| "Error with client library")
 }
 
-// TODO: Move to env variable
 pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();

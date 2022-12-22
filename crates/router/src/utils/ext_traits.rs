@@ -77,7 +77,7 @@ where
         value.parse_value(type_name)
     }
 
-    fn update_value(&mut self, value: Option<T>) {
+    fn update_value(&mut self, value: Self) {
         if let Some(a) = value {
             *self = Some(a)
         }

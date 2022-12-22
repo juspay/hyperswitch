@@ -14,7 +14,7 @@ pub struct PaymentOptions {
     submit_for_settlement: bool,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct BraintreePaymentsRequest {
     transaction: TransactionBody,
 }
@@ -40,20 +40,40 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BraintreeSessionRequest {
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionBody {
     amount: String,
     device_data: DeviceData,
     options: PaymentOptions,
-    credit_card: Card,
+    #[serde(flatten)]
+    payment_method_data_type: PaymentMethodType,
     #[serde(rename = "type")]
     kind: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
+pub enum PaymentMethodType {
+    CreditCard(Card),
+    PaymentMethodNonce(Nonce),
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct Nonce {
+    payment_method_nonce: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
+    credit_card: CardDetails,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CardDetails {
     number: String,
     expiration_month: String,
     expiration_year: String,
@@ -63,34 +83,47 @@ pub struct Card {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                let submit_for_settlement = matches!(
-                    item.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic) | None
-                );
-                let braintree_payment_request = TransactionBody {
-                    amount: item.request.amount.to_string(),
-                    device_data: DeviceData {},
-                    options: PaymentOptions {
-                        submit_for_settlement,
-                    },
-                    credit_card: Card {
-                        number: ccard.card_number.peek().clone(),
-                        expiration_month: ccard.card_exp_month.peek().clone(),
-                        expiration_year: ccard.card_exp_year.peek().clone(),
-                        cvv: ccard.card_cvc.peek().clone(),
-                    },
-                    kind: "sale".to_string(),
-                };
-                Ok(BraintreePaymentsRequest {
-                    transaction: braintree_payment_request,
-                })
+        let submit_for_settlement = matches!(
+            item.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+
+        let amount = item.request.amount.to_string();
+        let device_data = DeviceData {};
+        let options = PaymentOptions {
+            submit_for_settlement,
+        };
+        let kind = "sale".to_string();
+
+        let payment_method_data_type = match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => Ok(PaymentMethodType::CreditCard(Card {
+                credit_card: CardDetails {
+                    number: ccard.card_number.peek().clone(),
+                    expiration_month: ccard.card_exp_month.peek().clone(),
+                    expiration_year: ccard.card_exp_year.peek().clone(),
+                    cvv: ccard.card_cvc.peek().clone(),
+                },
+            })),
+            api::PaymentMethod::Wallet(ref wallet_data) => {
+                Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
+                    payment_method_nonce: wallet_data.token.to_string(),
+                }))
             }
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Current Payment Method".to_string()).into(),
-            ),
-        }
+            _ => Err(errors::ConnectorError::NotImplemented(format!(
+                "Current Payment Method - {:?}",
+                item.request.payment_method_data
+            ))),
+        }?;
+        let braintree_transaction_body = TransactionBody {
+            amount,
+            device_data,
+            options,
+            payment_method_data_type,
+            kind,
+        };
+        Ok(Self {
+            transaction: braintree_transaction_body,
+        })
     }
 }
 
@@ -113,7 +146,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BraintreePaymentStatus {
     Succeeded,
@@ -124,6 +157,7 @@ pub enum BraintreePaymentStatus {
     GatewayRejected,
     Voided,
     SubmittedForSettlement,
+    #[default]
     Settling,
     Settled,
     SettlementPending,
@@ -131,24 +165,20 @@ pub enum BraintreePaymentStatus {
     SettlementConfirmed,
 }
 
-impl Default for BraintreePaymentStatus {
-    fn default() -> Self {
-        BraintreePaymentStatus::Settling
-    }
-}
-
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
-            BraintreePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            BraintreePaymentStatus::AuthorizedExpired => enums::AttemptStatus::AuthorizationFailed,
+            BraintreePaymentStatus::Succeeded | BraintreePaymentStatus::SubmittedForSettlement => {
+                Self::Charged
+            }
+            BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
             | BraintreePaymentStatus::ProcessorDeclined
-            | BraintreePaymentStatus::SettlementDeclined => enums::AttemptStatus::Failure,
-            BraintreePaymentStatus::Authorized => enums::AttemptStatus::Authorized,
-            BraintreePaymentStatus::Voided => enums::AttemptStatus::Voided,
-            _ => enums::AttemptStatus::Pending,
+            | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
+            BraintreePaymentStatus::Authorized => Self::Authorized,
+            BraintreePaymentStatus::Voided => Self::Voided,
+            _ => Self::Pending,
         }
     }
 }
@@ -166,7 +196,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.transaction.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -174,7 +204,6 @@ impl<F, T>
                 ),
                 redirection_data: None,
                 redirect: false,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data
@@ -196,7 +225,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Paypal {
                     session_token: item.response.client_token.value,
@@ -258,32 +287,27 @@ pub struct Amount {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(BraintreeRefundRequest {
+        Ok(Self {
             transaction: Amount { amount: None },
         })
     }
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
 }
 
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Processing
-    }
-}
-
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
-            self::RefundStatus::Succeeded => enums::RefundStatus::Success,
-            self::RefundStatus::Failed => enums::RefundStatus::Failure,
-            self::RefundStatus::Processing => enums::RefundStatus::Pending,
+            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Processing => Self::Pending,
         }
     }
 }
@@ -301,7 +325,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
@@ -318,7 +342,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),

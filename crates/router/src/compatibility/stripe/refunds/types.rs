@@ -2,34 +2,34 @@ use std::{convert::From, default::Default};
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::api::refunds::{RefundRequest, RefundResponse, RefundStatus};
+use crate::types::api::refunds;
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub(crate) struct StripeCreateRefundRequest {
-    pub(crate) amount: Option<i64>,
-    pub(crate) payment_intent: String,
-    pub(crate) reason: Option<String>,
+pub struct StripeCreateRefundRequest {
+    pub amount: Option<i64>,
+    pub payment_intent: String,
+    pub reason: Option<String>,
 }
 
 #[derive(Clone, Serialize, PartialEq, Eq)]
-pub(crate) struct StripeCreateRefundResponse {
-    pub(crate) id: String,
-    pub(crate) amount: i64,
-    pub(crate) currency: String,
-    pub(crate) payment_intent: String,
-    pub(crate) status: StripeRefundStatus,
+pub struct StripeCreateRefundResponse {
+    pub id: String,
+    pub amount: i64,
+    pub currency: String,
+    pub payment_intent: String,
+    pub status: StripeRefundStatus,
 }
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum StripeRefundStatus {
+pub enum StripeRefundStatus {
     Succeeded,
     Failed,
     Pending,
     RequiresAction,
 }
 
-impl From<StripeCreateRefundRequest> for RefundRequest {
+impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
     fn from(req: StripeCreateRefundRequest) -> Self {
         Self {
             amount: req.amount,
@@ -40,19 +40,19 @@ impl From<StripeCreateRefundRequest> for RefundRequest {
     }
 }
 
-impl From<RefundStatus> for StripeRefundStatus {
-    fn from(status: RefundStatus) -> Self {
+impl From<refunds::RefundStatus> for StripeRefundStatus {
+    fn from(status: refunds::RefundStatus) -> Self {
         match status {
-            RefundStatus::Succeeded => Self::Succeeded,
-            RefundStatus::Failed => Self::Failed,
-            RefundStatus::Pending => Self::Pending,
-            RefundStatus::Review => Self::RequiresAction,
+            refunds::RefundStatus::Succeeded => Self::Succeeded,
+            refunds::RefundStatus::Failed => Self::Failed,
+            refunds::RefundStatus::Pending => Self::Pending,
+            refunds::RefundStatus::Review => Self::RequiresAction,
         }
     }
 }
 
-impl From<RefundResponse> for StripeCreateRefundResponse {
-    fn from(res: RefundResponse) -> Self {
+impl From<refunds::RefundResponse> for StripeCreateRefundResponse {
+    fn from(res: refunds::RefundResponse) -> Self {
         Self {
             id: res.refund_id,
             amount: res.amount,

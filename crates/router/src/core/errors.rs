@@ -13,7 +13,7 @@ use router_env::opentelemetry::metrics::MetricsError;
 use storage_models::errors as storage_errors;
 
 pub use self::api_error_response::ApiErrorResponse;
-pub(crate) use self::utils::{ApiClientErrorExt, ConnectorErrorExt, StorageErrorExt};
+pub(crate) use self::utils::{ConnectorErrorExt, StorageErrorExt};
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::BachResponse<T>, ApiErrorResponse>;
@@ -76,6 +76,8 @@ pub enum StorageError {
     DuplicateValue(String),
     #[error("KV error")]
     KVError,
+    #[error("MockDb error")]
+    MockDbError,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -203,17 +205,17 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
 impl ResponseError for BachError {
     fn status_code(&self) -> StatusCode {
         match self {
-            BachError::EParsingError(_)
-            | BachError::EAuthenticationError(_)
-            | BachError::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
+            Self::EParsingError(_)
+            | Self::EAuthenticationError(_)
+            | Self::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
 
-            BachError::EDatabaseError(_)
-            | BachError::NotImplementedByConnector(_)
-            | BachError::EMetrics(_)
-            | BachError::EIo(_)
-            | BachError::ConfigurationError(_)
-            | BachError::EEncryptionError(_)
-            | BachError::EUnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::EDatabaseError(_)
+            | Self::NotImplementedByConnector(_)
+            | Self::EMetrics(_)
+            | Self::EIo(_)
+            | Self::ConfigurationError(_)
+            | Self::EEncryptionError(_)
+            | Self::EUnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -244,22 +246,8 @@ pub enum ApiClientError {
     #[error("Failed to decode response")]
     ResponseDecodingFailed,
 
-    #[error("Server responded with Bad Request")]
-    BadRequestReceived(bytes::Bytes),
-    #[error("Server responded with Unauthorized")]
-    UnauthorizedReceived(bytes::Bytes),
-    #[error("Server responded with Forbidden")]
-    ForbiddenReceived,
-    #[error("Server responded with Not Found")]
-    NotFoundReceived(bytes::Bytes),
-    #[error("Server responded with Method Not Allowed")]
-    MethodNotAllowedReceived,
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
-    #[error("Server responded with Unprocessable Entity")]
-    UnprocessableEntityReceived(bytes::Bytes),
-    #[error("Server responded with Too Many Requests")]
-    TooManyRequestsReceived,
 
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
@@ -279,6 +267,8 @@ pub enum ConnectorError {
     FailedToObtainIntegrationUrl,
     #[error("Failed to encode connector request")]
     RequestEncodingFailed,
+    #[error("Request encoding failed : {0}")]
+    RequestEncodingFailedWithReason(String),
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]

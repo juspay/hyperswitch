@@ -10,7 +10,10 @@ use self::transformers as stripe;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db::StorageInterface,
     headers, logger, services,
     types::{
@@ -32,9 +35,9 @@ impl api::ConnectorCommon for Stripe {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         // &self.base_url
-        connectors.stripe.base_url
+        connectors.stripe.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -99,7 +102,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
 
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
 
@@ -124,7 +127,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
 
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -206,7 +209,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -221,7 +224,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -307,7 +310,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -328,7 +331,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -413,7 +416,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_id = &req.request.connector_transaction_id;
         Ok(format!(
@@ -428,13 +431,16 @@ impl
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::CancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Invalid cancellation reason".to_string(),
+            ))?;
         Ok(Some(stripe_req))
     }
+
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -523,7 +529,7 @@ impl
             types::VerifyRequestData,
             types::PaymentsResponseData,
         >,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}",
@@ -544,7 +550,7 @@ impl
     fn build_request(
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -606,7 +612,6 @@ impl
             reason: None,
         })
     }
-    // TODO CRITICAL: Implement for POC
 }
 
 impl api::Refund for Stripe {}
@@ -639,7 +644,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v1/refunds"))
     }
@@ -656,7 +661,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -734,7 +739,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
             .response
@@ -750,12 +755,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req)?)
                 .header(headers::X_ROUTER, "test")
@@ -946,13 +950,10 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if query.redirect_status.is_some() {
-            //TODO: Map the  redirect status of StripeRedirectResponse to AttemptStatus
-            Ok(crate::core::payments::CallConnectorAction::StatusUpdate(
-                types::storage::enums::AttemptStatus::Pending,
-            ))
-        } else {
-            Ok(crate::core::payments::CallConnectorAction::Trigger)
-        }
+        Ok(query
+            .redirect_status
+            .map_or(payments::CallConnectorAction::Trigger, |status| {
+                payments::CallConnectorAction::StatusUpdate(status.into())
+            }))
     }
 }

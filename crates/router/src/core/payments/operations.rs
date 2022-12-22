@@ -164,7 +164,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: D,
-        response: Option<types::RouterData<F, R, PaymentsResponseData>>,
+        response: types::RouterData<F, R, PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where

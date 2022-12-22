@@ -197,7 +197,7 @@ where
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-            mandate_id: data.mandate_id,
+            mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
             payment_method: data
                 .payment_attempt
                 .payment_method
@@ -370,6 +370,7 @@ where
             mandate_id,
             shipping: address.shipping,
             billing: address.billing,
+            cancellation_reason: payment_attempt.cancellation_reason,
             ..Default::default()
         }),
     })
@@ -531,8 +532,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
             },
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
-            mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
         })
     }

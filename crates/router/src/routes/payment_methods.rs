@@ -158,6 +158,7 @@ pub async fn payment_method_delete_api(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use api_models::payment_methods::ListPaymentMethodRequest;
 
     use super::*;

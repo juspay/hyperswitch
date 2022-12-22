@@ -30,8 +30,8 @@ impl api::ConnectorCommon for Aci {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
-        connectors.aci.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.aci.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -72,7 +72,7 @@ impl
         types::PaymentsResponseData,
     > for Aci
 {
-    // TODO: Critical Implement
+    // Issue: #173
 }
 
 impl
@@ -112,7 +112,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
         Ok(format!(
@@ -131,7 +131,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -216,7 +216,7 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v1/payments"))
     }
@@ -239,7 +239,7 @@ impl
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -323,7 +323,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = &req.request.connector_transaction_id;
         Ok(format!("{}v1/payments/{}", self.base_url(connectors), id))
@@ -340,12 +340,11 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                // TODO: [ORCA-346] Requestbuilder needs &str migrate get_url to send &str instead of owned string
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
@@ -422,7 +421,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -444,7 +443,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()

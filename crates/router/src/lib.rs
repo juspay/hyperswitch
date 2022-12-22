@@ -13,8 +13,11 @@
     clippy::panic,
     clippy::panic_in_result_fn,
     clippy::panicking_unwrap,
+    clippy::todo,
     clippy::unreachable,
     clippy::unwrap_in_result,
+    clippy::unwrap_used,
+    clippy::use_self
 )]
 #![recursion_limit = "256"]
 
@@ -32,6 +35,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod scheduler;
 
+mod middleware;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -92,6 +96,7 @@ pub fn mk_app(
 
     let mut server_app = actix_web::App::new()
         .app_data(json_cfg)
+        .wrap(middleware::RequestId)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,

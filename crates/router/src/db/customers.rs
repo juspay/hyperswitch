@@ -133,7 +133,8 @@ impl CustomerInterface for MockDb {
         _merchant_id: String,
         _customer: storage::CustomerUpdate,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_customer_by_customer_id_merchant_id(
@@ -141,7 +142,8 @@ impl CustomerInterface for MockDb {
         _customer_id: &str,
         _merchant_id: &str,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
@@ -171,6 +173,7 @@ impl CustomerInterface for MockDb {
         _customer_id: &str,
         _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }

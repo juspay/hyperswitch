@@ -95,7 +95,8 @@ impl AddressInterface for MockDb {
         &self,
         _address_id: &str,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_address(
@@ -103,14 +104,16 @@ impl AddressInterface for MockDb {
         _address_id: String,
         _address: storage::AddressUpdate,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_address(
         &self,
         _address: storage::AddressNew,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_address_by_merchant_id_customer_id(
@@ -119,6 +122,7 @@ impl AddressInterface for MockDb {
         _merchant_id: &str,
         _address: storage::AddressUpdate,
     ) -> CustomResult<Vec<storage::Address>, errors::StorageError> {
-        todo!()
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
     }
 }
