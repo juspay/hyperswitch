@@ -30,7 +30,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUSTFLAGS: "-D warnings"
   # Disable incremental compilation.
   #
   # Incremental compilation is useful as part of an edit-build-test-edit cycle,
@@ -104,6 +103,10 @@ jobs:
         with:
           crate: cargo-hack
 
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+
       - name: Test compilation
         shell: bash
         run: cargo hack check --workspace --each-feature --no-dev-deps
@@ -175,6 +178,10 @@ jobs:
       #   run: |
       #     mkdir -p .cargo
       #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Run clippy
         shell: bash
