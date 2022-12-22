@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections, str::FromStr};
 
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -10,7 +10,7 @@ use crate::{
     logger,
 };
 
-pub(crate) type Headers = Vec<(String, String)>;
+pub(crate) type Headers = collections::HashSet<(String, String)>;
 
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
@@ -46,7 +46,7 @@ impl Request {
         Self {
             method,
             url: String::from(url),
-            headers: Vec::new(),
+            headers: collections::HashSet::new(),
             payload: None,
             content_type: None,
             certificate: None,
@@ -60,7 +60,7 @@ impl Request {
 
     pub fn add_header(&mut self, header: &str, value: &str) {
         self.headers
-            .push((String::from(header), String::from(value)));
+            .insert((String::from(header), String::from(value)));
     }
 
     pub fn add_content_type(&mut self, content_type: ContentType) {
@@ -91,7 +91,7 @@ impl RequestBuilder {
         Self {
             method: Method::Get,
             url: String::with_capacity(1024),
-            headers: Vec::new(),
+            headers: std::collections::HashSet::new(),
             payload: None,
             content_type: None,
             certificate: None,
@@ -110,14 +110,13 @@ impl RequestBuilder {
     }
 
     pub fn header(mut self, header: &str, value: &str) -> Self {
-        self.headers.push((header.into(), value.into()));
+        self.headers.insert((header.into(), value.into()));
         self
     }
 
     pub fn headers(mut self, headers: Vec<(String, String)>) -> Self {
-        // Fixme add union property
-        let mut h = headers.into_iter().map(|(h, v)| (h, v)).collect();
-        self.headers.append(&mut h);
+        let mut h = headers.into_iter().map(|(h, v)| (h, v));
+        self.headers.extend(&mut h);
         self
     }
 

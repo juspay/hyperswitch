@@ -100,7 +100,6 @@ pub(super) fn create_client(
         .attach_printable_lazy(|| "Error with client library")
 }
 
-// TODO: Move to env variable
 pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();

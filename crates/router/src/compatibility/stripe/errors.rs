@@ -384,7 +384,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::PreconditionFailed { message } => {
                 Self::PreconditionFailed { message }
             }
-            errors::ApiErrorResponse::BadCredentials => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidDataValue { field_name } => Self::ParameterMissing {
                 field_name: field_name.to_owned(),
                 param: field_name.to_owned(),
