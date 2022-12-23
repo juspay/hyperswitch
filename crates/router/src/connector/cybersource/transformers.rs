@@ -84,8 +84,7 @@ fn build_bill_to(
         line2: Some(administrative_area),
         zip: Some(postal_code),
         country: Some(country),
-        line3: _,
-        state: _,
+        ..
     }) = address_details.address
     {
         Some(BillTo {
@@ -207,10 +206,10 @@ pub enum CybersourcePaymentStatus {
 impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
     fn from(item: CybersourcePaymentStatus) -> Self {
         match item {
-            CybersourcePaymentStatus::Authorized => enums::AttemptStatus::Authorized,
-            CybersourcePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            CybersourcePaymentStatus::Failed => enums::AttemptStatus::Failure,
-            CybersourcePaymentStatus::Processing => enums::AttemptStatus::Authorizing,
+            CybersourcePaymentStatus::Authorized => Self::Authorized,
+            CybersourcePaymentStatus::Succeeded => Self::Charged,
+            CybersourcePaymentStatus::Failed => Self::Failure,
+            CybersourcePaymentStatus::Processing => Self::Authorizing,
         }
     }
 }

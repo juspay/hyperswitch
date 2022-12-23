@@ -491,11 +491,11 @@ pub enum Connector {
     Authorizedotnet,
     Braintree,
     Checkout,
+    Cybersource,
     #[default]
     Dummy,
     Klarna,
     Stripe,
-    Cybersource,
 }
 
 impl From<AttemptStatus> for IntentStatus {
