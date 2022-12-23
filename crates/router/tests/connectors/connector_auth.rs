@@ -6,6 +6,7 @@ pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
+    pub shift4: Option<HeaderKey>,
 }
 
 impl ConnectorAuthentication {
@@ -16,6 +17,19 @@ impl ConnectorAuthentication {
                 .expect("connector authentication config file not found"),
         )
         .expect("Failed to read connector authentication config file")
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct HeaderKey {
+    pub api_key: String,
+}
+
+impl From<HeaderKey> for ConnectorAuthType {
+    fn from(key: HeaderKey) -> Self {
+        Self::HeaderKey {
+            api_key: key.api_key,
+        }
     }
 }
 

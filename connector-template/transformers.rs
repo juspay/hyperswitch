@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use crate::{core::errors,types::{self,storage::enums}};
+use crate::{core::errors,pii::PeekInterface,types::{self,api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {}
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
@@ -24,19 +24,13 @@ impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_c
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum {{project-name | downcase | pascal_case}}PaymentStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
-}
-
-// Default should be Processing
-impl Default for {{project-name | downcase | pascal_case}}PaymentStatus {
-    fn default() -> Self {
-        {{project-name | downcase | pascal_case}}PaymentStatus::Processing
-    }
 }
 
 impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::AttemptStatus {
@@ -66,9 +60,9 @@ impl TryFrom<types::PaymentsResponseRouterData<{{project-name | downcase | pasca
 #[derive(Default, Debug, Serialize)]
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {}
 
-impl TryFrom<&types::RefundsRouterData> for {{project-name | downcase | pascal_case}}RefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData) -> Result<Self,Self::Error> {
+    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
        todo!()
     }
 }
@@ -76,22 +70,16 @@ impl TryFrom<&types::RefundsRouterData> for {{project-name | downcase | pascal_c
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
 }
 
-// Default should be Processing
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Processing
-    }
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<self::RefundStatus> for enums::RefundStatus {
+    fn from(item: self::RefundStatus) -> Self {
         match item {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
@@ -103,14 +91,27 @@ impl From<RefundStatus> for enums::RefundStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct {{project-name | downcase | pascal_case}}RefundResponse {}
+pub struct RefundResponse {
+}
 
-impl TryFrom<types::RefundsResponseRouterData<{{project-name | downcase | pascal_case}}RefundResponse>> for types::RefundsRouterData {
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+    for types::RefundsRouterData<api::Execute>
+{
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<{{project-name | downcase | pascal_case}}RefundResponse>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
         todo!()
     }
 }
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+{
+     type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+         todo!()
+     }
+ }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
