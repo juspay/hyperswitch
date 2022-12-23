@@ -486,7 +486,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
 impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     fn from(item: CheckoutRedirectResponseStatus) -> Self {
         match item {
-            CheckoutRedirectResponseStatus::Success => Self::VbvSuccessful,
+            CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
 
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
         }
