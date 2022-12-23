@@ -46,7 +46,7 @@ pub trait ConnectorCommon {
     /// The base URL for interacting with the connector's API.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
 
-    //common error response for a connector if it is same in all case
+    /// common error response for a connector if it is same in all case
     fn build_error_response(
         &self,
         _res: Bytes,
@@ -59,11 +59,11 @@ pub trait ConnectorCommon {
     }
 }
 
-//Extended trait for connector common to allow functions with generic type
+/// Extended trait for connector common to allow functions with generic type
 pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
 {
-    //common header builder when every request for the connector have same headers
+    /// common header builder when every request for the connector have same headers
     fn build_headers(
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,

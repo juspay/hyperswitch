@@ -142,7 +142,7 @@ impl
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}/charges/{}",
+            "{}charges/{}",
             self.base_url(connectors),
             connector_payment_id
         ))
@@ -377,7 +377,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/refunds", self.base_url(connectors),))
+        Ok(format!("{}refunds", self.base_url(connectors),))
     }
 
     fn get_request_body(
@@ -449,7 +449,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         _req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/refunds", self.base_url(connectors),))
+        Ok(format!("{}refunds", self.base_url(connectors),))
     }
 
     fn handle_response(
