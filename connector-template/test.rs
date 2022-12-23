@@ -7,14 +7,14 @@ use crate::{
     utils::{self, ConnectorActions},
 };
 
-struct Shift4;
-impl utils::ConnectorActions for Shift4 {}
-impl utils::Connector for Shift4 {
+struct {{project-name | downcase | pascal_case}};
+impl utils::ConnectorActions for {{project-name | downcase | pascal_case}} {}
+impl utils::Connector for {{project-name | downcase | pascal_case}} {
     fn get_data(&self) -> types::api::ConnectorData {
-        use router::connector::Shift4;
+        use router::connector::{{project-name | downcase | pascal_case}};
         types::api::ConnectorData {
-            connector: Box::new(&Shift4),
-            connector_name: types::Connector::Shift4,
+            connector: Box::new(&{{project-name | downcase | pascal_case}}),
+            connector_name: types::Connector::{{project-name | downcase | pascal_case}},
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -22,31 +22,31 @@ impl utils::Connector for Shift4 {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .shift4
+                .{{project-name | downcase }}
                 .expect("Missing connector authentication configuration"),
         )
     }
 
     fn get_name(&self) -> String {
-        "shift4".to_string()
+        "{{project-name | downcase }}".to_string()
     }
 }
 
 #[actix_web::test]
 async fn should_only_authorize_payment() {
-    let response = Shift4 {}.authorize_payment(None).await;
+    let response = {{project-name | downcase | pascal_case}} {}.authorize_payment(None).await;
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
 
 #[actix_web::test]
 async fn should_authorize_and_capture_payment() {
-    let response = Shift4 {}.make_payment(None).await;
+    let response = {{project-name | downcase | pascal_case}} {}.make_payment(None).await;
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
-    let connector = Shift4 {};
+    let connector = {{project-name | downcase | pascal_case}} {};
     let authorize_response = connector.authorize_payment(None).await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
@@ -60,7 +60,7 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
-    let response = Shift4 {}.make_payment(Some(types::PaymentsAuthorizeData {
+    let response = {{project-name | downcase | pascal_case}} {}.make_payment(Some(types::PaymentsAuthorizeData {
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                 card_number: Secret::new("4024007134364842".to_string()),
                 ..utils::CCardType::default().0
@@ -77,7 +77,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
 
 #[actix_web::test]
 async fn should_refund_succeeded_payment() {
-    let connector = Shift4 {};
+    let connector = {{project-name | downcase | pascal_case}} {};
     //make a successful payment
     let response = connector.make_payment(None).await;
 
