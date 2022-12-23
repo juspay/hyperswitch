@@ -838,7 +838,7 @@ impl Vault {
         if let Some(id) = lookup_key {
             match cards::mock_delete_card(db, id).await {
                 Ok(_) => logger::info!("Card Deleted from locker mock up"),
-                Err(_) => logger::error!("Err: Card Delete from locker Failed"),
+                Err(err) => logger::error!("Err: Card Delete from locker Failed : {}", err),
             }
         }
     }
@@ -917,10 +917,10 @@ impl Vault {
                     if resp == "Ok" {
                         logger::info!("Card From locker deleted Successfully")
                     } else {
-                        logger::error!("Error: Deleting Card From Locker")
+                        logger::error!("Error: Deleting Card From Locker : {}", resp)
                     }
                 }
-                Err(_) => logger::error!("Err: Deleting Card From Locker"),
+                Err(err) => logger::error!("Err: Deleting Card From Locker : {}", err),
             }
         }
     }
