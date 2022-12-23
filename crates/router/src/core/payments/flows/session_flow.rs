@@ -105,7 +105,7 @@ impl types::PaymentsSessionRouterData {
         _customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<types::PaymentsSessionRouterData> {
+    ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::Metadata => create_gpay_session_token(self),
             api::GetToken::Connector => {

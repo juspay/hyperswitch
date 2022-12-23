@@ -94,7 +94,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         amount = payment_attempt.amount.into();
 
         connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_txn_id(
+            .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
                 &payment_attempt.attempt_id,
@@ -222,10 +222,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         )
         .await?;
 
-        utils::when(
-            payment_method.is_none(),
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound),
-        )?;
+        utils::when(payment_method.is_none(), || {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
 
         Ok((op, payment_method, payment_token))
     }

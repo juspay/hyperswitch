@@ -1,7 +1,7 @@
-#![allow(dead_code)]
 mod transformers;
 use std::fmt::Debug;
 
+use api_models::payments as api_payments;
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
@@ -27,7 +27,7 @@ impl api::ConnectorCommon for Klarna {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -99,7 +99,7 @@ impl
         // encode only for for urlencoded things.
         let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(klarna_payment_logs=?klarna_req);
+        logger::debug!(klarna_session_request_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
 
@@ -113,7 +113,6 @@ impl
                 .method(services::Method::Post)
                 .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSessionType::get_headers(self, req)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsSessionType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -124,9 +123,10 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        logger::debug!(klarna_session_response_logs=?res);
         let response: klarna::KlarnaSessionResponse = res
             .response
-            .parse_struct("KlarnaPaymentsResponse")
+            .parse_struct("KlarnaSessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -140,6 +140,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(klarna_session_error_logs=?res);
         let response: klarna::KlarnaErrorResponse = res
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -187,7 +188,108 @@ impl
         types::PaymentsResponseData,
     > for Klarna
 {
-    //Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_method_data = &req.request.payment_method_data;
+        match payment_method_data {
+            api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
+                token,
+                ..
+            }) => Ok(format!(
+                "{}payments/v1/authorizations/{}/order",
+                self.base_url(connectors),
+                token
+            )),
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::NotImplemented(
+                    "We only support wallet payments through klarna".to_string(),
+                )
+            )),
+        }
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        logger::debug!(klarna_payment_logs=?klarna_req);
+        Ok(Some(klarna_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsAuthorizeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!(klarna_raw_response=?res);
+        let response: klarna::KlarnaPaymentsResponse = res
+            .response
+            .parse_struct("KlarnaPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(klarna_error_response=?res);
+        let response: klarna::KlarnaErrorResponse = res
+            .parse_struct("KlarnaErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            code: response.error_code,
+            message: response.error_messages.join(" & "),
+            reason: None,
+        })
+    }
 }
 
 impl

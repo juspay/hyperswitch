@@ -52,6 +52,38 @@ where
 }
 */
 
+/// Client secret
+#[derive(Debug)]
+pub struct ClientSecret;
+
+impl<T> Strategy<T> for ClientSecret
+where
+    T: AsRef<str>,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val_str: &str = val.as_ref();
+
+        let client_secret_segments: Vec<&str> = val_str.split('_').collect();
+
+        if client_secret_segments.len() != 4
+            || !client_secret_segments.contains(&"pay")
+            || !client_secret_segments.contains(&"secret")
+        {
+            return WithType::fmt(val, f);
+        }
+        write!(
+            f,
+            "{}_{}_{}",
+            client_secret_segments[0],
+            client_secret_segments[1],
+            "*".repeat(
+                val_str.len()
+                    - (client_secret_segments[0].len() + client_secret_segments[1].len() + 2)
+            )
+        )
+    }
+}
+
 /// Email address
 #[derive(Debug)]
 pub struct Email;
@@ -106,7 +138,7 @@ where
 mod pii_masking_strategy_tests {
     use masking::Secret;
 
-    use super::{CardNumber, Email, IpAddress};
+    use super::{CardNumber, ClientSecret, Email, IpAddress};
 
     #[test]
     fn test_valid_card_number_masking() {
@@ -167,6 +199,23 @@ mod pii_masking_strategy_tests {
         assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
 
         let secret: Secret<String, IpAddress> = Secret::new("123..4.56".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+    }
+
+    #[test]
+    fn test_valid_client_secret_masking() {
+        let secret: Secret<String, ClientSecret> =
+            Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret_tLjTz9tAQxUVEFqfmOIP".to_string());
+        assert_eq!(
+            "pay_uszFB2QGe9MmLY65ojhT_***************************",
+            format!("{:?}", secret)
+        );
+    }
+
+    #[test]
+    fn test_invalid_lient_secret_masking() {
+        let secret: Secret<String, IpAddress> =
+            Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
     }
 }
