@@ -231,7 +231,7 @@ async fn get_tracker_for_sync<
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
     let mut connector_response = db
-        .find_connector_response_by_payment_id_merchant_id_txn_id(
+        .find_connector_response_by_payment_id_merchant_id_attempt_id(
             &payment_intent.payment_id,
             &payment_intent.merchant_id,
             &payment_attempt.attempt_id,
@@ -252,12 +252,14 @@ async fn get_tracker_for_sync<
 
     utils::when(
         request.force_sync && !helpers::can_call_connector(payment_intent.status),
-        Err(ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "cannot perform force_sync as status: {}",
-                payment_intent.status
-            ),
-        }),
+        || {
+            Err(ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "cannot perform force_sync as status: {}",
+                    payment_intent.status
+                ),
+            })
+        },
     )?;
 
     let refunds = db

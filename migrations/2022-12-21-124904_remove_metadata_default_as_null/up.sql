@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent ALTER COLUMN metadata DROP DEFAULT;

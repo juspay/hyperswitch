@@ -165,6 +165,12 @@ where
     ) -> RouterResponse<Self> {
         Ok(services::BachResponse::Json(Self {
             session_token: payment_data.sessions_token,
+            payment_id: payment_data.payment_attempt.payment_id,
+            client_secret: payment_data
+                .payment_intent
+                .client_secret
+                .get_required_value("client_secret")?
+                .into(),
         }))
     }
 }
@@ -197,7 +203,7 @@ where
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-            mandate_id: data.mandate_id,
+            mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
             payment_method: data
                 .payment_attempt
                 .payment_method
@@ -388,6 +394,23 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
+        let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+            .payment_intent
+            .metadata
+            .map(|metadata_value| {
+                metadata_value
+                    .parse_value("metadata")
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "metadata",
+                    })
+                    .attach_printable("unable to parse metadata")
+            })
+            .transpose()
+            .unwrap_or_default();
+
+        let order_details = parsed_metadata.map(|data| data.order_details);
+
         Ok(Self {
             payment_method_data: {
                 let payment_method_type = payment_data
@@ -413,6 +436,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
+            order_details,
         })
     }
 }
@@ -464,9 +488,25 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
 }
 
 impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+            .payment_intent
+            .metadata
+            .map(|metadata_value| {
+                metadata_value
+                    .parse_value("metadata")
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "metadata",
+                    })
+                    .attach_printable("unable to parse metadata")
+            })
+            .transpose()
+            .unwrap_or_default();
+
+        let order_details = parsed_metadata.map(|data| data.order_details);
+
         Ok(Self {
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
@@ -475,6 +515,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
                 .billing
                 .and_then(|billing_address| billing_address.address.map(|address| address.country))
                 .flatten(),
+            order_details,
         })
     }
 }
@@ -500,8 +541,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
             },
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
-            mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
         })
     }

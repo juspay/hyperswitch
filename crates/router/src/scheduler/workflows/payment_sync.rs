@@ -47,7 +47,7 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
         .await?;
 
         let terminal_status = vec![
-            enums::AttemptStatus::JuspayDeclined,
+            enums::AttemptStatus::RouterDeclined,
             enums::AttemptStatus::Charged,
             enums::AttemptStatus::AutoRefunded,
             enums::AttemptStatus::Voided,

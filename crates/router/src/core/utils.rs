@@ -78,14 +78,14 @@ pub async fn construct_refund_router_data<'a, F>(
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             payment_method_data,
-            connector_transaction_id: refund.transaction_id.clone(),
+            connector_transaction_id: refund.connector_transaction_id.clone(),
             refund_amount: refund.refund_amount,
             currency,
             amount,
         },
 
         response: Ok(types::RefundsResponseData {
-            connector_refund_id: refund.pg_refund_id.clone().unwrap_or_default(),
+            connector_refund_id: refund.connector_refund_id.clone().unwrap_or_default(),
             refund_status: refund.refund_status,
         }),
     };

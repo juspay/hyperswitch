@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts,
     core::errors,
-    pii::{self, PeekInterface},
-    services,
+    pii, services,
     types::{
         self,
         api::{self, enums as api_enums},
@@ -153,10 +152,10 @@ pub enum AdyenPaymentMethod {
 pub struct AdyenCard {
     #[serde(rename = "type")]
     payment_type: String,
-    number: Option<pii::Secret<String>>,
+    number: Option<pii::Secret<String, pii::CardNumber>>,
     expiry_month: Option<pii::Secret<String>>,
     expiry_year: Option<pii::Secret<String>>,
-    cvc: Option<String>,
+    cvc: Option<pii::Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -301,12 +300,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             storage_enums::PaymentMethodType::Card => {
                 let card = AdyenCard {
                     payment_type,
-                    number: ccard.map(|x| x.card_number.peek().clone().into()), // FIXME: xxx: should also be secret?
-                    expiry_month: ccard.map(|x| x.card_exp_month.peek().clone().into()),
-                    expiry_year: ccard.map(|x| x.card_exp_year.peek().clone().into()),
-                    // TODO: CVV/CVC shouldn't be saved in our db
-                    // Will need to implement tokenization that allows us to make payments without cvv
-                    cvc: ccard.map(|x| x.card_cvc.peek().into()),
+                    number: ccard.map(|x| x.card_number.clone()),
+                    expiry_month: ccard.map(|x| x.card_exp_month.clone()),
+                    expiry_year: ccard.map(|x| x.card_exp_year.clone()),
+                    cvc: ccard.map(|x| x.card_cvc.clone()),
                 };
 
                 Ok(AdyenPaymentMethod::AdyenCard(card))
@@ -366,7 +363,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             None
         };
 
-        Ok(AdyenPaymentRequest {
+        Ok(Self {
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -387,7 +384,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(AdyenCancelRequest {
+        Ok(Self {
             merchant_account: auth_type.merchant_account,
             original_reference: item.request.connector_transaction_id.to_string(),
             reference: item.payment_id.to_string(),
@@ -407,13 +404,12 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
             "processing" => storage_enums::AttemptStatus::Pending,
             _ => storage_enums::AttemptStatus::VoidFailed,
         };
-        Ok(types::RouterData {
+        Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
                 redirect: false,
-                // TODO: Implement mandate fetch for other connectors
                 mandate_reference: None,
             }),
             ..item.data
@@ -455,7 +451,6 @@ pub fn get_adyen_response(
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         redirect: false,
-        // TODO: Implement mandate fetch for other connectors
         mandate_reference: None,
     };
     Ok((status, error, payments_response_data))
@@ -476,7 +471,7 @@ pub fn get_redirection_response(
         "Authorised" => storage_enums::AttemptStatus::Charged,
         "Refused" => storage_enums::AttemptStatus::Failure,
         "Cancelled" => storage_enums::AttemptStatus::Failure,
-        "RedirectShopper" => storage_enums::AttemptStatus::PendingVbv,
+        "RedirectShopper" => storage_enums::AttemptStatus::AuthenticationPending,
         _ => storage_enums::AttemptStatus::Pending,
     };
 
@@ -521,7 +516,6 @@ pub fn get_redirection_response(
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
         redirect: true,
-        // TODO: Implement mandate fetch for other connectors
         mandate_reference: None,
     };
     Ok((status, error, payments_response_data))
@@ -542,7 +536,7 @@ impl<F, Req>
             }
         };
 
-        Ok(types::RouterData {
+        Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
 
@@ -589,7 +583,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(AdyenRefundRequest {
+        Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference: item.request.refund_id.clone(),
         })
@@ -610,7 +604,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
             "received" => storage_enums::RefundStatus::Success,
             _ => storage_enums::RefundStatus::Pending,
         };
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.reference,
                 refund_status,

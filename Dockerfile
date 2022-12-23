@@ -1,4 +1,4 @@
-FROM rust:1.64 as builder
+FROM rust:1.65 as builder
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev
 

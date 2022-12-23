@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive;
 
 use super::{Operation, PostUpdateTracker};
@@ -34,27 +34,22 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        response: Option<
-            types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
         >,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
 
-        payment_response_update_tracker(
-            db,
-            payment_id,
-            payment_data,
-            Some(router_data),
-            storage_scheme,
-        )
-        .await
+        payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
+            .await
     }
 }
 
@@ -65,9 +60,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        response: Option<
-            types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        >,
+        response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -87,9 +80,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        response: Option<
-            types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
-        >,
+        response: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -109,9 +100,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        response: Option<
-            types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
-        >,
+        response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -129,9 +118,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        response: Option<
-            types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
-        >,
+        response: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -148,16 +136,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        response: Option<
-            types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
-        >,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
+
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+        payment_data.mandate_id = payment_data.mandate_id.or_else(|| {
+            router_data.request.mandate_id.clone()
+            // .map(api_models::payments::MandateIds::new)
+        });
+
+        payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
             .await
     }
 }
@@ -166,11 +158,9 @@ async fn payment_response_update_tracker<F: Clone, T>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
-    response: Option<types::RouterData<F, T, types::PaymentsResponseData>>,
+    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
-    let router_data = response.ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
-
     let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -212,7 +202,10 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
                     redirect: Some(redirect),
-                    mandate_id: payment_data.mandate_id.clone(),
+                    mandate_id: payment_data
+                        .mandate_id
+                        .clone()
+                        .map(|mandate| mandate.mandate_id),
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {

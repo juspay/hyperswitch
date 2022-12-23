@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use masking::Secret;
 use router_derive::PaymentOperation;
@@ -182,9 +183,26 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
         }?;
 
+        let mandate_id = request
+            .mandate_id
+            .as_ref()
+            .async_and_then(|mandate_id| async {
+                let mandate = db
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::MandateNotFound);
+                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
+                    mandate_id: mandate_obj.mandate_id,
+                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                }))
+            })
+            .await
+            .transpose()?;
+
         let operation = payments::if_not_create_change_operation::<_, F>(
             is_update,
             payment_intent.status,
+            request.confirm,
             self,
         );
 
@@ -197,7 +215,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 currency,
                 amount,
                 email: request.email.clone(),
-                mandate_id: request.mandate_id.clone(),
+                mandate_id,
                 setup_mandate,
                 token,
                 address: PaymentAddress {
@@ -281,10 +299,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_attempt: &storage::PaymentAttempt,
+        _state: &'a AppState,
+        _payment_attempt: &storage::PaymentAttempt,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        Ok(())
     }
 
     async fn get_connector<'a>(
@@ -389,6 +407,13 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
+        if let Some(true) = request.confirm {
+            helpers::validate_pm_or_token_given(
+                &request.payment_token,
+                &request.payment_method_data,
+            )?;
+        }
+
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -485,6 +510,7 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
+            metadata: request.metadata.clone(),
             ..storage::PaymentIntentNew::default()
         }
     }
@@ -496,7 +522,7 @@ impl PaymentCreate {
         storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
-            txn_id: payment_attempt.attempt_id.clone(),
+            attempt_id: payment_attempt.attempt_id.clone(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
             connector_name: payment_attempt.connector.clone(),

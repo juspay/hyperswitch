@@ -5,6 +5,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::{tracing, tracing::instrument};
@@ -61,6 +62,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
+    FData: std::marker::Send,
 {
     let operation: BoxedOperation<F, Req> = Box::new(operation);
 
@@ -164,7 +166,8 @@ where
                 )
                 .await?
             }
-        }
+        };
+        helpers::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
     }
     Ok((payment_data, req, customer))
 }
@@ -181,6 +184,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone,
+    FData: std::marker::Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
@@ -194,7 +198,6 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    // To create merchant response
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -313,7 +316,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
@@ -339,21 +342,22 @@ where
         )
         .await;
 
-    let response = helpers::amap(res, |response| async {
-        let operation = helpers::response_operation::<F, Req>();
-        let payment_data = operation
-            .to_post_update_tracker()?
-            .update_tracker(
-                db,
-                payment_id,
-                payment_data,
-                Some(response),
-                merchant_account.storage_scheme,
-            )
-            .await?;
-        Ok(payment_data)
-    })
-    .await?;
+    let response = res
+        .async_and_then(|response| async {
+            let operation = helpers::response_operation::<F, Req>();
+            let payment_data = operation
+                .to_post_update_tracker()?
+                .update_tracker(
+                    db,
+                    payment_id,
+                    payment_data,
+                    response,
+                    merchant_account.storage_scheme,
+                )
+                .await?;
+            Ok(payment_data)
+        })
+        .await?;
 
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);
@@ -457,8 +461,8 @@ where
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
     pub currency: storage_enums::Currency,
-    pub mandate_id: Option<String>,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
     pub token: Option<String>,
@@ -483,6 +487,7 @@ pub struct CustomerDetails {
 pub fn if_not_create_change_operation<'a, Op, F>(
     is_update: bool,
     status: storage_enums::IntentStatus,
+    confirm: Option<bool>,
     current: &'a Op,
 ) -> BoxedOperation<F, api::PaymentsRequest>
 where
@@ -490,17 +495,21 @@ where
     Op: Operation<F, api::PaymentsRequest> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest>,
 {
-    match status {
-        storage_enums::IntentStatus::RequiresConfirmation
-        | storage_enums::IntentStatus::RequiresCustomerAction
-        | storage_enums::IntentStatus::RequiresPaymentMethod => {
-            if is_update {
-                Box::new(&PaymentUpdate)
-            } else {
-                Box::new(current)
+    if confirm.unwrap_or(false) {
+        Box::new(PaymentConfirm)
+    } else {
+        match status {
+            storage_enums::IntentStatus::RequiresConfirmation
+            | storage_enums::IntentStatus::RequiresCustomerAction
+            | storage_enums::IntentStatus::RequiresPaymentMethod => {
+                if is_update {
+                    Box::new(&PaymentUpdate)
+                } else {
+                    Box::new(current)
+                }
             }
+            _ => Box::new(&PaymentStatus),
         }
-        _ => Box::new(&PaymentStatus),
     }
 }
 
@@ -576,10 +585,9 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    utils::when(
-        data.is_empty(),
-        Err(errors::ApiErrorResponse::PaymentNotFound),
-    )?;
+    utils::when(data.is_empty(), || {
+        Err(errors::ApiErrorResponse::PaymentNotFound)
+    })?;
     Ok(services::BachResponse::Json(api::PaymentListResponse {
         size: data.len(),
         data,
