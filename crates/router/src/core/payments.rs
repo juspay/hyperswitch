@@ -166,7 +166,8 @@ where
                 )
                 .await?
             }
-        }
+        };
+        helpers::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
     }
     Ok((payment_data, req, customer))
 }
