@@ -30,6 +30,7 @@ pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
+pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;

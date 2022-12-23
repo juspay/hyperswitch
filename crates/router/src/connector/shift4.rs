@@ -230,15 +230,7 @@ impl
         &self,
         data: &types::PaymentsCaptureRouterData,
         res: Response,
-    ) -> CustomResult<
-        types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
-        errors::ConnectorError,
-    >
-    where
-        api::Capture: Clone,
-        types::PaymentsCaptureData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: shift4::Shift4PaymentsResponse = res
             .response
             .parse_struct("Shift4PaymentsResponse")
@@ -325,11 +317,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -451,7 +439,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &types::RefundSyncRouterData,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req)
     }
@@ -462,7 +450,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_url(
         &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RefundSyncRouterData,
         connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/refunds", self.base_url(connectors),))
@@ -470,12 +458,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        data: &types::RefundSyncRouterData,
         res: Response,
-    ) -> CustomResult<
-        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::shift4", response=?res);
         let response: shift4::RefundResponse =
             res.response

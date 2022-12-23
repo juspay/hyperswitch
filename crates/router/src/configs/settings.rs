@@ -110,13 +110,13 @@ pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
-    pub checkout: ConnectorParams,
-    pub stripe: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub checkout: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub shift4: ConnectorParams,
+    pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
     pub applepay: ConnectorParams,
-    pub shift4: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]

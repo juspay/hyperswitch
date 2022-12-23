@@ -15,7 +15,7 @@ use crate::{
     headers, logger, services,
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     }
 };
@@ -25,6 +25,15 @@ use transformers as {{project-name | downcase}};
 
 #[derive(Debug, Clone)]
 pub struct {{project-name | downcase | pascal_case}};
+
+impl api::ConnectorCommonExt for {{project-name | downcase | pascal_case}} {
+    fn build_headers<Flow, Request, Response>(
+        &self,
+        req: &types::RouterData<Flow, Request, Response>,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        todo!()
+    }
+}
 
 impl api::ConnectorCommon for {{project-name | downcase | pascal_case}} {
     fn id(&self) -> &'static str {
@@ -71,7 +80,49 @@ impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for {{project-name | downcase | pascal_case}}
-{}
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        todo!()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        todo!()
+    }
+}
 
 
 impl api::PaymentCapture for {{project-name | downcase | pascal_case}} {}
@@ -82,7 +133,54 @@ impl
         types::PaymentsResponseData,
     > for {{project-name | downcase | pascal_case}}
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        todo!()
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCaptureRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        todo!()
+    }
 }
 
 impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
@@ -98,13 +196,6 @@ impl
 }
 
 impl api::PaymentAuthorize for {{project-name | downcase | pascal_case}} {}
-
-type Authorize = dyn services::ConnectorIntegration<
-    api::Authorize,
-    types::PaymentsAuthorizeData,
-    types::PaymentsResponseData,
->;
-
 
 impl
     services::ConnectorIntegration<
@@ -209,14 +300,9 @@ impl
     }
 }
 
-type RSync = dyn services::ConnectorIntegration<
-    api::RSync,
-    types::RefundsData,
-    types::RefundsResponseData,
->;
 impl
     services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for {{project-name | downcase | pascal_case}} {
-    fn get_headers(&self, _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+    fn get_headers(&self, _req: &types::RefundSyncRouterData) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
         todo!()
     }
 
@@ -224,15 +310,15 @@ impl
         todo!()
     }
 
-    fn get_url(&self, _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         todo!()
     }
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        data: &types::RefundSyncRouterData,
         res: Response,
-    ) -> CustomResult<types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,errors::ConnectorError,> {
+    ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
         logger::debug!(target: "router::connector::{{project-name | downcase}}", response=?res);
         let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
