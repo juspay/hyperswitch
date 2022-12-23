@@ -15,9 +15,9 @@
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
-    JuspayDeclined,
-    PendingVbv,
-    VbvSuccessful,
+    RouterDeclined,
+    AuthenticationPending,
+    AuthenticationSuccessful,
     Authorized,
     AuthorizationFailed,
     Charged,
@@ -506,11 +506,11 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::PendingVbv => Self::RequiresCustomerAction,
+            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
 
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
-            | AttemptStatus::VbvSuccessful
+            | AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::Authorizing
             | AttemptStatus::CodInitiated
             | AttemptStatus::VoidInitiated
@@ -520,7 +520,7 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::AuthenticationFailed
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::VoidFailed
-            | AttemptStatus::JuspayDeclined
+            | AttemptStatus::RouterDeclined
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure => Self::Failed,
             AttemptStatus::Voided => Self::Cancelled,

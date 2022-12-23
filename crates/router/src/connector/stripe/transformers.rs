@@ -309,7 +309,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Succeeded => Self::Charged,
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::PendingVbv,
+            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
             StripePaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,

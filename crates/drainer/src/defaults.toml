@@ -1,0 +1,26 @@
+# log defaults in /crates/router_env/src/defaults.toml
+
+[master_database]
+username = "none"
+password = "none"
+host = "localhost"
+port = 5432
+dbname = "none"
+pool_size = 5
+
+[redis]
+host = "127.0.0.1"
+port = 6379
+pool_size = 5
+reconnect_max_attempts = 5
+reconnect_delay = 5
+default_ttl = 300
+stream_read_count = 1
+cluster_enabled = false
+use_legacy_version = false
+cluster_urls = []
+
+[drainer]
+stream_name = "DRAINER_STREAM"
+num_partitions = 64
+max_read_count = 100
