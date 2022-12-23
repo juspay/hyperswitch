@@ -14,7 +14,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, logger,
+    services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -26,19 +27,22 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Shift4;
 
-impl api::ConnectorCommonExt for Shift4 {
-    fn build_headers<Flow, Request, Response>(
+impl<Flow, Request, Response> api::ConnectorCommonExt<Flow, Request, Response> for Shift4
+where
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
+    fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                self.common_get_content_type().to_string(),
+                self.get_content_type().to_string(),
             ),
             (
                 headers::ACCEPT.to_string(),
-                self.common_get_content_type().to_string(),
+                self.get_content_type().to_string(),
             ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
@@ -204,13 +208,6 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -221,7 +218,6 @@ impl
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsCaptureType::get_headers(self, req)?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }

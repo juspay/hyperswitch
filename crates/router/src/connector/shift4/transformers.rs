@@ -246,7 +246,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error: ApiErrorResponse,
 }

@@ -35,11 +35,11 @@ use crate::{
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
 
-pub trait ConnectorIntegrationExt<T, Req, Resp>: Send + Sync + 'static {
+pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<T, Req, Resp>;
 }
 
-impl<S, T, Req, Resp> ConnectorIntegrationExt<T, Req, Resp> for S
+impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
 where
     S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
 {
@@ -48,7 +48,7 @@ where
     }
 }
 
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationExt<T, Req, Resp> {
+pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,

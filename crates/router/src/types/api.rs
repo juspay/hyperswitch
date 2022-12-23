@@ -18,7 +18,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
-    services::ConnectorRedirectResponse,
+    services::{ConnectorIntegration, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
 
@@ -53,18 +53,20 @@ pub trait ConnectorCommon {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
-            message: "".to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
         })
     }
 }
 
 //Extended trait for connector common to allow functions with generic type
-pub trait ConnectorCommonExt: ConnectorCommon {
+pub trait ConnectorCommonExt<Flow, Req, Resp>:
+    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
+{
     //common header builder when every request for the connector have same headers
-    fn build_headers<Flow, Request, Response>(
+    fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Req, Resp>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
