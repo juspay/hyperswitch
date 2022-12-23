@@ -234,7 +234,7 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
 }
 
 pub fn get_key_id(keys: &Jwekey) -> &str {
-    let key_identifier = "1"; //TODO https://github.com/juspay/orca/issues/46
+    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
     if key_identifier == "1" {
         &keys.locker_key_identifier1
     } else {
@@ -293,11 +293,10 @@ pub async fn decrypt_jwe(
         .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jwe")?;
-    utils::when(
-        resp_key_id.ne(key_id),
+    utils::when(resp_key_id.ne(key_id), || {
         Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
-            .attach_printable("key_id mismatch, Error authenticating response"),
-    )?;
+            .attach_printable("key_id mismatch, Error authenticating response")
+    })?;
     let resp = String::from_utf8(dst_payload)
         .into_report()
         .change_context(errors::EncryptionError)

@@ -77,7 +77,7 @@ services:
       - POSTGRES_DB=orca_db
 
   orca-server:
-    image: rust:1.64
+    image: rust:1.65
     command: cargo run -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:

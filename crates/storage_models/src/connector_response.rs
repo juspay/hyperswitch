@@ -10,7 +10,7 @@ use crate::schema::connector_response;
 pub struct ConnectorResponseNew {
     pub payment_id: String,
     pub merchant_id: String,
-    pub txn_id: String,
+    pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub connector_name: Option<String>,
@@ -26,7 +26,7 @@ pub struct ConnectorResponse {
     pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
-    pub txn_id: String,
+    pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub connector_name: Option<String>,

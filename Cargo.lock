@@ -916,9 +916,11 @@ dependencies = [
 name = "common_utils"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bytes",
  "error-stack",
  "fake",
+ "futures",
  "hex",
  "masking",
  "nanoid",

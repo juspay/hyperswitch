@@ -6,53 +6,53 @@ use serde::{Deserialize, Serialize};
 use crate::{pii, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub(crate) struct CustomerAddress {
-    pub(crate) city: Option<String>,
-    pub(crate) country: Option<String>,
-    pub(crate) line1: Option<String>,
-    pub(crate) line2: Option<String>,
-    pub(crate) postal_code: Option<String>,
-    pub(crate) state: Option<String>,
+pub struct CustomerAddress {
+    pub city: Option<pii::Secret<String>>,
+    pub country: Option<pii::Secret<String>>,
+    pub line1: Option<pii::Secret<String>>,
+    pub line2: Option<pii::Secret<String>>,
+    pub postal_code: Option<pii::Secret<String>>,
+    pub state: Option<pii::Secret<String>>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub(crate) struct CreateCustomerRequest {
-    pub(crate) email: Option<masking::Secret<String, pii::Email>>,
-    pub(crate) invoice_prefix: Option<String>,
-    pub(crate) name: Option<String>,
-    pub(crate) phone: Option<masking::Secret<String, masking::WithType>>,
-    pub(crate) address: Option<CustomerAddress>,
+pub struct CreateCustomerRequest {
+    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub invoice_prefix: Option<String>,
+    pub name: Option<String>,
+    pub phone: Option<masking::Secret<String>>,
+    pub address: Option<CustomerAddress>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub(crate) struct CustomerUpdateRequest {
-    pub(crate) metadata: Option<String>,
-    pub(crate) description: Option<String>,
-    pub(crate) email: Option<masking::Secret<String, pii::Email>>,
-    pub(crate) phone: Option<masking::Secret<String, masking::WithType>>,
-    pub(crate) name: Option<String>,
-    pub(crate) address: Option<CustomerAddress>,
+pub struct CustomerUpdateRequest {
+    pub metadata: Option<String>,
+    pub description: Option<String>,
+    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub phone: Option<masking::Secret<String, masking::WithType>>,
+    pub name: Option<String>,
+    pub address: Option<CustomerAddress>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq)]
-pub(crate) struct CreateCustomerResponse {
-    id: String,
-    object: String,
-    created: u64,
-    description: Option<String>,
-    email: Option<masking::Secret<String, pii::Email>>,
-    metadata: Option<serde_json::Value>,
-    name: Option<String>,
-    phone: Option<masking::Secret<String, masking::WithType>>,
+pub struct CreateCustomerResponse {
+    pub id: String,
+    pub object: String,
+    pub created: u64,
+    pub description: Option<String>,
+    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub metadata: Option<serde_json::Value>,
+    pub name: Option<String>,
+    pub phone: Option<masking::Secret<String, masking::WithType>>,
 }
 
-pub(crate) type CustomerRetrieveResponse = CreateCustomerResponse;
-pub(crate) type CustomerUpdateResponse = CreateCustomerResponse;
+pub type CustomerRetrieveResponse = CreateCustomerResponse;
+pub type CustomerUpdateResponse = CreateCustomerResponse;
 
 #[derive(Default, Serialize, PartialEq, Eq)]
-pub(crate) struct CustomerDeleteResponse {
-    pub(crate) id: String,
-    pub(crate) deleted: bool,
+pub struct CustomerDeleteResponse {
+    pub id: String,
+    pub deleted: bool,
 }
 
 impl From<CreateCustomerRequest> for api::CustomerRequest {
