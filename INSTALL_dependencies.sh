@@ -9,7 +9,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
-RUST_MSRV=1.64.0
+RUST_MSRV=1.65.0
 _DB_NAME="orca_db"
 _DB_USER="db_user"
 _DB_PASS="db_password"

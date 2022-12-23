@@ -94,7 +94,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         amount = payment_attempt.amount.into();
 
         connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_txn_id(
+            .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
                 &payment_attempt.attempt_id,
@@ -222,10 +222,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         )
         .await?;
 
-        utils::when(
-            payment_method.is_none(),
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound),
-        )?;
+        utils::when(payment_method.is_none(), || {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
 
         Ok((op, payment_method, payment_token))
     }
@@ -257,7 +256,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
@@ -274,7 +273,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
             _ => (
                 enums::IntentStatus::RequiresCustomerAction,
-                enums::AttemptStatus::PendingVbv,
+                enums::AttemptStatus::AuthenticationPending,
             ),
         };
 
@@ -285,8 +284,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .update_payment_attempt(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
+                    amount: payment_data.amount.into(),
+                    currency: payment_data.currency,
                     status: attempt_status,
                     payment_method,
+                    authentication_type: None,
                     browser_info,
                     connector,
                     payment_token,
@@ -303,11 +305,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payment_data.payment_intent.billing_address_id.clone(),
         );
 
+        let customer_id = customer.map(|c| c.customer_id);
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
-                storage::PaymentIntentUpdate::MerchantStatusUpdate {
+                storage::PaymentIntentUpdate::Update {
+                    amount: payment_data.amount.into(),
+                    currency: payment_data.currency,
                     status: intent_status,
+                    customer_id,
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                 },

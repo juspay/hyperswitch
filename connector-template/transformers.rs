@@ -90,12 +90,12 @@ impl Default for RefundStatus {
     }
 }
 
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
-            self::RefundStatus::Succeeded => enums::RefundStatus::Success,
-            self::RefundStatus::Failed => enums::RefundStatus::Failure,
-            self::RefundStatus::Processing => enums::RefundStatus::Pending,
+            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }

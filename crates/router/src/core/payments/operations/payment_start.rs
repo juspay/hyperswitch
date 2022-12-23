@@ -100,7 +100,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         };
 
         let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_txn_id(
+            .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 &payment_intent.merchant_id,
                 &payment_attempt.attempt_id,

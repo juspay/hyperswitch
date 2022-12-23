@@ -48,14 +48,13 @@ pub async fn refund_create_core(
     amount = req.amount.unwrap_or(payment_attempt.amount); // FIXME: Need to that capture amount
 
     //TODO: Can we change the flow based on some workflow idea
-    utils::when(
-        amount <= 0,
+    utils::when(amount <= 0, || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
             expected_format: "positive integer".to_string()
         })
-        .attach_printable("amount less than zero")),
-    )?;
+        .attach_printable("amount less than zero"))
+    })?;
 
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -68,8 +67,10 @@ pub async fn refund_create_core(
 
     utils::when(
         payment_intent.status != enums::IntentStatus::Succeeded,
-        Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-            .attach_printable("unable to refund for a unsuccessful payment intent")),
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                .attach_printable("unable to refund for a unsuccessful payment intent"))
+        },
     )?;
 
     validate_and_create_refund(
@@ -145,7 +146,7 @@ pub async fn trigger_refund_to_gateway(
             refund_error_message: Some(err.message),
         },
         Ok(response) => storage::RefundUpdate::Update {
-            pg_refund_id: response.connector_refund_id,
+            connector_refund_id: response.connector_refund_id,
             refund_status: response.refund_status,
             sent_to_gateway: true,
             refund_error_message: None,
@@ -214,8 +215,8 @@ pub async fn refund_retrieve_core(
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
     payment_attempt = db
-        .find_payment_attempt_by_transaction_id_payment_id_merchant_id(
-            &refund.transaction_id,
+        .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+            &refund.connector_transaction_id,
             payment_id,
             merchant_id,
             merchant_account.storage_scheme,
@@ -286,7 +287,7 @@ pub async fn sync_refund_with_gateway(
             refund_error_message: Some(error_message.message),
         },
         Ok(response) => storage::RefundUpdate::Update {
-            pg_refund_id: response.connector_refund_id,
+            connector_refund_id: response.connector_refund_id,
             refund_status: response.refund_status,
             sent_to_gateway: true,
             refund_error_message: None,
@@ -363,14 +364,13 @@ pub async fn validate_and_create_refund(
         .as_ref()
         .map(|merchant_id| merchant_id != &merchant_account.merchant_id);
 
-    utils::when(
-        predicate.unwrap_or(false),
+    utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "merchant_id".to_string(),
             expected_format: "merchant_id from merchant account".to_string()
         })
-        .attach_printable("invalid merchant_id in request")),
-    )?;
+        .attach_printable("invalid merchant_id in request"))
+    })?;
 
     let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
         db,
@@ -390,7 +390,7 @@ pub async fn validate_and_create_refund(
             };
 
             all_refunds = db
-                .find_refund_by_merchant_id_transaction_id(
+                .find_refund_by_merchant_id_connector_transaction_id(
                     &merchant_account.merchant_id,
                     connecter_transaction_id,
                     merchant_account.storage_scheme,
@@ -479,7 +479,7 @@ fn mk_new_refund(
         payment_id: request.payment_id,
         merchant_id: merchant_id.to_string(),
         // FIXME: remove the default.
-        transaction_id: connecter_transaction_id.to_string(),
+        connector_transaction_id: connecter_transaction_id.to_string(),
         connector,
         refund_type: enums::RefundType::RegularRefund,
         total_amount: refund_amount,
@@ -497,6 +497,7 @@ fn mk_new_refund(
 
 impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+
     fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
         let refund_id = data.request.refund_id.to_string();
         let response = data.response;
@@ -506,7 +507,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
             Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
         };
 
-        Ok(refunds::RefundResponse {
+        Ok(Self {
             payment_id: data.payment_id,
             refund_id,
             amount: data.request.amount / 100,
@@ -737,8 +738,8 @@ pub async fn trigger_refund_execute_workflow(
                 })?;
 
             let payment_attempt = db
-                .find_payment_attempt_by_transaction_id_payment_id_merchant_id(
-                    &refund.transaction_id,
+                .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+                    &refund.connector_transaction_id,
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,
@@ -792,7 +793,7 @@ pub fn refund_to_refund_core_workflow_model(
 ) -> storage::RefundCoreWorkflow {
     storage::RefundCoreWorkflow {
         refund_internal_reference_id: refund.internal_reference_id.clone(),
-        transaction_id: refund.transaction_id.clone(),
+        connector_transaction_id: refund.connector_transaction_id.clone(),
         merchant_id: refund.merchant_id.clone(),
         payment_id: refund.payment_id.clone(),
     }
