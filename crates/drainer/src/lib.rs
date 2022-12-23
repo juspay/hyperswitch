@@ -1,9 +1,13 @@
+mod connection;
 pub mod errors;
+pub mod services;
+pub mod settings;
 mod utils;
 use std::sync::Arc;
 
-use router::{connection::pg_connection, services::Store};
 use storage_models::kv;
+
+use crate::{connection::pg_connection, services::Store};
 
 pub async fn start_drainer(
     store: Arc<Store>,
