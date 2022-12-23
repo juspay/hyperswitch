@@ -1,5 +1,6 @@
-use common_utils::pii::Email;
-use masking::{ExposeOptionInterface, Secret};
+use api_models::payments;
+use common_utils::{pii, pii::Email};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -58,15 +59,49 @@ pub struct Amount {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
-    address1: Option<Secret<String>>,
-    locality: Option<String>,
-    administrative_area: Option<Secret<String>>,
-    postal_code: Option<Secret<String>>,
-    country: Option<String>,
-    email: Option<Secret<String, Email>>,
-    phone_number: Option<Secret<String>>,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    address1: Secret<String>,
+    locality: String,
+    administrative_area: Secret<String>,
+    postal_code: Secret<String>,
+    country: String,
+    email: Secret<String, Email>,
+    phone_number: Secret<String>,
+}
+
+// for cybersource each item in Billing is mandatory
+fn build_bill_to(
+    address_details: payments::Address,
+    email: Secret<String, pii::Email>,
+    phone_number: Secret<String>,
+) -> Option<BillTo> {
+    if let Some(api_models::payments::AddressDetails {
+        first_name: Some(f_name),
+        last_name: Some(last_name),
+        line1: Some(address1),
+        city: Some(city),
+        line2: Some(administrative_area),
+        zip: Some(postal_code),
+        country: Some(country),
+        line3: _,
+        state: _,
+    }) = address_details.address
+    {
+        Some(BillTo {
+            first_name: f_name,
+            last_name,
+            address1,
+            locality: city,
+            administrative_area,
+            postal_code,
+            country,
+            email,
+            phone_number,
+        })
+    } else {
+        None
+    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
@@ -74,37 +109,37 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
+                let address = item
+                    .address
+                    .billing
+                    .clone()
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let phone = address
+                    .clone()
+                    .phone
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let phone_number = phone
+                    .number
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let country_code = phone
+                    .country_code
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let number_with_code =
+                    Secret::new(format!("{}{}", country_code, phone_number.peek()));
+                let email = item
+                    .request
+                    .email
+                    .clone()
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let bill_to = build_bill_to(address, email, number_with_code)
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {
                         total_amount: item.request.amount.to_string(),
                         currency: item.request.currency.to_string().to_uppercase(),
                     },
-                    bill_to: match item
-                        .address
-                        .billing
-                        .clone()
-                        .map(|f| (f.address.unwrap_or_default(), f.phone))
-                    {
-                        Some((address, phone)) => BillTo {
-                            first_name: address.first_name,
-                            last_name: address.last_name,
-                            address1: address.line1,
-                            locality: address.city,
-                            administrative_area: address.line2,
-                            postal_code: address.zip,
-                            country: address.country,
-                            email: item.request.email.clone(),
-                            phone_number: phone.map(|p| {
-                                format!(
-                                    "{}{}",
-                                    p.country_code.unwrap_or_default(),
-                                    p.number.expose_option().unwrap_or_default()
-                                )
-                                .into()
-                            }),
-                        },
-                        None => BillTo::default(),
-                    },
+                    bill_to,
                 };
 
                 let payment_information = PaymentInformation {
@@ -129,7 +164,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                     order_information,
                 })
             }
-            _ => Err(errors::ConnectorError::RequestEncodingFailed.into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
@@ -159,20 +194,14 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
         }
     }
 }
-#[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CybersourcePaymentStatus {
     Authorized,
     Succeeded,
     Failed,
+    #[default]
     Processing,
-}
-
-// Default should be Processing
-impl Default for CybersourcePaymentStatus {
-    fn default() -> Self {
-        CybersourcePaymentStatus::Processing
-    }
 }
 
 impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
@@ -246,17 +275,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
+    #[default]
     Processing,
-}
-
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Processing
-    }
 }
 
 impl From<self::RefundStatus> for enums::RefundStatus {

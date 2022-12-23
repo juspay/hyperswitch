@@ -11,14 +11,13 @@ use transformers as cybersource;
 use url::Url;
 
 use crate::{
-    configs::settings::Connectors,
+    configs::settings,
     consts,
     core::errors::{self, CustomResult},
     headers, logger, services,
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -78,7 +77,7 @@ impl api::ConnectorCommon for Cybersource {
         "application/json"
     }
 
-    fn base_url(&self, connectors: Connectors) -> String {
+    fn base_url(&self, connectors: settings::Connectors) -> String {
         connectors.cybersource.base_url
     }
 }
@@ -139,7 +138,7 @@ impl
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                "application/json;charset=utf-8".to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (
                 headers::ACCEPT.to_string(),
@@ -150,13 +149,13 @@ impl
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/json;charset=utf-8"
     }
 
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}pts/v2/payments/", self.base_url(connectors)))
     }
@@ -164,7 +163,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: Connectors,
+        connectors: settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let date = OffsetDateTime::now_utc();
 
@@ -219,7 +218,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourcePaymentsResponse = res
             .response
@@ -238,11 +237,11 @@ impl
     fn get_error_response(
         &self,
         res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: cybersource::ErrorResponse = res
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
+        Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response
                 .message
@@ -265,82 +264,10 @@ impl api::Refund for Cybersource {}
 impl api::RefundExecute for Cybersource {}
 impl api::RefundSync for Cybersource {}
 
+#[allow(dead_code)]
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Cybersource
 {
-    fn get_headers(
-        &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        ""
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("".to_string())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let cybersource_req =
-            utils::Encode::<cybersource::CybersourceRefundRequest>::convert_and_url_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(cybersource_req))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(self, req)?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
-            .build();
-        Ok(Some(request))
-    }
-    fn handle_response(
-        &self,
-        data: &types::RefundsRouterData<api::Execute>,
-        _res: Response,
-    ) -> CustomResult<
-        types::RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>,
-        errors::ConnectorError,
-    >
-    where
-        api::Execute: Clone,
-        types::RefundsData: Clone,
-        types::RefundsResponseData: Clone,
-    {
-        Ok(data.clone())
-    }
-
-    fn get_error_response(
-        &self,
-        res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::ErrorResponse = res
-            .parse_struct("Cybersource ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response
-                .error_information
-                .map_or(consts::NO_ERROR_MESSAGE.to_string(), |e| e.message),
-            reason: None,
-        })
-    }
 }
 
 #[allow(dead_code)]

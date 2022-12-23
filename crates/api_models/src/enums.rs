@@ -495,6 +495,7 @@ pub enum Connector {
     Dummy,
     Klarna,
     Stripe,
+    Cybersource,
 }
 
 impl From<AttemptStatus> for IntentStatus {
