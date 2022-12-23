@@ -15,6 +15,11 @@ pub enum PaymentOp {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Metadata {
+    pub order_details: OrderDetails,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "payment_id_type::deserialize_option")]
@@ -210,10 +215,30 @@ pub struct CCard {
     pub card_cvc: Secret<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct PayLaterData {
-    pub billing_email: String,
-    pub country: String,
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KlarnaRedirectIssuer {
+    Stripe,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KlarnaSdkIssuer {
+    Klarna,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayLaterData {
+    KlarnaRedirect {
+        issuer_name: KlarnaRedirectIssuer,
+        billing_email: String,
+        billing_country: String,
+    },
+    KlarnaSdk {
+        issuer_name: KlarnaSdkIssuer,
+        token: String,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -586,9 +611,12 @@ impl From<PaymentsSessionRequest> for PaymentsResponse {
 }
 
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
-    fn from(_item: PaymentsSessionRequest) -> Self {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
         Self {
             session_token: vec![],
+            payment_id: item.payment_id,
+            client_secret,
         }
     }
 }
@@ -701,7 +729,22 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportedWallets {
+    Paypal,
+    ApplePay,
+    Klarna,
+    Gpay,
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OrderDetails {
+    pub product_name: String,
+    pub quantity: u16,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
@@ -759,7 +802,7 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "connector_name")]
+#[serde(tag = "wallet_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
@@ -790,6 +833,8 @@ pub enum SessionToken {
 
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
+    pub payment_id: String,
+    pub client_secret: Secret<String, pii::ClientSecret>,
     pub session_token: Vec<SessionToken>,
 }
 

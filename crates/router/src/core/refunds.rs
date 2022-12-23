@@ -48,14 +48,13 @@ pub async fn refund_create_core(
     amount = req.amount.unwrap_or(payment_attempt.amount); // FIXME: Need to that capture amount
 
     //TODO: Can we change the flow based on some workflow idea
-    utils::when(
-        amount <= 0,
+    utils::when(amount <= 0, || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
             expected_format: "positive integer".to_string()
         })
-        .attach_printable("amount less than zero")),
-    )?;
+        .attach_printable("amount less than zero"))
+    })?;
 
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -68,8 +67,10 @@ pub async fn refund_create_core(
 
     utils::when(
         payment_intent.status != enums::IntentStatus::Succeeded,
-        Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-            .attach_printable("unable to refund for a unsuccessful payment intent")),
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                .attach_printable("unable to refund for a unsuccessful payment intent"))
+        },
     )?;
 
     validate_and_create_refund(
@@ -363,14 +364,13 @@ pub async fn validate_and_create_refund(
         .as_ref()
         .map(|merchant_id| merchant_id != &merchant_account.merchant_id);
 
-    utils::when(
-        predicate.unwrap_or(false),
+    utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "merchant_id".to_string(),
             expected_format: "merchant_id from merchant account".to_string()
         })
-        .attach_printable("invalid merchant_id in request")),
-    )?;
+        .attach_printable("invalid merchant_id in request"))
+    })?;
 
     let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
         db,

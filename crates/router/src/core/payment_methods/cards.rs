@@ -26,13 +26,13 @@ use crate::{
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::CreatePaymentMethod,
-    customer_id: String,
+    customer_id: &str,
     payment_method_id: &str,
     merchant_id: &str,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
-            customer_id,
+            customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
             payment_method_id: payment_method_id.to_string(),
             payment_method: req.payment_method.foreign_into(),
@@ -65,7 +65,7 @@ pub async fn add_payment_method(
             create_payment_method(
                 &*state.store,
                 &req,
-                customer_id,
+                &customer_id,
                 &payment_method_id,
                 &merchant_id,
             )
@@ -74,6 +74,8 @@ pub async fn add_payment_method(
                 error.to_duplicate_response(errors::ApiErrorResponse::DuplicatePaymentMethod)
             })?;
             Ok(api::PaymentMethodResponse {
+                merchant_id,
+                customer_id: Some(customer_id),
                 payment_method_id: payment_method_id.to_string(),
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
@@ -114,7 +116,6 @@ pub async fn update_customer_payment_method(
         delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
     };
     let new_pm = api::CreatePaymentMethod {
-        merchant_id: Some(merchant_account.merchant_id.clone()),
         payment_method: pm.payment_method.foreign_into(),
         payment_method_type: pm.payment_method_type.map(|x| x.foreign_into()),
         payment_method_issuer: pm.payment_method_issuer,
@@ -158,16 +159,26 @@ pub async fn add_card(
         mock_add_card(db, &card_id, &card, None).await?
     };
 
-    create_payment_method(
-        db,
-        &req,
-        customer_id.to_string(),
-        &response.card_id,
-        merchant_id,
-    )
-    .await
-    .change_context(errors::CardVaultError::PaymentMethodCreationFailed)?;
-    let payment_method_resp = payment_methods::mk_add_card_response(card, response, req);
+    if let Some(false) = response.duplicate {
+        create_payment_method(db, &req, &customer_id, &response.card_id, merchant_id)
+            .await
+            .change_context(errors::CardVaultError::PaymentMethodCreationFailed)?;
+    } else {
+        match db.find_payment_method(&response.card_id).await {
+            Ok(_) => (),
+            Err(err) => {
+                if err.current_context().is_db_not_found() {
+                    create_payment_method(db, &req, &customer_id, &response.card_id, merchant_id)
+                        .await
+                        .change_context(errors::CardVaultError::PaymentMethodCreationFailed)?;
+                } else {
+                    Err(errors::CardVaultError::PaymentMethodCreationFailed)?;
+                }
+            }
+        }
+    }
+    let payment_method_resp =
+        payment_methods::mk_add_card_response(card, response, req, merchant_id);
     Ok(payment_method_resp)
 }
 
@@ -706,6 +717,8 @@ pub async fn retrieve_payment_method(
         None
     };
     Ok(services::BachResponse::Json(api::PaymentMethodResponse {
+        merchant_id: pm.merchant_id,
+        customer_id: Some(pm.customer_id),
         payment_method_id: pm.payment_method_id,
         payment_method: pm.payment_method.foreign_into(),
         payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),

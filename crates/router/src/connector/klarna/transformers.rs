@@ -1,13 +1,26 @@
+use error_stack::{report, IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     core::errors,
+    services,
     types::{self, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize)]
-pub struct KlarnaPaymentsRequest {}
+pub struct KlarnaPaymentsRequest {
+    order_lines: Vec<OrderLines>,
+    order_amount: i64,
+    purchase_country: String,
+    purchase_currency: enums::Currency,
+}
 
+#[derive(Default, Debug, Deserialize)]
+pub struct KlarnaPaymentsResponse {
+    order_id: String,
+    redirection_url: String,
+}
 #[derive(Serialize)]
 pub struct KlarnaSessionRequest {
     intent: KlarnaSessionIntent,
@@ -28,19 +41,24 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
         let request = &item.request;
-        Ok(Self {
-            intent: KlarnaSessionIntent::Buy,
-            purchase_country: "US".to_string(),
-            purchase_currency: request.currency,
-            order_amount: request.amount,
-            locale: "en-US".to_string(),
-            order_lines: vec![OrderLines {
-                name: "Battery Power Pack".to_string(),
-                quantity: 1,
-                unit_price: request.amount,
-                total_amount: request.amount,
-            }],
-        })
+        match request.order_details.clone() {
+            Some(order_details) => Ok(Self {
+                intent: KlarnaSessionIntent::Buy,
+                purchase_country: "US".to_string(),
+                purchase_currency: request.currency,
+                order_amount: request.amount,
+                locale: "en-US".to_string(),
+                order_lines: vec![OrderLines {
+                    name: order_details.product_name,
+                    quantity: order_details.quantity,
+                    unit_price: request.amount,
+                    total_amount: request.amount,
+                }],
+            }),
+            None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                field_name: "product_name".to_string()
+            })),
+        }
     }
 }
 
@@ -64,16 +82,71 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     }
 }
 
-#[derive(Serialize)]
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let request = &item.request;
+        match request.order_details.clone() {
+            Some(order_details) => Ok(Self {
+                purchase_country: "US".to_string(),
+                purchase_currency: request.currency,
+                order_amount: request.amount,
+                order_lines: vec![OrderLines {
+                    name: order_details.product_name,
+                    quantity: order_details.quantity,
+                    unit_price: request.amount,
+                    total_amount: request.amount,
+                }],
+            }),
+            None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                field_name: "product_name".to_string()
+            })),
+        }
+    }
+}
+
+impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let url = Url::parse(&response.redirection_url)
+            .into_report()
+            .change_context(errors::ParsingError)
+            .attach_printable("Could not parse the redirection data")?;
+        let redirection_data = services::RedirectForm {
+            url: url.to_string(),
+            method: services::Method::Get,
+            form_fields: std::collections::HashMap::from_iter(
+                url.query_pairs()
+                    .map(|(k, v)| (k.to_string(), v.to_string())),
+            ),
+        };
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
+                redirect: true,
+                redirection_data: Some(redirection_data),
+                mandate_reference: None,
+            }),
+            ..item.data
+        })
+    }
+}
+#[derive(Debug, Serialize)]
 pub struct OrderLines {
     name: String,
-    quantity: u64,
+    quantity: u16,
     unit_price: i64,
     total_amount: i64,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum KlarnaSessionIntent {
     Buy,
     Tokenize,

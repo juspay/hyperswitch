@@ -583,10 +583,9 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    utils::when(
-        data.is_empty(),
-        Err(errors::ApiErrorResponse::PaymentNotFound),
-    )?;
+    utils::when(data.is_empty(), || {
+        Err(errors::ApiErrorResponse::PaymentNotFound)
+    })?;
     Ok(services::BachResponse::Json(api::PaymentListResponse {
         size: data.len(),
         data,
