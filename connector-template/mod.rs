@@ -95,7 +95,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         todo!()
     }
@@ -103,7 +103,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         todo!()
     }
@@ -154,7 +154,7 @@ impl
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         todo!()
     }
@@ -170,7 +170,7 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCaptureRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         todo!()
     }

@@ -90,7 +90,6 @@ pub struct PaymentIntentRequest {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SetupIntentRequest {
-    pub statement_descriptor_suffix: Option<String>,
     #[serde(rename = "metadata[order_id]")]
     pub metadata_order_id: String,
     #[serde(rename = "metadata[txn_id]")]
@@ -98,7 +97,7 @@ pub struct SetupIntentRequest {
     #[serde(rename = "metadata[txn_uuid]")]
     pub metadata_txn_uuid: String,
     pub confirm: bool,
-    pub setup_future_usage: Option<enums::FutureUsage>,
+    pub usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
@@ -153,7 +152,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
 
         let (payment_data, mandate) = {
-            match item.request.mandate_id.clone() {
+            match item
+                .request
+                .mandate_id
+                .clone()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
+            {
                 None => (
                     Some(match item.request.payment_method_data {
                         api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
@@ -172,14 +176,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             }
                         }),
                         api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
-                        api::PaymentMethod::PayLater(ref klarna_data) => {
-                            StripePaymentMethodData::Klarna(StripeKlarnaData {
+                        api::PaymentMethod::PayLater(ref pay_later_data) => match pay_later_data {
+                            api_models::payments::PayLaterData::KlarnaRedirect {
+                                billing_email,
+                                billing_country,
+                                ..
+                            } => StripePaymentMethodData::Klarna(StripeKlarnaData {
                                 payment_method_types: "klarna".to_string(),
                                 payment_method_data_type: "klarna".to_string(),
-                                billing_email: klarna_data.billing_email.clone(),
-                                billing_country: klarna_data.country.clone(),
-                            })
-                        }
+                                billing_email: billing_email.to_string(),
+                                billing_country: billing_country.to_string(),
+                            }),
+                            api_models::payments::PayLaterData::KlarnaSdk { .. } => Err(
+                                error_stack::report!(errors::ApiErrorResponse::NotImplemented)
+                                    .attach_printable(
+                                        "Stripe does not support klarna sdk payments".to_string(),
+                                    )
+                                    .change_context(errors::ParsingError),
+                            )?,
+                        },
                         api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
                         api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
                     }),
@@ -217,7 +232,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => Address::default(),
         };
 
-        Ok(PaymentIntentRequest {
+        Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
@@ -249,7 +264,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
         let metadata_txn_uuid = Uuid::new_v4().to_string();
 
         let payment_data: StripePaymentMethodData =
-            (item.request.payment_method_data.clone(), item.auth_type).into();
+            (item.request.payment_method_data.clone(), item.auth_type).try_into()?;
 
         Ok(Self {
             confirm: true,
@@ -257,9 +272,8 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             payment_data,
-            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             off_session: item.request.off_session,
-            setup_future_usage: item.request.setup_future_usage,
+            usage: item.request.setup_future_usage,
         })
     }
 }
@@ -292,16 +306,14 @@ pub enum StripePaymentStatus {
 impl From<StripePaymentStatus> for enums::AttemptStatus {
     fn from(item: StripePaymentStatus) -> Self {
         match item {
-            StripePaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            StripePaymentStatus::Failed => enums::AttemptStatus::Failure,
-            StripePaymentStatus::Processing => enums::AttemptStatus::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => enums::AttemptStatus::PendingVbv,
-            StripePaymentStatus::RequiresPaymentMethod => {
-                enums::AttemptStatus::PaymentMethodAwaited
-            }
-            StripePaymentStatus::RequiresConfirmation => enums::AttemptStatus::ConfirmationAwaited,
-            StripePaymentStatus::Canceled => enums::AttemptStatus::Voided,
-            StripePaymentStatus::RequiresCapture => enums::AttemptStatus::Authorized,
+            StripePaymentStatus::Succeeded => Self::Charged,
+            StripePaymentStatus::Failed => Self::Failure,
+            StripePaymentStatus::Processing => Self::Authorizing,
+            StripePaymentStatus::RequiresCustomerAction => Self::PendingVbv,
+            StripePaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
+            StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
+            StripePaymentStatus::Canceled => Self::Voided,
+            StripePaymentStatus::RequiresCapture => Self::Authorized,
         }
     }
 }
@@ -375,7 +387,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Klarna {} => None,
                 });
 
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
             // description: item.response.description.map(|x| x.as_str()),
@@ -427,7 +439,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Klarna {} => None,
                 });
 
-        Ok(types::RouterData {
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
@@ -494,7 +506,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
         let metadata_txn_uuid = "Fetch txn_id from DB".to_string();
         let payment_intent = item.request.connector_transaction_id.clone();
-        Ok(RefundRequest {
+        Ok(Self {
             amount: Some(amount),
             payment_intent,
             metadata_order_id: item.payment_id.clone(),
@@ -545,7 +557,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
@@ -562,7 +574,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
@@ -750,10 +762,13 @@ pub struct StripeWebhookObjectId {
     pub data: StripeWebhookDataId,
 }
 
-impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
-    fn from((pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType)) -> Self {
+impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        (pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType),
+    ) -> Result<Self, Self::Error> {
         match pm_data {
-            api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
+            api::PaymentMethod::Card(ref ccard) => Ok(Self::Card({
                 let payment_method_auth_type = match auth_type {
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
@@ -767,18 +782,27 @@ impl From<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMeth
                     payment_method_data_card_cvc: ccard.card_cvc.clone(),
                     payment_method_auth_type,
                 }
-            }),
-            api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
-            api::PaymentMethod::PayLater(ref klarna_data) => {
-                StripePaymentMethodData::Klarna(StripeKlarnaData {
+            })),
+            api::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
+                api_models::payments::PayLaterData::KlarnaRedirect {
+                    billing_email,
+                    billing_country: country,
+                    ..
+                } => Ok(Self::Klarna(StripeKlarnaData {
                     payment_method_types: "klarna".to_string(),
                     payment_method_data_type: "klarna".to_string(),
-                    billing_email: klarna_data.billing_email.clone(),
-                    billing_country: klarna_data.country.clone(),
-                })
-            }
-            api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
-            api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
+                    billing_email,
+                    billing_country: country,
+                })),
+                api_models::payments::PayLaterData::KlarnaSdk { .. } => Err(error_stack::report!(
+                    errors::ApiErrorResponse::NotImplemented
+                )
+                .attach_printable("Stripe does not support klarna sdk payments".to_string())
+                .change_context(errors::ParsingError))?,
+            },
+            api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethod::Paypal => Ok(Self::Paypal),
         }
     }
 }

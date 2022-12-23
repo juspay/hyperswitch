@@ -60,7 +60,8 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
-    let response = Shift4 {}.make_payment(Some(types::PaymentsAuthorizeData {
+    let response = Shift4 {}
+        .make_payment(Some(types::PaymentsAuthorizeData {
             payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                 card_number: Secret::new("4024007134364842".to_string()),
                 ..utils::CCardType::default().0

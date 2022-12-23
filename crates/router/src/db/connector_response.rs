@@ -15,11 +15,11 @@ pub trait ConnectorResponseInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
 
-    async fn find_connector_response_by_payment_id_merchant_id_txn_id(
+    async fn find_connector_response_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
-        txn_id: &str,
+        attempt_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError>;
 
@@ -46,19 +46,19 @@ impl ConnectorResponseInterface for Store {
             .into_report()
     }
 
-    async fn find_connector_response_by_payment_id_merchant_id_txn_id(
+    async fn find_connector_response_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
-        txn_id: &str,
+        attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::ConnectorResponse::find_by_payment_id_and_merchant_id_transaction_id(
+        storage::ConnectorResponse::find_by_payment_id_merchant_id_attempt_id(
             &conn,
             payment_id,
             merchant_id,
-            txn_id,
+            attempt_id,
         )
         .await
         .map_err(Into::into)
@@ -91,7 +91,7 @@ impl ConnectorResponseInterface for MockDb {
             id: connector_response.len() as i32,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
-            txn_id: new.txn_id,
+            attempt_id: new.attempt_id,
             created_at: new.created_at,
             modified_at: new.modified_at,
             connector_name: new.connector_name,
@@ -103,11 +103,11 @@ impl ConnectorResponseInterface for MockDb {
         Ok(response)
     }
 
-    async fn find_connector_response_by_payment_id_merchant_id_txn_id(
+    async fn find_connector_response_by_payment_id_merchant_id_attempt_id(
         &self,
         _payment_id: &str,
         _merchant_id: &str,
-        _txn_id: &str,
+        _attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         // [#172]: Implement function for `MockDb`

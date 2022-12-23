@@ -212,14 +212,13 @@ pub fn validate_merchant_id(
 
     let request_merchant_id = request_merchant_id.unwrap_or(merchant_id);
 
-    utils::when(
-        merchant_id.ne(request_merchant_id),
+    utils::when(merchant_id.ne(request_merchant_id), || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "Invalid `merchant_id`: {request_merchant_id} not found in merchant account"
             )
-        })),
-    )
+        }))
+    })
 }
 
 #[instrument(skip_all)]
@@ -235,15 +234,14 @@ pub fn validate_request_amount_and_amount_to_capture(
                 api::Amount::Value(amount_inner) => {
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
-                    utils::when(
-                        !amount_to_capture.le(&amount_inner.get()),
+                    utils::when(!amount_to_capture.le(&amount_inner.get()), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
                             "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
                             amount_to_capture, amount
                         )
-                        })),
-                    )
+                        }))
+                    })
                 }
                 api::Amount::Zero => {
                     // If the amount is Null but still amount_to_capture is passed this is invalid and
@@ -370,9 +368,11 @@ pub fn verify_mandate_details(
                 .mandate_amount
                 .map(|mandate_amount| request_amount > mandate_amount)
                 .unwrap_or(true),
-            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "request amount is greater than mandate amount".to_string()
-            })),
+            || {
+                Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                    reason: "request amount is greater than mandate amount".to_string()
+                }))
+            },
         ),
         storage::enums::MandateType::MultiUse => utils::when(
             mandate
@@ -381,19 +381,23 @@ pub fn verify_mandate_details(
                     (mandate.amount_captured.unwrap_or(0) + request_amount) > mandate_amount
                 })
                 .unwrap_or(false),
-            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "request amount is greater than mandate amount".to_string()
-            })),
+            || {
+                Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                    reason: "request amount is greater than mandate amount".to_string()
+                }))
+            },
         ),
     }?;
     utils::when(
         mandate
             .mandate_currency
             .map(|mandate_currency| mandate_currency.to_string() != request_currency)
-            .unwrap_or(true),
-        Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "cross currency mandates not supported".to_string()
-        })),
+            .unwrap_or(false),
+        || {
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "cross currency mandates not supported".to_string()
+            }))
+        },
     )
 }
 
@@ -471,17 +475,6 @@ where
     Box::new(PaymentResponse)
 }
 
-pub async fn amap<A, B, E, F, Fut>(value: Result<A, E>, func: F) -> Result<B, E>
-where
-    F: FnOnce(A) -> Fut,
-    Fut: futures::Future<Output = Result<B, E>>,
-{
-    match value {
-        Ok(a) => func(a).await,
-        Err(err) => Err(err),
-    }
-}
-
 #[instrument(skip_all)]
 pub(crate) async fn call_payment_method(
     state: &AppState,
@@ -505,7 +498,6 @@ pub(crate) async fn call_payment_method(
                         Some(customer) => {
                             let customer_id = customer.customer_id.clone();
                             let payment_method_request = api::CreatePaymentMethod {
-                                merchant_id: Some(merchant_id.to_string()),
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
                                 payment_method_issuer: None,
@@ -537,7 +529,6 @@ pub(crate) async fn call_payment_method(
                 }
                 _ => {
                     let payment_method_request = api::CreatePaymentMethod {
-                        merchant_id: Some(merchant_id.to_string()),
                         payment_method: payment_method_type.foreign_into(),
                         payment_method_type: None,
                         payment_method_issuer: None,
@@ -927,12 +918,14 @@ pub(crate) fn validate_capture_method(
 ) -> RouterResult<()> {
     utils::when(
         capture_method == storage_enums::CaptureMethod::Automatic,
-        Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-            field_name: "capture_method".to_string(),
-            current_flow: "captured".to_string(),
-            current_value: capture_method.to_string(),
-            states: "manual_single, manual_multiple, scheduled".to_string()
-        })),
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                field_name: "capture_method".to_string(),
+                current_flow: "captured".to_string(),
+                current_value: capture_method.to_string(),
+                states: "manual_single, manual_multiple, scheduled".to_string()
+            }))
+        },
     )
 }
 
@@ -940,12 +933,14 @@ pub(crate) fn validate_capture_method(
 pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture,
-        Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-            field_name: "payment.status".to_string(),
-            current_flow: "captured".to_string(),
-            current_value: status.to_string(),
-            states: "requires_capture".to_string()
-        })),
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                field_name: "payment.status".to_string(),
+                current_flow: "captured".to_string(),
+                current_value: status.to_string(),
+                states: "requires_capture".to_string()
+            }))
+        },
     )
 }
 
@@ -956,9 +951,11 @@ pub(crate) fn validate_amount_to_capture(
 ) -> RouterResult<()> {
     utils::when(
         amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
-        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "amount_to_capture is greater than amount".to_string()
-        })),
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_to_capture is greater than amount".to_string()
+            }))
+        },
     )
 }
 
@@ -994,12 +991,11 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(
-        req.limit > 100 || req.limit < 1,
+    utils::when(req.limit > 100 || req.limit < 1, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "limit should be in between 1 and 100".to_string(),
-        }),
-    )?;
+        })
+    })?;
     Ok(())
 }
 
@@ -1247,10 +1243,9 @@ pub(crate) fn authenticate_client_secret(
     payment_intent_client_secret: Option<&String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, payment_intent_client_secret) {
-        (Some(req_cs), Some(pi_cs)) => utils::when(
-            req_cs.ne(pi_cs),
-            Err(errors::ApiErrorResponse::ClientSecretInvalid),
-        ),
+        (Some(req_cs), Some(pi_cs)) => utils::when(req_cs.ne(pi_cs), || {
+            Err(errors::ApiErrorResponse::ClientSecretInvalid)
+        }),
         _ => Ok(()),
     }
 }
@@ -1259,12 +1254,11 @@ pub(crate) fn validate_pm_or_token_given(
     token: &Option<String>,
     pm_data: &Option<api::PaymentMethod>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    utils::when(
-        token.is_none() && pm_data.is_none(),
+    utils::when(token.is_none() && pm_data.is_none(), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "A payment token or payment method data is required".to_string(),
-        }),
-    )
+        })
+    })
 }
 
 // A function to perform database lookup and then verify the client secret

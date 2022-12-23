@@ -139,6 +139,7 @@ impl Default for PaymentAuthorizeType {
             off_session: None,
             setup_mandate_details: None,
             browser_info: None,
+            order_details: None,
         };
         PaymentAuthorizeType(data)
     }
