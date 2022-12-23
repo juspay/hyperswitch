@@ -494,6 +494,7 @@ pub enum Connector {
     #[default]
     Dummy,
     Klarna,
+    Shift4,
     Stripe,
 }
 

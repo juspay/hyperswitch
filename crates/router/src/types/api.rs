@@ -9,14 +9,16 @@ pub mod webhooks;
 
 use std::{fmt::Debug, marker, str::FromStr};
 
+use bytes::Bytes;
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{admin::*, customers::*, payment_methods::*, payments::*, refunds::*, webhooks::*};
+use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,
-    connector,
+    connector, consts,
     core::errors::{self, CustomResult},
-    services::ConnectorRedirectResponse,
+    services::{ConnectorIntegration, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
 
@@ -43,6 +45,31 @@ pub trait ConnectorCommon {
 
     /// The base URL for interacting with the connector's API.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
+
+    /// common error response for a connector if it is same in all case
+    fn build_error_response(
+        &self,
+        _res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        Ok(ErrorResponse {
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
+        })
+    }
+}
+
+/// Extended trait for connector common to allow functions with generic type
+pub trait ConnectorCommonExt<Flow, Req, Resp>:
+    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
+{
+    /// common header builder when every request for the connector have same headers
+    fn build_headers(
+        &self,
+        _req: &types::RouterData<Flow, Req, Resp>,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        Ok(Vec::new())
+    }
 }
 
 pub trait Router {}
@@ -119,6 +146,7 @@ impl ConnectorData {
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
+            "shift4" => Ok(Box::new(&connector::Shift4)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ConnectorError::InvalidConnectorName)

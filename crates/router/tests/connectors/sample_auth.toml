@@ -12,3 +12,6 @@ key1 = "MyTransactionKey"
 [checkout]
 api_key = "Bearer MyApiKey"
 key1 = "MyProcessingChannelId"
+
+[shift4]
+api_key = "Bearer MyApiKey"
