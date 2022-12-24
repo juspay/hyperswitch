@@ -101,7 +101,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
-        let db = db as &dyn StorageInterface;
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,

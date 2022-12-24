@@ -1,24 +1,4 @@
 #![forbid(unsafe_code)]
-// FIXME: I strongly advise to add this worning.
-// #![warn(missing_docs)]
-
-// FIXME: I recommend to add these wornings too, although there is no harm if these wanrings will stay disabled.
-// #![warn(rust_2018_idioms)]
-// #![warn(missing_debug_implementations)]
-#![warn(
-    // clippy::as_conversions,
-    clippy::expect_used,
-    // clippy::integer_arithmetic,
-    clippy::missing_panics_doc,
-    clippy::panic,
-    clippy::panic_in_result_fn,
-    clippy::panicking_unwrap,
-    clippy::todo,
-    clippy::unreachable,
-    clippy::unwrap_in_result,
-    clippy::unwrap_used,
-    clippy::use_self
-)]
 #![recursion_limit = "256"]
 
 #[cfg(feature = "stripe")]

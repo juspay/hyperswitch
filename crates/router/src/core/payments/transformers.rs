@@ -13,8 +13,7 @@ use crate::{
     routes::AppState,
     services::{self, RedirectForm},
     types::{
-        self,
-        api::{self, NextAction, PaymentsResponse},
+        self, api,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -32,8 +31,7 @@ where
     T: TryFrom<PaymentData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
     F: Clone,
-    error_stack::Report<errors::ApiErrorResponse>:
-        std::convert::From<<T as TryFrom<PaymentData<F>>>::Error>,
+    error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
     //TODO: everytime parsing the json may have impact?
 
@@ -260,10 +258,10 @@ where
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
                 services::BachResponse::Form(form)
             } else {
-                let mut response: PaymentsResponse = request.into();
+                let mut response: api::PaymentsResponse = request.into();
                 let mut next_action_response = None;
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
-                    next_action_response = Some(NextAction {
+                    next_action_response = Some(api::NextAction {
                         next_action_type: api::NextActionType::RedirectToUrl,
                         redirect_to_url: Some(helpers::create_startpay_url(
                             server,
@@ -342,7 +340,7 @@ where
                 )
             }
         }
-        None => services::BachResponse::Json(PaymentsResponse {
+        None => services::BachResponse::Json(api::PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
             status: payment_intent.status.foreign_into(),

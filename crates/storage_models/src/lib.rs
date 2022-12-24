@@ -63,7 +63,7 @@ pub(crate) mod diesel_impl {
         type Row = Vec<Option<T>>;
 
         fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
-            Ok(DieselArray(row))
+            Ok(Self(row))
         }
     }
 
@@ -84,7 +84,7 @@ pub(crate) mod diesel_impl {
         type Row = Option<Vec<Option<T>>>;
 
         fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
-            Ok(OptionalDieselArray(row))
+            Ok(Self(row))
         }
     }
 }

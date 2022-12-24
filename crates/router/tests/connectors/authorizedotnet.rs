@@ -106,6 +106,7 @@ async fn payments_create_success() {
         get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -142,6 +143,7 @@ async fn payments_create_failure() {
         };
         let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
         let connector_integration: services::BoxedConnectorIntegration<
+            '_,
             types::api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -186,6 +188,7 @@ async fn refunds_create_success() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -222,6 +225,7 @@ async fn refunds_create_failure() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,

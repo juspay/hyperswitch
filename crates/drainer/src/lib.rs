@@ -1,9 +1,13 @@
+mod connection;
 pub mod errors;
+pub mod services;
+pub mod settings;
 mod utils;
 use std::sync::Arc;
 
-use router::{connection::pg_connection, services::Store};
 use storage_models::kv;
+
+use crate::{connection::pg_connection, services::Store};
 
 pub async fn start_drainer(
     store: Arc<Store>,
@@ -96,7 +100,10 @@ async fn drainer(
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "ref")
                 }
             },
-            kv::DBOperation::Delete => todo!(),
+            kv::DBOperation::Delete => {
+                // TODO: Implement this
+                println!("Not implemented!");
+            }
         };
     }
 

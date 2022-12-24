@@ -24,7 +24,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Braintree;
 
-impl api::ConnectorCommon for Braintree {
+impl ConnectorCommon for Braintree {
     fn id(&self) -> &'static str {
         "braintree"
     }

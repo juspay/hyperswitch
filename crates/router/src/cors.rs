@@ -1,8 +1,7 @@
-use actix_cors::Cors;
 // use actix_web::http::header;
 
 pub fn cors() -> actix_cors::Cors {
-    Cors::permissive() // Warn : Never use in  production
+    actix_cors::Cors::permissive() // FIXME : Never use in  production
 
     /*
     .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])

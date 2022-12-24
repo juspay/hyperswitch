@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, clippy::unwrap_used, clippy::panic_in_result_fn)]
 
 use masking as pii;
 

@@ -127,6 +127,7 @@ pub async fn trigger_refund_to_gateway(
 
     logger::debug!(?router_data);
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -268,6 +269,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
 
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         api::RSync,
         types::RefundsData,
         types::RefundsResponseData,
@@ -417,10 +419,10 @@ pub async fn validate_and_create_refund(
             validator::validate_maximum_refund_against_payment_attempt(&all_refunds)
                 .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
-            let connector = payment_attempt
-                .connector
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            let connector = payment_attempt.connector.clone().ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("connector not populated in payment attempt.")
+            })?;
 
             refund_create_req = mk_new_refund(
                 req,
