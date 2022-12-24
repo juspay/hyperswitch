@@ -8,7 +8,7 @@ use crate::{
 };
 
 struct Shift4;
-impl utils::ConnectorActions for Shift4 {}
+impl ConnectorActions for Shift4 {}
 impl utils::Connector for Shift4 {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Shift4;

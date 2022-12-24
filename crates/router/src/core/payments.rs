@@ -21,10 +21,7 @@ use self::{
 };
 use super::errors::StorageErrorExt;
 use crate::{
-    core::{
-        errors::{self, RouterResponse, RouterResult},
-        payments,
-    },
+    core::errors::{self, RouterResponse, RouterResult},
     db::StorageInterface,
     logger, pii,
     routes::AppState,
@@ -62,9 +59,9 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    FData: std::marker::Send,
+    FData: Send,
 {
-    let operation: BoxedOperation<F, Req> = Box::new(operation);
+    let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
     let (operation, validate_result) = operation
         .to_validate_request()?
@@ -184,7 +181,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone,
-    FData: std::marker::Send,
+    FData: Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
@@ -289,7 +286,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
     payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         state,
         merchant_account,
-        payments::PaymentStatus,
+        PaymentStatus,
         req,
         services::api::AuthFlow::Merchant,
         None,
@@ -488,7 +485,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
-) -> BoxedOperation<F, api::PaymentsRequest>
+) -> BoxedOperation<'_, F, api::PaymentsRequest>
 where
     F: Send + Clone,
     Op: Operation<F, api::PaymentsRequest> + Send + Sync,
@@ -515,7 +512,7 @@ where
 pub fn is_confirm<'a, F: Clone + Send, R, Op>(
     operation: &'a Op,
     confirm: Option<bool>,
-) -> BoxedOperation<F, R>
+) -> BoxedOperation<'_, F, R>
 where
     PaymentConfirm: Operation<F, R>,
     &'a PaymentConfirm: Operation<F, R>,

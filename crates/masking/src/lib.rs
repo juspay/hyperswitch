@@ -1,20 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(doc)))]
 #![forbid(unsafe_code)]
-#![warn(
-    missing_docs,
-    rust_2018_idioms,
-    unused_qualifications,
-    clippy::expect_used,
-    clippy::missing_panics_doc,
-    clippy::panic,
-    clippy::panic_in_result_fn,
-    clippy::panicking_unwrap,
-    clippy::unreachable,
-    clippy::unwrap_in_result,
-    clippy::unwrap_used,
-    clippy::use_self
-)]
+#![warn(missing_docs)]
 
 //!
 //! Personal Identifiable Information protection. Wrapper types and traits for secret management which help ensure they aren't accidentally copied, logged, or otherwise exposed (as much as possible), and also ensure secrets are securely wiped from memory when dropped.

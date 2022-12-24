@@ -7,7 +7,7 @@ pub mod payments;
 pub mod refunds;
 pub mod webhooks;
 
-use std::{fmt::Debug, marker, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
 use bytes::Bytes;
 use error_stack::{report, IntoReport, ResultExt};
@@ -88,7 +88,7 @@ impl<T: Refund + Payment + Debug + ConnectorRedirectResponse + Send + IncomingWe
 {
 }
 
-type BoxedConnector = Box<&'static (dyn Connector + marker::Sync)>;
+type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )

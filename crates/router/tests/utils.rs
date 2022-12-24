@@ -1,4 +1,10 @@
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    clippy::expect_used,
+    clippy::missing_panics_doc,
+    clippy::unwrap_used
+)]
+
 use actix_http::{body::MessageBody, Request};
 use actix_web::{
     dev::{Service, ServiceResponse},
@@ -31,11 +37,8 @@ async fn stripemock() -> Option<String> {
     None
 }
 
-pub async fn mk_service() -> impl actix_web::dev::Service<
-    actix_http::Request,
-    Response = actix_web::dev::ServiceResponse<impl actix_web::body::MessageBody>,
-    Error = actix_web::Error,
-> {
+pub async fn mk_service(
+) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error> {
     let mut conf = Settings::new().unwrap();
     let request_body_limit = conf.server.request_body_limit;
 
@@ -63,8 +66,8 @@ pub struct AppClient<T> {
 }
 
 impl AppClient<Guest> {
-    pub fn guest() -> AppClient<Guest> {
-        AppClient { state: Guest }
+    pub fn guest() -> Self {
+        Self { state: Guest }
     }
 }
 

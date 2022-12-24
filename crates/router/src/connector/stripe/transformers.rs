@@ -528,8 +528,8 @@ pub enum RefundStatus {
     RequiresAction,
 }
 
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
             self::RefundStatus::Succeeded => Self::Success,
             self::RefundStatus::Failed => Self::Failure,

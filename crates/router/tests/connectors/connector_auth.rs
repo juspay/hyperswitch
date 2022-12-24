@@ -11,6 +11,7 @@ pub(crate) struct ConnectorAuthentication {
 
 impl ConnectorAuthentication {
     pub(crate) fn new() -> Self {
+        #[allow(clippy::expect_used)]
         toml::de::from_slice(
             &std::fs::read("tests/connectors/auth.toml")
                 .expect("connector authentication config file not found"),
@@ -26,7 +27,7 @@ pub(crate) struct HeaderKey {
 
 impl From<HeaderKey> for ConnectorAuthType {
     fn from(key: HeaderKey) -> Self {
-        ConnectorAuthType::HeaderKey {
+        Self::HeaderKey {
             api_key: key.api_key,
         }
     }
@@ -40,7 +41,7 @@ pub(crate) struct BodyKey {
 
 impl From<BodyKey> for ConnectorAuthType {
     fn from(key: BodyKey) -> Self {
-        ConnectorAuthType::BodyKey {
+        Self::BodyKey {
             api_key: key.api_key,
             key1: key.key1,
         }

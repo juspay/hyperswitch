@@ -566,7 +566,7 @@ pub(crate) async fn call_payment_method(
 
 pub(crate) fn client_secret_auth<P>(
     payload: P,
-    auth_type: &services::api::MerchantAuthentication,
+    auth_type: &services::api::MerchantAuthentication<'_>,
 ) -> RouterResult<P>
 where
     P: services::Authenticate,
@@ -1195,7 +1195,7 @@ pub fn make_url_with_signature(
 }
 
 pub fn hmac_sha256_sorted_query_params<'a>(
-    params: &mut [(Cow<str>, Cow<str>)],
+    params: &mut [(Cow<'_, str>, Cow<'_, str>)],
     key: &'a str,
 ) -> RouterResult<String> {
     params.sort();

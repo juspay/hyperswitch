@@ -133,6 +133,11 @@ pub fn diesel_enum(
 /// ```
 ///
 
+/// # Panics
+///
+/// Panics if a struct without named fields is provided as input to the macro
+// FIXME: Remove allowed warnings, raise compile errors in a better manner instead of panicking
+#[allow(clippy::panic, clippy::unwrap_used)]
 #[proc_macro_derive(Setter, attributes(auth_based))]
 pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -145,6 +150,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     {
         named
     } else {
+        // FIXME: Use `compile_error!()` instead
         panic!("You can't use this proc-macro on structs without fields");
     };
 

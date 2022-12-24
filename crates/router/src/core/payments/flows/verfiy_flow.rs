@@ -70,6 +70,7 @@ impl types::VerifyRouterData {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
                     api::Verify,
                     types::VerifyRequestData,
                     types::PaymentsResponseData,

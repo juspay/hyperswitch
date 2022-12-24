@@ -122,6 +122,7 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         let account = storage::MerchantAccount {
+            #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
             api_key: merchant_account.api_key,

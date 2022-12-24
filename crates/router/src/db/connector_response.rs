@@ -88,6 +88,7 @@ impl ConnectorResponseInterface for MockDb {
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
         let response = storage::ConnectorResponse {
+            #[allow(clippy::as_conversions)]
             id: connector_response.len() as i32,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,

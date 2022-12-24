@@ -38,7 +38,7 @@ impl RedisConnectionPool {
     ///
     /// Panics if a connection to Redis is not successful.
     #[allow(clippy::expect_used)]
-    pub async fn new(conf: &types::RedisSettings) -> Self {
+    pub async fn new(conf: &RedisSettings) -> Self {
         let redis_connection_url = match conf.cluster_enabled {
             // Fred relies on this format for specifying cluster where the host port is ignored & only query parameters are used for node addresses
             // redis-cluster://username:password@host:port?node=bar.com:30002&node=baz.com:30003
@@ -100,8 +100,8 @@ struct RedisConfig {
     default_stream_read_count: u64,
 }
 
-impl From<&types::RedisSettings> for RedisConfig {
-    fn from(config: &types::RedisSettings) -> Self {
+impl From<&RedisSettings> for RedisConfig {
+    fn from(config: &RedisSettings) -> Self {
         Self {
             default_ttl: config.default_ttl,
             default_stream_read_count: config.stream_read_count,

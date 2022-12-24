@@ -11,7 +11,6 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
 
@@ -25,7 +24,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<PaymentsCaptureRouterData> {
+    ) -> RouterResult<types::PaymentsCaptureRouterData> {
         transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
             state,
             self.clone(),
@@ -59,7 +58,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
     }
 }
 
-impl PaymentsCaptureRouterData {
+impl types::PaymentsCaptureRouterData {
     #[allow(clippy::too_many_arguments)]
     pub async fn decide_flow<'a, 'b>(
         &'b self,
@@ -70,9 +69,10 @@ impl PaymentsCaptureRouterData {
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
+            '_,
             api::Capture,
-            PaymentsCaptureData,
-            PaymentsResponseData,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(
             state,

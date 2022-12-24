@@ -27,7 +27,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Shift4;
 
-impl<Flow, Request, Response> api::ConnectorCommonExt<Flow, Request, Response> for Shift4
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Shift4
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -50,7 +50,7 @@ where
         Ok(headers)
     }
 }
-impl api::ConnectorCommon for Shift4 {
+impl ConnectorCommon for Shift4 {
     fn id(&self) -> &'static str {
         "shift4"
     }
@@ -95,29 +95,20 @@ impl api::ConnectorCommon for Shift4 {
 impl api::Payment for Shift4 {}
 
 impl api::PreVerify for Shift4 {}
-impl
-    services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Shift4
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Shift4
 {
 }
 
 impl api::PaymentVoid for Shift4 {}
 
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Shift4
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Shift4
 {
 }
 
 impl api::PaymentSync for Shift4 {}
-impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Shift4
 {
     fn get_headers(
@@ -190,12 +181,8 @@ impl
 
 impl api::PaymentCapture for Shift4 {}
 
-impl
-    services::ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Shift4
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Shift4
 {
     fn get_headers(
         &self,
@@ -264,24 +251,16 @@ impl
 
 impl api::PaymentSession for Shift4 {}
 
-impl
-    services::ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Shift4
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Shift4
 {
     //TODO: implement sessions flow
 }
 
 impl api::PaymentAuthorize for Shift4 {}
 
-impl
-    services::ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Shift4
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Shift4
 {
     fn get_headers(
         &self,
@@ -358,9 +337,7 @@ impl api::Refund for Shift4 {}
 impl api::RefundExecute for Shift4 {}
 impl api::RefundSync for Shift4 {}
 
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Shift4
-{
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Shift4 {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -430,9 +407,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 }
 
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Shift4
-{
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Shift4 {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,

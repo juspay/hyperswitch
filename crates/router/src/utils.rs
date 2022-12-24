@@ -47,7 +47,7 @@ pub mod error_parser {
     }
 
     impl ResponseError for CustomJsonError {
-        fn status_code(&self) -> reqwest::StatusCode {
+        fn status_code(&self) -> StatusCode {
             StatusCode::INTERNAL_SERVER_ERROR
         }
 

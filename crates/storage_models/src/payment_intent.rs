@@ -236,7 +236,7 @@ fn make_client_secret_null_if_success(
     status: Option<storage_enums::IntentStatus>,
 ) -> Option<Option<String>> {
     if status == Some(storage_enums::IntentStatus::Succeeded) {
-        Option::<Option<String>>::Some(None)
+        Some(None)
     } else {
         None
     }

@@ -5,14 +5,8 @@ use masking::Secret;
 use router::{
     core::payments,
     db::StorageImpl,
-    routes,
-    services::{self},
-    types::{
-        self,
-        api::{self},
-        storage::enums,
-        PaymentAddress, RouterData,
-    },
+    routes, services,
+    types::{self, api, storage::enums, PaymentAddress},
 };
 
 pub trait Connector {
@@ -93,7 +87,7 @@ async fn call_connector<
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    request: RouterData<T, Req, Resp>,
+    request: types::RouterData<T, Req, Resp>,
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
 ) -> types::RouterData<T, Req, Resp> {
     use router::configs::settings::Settings;
@@ -115,7 +109,7 @@ pub struct CCardType(pub api::CCard);
 
 impl Default for CCardType {
     fn default() -> Self {
-        CCardType(api::CCard {
+        Self(api::CCard {
             card_number: Secret::new("4200000000000000".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
@@ -141,7 +135,7 @@ impl Default for PaymentAuthorizeType {
             browser_info: None,
             order_details: None,
         };
-        PaymentAuthorizeType(data)
+        Self(data)
     }
 }
 
@@ -155,7 +149,7 @@ impl Default for PaymentRefundType {
             connector_transaction_id: String::new(),
             refund_amount: 100,
         };
-        PaymentRefundType(data)
+        Self(data)
     }
 }
 

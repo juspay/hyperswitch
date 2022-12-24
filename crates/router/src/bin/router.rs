@@ -9,11 +9,16 @@ use structopt::StructOpt;
 async fn main() -> BachResult<()> {
     // get commandline config before initializing config
     let cmd_line = CmdLineConf::from_args();
-    let conf = Settings::with_config_path(cmd_line.config_path).unwrap();
+
+    #[allow(clippy::expect_used)]
+    let conf = Settings::with_config_path(cmd_line.config_path)
+        .expect("Unable to construct application configuration");
+
     let _guard = logger::setup(&conf.log)?;
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
+    #[allow(clippy::expect_used)]
     let (server, mut state) = router::start_server(conf)
         .await
         .expect("Failed to create the server");

@@ -24,13 +24,13 @@ enum EnumMeta {
 }
 
 impl Parse for EnumMeta {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::error_type_enum) {
             let keyword = input.parse()?;
             input.parse::<Token![=]>()?;
             let value = input.parse()?;
-            Ok(EnumMeta::ErrorTypeEnum { keyword, value })
+            Ok(Self::ErrorTypeEnum { keyword, value })
         } else {
             Err(lookahead.error())
         }
@@ -40,7 +40,7 @@ impl Parse for EnumMeta {
 impl Spanned for EnumMeta {
     fn span(&self) -> proc_macro2::Span {
         match self {
-            EnumMeta::ErrorTypeEnum { keyword, .. } => keyword.span(),
+            Self::ErrorTypeEnum { keyword, .. } => keyword.span(),
         }
     }
 }
@@ -83,6 +83,13 @@ impl HasErrorTypeProperties for DeriveInput {
             }
         }
 
+        if output.error_type_enum.is_none() {
+            return Err(syn::Error::new(
+                self.span(),
+                "error(error_type_enum) attribute not found",
+            ));
+        }
+
         Ok(output)
     }
 }
@@ -103,23 +110,23 @@ enum VariantMeta {
 }
 
 impl Parse for VariantMeta {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::error_type) {
             let keyword = input.parse()?;
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
-            Ok(VariantMeta::ErrorType { keyword, value })
+            Ok(Self::ErrorType { keyword, value })
         } else if lookahead.peek(keyword::code) {
             let keyword = input.parse()?;
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
-            Ok(VariantMeta::Code { keyword, value })
+            Ok(Self::Code { keyword, value })
         } else if lookahead.peek(keyword::message) {
             let keyword = input.parse()?;
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
-            Ok(VariantMeta::Message { keyword, value })
+            Ok(Self::Message { keyword, value })
         } else {
             Err(lookahead.error())
         }
@@ -129,9 +136,9 @@ impl Parse for VariantMeta {
 impl Spanned for VariantMeta {
     fn span(&self) -> proc_macro2::Span {
         match self {
-            VariantMeta::ErrorType { keyword, .. } => keyword.span,
-            VariantMeta::Code { keyword, .. } => keyword.span,
-            VariantMeta::Message { keyword, .. } => keyword.span,
+            Self::ErrorType { keyword, .. } => keyword.span,
+            Self::Code { keyword, .. } => keyword.span,
+            Self::Message { keyword, .. } => keyword.span,
         }
     }
 }
@@ -220,19 +227,21 @@ pub(super) fn check_missing_attributes(
 }
 
 /// Get all the fields not used in the error message.
-pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> syn::Result<Vec<Field>> {
+pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> Vec<Field> {
     let fields = match fields {
         syn::Fields::Unit => Vec::new(),
         syn::Fields::Unnamed(_) => Vec::new(),
         syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),
     };
 
-    Ok(fields
+    fields
         .iter()
         .filter(|&field| {
+            // Safety: Named fields are guaranteed to have an identifier.
+            #[allow(clippy::unwrap_used)]
             let field_name = format!("{}", field.ident.as_ref().unwrap());
             !message.contains(&field_name)
         })
         .cloned()
-        .collect())
+        .collect()
 }

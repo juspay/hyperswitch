@@ -11,7 +11,6 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        PaymentsResponseData, PaymentsSyncData, PaymentsSyncRouterData,
     },
 };
 
@@ -60,7 +59,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
     }
 }
 
-impl PaymentsSyncRouterData {
+impl types::PaymentsSyncRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -70,9 +69,10 @@ impl PaymentsSyncRouterData {
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
+            '_,
             api::PSync,
-            PaymentsSyncData,
-            PaymentsResponseData,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(
             state,

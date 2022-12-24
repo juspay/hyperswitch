@@ -108,6 +108,7 @@ async fn payments_create_success() {
         get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -140,6 +141,7 @@ async fn payments_create_failure() {
             get_token: types::api::GetToken::Connector,
         };
         let connector_integration: services::BoxedConnectorIntegration<
+            '_,
             types::api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -178,6 +180,7 @@ async fn refund_for_successful_payments() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -196,6 +199,7 @@ async fn refund_for_successful_payments() {
         "The payment failed"
     );
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -234,6 +238,7 @@ async fn refunds_create_failure() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
