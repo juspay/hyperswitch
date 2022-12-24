@@ -161,7 +161,7 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMet
             }
             CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
             CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
+            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
         }
         .into()
