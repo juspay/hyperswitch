@@ -146,6 +146,7 @@ impl ConnectorData {
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
+            "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

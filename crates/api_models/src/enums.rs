@@ -491,6 +491,7 @@ pub enum Connector {
     Authorizedotnet,
     Braintree,
     Checkout,
+    Cybersource,
     #[default]
     Dummy,
     Klarna,

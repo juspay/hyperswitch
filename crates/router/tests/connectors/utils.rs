@@ -134,6 +134,7 @@ impl Default for PaymentAuthorizeType {
             setup_mandate_details: None,
             browser_info: None,
             order_details: None,
+            email: None,
         };
         Self(data)
     }
