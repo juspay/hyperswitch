@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::{pii, pii::Email};
+use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -66,7 +66,7 @@ pub struct BillTo {
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
     country: String,
-    email: Secret<String, Email>,
+    email: Secret<String, pii::Email>,
     phone_number: Secret<String>,
 }
 
@@ -282,8 +282,8 @@ pub enum RefundStatus {
     Processing,
 }
 
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
             self::RefundStatus::Succeeded => enums::RefundStatus::Success,
             self::RefundStatus::Failed => enums::RefundStatus::Failure,

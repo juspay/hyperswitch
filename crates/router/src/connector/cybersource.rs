@@ -15,10 +15,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers, logger, services,
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-    },
+    types::{self, api},
     utils::{self, BytesExt},
 };
 
@@ -77,8 +74,8 @@ impl api::ConnectorCommon for Cybersource {
         "application/json"
     }
 
-    fn base_url(&self, connectors: settings::Connectors) -> String {
-        connectors.cybersource.base_url
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.cybersource.base_url.as_ref()
     }
 }
 
@@ -155,15 +152,18 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}pts/v2/payments/", self.base_url(connectors)))
+        Ok(format!(
+            "{}pts/v2/payments/",
+            api::ConnectorCommon::base_url(self, connectors)
+        ))
     }
 
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        connectors: settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let date = OffsetDateTime::now_utc();
 
