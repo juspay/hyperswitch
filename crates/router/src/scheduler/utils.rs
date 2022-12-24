@@ -26,6 +26,8 @@ pub async fn divide_and_append_tasks(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let batches = divide(tasks, settings);
+    // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
+    #[allow(clippy::as_conversions)]
     metrics::BATCHES_CREATED.add(&metrics::CONTEXT, batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use utils::{mk_service, AppClient};
 
 mod utils;

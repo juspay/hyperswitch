@@ -26,7 +26,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Checkout;
 
-impl api::ConnectorCommon for Checkout {
+impl ConnectorCommon for Checkout {
     fn id(&self) -> &'static str {
         "checkout"
     }

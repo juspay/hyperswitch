@@ -100,7 +100,10 @@ async fn drainer(
                     macro_util::handle_resp!(a.orig.update(&conn, a.update_data).await, "up", "ref")
                 }
             },
-            kv::DBOperation::Delete => todo!(),
+            kv::DBOperation::Delete => {
+                // TODO: Implement this
+                println!("Not implemented!");
+            }
         };
     }
 

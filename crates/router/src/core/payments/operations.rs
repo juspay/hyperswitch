@@ -8,21 +8,18 @@ mod payment_session;
 mod payment_start;
 mod payment_status;
 mod payment_update;
+
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
-pub use payment_cancel::PaymentCancel;
-pub use payment_capture::PaymentCapture;
-pub use payment_confirm::PaymentConfirm;
-pub use payment_create::PaymentCreate;
-pub use payment_method_validate::PaymentMethodValidate;
-pub use payment_response::PaymentResponse;
-pub use payment_session::PaymentSession;
-pub use payment_start::PaymentStart;
-pub use payment_status::PaymentStatus;
-pub use payment_update::PaymentUpdate;
 use router_env::{instrument, tracing};
-use storage::Customer;
 
+pub use self::{
+    payment_cancel::PaymentCancel, payment_capture::PaymentCapture,
+    payment_confirm::PaymentConfirm, payment_create::PaymentCreate,
+    payment_method_validate::PaymentMethodValidate, payment_response::PaymentResponse,
+    payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
+    payment_update::PaymentUpdate,
+};
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
@@ -150,7 +147,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: D,
-        customer: Option<Customer>,
+        customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where

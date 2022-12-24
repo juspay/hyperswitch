@@ -81,8 +81,8 @@ pub(crate) trait CreatePaymentMethodExt {
         the_subtype: Option<U>,
     ) -> bool
     where
-        T: std::cmp::Eq + std::hash::Hash,
-        U: std::cmp::PartialEq;
+        T: Eq + std::hash::Hash,
+        U: PartialEq;
 }
 
 impl CreatePaymentMethodExt for CreatePaymentMethod {
@@ -122,8 +122,8 @@ impl CreatePaymentMethodExt for CreatePaymentMethod {
         the_subtype: Option<U>,
     ) -> bool
     where
-        T: std::cmp::Eq + std::hash::Hash,
-        U: std::cmp::PartialEq,
+        T: Eq + std::hash::Hash,
+        U: PartialEq,
     {
         let the_subtype = match the_subtype {
             Some(st) => st,
