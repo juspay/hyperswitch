@@ -157,7 +157,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                     ),
                 };
 
-                Ok(CybersourcePaymentsRequest {
+                Ok(Self {
                     processing_information,
                     payment_information,
                     order_information,
@@ -227,7 +227,7 @@ impl TryFrom<types::PaymentsResponseRouterData<CybersourcePaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<CybersourcePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             status: item.response.status.into(),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
@@ -262,7 +262,7 @@ pub struct CybersourceRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(CybersourceRefundRequest {
+        Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
                     total_amount: item.request.amount.to_string(),
@@ -285,9 +285,9 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            self::RefundStatus::Succeeded => enums::RefundStatus::Success,
-            self::RefundStatus::Failed => enums::RefundStatus::Failure,
-            self::RefundStatus::Processing => enums::RefundStatus::Pending,
+            self::RefundStatus::Succeeded => Self::Success,
+            self::RefundStatus::Failed => Self::Failure,
+            self::RefundStatus::Processing => Self::Pending,
         }
     }
 }
@@ -305,7 +305,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRefundRespo
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(types::RouterData {
+        Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),

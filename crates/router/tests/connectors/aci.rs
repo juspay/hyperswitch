@@ -48,6 +48,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             capture_method: None,
             browser_info: None,
             order_details: None,
+            email: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
