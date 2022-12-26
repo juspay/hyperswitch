@@ -163,6 +163,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
+            #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: t.merchant_id.unwrap_or_default(),
             connector_name: t.connector_name.unwrap_or_default(),

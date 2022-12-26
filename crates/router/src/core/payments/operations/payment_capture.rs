@@ -13,7 +13,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api::{self, PaymentIdTypeExt, PaymentsCaptureRequest},
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -34,7 +34,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         merchant_id: &str,
-        request: &PaymentsCaptureRequest,
+        request: &api::PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
@@ -125,6 +125,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 currency,
                 force_sync: None,
                 amount,
+                email: None,
                 mandate_id: None,
                 setup_mandate: None,
                 token: None,

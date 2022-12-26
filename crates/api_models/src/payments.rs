@@ -15,6 +15,11 @@ pub enum PaymentOp {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Metadata {
+    pub order_details: OrderDetails,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "payment_id_type::deserialize_option")]
@@ -72,7 +77,7 @@ impl From<Amount> for i64 {
 
 impl From<i64> for Amount {
     fn from(val: i64) -> Self {
-        NonZeroI64::new(val).map_or(Amount::Zero, Amount::Value)
+        NonZeroI64::new(val).map_or(Self::Zero, Amount::Value)
     }
 }
 
@@ -210,16 +215,37 @@ pub struct CCard {
     pub card_cvc: Secret<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct PayLaterData {
-    pub billing_email: String,
-    pub country: String,
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KlarnaRedirectIssuer {
+    Stripe,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KlarnaSdkIssuer {
+    Klarna,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayLaterData {
+    KlarnaRedirect {
+        issuer_name: KlarnaRedirectIssuer,
+        billing_email: String,
+        billing_country: String,
+    },
+    KlarnaSdk {
+        issuer_name: KlarnaSdkIssuer,
+        token: String,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethod {
     #[serde(rename(deserialize = "card"))]
     Card(CCard),
+    #[default]
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
     #[serde(rename(deserialize = "wallet"))]
@@ -252,12 +278,6 @@ pub enum PaymentMethodDataResponse {
     Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
-}
-
-impl Default for PaymentMethod {
-    fn default() -> Self {
-        PaymentMethod::BankTransfer
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -586,9 +606,12 @@ impl From<PaymentsSessionRequest> for PaymentsResponse {
 }
 
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
-    fn from(_item: PaymentsSessionRequest) -> Self {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
         Self {
             session_token: vec![],
+            payment_id: item.payment_id,
+            client_secret,
         }
     }
 }
@@ -655,13 +678,11 @@ impl From<CCard> for CCardResponse {
 impl From<PaymentMethod> for PaymentMethodDataResponse {
     fn from(payment_method_data: PaymentMethod) -> Self {
         match payment_method_data {
-            PaymentMethod::Card(card) => PaymentMethodDataResponse::Card(CCardResponse::from(card)),
-            PaymentMethod::BankTransfer => PaymentMethodDataResponse::BankTransfer,
-            PaymentMethod::PayLater(pay_later_data) => {
-                PaymentMethodDataResponse::PayLater(pay_later_data)
-            }
-            PaymentMethod::Wallet(wallet_data) => PaymentMethodDataResponse::Wallet(wallet_data),
-            PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
+            PaymentMethod::Card(card) => Self::Card(CCardResponse::from(card)),
+            PaymentMethod::BankTransfer => Self::BankTransfer,
+            PaymentMethod::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
+            PaymentMethod::Wallet(wallet_data) => Self::Wallet(wallet_data),
+            PaymentMethod::Paypal => Self::Paypal,
         }
     }
 }
@@ -701,7 +722,22 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportedWallets {
+    Paypal,
+    ApplePay,
+    Klarna,
+    Gpay,
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+pub struct OrderDetails {
+    pub product_name: String,
+    pub quantity: u16,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
@@ -759,7 +795,7 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "connector_name")]
+#[serde(tag = "wallet_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
@@ -790,6 +826,8 @@ pub enum SessionToken {
 
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
+    pub payment_id: String,
+    pub client_secret: Secret<String, pii::ClientSecret>,
     pub session_token: Vec<SessionToken>,
 }
 
@@ -828,7 +866,7 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
@@ -843,7 +881,7 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for OptionalPaymentIdVisitor {
         type Value = Option<PaymentIdType>;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
@@ -899,7 +937,7 @@ mod amount {
     impl<'de> de::Visitor<'de> for AmountVisitor {
         type Value = Amount;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "amount as integer")
         }
 
@@ -907,13 +945,24 @@ mod amount {
         where
             E: de::Error,
         {
-            self.visit_i64(v as i64)
+            let v = i64::try_from(v).map_err(|_| {
+                E::custom(format!(
+                    "invalid value `{v}`, expected an integer between 0 and {}",
+                    i64::MAX
+                ))
+            })?;
+            self.visit_i64(v)
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
+            if v.is_negative() {
+                return Err(E::custom(format!(
+                    "invalid value `{v}`, expected a positive integer"
+                )));
+            }
             Ok(Amount::from(v))
         }
     }
@@ -921,7 +970,7 @@ mod amount {
     impl<'de> de::Visitor<'de> for OptionalAmountVisitor {
         type Value = Option<Amount>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "option of amount (as integer)")
         }
 
@@ -957,6 +1006,7 @@ mod amount {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

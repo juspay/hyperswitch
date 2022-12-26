@@ -1,5 +1,5 @@
 use error_stack::{report, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{logger, tracing, tracing::instrument};
 use storage_models::enums as storage_enums;
 
 use super::payments::helpers;
@@ -152,11 +152,12 @@ where
                 if let Some(new_mandate_data) = helpers::generate_mandate(
                     resp.merchant_id.clone(),
                     resp.connector.clone(),
-                    None,
+                    resp.request.get_setup_mandate_details().map(Clone::clone),
                     maybe_customer,
                     payment_method_id,
                     mandate_reference,
                 ) {
+                    logger::error!("{:?}", new_mandate_data);
                     resp.request
                         .set_mandate_id(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
@@ -185,4 +186,5 @@ pub trait MandateBehaviour {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod;
+    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData>;
 }

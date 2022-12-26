@@ -25,7 +25,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Adyen;
 
-impl api::ConnectorCommon for Adyen {
+impl ConnectorCommon for Adyen {
     fn id(&self) -> &'static str {
         "adyen"
     }

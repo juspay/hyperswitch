@@ -161,7 +161,7 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMet
             }
             CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
             CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
+            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
         }
         .into()
@@ -486,7 +486,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, &ActionResponse>>
 impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     fn from(item: CheckoutRedirectResponseStatus) -> Self {
         match item {
-            CheckoutRedirectResponseStatus::Success => Self::VbvSuccessful,
+            CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
 
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
         }

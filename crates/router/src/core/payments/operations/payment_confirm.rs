@@ -143,6 +143,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     currency,
                     connector_response,
                     amount,
+                    email: request.email.clone(),
                     mandate_id: None,
                     setup_mandate,
                     token,
@@ -223,10 +224,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         )
         .await?;
 
-        utils::when(
-            payment_method.is_none(),
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound),
-        )?;
+        utils::when(payment_method.is_none(), || {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
 
         Ok((op, payment_method, payment_token))
     }
@@ -275,7 +275,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
             _ => (
                 enums::IntentStatus::RequiresCustomerAction,
-                enums::AttemptStatus::PendingVbv,
+                enums::AttemptStatus::AuthenticationPending,
             ),
         };
 

@@ -57,5 +57,5 @@ num_partitions = 64
 max_read_count = 100
 
 [connectors.supported]
-wallets = ["klarna", "braintree"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree"]
+wallets = ["klarna","braintree"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource"]

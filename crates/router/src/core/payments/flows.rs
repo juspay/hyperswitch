@@ -38,7 +38,7 @@ pub trait Feature<F, T> {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self>
     where
-        Self: std::marker::Sized,
+        Self: Sized,
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 }

@@ -1,2 +1,23 @@
+[target.'cfg(all())']
+rustflags = [
+    "-Funsafe_code",
+    "-Wclippy::as_conversions",
+    "-Wclippy::expect_used",
+    "-Wclippy::missing_panics_doc",
+    "-Wclippy::panic_in_result_fn",
+    "-Wclippy::panic",
+    "-Wclippy::panicking_unwrap",
+    "-Wclippy::todo",
+    "-Wclippy::unimplemented",
+    "-Wclippy::unreachable",
+    "-Wclippy::unwrap_in_result",
+    "-Wclippy::unwrap_used",
+    "-Wclippy::use_self",
+    # "-Wmissing_debug_implementations",
+    # "-Wmissing_docs",
+    "-Wrust_2018_idioms",
+    "-Wunused_qualifications",
+]
+
 [alias]
 gen-pg = "generate --path ../../../../connector-template -n"

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use router_env as env;
 mod test_module;
 use env::TelemetryGuard;

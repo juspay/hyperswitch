@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Applepay;
 
-impl api::ConnectorCommon for Applepay {
+impl ConnectorCommon for Applepay {
     fn id(&self) -> &'static str {
         "applepay"
     }

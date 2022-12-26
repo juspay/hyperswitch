@@ -110,6 +110,7 @@ impl types::PaymentsSessionRouterData {
             api::GetToken::Metadata => create_gpay_session_token(self),
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
                     api::Session,
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,

@@ -102,9 +102,9 @@ pub enum RecordType {
 impl fmt::Display for RecordType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = match self {
-            RecordType::EnterSpan => "START",
-            RecordType::ExitSpan => "END",
-            RecordType::Event => "EVENT",
+            Self::EnterSpan => "START",
+            Self::ExitSpan => "END",
+            Self::Event => "EVENT",
         };
         write!(f, "{}", repr)
     }

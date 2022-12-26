@@ -1,4 +1,4 @@
-use async_bb8_diesel::{AsyncConnection, ConnectionError, ConnectionManager};
+use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::{CustomizeConnection, PooledConnection};
 use diesel::PgConnection;
 
@@ -51,7 +51,9 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
 }
 
 #[allow(clippy::expect_used)]
-pub async fn pg_connection(pool: &PgPool) -> PooledConnection<ConnectionManager<PgConnection>> {
+pub async fn pg_connection(
+    pool: &PgPool,
+) -> PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>> {
     pool.get()
         .await
         .expect("Couldn't retrieve PostgreSQL connection")

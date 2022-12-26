@@ -343,6 +343,7 @@ impl PaymentIntentInterface for MockDb {
         let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
         let payment_intent = types::PaymentIntent {
+            #[allow(clippy::as_conversions)]
             id: payment_intents.len() as i32,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,

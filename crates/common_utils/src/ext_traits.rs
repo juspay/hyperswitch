@@ -26,7 +26,7 @@ where
     fn convert_and_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
-        Result<P, <P as TryFrom<&'e Self>>::Error>: error_stack::ResultExt,
+        Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize;
 
     ///
@@ -37,7 +37,7 @@ where
     fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
-        Result<P, <P as TryFrom<&'e Self>>::Error>: error_stack::ResultExt,
+        Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize;
 
     ///
@@ -68,7 +68,7 @@ where
     ///
     /// Functionality, for specifically encoding `Self` into `Vec<u8>`
     /// after serialization by using `serde::Serialize`
-    ///  
+    ///
     fn encode_to_vec(&'e self) -> CustomResult<Vec<u8>, errors::ParsingError>
     where
         Self: Serialize;
@@ -81,7 +81,7 @@ where
     fn convert_and_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
-        Result<P, <P as TryFrom<&'e Self>>::Error>: error_stack::ResultExt,
+        Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize,
     {
         serde_json::to_string(&P::try_from(self).change_context(errors::ParsingError)?)
@@ -93,7 +93,7 @@ where
     fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
-        Result<P, <P as TryFrom<&'e Self>>::Error>: error_stack::ResultExt,
+        Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize,
     {
         serde_urlencoded::to_string(&P::try_from(self).change_context(errors::ParsingError)?)
@@ -303,7 +303,7 @@ pub trait AsyncExt<A, B> {
 }
 
 #[async_trait::async_trait]
-impl<A: std::marker::Send, B, E: std::marker::Send> AsyncExt<A, B> for Result<A, E> {
+impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
@@ -329,7 +329,7 @@ impl<A: std::marker::Send, B, E: std::marker::Send> AsyncExt<A, B> for Result<A,
 }
 
 #[async_trait::async_trait]
-impl<A: std::marker::Send, B> AsyncExt<A, B> for Option<A> {
+impl<A: Send, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where

@@ -70,6 +70,7 @@ impl types::VerifyRouterData {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
                     api::Verify,
                     types::VerifyRequestData,
                     types::PaymentsResponseData,
@@ -108,5 +109,9 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
 
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod {
         self.payment_method_data.clone()
+    }
+
+    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+        self.setup_mandate_details.as_ref()
     }
 }

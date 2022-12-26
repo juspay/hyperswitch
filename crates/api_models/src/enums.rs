@@ -15,9 +15,9 @@
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
-    JuspayDeclined,
-    PendingVbv,
-    VbvSuccessful,
+    RouterDeclined,
+    AuthenticationPending,
+    AuthenticationSuccessful,
     Authorized,
     AuthorizationFailed,
     Charged,
@@ -491,39 +491,41 @@ pub enum Connector {
     Authorizedotnet,
     Braintree,
     Checkout,
+    Cybersource,
     #[default]
     Dummy,
     Klarna,
+    Shift4,
     Stripe,
 }
 
 impl From<AttemptStatus> for IntentStatus {
     fn from(s: AttemptStatus) -> Self {
         match s {
-            AttemptStatus::Charged | AttemptStatus::AutoRefunded => IntentStatus::Succeeded,
+            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
 
-            AttemptStatus::ConfirmationAwaited => IntentStatus::RequiresConfirmation,
-            AttemptStatus::PaymentMethodAwaited => IntentStatus::RequiresPaymentMethod,
+            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
+            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
-            AttemptStatus::Authorized => IntentStatus::RequiresCapture,
-            AttemptStatus::PendingVbv => IntentStatus::RequiresCustomerAction,
+            AttemptStatus::Authorized => Self::RequiresCapture,
+            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
 
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
-            | AttemptStatus::VbvSuccessful
+            | AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::Authorizing
             | AttemptStatus::CodInitiated
             | AttemptStatus::VoidInitiated
             | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => IntentStatus::Processing,
+            | AttemptStatus::Pending => Self::Processing,
 
             AttemptStatus::AuthenticationFailed
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::VoidFailed
-            | AttemptStatus::JuspayDeclined
+            | AttemptStatus::RouterDeclined
             | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => IntentStatus::Failed,
-            AttemptStatus::Voided => IntentStatus::Cancelled,
+            | AttemptStatus::Failure => Self::Failed,
+            AttemptStatus::Voided => Self::Cancelled,
         }
     }
 }

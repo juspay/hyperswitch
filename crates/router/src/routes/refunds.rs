@@ -5,11 +5,7 @@ use router_env::{
 };
 
 use super::app::AppState;
-use crate::{
-    core::refunds::*,
-    services::api,
-    types::api::refunds::{self, RefundRequest},
-};
+use crate::{core::refunds::*, services::api, types::api::refunds};
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
@@ -54,7 +50,7 @@ pub async fn refunds_retrieve(
 pub async fn refunds_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<RefundRequest>,
+    json_payload: web::Json<refunds::RefundRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();

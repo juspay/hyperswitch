@@ -13,7 +13,6 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums as storage_enums},
-        PaymentsAuthorizeData, PaymentsAuthorizeRouterData, PaymentsResponseData,
     },
 };
 
@@ -74,7 +73,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 }
 
-impl PaymentsAuthorizeRouterData {
+impl types::PaymentsAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -87,9 +86,10 @@ impl PaymentsAuthorizeRouterData {
         match confirm {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
                     api::Authorize,
-                    PaymentsAuthorizeData,
-                    PaymentsResponseData,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
                 let resp = services::execute_connector_processing_step(
                     state,
@@ -120,6 +120,10 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
         self.setup_future_usage
     }
+    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+        self.setup_mandate_details.as_ref()
+    }
+
     fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
         self.mandate_id = Some(new_mandate_id);
     }

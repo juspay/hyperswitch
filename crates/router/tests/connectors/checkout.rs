@@ -44,6 +44,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             setup_mandate_details: None,
             capture_method: None,
             browser_info: None,
+            order_details: None,
+            email: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -104,6 +106,7 @@ async fn test_checkout_payment_success() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -142,6 +145,7 @@ async fn test_checkout_refund_success() {
         get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -165,6 +169,7 @@ async fn test_checkout_refund_success() {
     );
     // Successful refund
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -208,6 +213,7 @@ async fn test_checkout_payment_failure() {
         get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -240,6 +246,7 @@ async fn test_checkout_refund_failure() {
         get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -261,6 +268,7 @@ async fn test_checkout_refund_failure() {
     );
     // Unsuccessful refund
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
