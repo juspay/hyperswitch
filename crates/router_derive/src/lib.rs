@@ -429,3 +429,39 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     macros::operation_derive_inner(input)
 }
+
+///
+/// Performs domain type transformation between structs with same fields with same
+/// names and having an into relationship between them.
+///
+/// ## Usage
+/// This removes repeated code of type conversion between 2 types with similar structure
+/// but which exist in different crates or which are different types themselves. To use this macro
+/// derive `AutoImto` on the struct and then provide convertable structs `#[converts(...)]`
+///
+/// ## Example
+/// ```rust
+/// struct Point {
+///     x: i32,
+///     y: i32,
+/// }
+///
+/// #[derive(AutoInto)]
+/// #[converts(Point)]
+/// struct Vec2D {
+///     x: i32,
+///     y: i32
+/// }
+///
+/// fn into_and_from() {
+///     let p1 = Point { x: 0, y: 0 };
+///     let v1 = p1.into();
+///     let p1_new = v1.into();
+/// }
+///
+/// ```
+///
+#[proc_macro_derive(AutoInto, attributes(converts))]
+pub fn auto_into_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    macros::auto_into_derive_inner(input)
+}

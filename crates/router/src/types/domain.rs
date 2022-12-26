@@ -49,7 +49,7 @@ impl<I, T: StorageExt<I>> From<I> for StorageWrapper<I, T> {
     }
 }
 
-impl<I: Debug, T: StorageExt<I>> fmt::Debug for StorageWrapper<I, T> {
+impl<I: Debug, T: StorageExt<I>> Debug for StorageWrapper<I, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }

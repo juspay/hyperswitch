@@ -4,7 +4,6 @@ use crate::{
     types::{
         domain,
         storage::{self as types, enums},
-        transformers::ForeignInto,
     },
 };
 
@@ -248,7 +247,7 @@ impl PaymentAttemptInterface for MockDb {
             payment_token: None,
             error_code: payment_attempt.error_code,
         };
-        payment_attempts.push(payment_attempt.clone().foreign_into());
+        payment_attempts.push(payment_attempt.clone().into());
         Ok(payment_attempt)
     }
 
@@ -267,9 +266,9 @@ impl PaymentAttemptInterface for MockDb {
             .find(|item| item.id == this.id)
             .unwrap();
 
-        *item = payment_attempt.apply_changeset(this.foreign_into());
+        *item = payment_attempt.apply_changeset(this.into());
 
-        Ok(item.clone().foreign_into())
+        Ok(item.clone().into())
     }
 
     async fn find_payment_attempt_by_payment_id_merchant_id(
@@ -311,7 +310,7 @@ impl PaymentAttemptInterface for MockDb {
             })
             .cloned()
             .unwrap()
-            .foreign_into())
+            .into())
     }
 }
 
@@ -330,7 +329,6 @@ mod storage {
         types::{
             domain,
             storage::{enums, kv, payment_attempt::*, ReverseLookupNew},
-            transformers::ForeignInto,
         },
         utils::storage_partitioning::KvStorePartition,
     };
@@ -348,7 +346,7 @@ mod storage {
                     payment_attempt
                         .insert(&conn)
                         .await
-                        .map(|pa| pa.foreign_into())
+                        .map(|pa| pa.into())
                         .map_err(Into::into)
                         .into_report()
                 }
@@ -443,7 +441,7 @@ mod storage {
                                 )
                                 .await
                                 .change_context(errors::StorageError::KVError)?;
-                            Ok(created_attempt.foreign_into())
+                            Ok(created_attempt.into())
                         }
                         Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                     }
@@ -457,13 +455,13 @@ mod storage {
             payment_attempt: PaymentAttemptUpdate,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAttempt, errors::StorageError> {
-            let this: PaymentAttempt = this.foreign_into();
+            let this: PaymentAttempt = this.into();
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
                     this.update(&conn, payment_attempt)
                         .await
-                        .map(|pa| pa.foreign_into())
+                        .map(|pa| pa.into())
                         .map_err(Into::into)
                         .into_report()
                 }
@@ -533,7 +531,7 @@ mod storage {
                         )
                         .await
                         .change_context(errors::StorageError::KVError)?;
-                    Ok(updated_attempt.foreign_into())
+                    Ok(updated_attempt.into())
                 }
             }
         }
@@ -549,7 +547,7 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                         .await
-                        .map(|pa| pa.foreign_into())
+                        .map(|pa| pa.into())
                         .map_err(Into::into)
                         .into_report()
                 }
@@ -636,7 +634,7 @@ mod storage {
                         connector_txn_id,
                     )
                     .await
-                    .map(|pa| pa.foreign_into())
+                    .map(|pa| pa.into())
                     .map_err(Into::into)
                     .into_report()
                 }
@@ -673,7 +671,7 @@ mod storage {
                     let conn = pg_connection(&self.master_pool).await;
                     PaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
                         .await
-                        .map(|pa| pa.foreign_into())
+                        .map(|pa| pa.into())
                         .map_err(Into::into)
                         .into_report()
                 }

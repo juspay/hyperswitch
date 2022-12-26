@@ -1,4 +1,5 @@
-use storage_models::enums as storage_enums;
+use router_derive::AutoInto;
+use storage_models::{enums as storage_enums, payment_attempt};
 use time::PrimitiveDateTime;
 
 use crate::types::domain;
@@ -7,7 +8,8 @@ use crate::types::domain;
 /// Domain type for PaymentAttempt
 ///
 // #[derive(frunk::LabelledGeneric)]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, AutoInto)]
+#[converts(payment_attempt::PaymentAttempt)]
 #[allow(dead_code)]
 pub struct PaymentAttempt {
     pub id: i32,

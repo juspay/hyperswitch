@@ -1,4 +1,5 @@
 pub(crate) mod api_error;
+pub(crate) mod auto_into;
 pub(crate) mod diesel;
 mod helpers;
 pub(crate) mod operation;
@@ -9,6 +10,7 @@ use syn::DeriveInput;
 
 pub(crate) use self::{
     api_error::api_error_derive_inner,
+    auto_into::auto_into_derive_inner,
     diesel::{diesel_enum_attribute_inner, diesel_enum_derive_inner},
     operation::operation_derive_inner,
 };
