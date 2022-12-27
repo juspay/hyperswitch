@@ -777,7 +777,6 @@ impl Vault {
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let card = resp.card;
-        println!("AddCardResp: {:?}", card);
         let card_number = card
             .card_number
             .expose_option()
