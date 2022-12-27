@@ -77,10 +77,10 @@ pub async fn create_customer(
             }
         }
     };
-    let mut customer_resp: customers::CustomerResponse = customer.into();
-    customer_resp.address = customer_data.address;
+    let mut customer_response: customers::CustomerResponse = customer.into();
+    customer_response.address = customer_data.address;
 
-    Ok(services::BachResponse::Json(customer_resp))
+    Ok(services::BachResponse::Json(customer_response))
 }
 
 #[instrument(skip(db))]
@@ -245,7 +245,7 @@ pub async fn update_customer(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
-    let mut cust_update_response: customers::CustomerResponse = response.into();
-    cust_update_response.address = update_customer.address;
-    Ok(services::BachResponse::Json(cust_update_response))
+    let mut customer_update_response: customers::CustomerResponse = response.into();
+    customer_update_response.address = update_customer.address;
+    Ok(services::BachResponse::Json(customer_update_response))
 }
