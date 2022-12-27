@@ -165,7 +165,7 @@ pub async fn get_token_for_recurring_mandate(
     };
     verify_mandate_details(
         req.amount.get_required_value("amount")?.into(),
-        req.currency.clone().get_required_value("currency")?,
+        req.currency.get_required_value("currency")?,
         mandate.clone(),
     )?;
 
@@ -353,7 +353,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
 pub fn verify_mandate_details(
     request_amount: i64,
-    request_currency: String,
+    request_currency: api_enums::Currency,
     mandate: storage::Mandate,
 ) -> RouterResult<()> {
     match mandate.mandate_type {
@@ -385,7 +385,7 @@ pub fn verify_mandate_details(
     utils::when(
         mandate
             .mandate_currency
-            .map(|mandate_currency| mandate_currency.to_string() != request_currency)
+            .map(|mandate_currency| mandate_currency != request_currency.foreign_into())
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
