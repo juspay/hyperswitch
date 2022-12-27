@@ -820,10 +820,16 @@ impl Vault {
             card_holder_name: Some(card.card_holder_name.clone()),
         };
         let db = &*state.store;
-        cards::mock_add_card(db, txn_id, &card_detail, Some(card.card_cvc.peek().clone()))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
+        cards::mock_add_card(
+            db,
+            txn_id,
+            &card_detail,
+            Some(card.card_cvc.peek().clone()),
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed")?;
         Ok(txn_id.to_string())
     }
 
