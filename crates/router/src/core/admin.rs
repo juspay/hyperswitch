@@ -1,4 +1,3 @@
-use api_models::admin;
 use error_stack::{report, ResultExt};
 use uuid::Uuid;
 
@@ -358,10 +357,7 @@ pub async fn retrieve_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
 
-    let mut response: admin::PaymentConnectorCreate = mca.clone().foreign_try_into()?;
-    response.metadata = mca.metadata;
-
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::BachResponse::Json(mca.foreign_try_into()?))
 }
 
 pub async fn list_payment_connectors(
