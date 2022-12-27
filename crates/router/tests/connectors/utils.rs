@@ -188,5 +188,6 @@ fn generate_data<Flow, Req: From<Req>, Res>(
         payment_method_id: None,
         address: PaymentAddress::default(),
         connector_meta_data: None,
+        amount_captured: None,
     }
 }

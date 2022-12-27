@@ -76,6 +76,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<serde_json::Value>,
+    pub amount_captured: Option<i64>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,

@@ -399,6 +399,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
             }),
+            amount_captured: Some(item.response.amount_received),
             ..item.data
         })
     }
