@@ -43,7 +43,6 @@ pub async fn get_address_for_payment_request(
     merchant_id: &str,
     customer_id: &Option<String>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
-    // TODO: Refactor this function for more readability (TryFrom)
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -60,17 +59,10 @@ pub async fn get_address_for_payment_request(
                         .as_deref()
                         .get_required_value("customer_id")
                         .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+
+                    let address_details = address.address.clone().unwrap_or_default();
                     Some(
                         db.insert_address(storage::AddressNew {
-                            city: address.address.as_ref().and_then(|a| a.city.clone()),
-                            country: address.address.as_ref().and_then(|a| a.country.clone()),
-                            line1: address.address.as_ref().and_then(|a| a.line1.clone()),
-                            line2: address.address.as_ref().and_then(|a| a.line2.clone()),
-                            line3: address.address.as_ref().and_then(|a| a.line3.clone()),
-                            state: address.address.as_ref().and_then(|a| a.state.clone()),
-                            zip: address.address.as_ref().and_then(|a| a.zip.clone()),
-                            first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                            last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
                             phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
                             country_code: address
                                 .phone
@@ -78,7 +70,8 @@ pub async fn get_address_for_payment_request(
                                 .and_then(|a| a.country_code.clone()),
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-                            ..storage::AddressNew::default()
+
+                            ..address_details.foreign_into()
                         })
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
@@ -488,7 +481,6 @@ pub(crate) async fn call_payment_method(
         Some(pm_data) => match payment_method_type {
             Some(payment_method_type) => match pm_data {
                 api::PaymentMethod::Card(card) => {
-                    //TODO: get it from temp_card
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),

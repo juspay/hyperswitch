@@ -353,3 +353,22 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
         .into())
     }
 }
+
+impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address::AddressNew> {
+    fn from(item: F<api_models::payments::AddressDetails>) -> Self {
+        let address = item.0;
+        storage_models::address::AddressNew {
+            city: address.city,
+            country: address.country,
+            line1: address.line1,
+            line2: address.line2,
+            line3: address.line3,
+            state: address.state,
+            zip: address.zip,
+            first_name: address.first_name,
+            last_name: address.last_name,
+            ..Default::default()
+        }
+        .into()
+    }
+}
