@@ -437,7 +437,7 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// ## Usage
 /// This removes repeated code of type conversion between 2 types with similar structure
 /// but which exist in different crates or which are different types themselves. To use this macro
-/// derive `AutoImto` on the struct and then provide convertable structs `#[converts(...)]`
+/// derive `AutoInto` on the struct and then provide convertable structs `#[converts(...)]`
 ///
 /// ## Example
 /// ```rust
