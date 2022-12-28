@@ -709,7 +709,7 @@ paths:
         - Payments
       summary: Payments - Confirm
       operationId: confirmPayment
-      description: "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+      description: "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
       requestBody:
         content:
           application/json:
@@ -955,7 +955,7 @@ paths:
         - Refunds
       summary: Refunds - Create
       operationId: createRefunds
-      description: "To create a refund againt an already processed payment"
+      description: "To create a refund against an already processed payment"
       requestBody:
         content:
           application/json:
@@ -1189,7 +1189,7 @@ paths:
         - PaymentMethods
       summary: PaymentMethods - Update
       operationId: updatePaymentMethodForCustomer
-      description: "To update an existng a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
+      description: "To update an existing a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
       requestBody:
         content:
           application/json:
@@ -1305,15 +1305,13 @@ paths:
           name: minimum_amount
           schema:
             type: integer
-            description: |
-              The minimum ammount accepted for processing by the particular payment method.
+            description: The minimum amount accepted for processing by the particular payment method.
             example: 100
         - in: query
           name: maximum_amount
           schema:
             type: integer
-            description: |
-              The minimum ammount accepted for processing by the particular payment method.
+            description: The minimum amount accepted for processing by the particular payment method.
             example: 10000000
         - in: query
           name: recurring_payment_enabled
@@ -1378,7 +1376,7 @@ paths:
       tags:
         - MerchantAccounts
       summary: Merchant Account - Create
-      operationId: createMechantAccount
+      operationId: createMerchantAccount
       description: "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
       security:
         - AdminSecretKey: []
@@ -1473,7 +1471,7 @@ paths:
         - MerchantAccounts
       summary: Merchant Account - Update
       operationId: updateMerchantAccount
-      description: "To update an existng merchant account. Helpful in updating merchant details such as email, contact deteails, or other configuration details like webhook, routing algorithm etc"
+      description: "To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc"
       security:
         - AdminSecretKey: []
       requestBody:
@@ -1656,14 +1654,14 @@ paths:
           schema:
             type: integer
             description: |
-              The minimum ammount accepted for processing by the particular payment method.
+              The minimum amount accepted for processing by the particular payment method.
             example: 100
         - in: query
           name: maximum_amount
           schema:
             type: integer
             description: |
-              The minimum ammount accepted for processing by the particular payment method.
+              The minimum amount accepted for processing by the particular payment method.
             example: 10000000
         - in: query
           name: recurring_payment_enabled
@@ -1871,7 +1869,7 @@ paths:
         - PaymentConnectors
       summary: Payment Connector - Create
       operationId: createPaymentConnector
-      description: "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+      description: "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
       security:
         - AdminSecretKey: []
       requestBody:
@@ -1977,7 +1975,7 @@ paths:
         - PaymentConnectors
       summary: Payment Connector - Update
       operationId: updatePaymentConnector
-      description: "To update an existng Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
+      description: "To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
       security:
         - AdminSecretKey: []
       requestBody:
@@ -2122,7 +2120,7 @@ components:
               example: [US, IN]
           minimum_amount:
             type: integer
-            description: Mininum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
+            description: Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
             example: 1
           maximum_amount:
             type: integer
@@ -2164,13 +2162,13 @@ components:
           #         - debit_card
           #         - upi_intent
           #         - upi_collect
-          #         - credit_card_installements
+          #         - credit_card_installments
           #         - pay_later_installments
           #     example: credit_card
           # payment_method_issuer:
           #     type: string
           #     description: |
-          #         The name of the bank/ provider isuing the payment method to the end user
+          #         The name of the bank/ provider issuing the payment method to the end user
           #     example: Citibank
           # payment_method_issuer_code:
           #     type: string
@@ -2196,12 +2194,12 @@ components:
           # minimum_amount:
           #     type: integer
           #     description: |
-          #         The minimum ammount accepted for processing by the particular payment method.
+          #         The minimum amount accepted for processing by the particular payment method.
           #     example: 100
           # maximum_amount:
           #     type: integer
           #     description: |
-          #         The minimum ammount accepted for processing by the particular payment method.
+          #         The minimum amount accepted for processing by the particular payment method.
           #     example: 10000000
           # recurring_payment_enabled:
           #     type: boolean
@@ -2269,13 +2267,13 @@ components:
     #                     - debit_card
     #                     - upi_intent
     #                     - upi_collect
-    #                     - credit_card_installements
+    #                     - credit_card_installments
     #                     - pay_later_installments
     #                 example: credit_card
     #             payment_method_issuer:
     #                 type: string
     #                 description: |
-    #                     The name of the bank/ provider isuing the payment method to the end user
+    #                     The name of the bank/ provider issuing the payment method to the end user
     #                 example: Citibank
     #             payment_method_issuer_code:
     #                 type: string
@@ -2308,12 +2306,12 @@ components:
     #             minimum_amount:
     #                 type: integer
     #                 description: |
-    #                     The minimum ammount accepted for processing by the particular payment method.
+    #                     The minimum amount accepted for processing by the particular payment method.
     #                 example: 100
     #             maximum_amount:
     #                 type: integer
     #                 description: |
-    #                     The minimum ammount accepted for processing by the particular payment method.
+    #                     The minimum amount accepted for processing by the particular payment method.
     #                 example: 10000000
     #             recurring_payment_enabled:
     #                 type: boolean
@@ -2402,7 +2400,7 @@ components:
           example: John Test
         phone_country_code:
           type: string
-          description: The ccountry code for the customer phone number
+          description: The country code for the customer phone number
           maxLength: 255
           example: "+65"
         phone:
@@ -2441,7 +2439,7 @@ components:
           example: John Test
         phone_country_code:
           type: string
-          description: The ccountry code for the customer phone number
+          description: The country code for the customer phone number
           maxLength: 255
           example: "+65"
         phone:
@@ -2487,7 +2485,7 @@ components:
           example: John Test
         phone_country_code:
           type: object
-          description: The ccountry code for the customer phone number
+          description: The country code for the customer phone number
           maxLength: 255
           example: +65
         phone:
@@ -2564,7 +2562,7 @@ components:
         amount:
           type: integer
           description: |
-            The payment amount. Amount for the payment in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
           minimum: 100
           example: 6540
         currency:
@@ -2606,7 +2604,7 @@ components:
         amount_to_capture:
           type: integer
           description: |
-            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
             If not provided, the default amount_to_capture will be the payment amount.
           minimum: 100
           example: 6540
@@ -2638,7 +2636,7 @@ components:
           example: 9999999999
         phone_country_code:
           type: string
-          description: The ccountry code for the customer phone number
+          description: The country code for the customer phone number
           maxLength: 255
           example: "+65"
         return_url:
@@ -2787,7 +2785,7 @@ components:
         amount:
           type: integer
           description: |
-            The payment amount. Amount for the payment in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
           minimum: 100
           example: 6540
         currency:
@@ -2815,7 +2813,7 @@ components:
         amount_to_capture:
           type: integer
           description: |
-            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
             If not provided, the default amount_to_capture will be the payment amount.
           minimum: 100
           example: 6540
@@ -2847,7 +2845,7 @@ components:
           example: 9999999999
         phone_country_code:
           type: string
-          description: The ccountry code for the customer phone number
+          description: The country code for the customer phone number
           maxLength: 255
           example: "+65"
         setup_future_usage:
@@ -2916,7 +2914,7 @@ components:
         amount_to_capture:
           type: integer
           description: |
-            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
             If not provided, the default amount_to_capture will be the payment amount.
           minimum: 100
           example: 6540
@@ -2972,7 +2970,7 @@ components:
         amount:
           type: integer
           description: |
-            The payment amount. Amount for the payment in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
           minimum: 100
           example: 6540
         currency:
@@ -3006,7 +3004,7 @@ components:
         amount_to_capture:
           type: integer
           description: |
-            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
             If not provided, the default amount_to_capture will be the payment amount.
           minimum: 100
           example: 6540
@@ -3050,7 +3048,7 @@ components:
           nullable: true
         phone_country_code:
           type: string
-          description: The ccountry code for the customer phone number
+          description: The country code for the customer phone number
           maxLength: 255
           example: "+65"
           nullable: true
@@ -3242,7 +3240,7 @@ components:
             - debit_card
             - upi_intent
             - upi_collect
-            - credit_card_installements
+            - credit_card_installments
             - pay_later_installments
           example: credit_card
         payment_method_issuer:
@@ -3316,13 +3314,13 @@ components:
             - debit_card
             - upi_intent
             - upi_collect
-            - credit_card_installements
+            - credit_card_installments
             - pay_later_installments
           example: credit_card
         payment_method_issuer:
           type: string
           description: |
-            The name of the bank/ provider isuing the payment method to the end user
+            The name of the bank/ provider issuing the payment method to the end user
           example: Citibank
         payment_method_issuer_code:
           type: string
@@ -3358,12 +3356,12 @@ components:
         minimum_amount:
           type: integer
           description: |
-            The minimum ammount accepted for processing by the particular payment method.
+            The minimum amount accepted for processing by the particular payment method.
           example: 100
         maximum_amount:
           type: integer
           description: |
-            The minimum ammount accepted for processing by the particular payment method.
+            The minimum amount accepted for processing by the particular payment method.
           example: 10000000
         recurring_payment_enabled:
           type: boolean
@@ -3407,7 +3405,7 @@ components:
         amount:
           type: integer
           description: |
-            Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
             If not provided, this will default to the full payment amount
           minimum: 100
           example: 6540
@@ -3478,7 +3476,7 @@ components:
         amount:
           type: integer
           description: |
-            The refund amount, which should be less than or equal to the toal payment amount. Amount for the payment in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+            The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
           minimum: 1
           example: 6540
         refund_id:
@@ -3523,7 +3521,7 @@ components:
           amount:
             type: integer
             description: |
-              The refund amount, which should be less than or equal to the toal payment amount. Amount for the payment in lowest denomination of the currrency. (i.e) in cents for USD denomination, in paisa for INR denomonation etc.,
+              The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
             minimum: 1
             example: 6540
           refund_id:
@@ -3903,7 +3901,7 @@ components:
           $ref: "#/components/schemas/PaymentConnector"
         # connector_id:
         #     type: integer
-        #     description: Unique ID of the connector. It is returned in the Reponse.
+        #     description: Unique ID of the connector. It is returned in the Response.
         connector_account_details:
           type: object
           description: Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
@@ -4114,7 +4112,7 @@ components:
               example: [US, IN]
           minimum_amount:
             type: integer
-            description: Mininum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
+            description: Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
             example: 1
           maximum_amount:
             type: integer
@@ -4301,14 +4299,14 @@ components:
 
           metadata_filters_keys:
             type: array
-            description: List of Metadata Filters to apply for the Routing Rule. The filtes are presented as 2 arrays of keys and value. This property contains all the keys.
+            description: List of Metadata Filters to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the keys.
             items:
               type: string
             example: ["payments.udf1", "payments.udf2"]
 
           metadata_filters_values:
             type: array
-            description: List of Metadata Filters to apply for the Routing Rule. The filtes are presented as 2 arrays of keys and value. This property contains all the keys.
+            description: List of Metadata Filters to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the keys.
             items:
               type: string
             example: ["android", "Category_Electronics"]
@@ -4356,7 +4354,7 @@ components:
         # - real_time_payment # UPI, PayNow, FedNow etc //TODO Application changes needed
         # - pay_later # BNPL like Klarna, Affirm, AfterPay, Zip, SplitIt etc //TODO Application changes needed
         - bank_debit # Pull payments from bank - ACH direct debit (DD), BACS DD, SEPA DD, BECS Debt
-        - bank_redirect # Redirected to onling banking portal - Netbanking/India, sofort/Europe, giropay/Germany, BanContact/Belgium, Blik/Poland, EPS/Austria, FPX/Malaysia
+        - bank_redirect # Redirected to online banking portal - Netbanking/India, sofort/Europe, giropay/Germany, BanContact/Belgium, Blik/Poland, EPS/Austria, FPX/Malaysia
         - bank_transfer # Push payments to an account - ACH transfer, SEPA bank transfer, Multibanco
       example: card
 
@@ -4367,7 +4365,7 @@ components:
         - debit_card
         - upi_intent
         - upi_collect
-        # - credit_card_installements
+        # - credit_card_installments
         # - pay_later_installments
       example: credit_card
 
@@ -4390,7 +4388,7 @@ components:
     #         - debit_card
     #         - upi_intent
     #         - upi_collect
-    #         - credit_card_installements
+    #         - credit_card_installments
     #         - pay_later_installments
     #     example: credit_card
 
@@ -4461,7 +4459,7 @@ components:
             intent_uri: "upi://pay?pa=hhferf@abc&pn=merchant%20com&mc=5815&tid=pnf20200807108614390166&tr=20200807108614390166&tn=Transaction_Note&am=1&cu=INR"
         trigger_api:
           type: object
-          description: Provides the instructions on the next API to be triggered to complete the payment. This is spplicable in cases wherein the merchant has to display a UI to the user for collecting information such as OTP, 2factor authentication details.
+          description: Provides the instructions on the next API to be triggered to complete the payment. This is applicable in cases wherein the merchant has to display a UI to the user for collecting information such as OTP, 2factor authentication details.
           example:
             api_name: "submit_otp"
             doc: "https://router.juspay.io/api-reference/submit_otp"
@@ -4596,7 +4594,7 @@ components:
 
     AdminSecretKey:
       description: >
-        Admin Key for manaing Merchant Accounts and Payment Connectors
+        Admin Key for managing Merchant Accounts and Payment Connectors
         In the OSS version - Developers can directly update the AdminSecretKey in the DB and start using the admin APIs to configure a new accounts and connectors
         In the Hosted version - The key can be obtained from the Dashboard or the Support team
       name: admin-api-key
