@@ -19,7 +19,6 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    pii::Secret,
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
     services,
@@ -720,48 +719,46 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
-    payment_method_type: Option<storage_enums::PaymentMethodType>,
-    txn_id: &str,
-    _payment_attempt: &storage::PaymentAttempt,
-    request: &Option<api::PaymentMethod>,
-    token: &Option<String>,
-    card_cvc: Option<Secret<String>>,
-) -> RouterResult<(
-    BoxedOperation<'a, F, R>,
-    Option<api::PaymentMethod>,
-    Option<String>,
-)> {
-    let (payment_method, payment_token) = match (request, token) {
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
+    let payment_method_type = payment_data.payment_attempt.payment_method;
+    let txn_id = &payment_data.payment_attempt.attempt_id;
+    let request = &payment_data.payment_method_data;
+    let token = payment_data.token.clone();
+    let card_cvc = payment_data.card_cvc.clone();
+
+    let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                let pm = Vault::get_payment_method_data_from_locker(state, token).await?;
-                let updated_pm = match (pm.clone(), card_cvc) {
+                let pm = Vault::get_payment_method_data_from_locker(state, &token).await?;
+                payment_data.token = Some(token.to_string());
+                match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
                         let mut updated_card = card;
                         updated_card.card_cvc = card_cvc;
-                        Vault::store_payment_method_data_in_locker(state, txn_id, &updated_card)
+                        Vault::store_payment_method_data_in_locker(state, &token, &updated_card)
                             .await?;
                         Some(api::PaymentMethod::Card(updated_card))
                     }
                     (_, _) => pm,
-                };
-                (updated_pm, Some(token.to_string()))
+                }
             } else {
                 // TODO: Implement token flow for other payment methods
-                (None, Some(token.to_string()))
+                None
             },
         ),
         (pm @ Some(api::PaymentMethod::Card(card)), _) => {
             Vault::store_payment_method_data_in_locker(state, txn_id, card).await?;
-            Ok((pm.to_owned(), Some(txn_id.to_string())))
+            payment_data.token = Some(txn_id.to_string());
+            Ok(pm.to_owned())
         }
-        (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok((pm.to_owned(), None)),
-        (pm @ Some(api::PaymentMethod::Wallet(_)), _) => Ok((pm.to_owned(), None)),
-        _ => Ok((None, None)),
+        (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethod::Wallet(_)), _) => Ok(pm.to_owned()),
+        _ => Ok(None),
     }?;
 
-    Ok((operation, payment_method, payment_token))
+    Ok((operation, payment_method))
 }
 
 pub struct Vault {}
