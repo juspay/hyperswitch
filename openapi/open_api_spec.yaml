@@ -25,8 +25,8 @@ info:
 
       | Environment   |      Base URL                                        |
       |---------------|------------------------------------------------------|
-      | Sandbox       |  https://sandbox-router.juspay.io                    |
-      | Production    |  https://router.juspay.io                            |
+      | Sandbox       | <https://sandbox-router.juspay.io>                   |
+      | Production    | <https://router.juspay.io>                           |
 
     # Authentication
 
