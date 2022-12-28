@@ -347,7 +347,7 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             )),
             test_mode: merchant_ca.test_mode,
             disabled: merchant_ca.disabled,
-            metadata: None,
+            metadata: merchant_ca.metadata,
             payment_methods_enabled,
         }
         .into())

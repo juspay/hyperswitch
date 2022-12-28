@@ -74,7 +74,7 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: None,
-
+        amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             payment_method_data,
