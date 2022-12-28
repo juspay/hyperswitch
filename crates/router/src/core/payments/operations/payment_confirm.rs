@@ -211,7 +211,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         Option<api::PaymentMethod>,
         Option<String>,
     )> {
-        let (op, payment_method, payment_token) = helpers::make_pm_data(
+        let (op, payment_method_data, payment_token) = helpers::make_pm_data(
             Box::new(self),
             state,
             payment_method,
@@ -223,11 +223,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         )
         .await?;
 
-        utils::when(payment_method.is_none(), || {
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        if payment_method != Some(enums::PaymentMethodType::Paypal) {
+            utils::when(payment_method_data.is_none(), || {
+                Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+            })?;
+        }
 
-        Ok((op, payment_method, payment_token))
+        Ok((op, payment_method_data, payment_token))
     }
 
     #[instrument(skip_all)]
