@@ -994,13 +994,16 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
-pub fn can_call_connector(status: storage_enums::IntentStatus) -> bool {
-    matches!(
+pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
+    !matches!(
         status,
-        storage_enums::IntentStatus::Failed
-            | storage_enums::IntentStatus::Processing
-            | storage_enums::IntentStatus::Succeeded
-            | storage_enums::IntentStatus::RequiresCustomerAction
+        storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::Failure
     )
 }
 
