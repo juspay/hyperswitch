@@ -424,7 +424,7 @@ paths:
                 amount: 6540
                 currency: "USD"
                 status: "requires_customer_action"
-                merchant_id: "jarnura"
+                merchant_id: "juspay_merchant"
                 capture_method: "automatic"
                 capture_on: "2022-09-10T10:11:12Z"
                 amount_to_capture: 6540
@@ -525,7 +525,7 @@ paths:
                 amount: 6540
                 currency: "USD"
                 status: "requires_customer_action"
-                merchant_id: "jarnura"
+                merchant_id: "juspay_merchant"
                 capture_method: "automatic"
                 capture_on: "2022-09-10T10:11:12Z"
                 amount_to_capture: 6540
@@ -623,7 +623,7 @@ paths:
                 amount: 6540
                 currency: "USD"
                 status: "succeeded"
-                merchant_id: "jarnura"
+                merchant_id: "juspay_merchant"
                 capture_method: "automatic"
                 capture_on: "2022-09-10T10:11:12Z"
                 amount_to_capture: 6540
@@ -760,7 +760,7 @@ paths:
                 currency: "USD"
                 confirm: true
                 payment_id: "pay_mbabizu24mvu3mela5njyhpit4"
-                merchant_id: "jarnura"
+                merchant_id: "juspay_merchant"
                 capture_method: "automatic"
                 capture_on: "2022-09-10T10:11:12Z"
                 amount_to_capture: 6540
@@ -876,7 +876,7 @@ paths:
                 currency: "USD"
                 cancellation_reason: "Payment attempt expired"
                 status: "cancelled"
-                merchant_id: "jarnura"
+                merchant_id: "juspay_merchant"
                 capture_method: "automatic"
                 capture_on: "2022-09-10T10:11:12Z"
                 amount_to_capture: 6540
@@ -3653,7 +3653,7 @@ components:
           type: string
           description: The name of card holder
           maxLength: 255
-          example: "Arun Raj"
+          example: "John Doe"
         card_token:
           type: string
           description: The token provided against a user's saved card. The token would be valid for 15 minutes.
