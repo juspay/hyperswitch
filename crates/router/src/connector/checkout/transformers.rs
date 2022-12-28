@@ -318,7 +318,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PaymentVoidRequest {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
 pub enum CaptureType {
     Final,
     NonFinal,
