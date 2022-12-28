@@ -365,7 +365,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.action_id.clone(),
+                    item.data.request.connector_transaction_id.to_owned(),
                 ),
                 redirect: false,
                 redirection_data: None,
