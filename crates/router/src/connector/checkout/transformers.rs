@@ -356,10 +356,13 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let status = if item.http_code == 202 {
-            enums::AttemptStatus::Charged
+        let (status, amount_captured) = if item.http_code == 202 {
+            (
+                enums::AttemptStatus::Charged,
+                item.data.request.amount_to_capture,
+            )
         } else {
-            enums::AttemptStatus::Pending
+            (enums::AttemptStatus::Pending, None)
         };
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -371,6 +374,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 mandate_reference: None,
             }),
             status,
+            amount_captured,
             ..item.data
         })
     }
