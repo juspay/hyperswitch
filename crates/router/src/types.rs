@@ -114,6 +114,8 @@ pub struct PaymentsAuthorizeData {
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
     pub connector_transaction_id: String,
+    pub currency: storage_enums::Currency,
+    pub amount: i64,
 }
 
 #[derive(Debug, Clone)]
