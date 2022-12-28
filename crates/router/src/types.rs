@@ -40,6 +40,8 @@ pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsCaptureResponseRouterData<R> =
+    ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
