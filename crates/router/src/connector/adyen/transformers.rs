@@ -623,7 +623,10 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let (status, amount_captured) = match item.response.status.as_str() {
-            "received" => (storage_enums::AttemptStatus::Charged, Some(item.response.amount.value)),
+            "received" => (
+                storage_enums::AttemptStatus::Charged,
+                Some(item.response.amount.value),
+            ),
             _ => (storage_enums::AttemptStatus::Pending, None),
         };
         Ok(types::RouterData {
