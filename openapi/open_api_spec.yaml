@@ -71,6 +71,709 @@ security:
   - ApiSecretKey: []
 
 paths:
+  /accounts:
+    post:
+      tags:
+        - MerchantAccounts
+      summary: Merchant Account - Create
+      operationId: createMerchantAccount
+      description: "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
+      security:
+        - AdminSecretKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MerchantAccountCreateRequest"
+      responses:
+        "200":
+          description: Merchant Account Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantAccountResponse"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "merchant_name can't be empty or null"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+  /accounts/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+      tags:
+        - MerchantAccounts
+      summary: Merchant Account - Retrieve
+      operationId: retrieveMerchantAccount
+      description: Retrieve a merchant account details.
+      security:
+        - AdminSecretKey: []
+      responses:
+        "200":
+          description: Merchant Account retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantAccountResponse"
+        "404":
+          description: Merchant Account does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "merchant_account_not_found"
+                  message: "Merchant Account does not exist in records"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+    post:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+      tags:
+        - MerchantAccounts
+      summary: Merchant Account - Update
+      operationId: updateMerchantAccount
+      description: "To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc"
+      security:
+        - AdminSecretKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MerchantAccountUpdateRequest"
+      responses:
+        "200":
+          description: Merchant Account Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantAccountResponse"
+        "404":
+          description: Merchant Account does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "merchant_account_not_found"
+                  message: "Merchant Account does not exist in records"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "Update Field can't be empty"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+    delete:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+      tags:
+        - MerchantAccounts
+      summary: Merchant Account - Delete
+      operationId: deleteMerchantAccount
+      description: Delete a Merchant Account
+      security:
+        - AdminSecretKey: []
+      responses:
+        "200":
+          description: Merchant Account deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantAccountDeleteResponse"
+        "404":
+          description: Merchant Account does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "merchant_account_not_found"
+                  message: "Merchant Account does not exist in records"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+  /customers/{customer_id}/mandates:
+    get:
+      parameters:
+        - in: path
+          name: customer_id
+          schema:
+            type: string
+          required: true
+          description: Unique customer id for which the list of mandates to be retrieved.
+      tags:
+        - Mandates
+      summary: Mandate - List all mandates against a customer id
+      operationId: listMandateDetails
+      description: "To list the all the mandates for a customer"
+      responses:
+        "200":
+          description: Customer's mandates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: "#/components/schemas/MandateListResponse"
+        "404":
+          description: Payment does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_not_found"
+                  message: "Payment does not exist in records"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "Amount shall be passed as: <expected_data_type>"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+  /customers/{customer_id}/payment_methods:
+    get:
+      parameters:
+        # - in: path
+        #   name: customer_id
+        #   schema:
+        #       type: string
+        #   required: true
+        #   description: The unique ID for the Customer.
+        - in: query
+          name: accepted_country
+          schema:
+            type: array
+            items:
+              type: string
+              description: |
+                The two-letter ISO currency code
+              example: ["US", "UK", "IN"]
+              maxLength: 2
+              minLength: 2
+        - in: query
+          name: accepted_currency
+          schema:
+            type: array
+            items:
+              type: string
+              description: |
+                The three-letter ISO currency code
+              example: ["USD", "EUR"]
+        - in: query
+          name: minimum_amount
+          schema:
+            type: integer
+            description: |
+              The minimum amount accepted for processing by the particular payment method.
+            example: 100
+        - in: query
+          name: maximum_amount
+          schema:
+            type: integer
+            description: |
+              The minimum amount accepted for processing by the particular payment method.
+            example: 10000000
+        - in: query
+          name: recurring_payment_enabled
+          schema:
+            type: boolean
+            description: Indicates whether the payment method is eligible for recurring payments
+            example: true
+        - in: query
+          name: installment_payment_enabled
+          schema:
+            type: boolean
+            description: Indicates whether the payment method is eligible for installment payments
+            example: true
+      security:
+        - ApiSecretKey: []
+      tags:
+        - PaymentMethods
+      summary: List payment methods for a Customer
+      operationId: listPaymentMethodsByCustomerId
+      description: "To filter and list the applicable payment methods for a particular Customer ID"
+      responses:
+        "200":
+          description: Payment Methods retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerPaymentMethods"
+        "404":
+          description: Payment Methods does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_method_not_found"
+                  message: "Payment Methods does not exist in records"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "accepted_currency shall be passed as: <expected_data_type>"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+  /mandates/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: Unique mandate id
+      tags:
+        - Mandates
+      summary: Mandate - List details of a mandate
+      operationId: listMandateDetails
+      description: "To list the details of a mandate"
+      # requestBody:
+      #     content:
+      #         application/json:
+      #             schema:
+      #                 $ref: "#/components/schemas/MandateListResponse"
+      responses:
+        "200":
+          description: Mandate retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateListResponse"
+        "404":
+          description: Mandate does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_not_found"
+                  message: "Payment does not exist in records"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+  /mandates/{id}/revoke:
+    post:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: Unique mandate id
+      tags:
+        - Mandates
+      summary: Mandate - Revoke a mandate
+      operationId: revokeMandateDetails
+      description: "To revoke a mandate registered against a customer"
+      # requestBody:
+      #     content:
+      #         application/json:
+      #             schema:
+      #                 type: object
+      #                 properties:
+      #                     command:
+      #                         type: string
+      #                         description: The command for revoking a mandate.
+      #                         example: "revoke"
+      responses:
+        "200":
+          description: Mandate Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mandate_id:
+                    type: string
+                    description: |
+                      The unique id corresponding to the mandate.
+                    example: "mandate_end38934n12s923d0"
+                  status:
+                    type: string
+                    description: The status of the mandate.
+                    example: "revoked"
+        "404":
+          description: Mandate does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_not_found"
+                  message: "Payment does not exist in records"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "command shall be passed as: <expected_data_type>"
+        # "400":
+        #     description: Invalid parameter
+        #     content:
+        #         application/json:
+        #             schema:
+        #                 $ref: "#/components/responses/BadRequestError"
+        #             example:
+        #                 error:
+        #                     type: "invalid_request_error"
+        #                     code: "invalid_parameter"
+        #                     message: "The return_url cannot be passed unless confirm is set to true"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+
+  /account/{account_id}/connectors:
+    post:
+      parameters:
+        - in: path
+          name: account_id
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+      tags:
+        - PaymentConnectors
+      summary: Payment Connector - Create
+      operationId: createPaymentConnector
+      description: "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+      security:
+        - AdminSecretKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentConnectorCreateRequest"
+      responses:
+        "200":
+          description: Payment Connector Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentConnectorResponse"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "connector_name can't be empty or null"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+  /account/{account_id}/connectors/{connector_id}:
+    get:
+      parameters:
+        - in: path
+          name: account_id
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+        - in: path
+          name: connector_id
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the payment connector
+      tags:
+        - PaymentConnectors
+      summary: Payment Connector - Retrieve
+      operationId: retrievePaymentConnector
+      description: Retrieve Payment Connector details.
+      security:
+        - AdminSecretKey: []
+      responses:
+        "200":
+          description: Payment Connector retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentConnectorResponse"
+        "404":
+          description: Payment Connector does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_connector_not_found"
+                  message: "Payment Connector does not exist in records"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+    post:
+      parameters:
+        - in: path
+          name: id1
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+        - in: path
+          name: id2
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the payment connector
+      tags:
+        - PaymentConnectors
+      summary: Payment Connector - Update
+      operationId: updatePaymentConnector
+      description: "To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
+      security:
+        - AdminSecretKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentConnectorUpdateRequest"
+      responses:
+        "200":
+          description: Payment Connector Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentConnectorResponse"
+        "404":
+          description: Payment Connector does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_connector_not_found"
+                  message: "Payment Connector does not exist in records"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_data"
+                  message: "Update Field can't be empty"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+    delete:
+      parameters:
+        - in: path
+          name: id1
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the merchant account
+        - in: path
+          name: id2
+          schema:
+            type: string
+          required: true
+          description: The unique identifier for the payment connector
+      tags:
+        - PaymentConnectors
+      summary: Payment Connector - Delete
+      operationId: deletePaymentConnector
+      description: Delete or Detach a Payment Connector from Merchant Account
+      security:
+        - AdminSecretKey: []
+      responses:
+        "200":
+          description: Payment Connector detached successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentConnectorDeleteResponse"
+        "404":
+          description: Payment Connector does not exist in records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "object_not_found"
+                  code: "payment_connector_not_found"
+                  message: "Payment Connector does not exist in records"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  type: "invalid_request_error"
+                  code: "invalid_api_authentication"
+                  message: "Access forbidden, invalid api-key was used"
+
   /customers:
     post:
       tags:
@@ -1359,709 +2062,6 @@ paths:
                   type: "invalid_request_error"
                   code: "invalid_data"
                   message: "accepted_currency shall be passed as: <expected_data_type>"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-
-  /accounts:
-    post:
-      tags:
-        - MerchantAccounts
-      summary: Merchant Account - Create
-      operationId: createMerchantAccount
-      description: "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
-      security:
-        - AdminSecretKey: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MerchantAccountCreateRequest"
-      responses:
-        "200":
-          description: Merchant Account Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MerchantAccountResponse"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "merchant_name can't be empty or null"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-  /accounts/{id}:
-    get:
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-      tags:
-        - MerchantAccounts
-      summary: Merchant Account - Retrieve
-      operationId: retrieveMerchantAccount
-      description: Retrieve a merchant account details.
-      security:
-        - AdminSecretKey: []
-      responses:
-        "200":
-          description: Merchant Account retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MerchantAccountResponse"
-        "404":
-          description: Merchant Account does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "merchant_account_not_found"
-                  message: "Merchant Account does not exist in records"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-    post:
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-      tags:
-        - MerchantAccounts
-      summary: Merchant Account - Update
-      operationId: updateMerchantAccount
-      description: "To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc"
-      security:
-        - AdminSecretKey: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MerchantAccountUpdateRequest"
-      responses:
-        "200":
-          description: Merchant Account Updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MerchantAccountResponse"
-        "404":
-          description: Merchant Account does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "merchant_account_not_found"
-                  message: "Merchant Account does not exist in records"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "Update Field can't be empty"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-    delete:
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-      tags:
-        - MerchantAccounts
-      summary: Merchant Account - Delete
-      operationId: deleteMerchantAccount
-      description: Delete a Merchant Account
-      security:
-        - AdminSecretKey: []
-      responses:
-        "200":
-          description: Merchant Account deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MerchantAccountDeleteResponse"
-        "404":
-          description: Merchant Account does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "merchant_account_not_found"
-                  message: "Merchant Account does not exist in records"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-  /customers/{customer_id}/mandates:
-    get:
-      parameters:
-        - in: path
-          name: customer_id
-          schema:
-            type: string
-          required: true
-          description: Unique customer id for which the list of mandates to be retrieved.
-      tags:
-        - Mandates
-      summary: Mandate - List all mandates against a customer id
-      operationId: listMandateDetails
-      description: "To list the all the mandates for a customer"
-      responses:
-        "200":
-          description: Customer's mandates retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  $ref: "#/components/schemas/MandateListResponse"
-        "404":
-          description: Payment does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_not_found"
-                  message: "Payment does not exist in records"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "Amount shall be passed as: <expected_data_type>"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-  /customers/{customer_id}/payment_methods:
-    get:
-      parameters:
-        # - in: path
-        #   name: customer_id
-        #   schema:
-        #       type: string
-        #   required: true
-        #   description: The unique ID for the Customer.
-        - in: query
-          name: accepted_country
-          schema:
-            type: array
-            items:
-              type: string
-              description: |
-                The two-letter ISO currency code
-              example: ["US", "UK", "IN"]
-              maxLength: 2
-              minLength: 2
-        - in: query
-          name: accepted_currency
-          schema:
-            type: array
-            items:
-              type: string
-              description: |
-                The three-letter ISO currency code
-              example: ["USD", "EUR"]
-        - in: query
-          name: minimum_amount
-          schema:
-            type: integer
-            description: |
-              The minimum amount accepted for processing by the particular payment method.
-            example: 100
-        - in: query
-          name: maximum_amount
-          schema:
-            type: integer
-            description: |
-              The minimum amount accepted for processing by the particular payment method.
-            example: 10000000
-        - in: query
-          name: recurring_payment_enabled
-          schema:
-            type: boolean
-            description: Indicates whether the payment method is eligible for recurring payments
-            example: true
-        - in: query
-          name: installment_payment_enabled
-          schema:
-            type: boolean
-            description: Indicates whether the payment method is eligible for installment payments
-            example: true
-      security:
-        - ApiSecretKey: []
-      tags:
-        - PaymentMethods
-      summary: List payment methods for a Customer
-      operationId: listPaymentMethodsByCustomerId
-      description: "To filter and list the applicable payment methods for a particular Customer ID"
-      responses:
-        "200":
-          description: Payment Methods retrieved
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CustomerPaymentMethods"
-        "404":
-          description: Payment Methods does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_method_not_found"
-                  message: "Payment Methods does not exist in records"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "accepted_currency shall be passed as: <expected_data_type>"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-  /mandates/{id}:
-    get:
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: Unique mandate id
-      tags:
-        - Mandates
-      summary: Mandate - List details of a mandate
-      operationId: listMandateDetails
-      description: "To list the details of a mandate"
-      # requestBody:
-      #     content:
-      #         application/json:
-      #             schema:
-      #                 $ref: "#/components/schemas/MandateListResponse"
-      responses:
-        "200":
-          description: Mandate retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MandateListResponse"
-        "404":
-          description: Mandate does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_not_found"
-                  message: "Payment does not exist in records"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-  /mandates/{id}/revoke:
-    post:
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: Unique mandate id
-      tags:
-        - Mandates
-      summary: Mandate - Revoke a mandate
-      operationId: revokeMandateDetails
-      description: "To revoke a mandate registered against a customer"
-      # requestBody:
-      #     content:
-      #         application/json:
-      #             schema:
-      #                 type: object
-      #                 properties:
-      #                     command:
-      #                         type: string
-      #                         description: The command for revoking a mandate.
-      #                         example: "revoke"
-      responses:
-        "200":
-          description: Mandate Revoked
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  mandate_id:
-                    type: string
-                    description: |
-                      The unique id corresponding to the mandate.
-                    example: "mandate_end38934n12s923d0"
-                  status:
-                    type: string
-                    description: The status of the mandate.
-                    example: "revoked"
-        "404":
-          description: Mandate does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_not_found"
-                  message: "Payment does not exist in records"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "command shall be passed as: <expected_data_type>"
-        # "400":
-        #     description: Invalid parameter
-        #     content:
-        #         application/json:
-        #             schema:
-        #                 $ref: "#/components/responses/BadRequestError"
-        #             example:
-        #                 error:
-        #                     type: "invalid_request_error"
-        #                     code: "invalid_parameter"
-        #                     message: "The return_url cannot be passed unless confirm is set to true"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-
-  /account/{account_id}/connectors:
-    post:
-      parameters:
-        - in: path
-          name: account_id
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-      tags:
-        - PaymentConnectors
-      summary: Payment Connector - Create
-      operationId: createPaymentConnector
-      description: "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-      security:
-        - AdminSecretKey: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PaymentConnectorCreateRequest"
-      responses:
-        "200":
-          description: Payment Connector Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentConnectorResponse"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "connector_name can't be empty or null"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-  /account/{account_id}/connectors/{connector_id}:
-    get:
-      parameters:
-        - in: path
-          name: account_id
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-        - in: path
-          name: connector_id
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the payment connector
-      tags:
-        - PaymentConnectors
-      summary: Payment Connector - Retrieve
-      operationId: retrievePaymentConnector
-      description: Retrieve Payment Connector details.
-      security:
-        - AdminSecretKey: []
-      responses:
-        "200":
-          description: Payment Connector retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentConnectorResponse"
-        "404":
-          description: Payment Connector does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_connector_not_found"
-                  message: "Payment Connector does not exist in records"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-    post:
-      parameters:
-        - in: path
-          name: id1
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-        - in: path
-          name: id2
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the payment connector
-      tags:
-        - PaymentConnectors
-      summary: Payment Connector - Update
-      operationId: updatePaymentConnector
-      description: "To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
-      security:
-        - AdminSecretKey: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PaymentConnectorUpdateRequest"
-      responses:
-        "200":
-          description: Payment Connector Updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentConnectorResponse"
-        "404":
-          description: Payment Connector does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_connector_not_found"
-                  message: "Payment Connector does not exist in records"
-        "400":
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_data"
-                  message: "Update Field can't be empty"
-        "401":
-          description: Unauthorized request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "invalid_request_error"
-                  code: "invalid_api_authentication"
-                  message: "Access forbidden, invalid api-key was used"
-    delete:
-      parameters:
-        - in: path
-          name: id1
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the merchant account
-        - in: path
-          name: id2
-          schema:
-            type: string
-          required: true
-          description: The unique identifier for the payment connector
-      tags:
-        - PaymentConnectors
-      summary: Payment Connector - Delete
-      operationId: deletePaymentConnector
-      description: Delete or Detach a Payment Connector from Merchant Account
-      security:
-        - AdminSecretKey: []
-      responses:
-        "200":
-          description: Payment Connector detached successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentConnectorDeleteResponse"
-        "404":
-          description: Payment Connector does not exist in records
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  type: "object_not_found"
-                  code: "payment_connector_not_found"
-                  message: "Payment Connector does not exist in records"
         "401":
           description: Unauthorized request
           content:
