@@ -40,11 +40,16 @@ servers:
   - url: https://router.juspay.io
     description: Production Environment
 tags:
+  - name: QuickStart
+    description: Quickly get started with our API suite.
   - name: Payments
     description: Process and manage payments across wide range of payment processors using the Unified Payments API.
   - name: Customers
     description: Create a Customer entity which you can use to store and retrieve specific customers' data and payment methods.
 x-tagGroups:
+  - name: Quick Start
+    tags:
+      - QuickStart
   - name: Payments
     tags:
       - Payments
@@ -75,6 +80,7 @@ paths:
     post:
       tags:
         - MerchantAccounts
+        - QuickStart
       summary: Merchant Account - Create
       operationId: createMerchantAccount
       description: "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
@@ -567,6 +573,7 @@ paths:
           description: The unique identifier for the merchant account
       tags:
         - PaymentConnectors
+        - QuickStart
       summary: Payment Connector - Create
       operationId: createPaymentConnector
       description: "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1006,6 +1013,7 @@ paths:
     post:
       tags:
         - Payments
+        - QuickStart
       summary: Payments - Create
       operationId: createPayment
       description: "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
@@ -1213,6 +1221,7 @@ paths:
           description: unique payment id
       tags:
         - Payments
+        - QuickStart
       summary: Payments - Retrieve
       operationId: retrievePayment
       description: "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
@@ -1656,6 +1665,7 @@ paths:
     post:
       tags:
         - Refunds
+        - QuickStart
       summary: Refunds - Create
       operationId: createRefunds
       description: "To create a refund against an already processed payment"
@@ -1793,6 +1803,7 @@ paths:
           description: unique refund id
       tags:
         - Refunds
+        - QuickStart
       summary: Refunds - Retrieve
       operationId: retrieveRefund
       description: "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
