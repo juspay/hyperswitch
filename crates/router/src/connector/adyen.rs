@@ -88,7 +88,7 @@ impl
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self::common_get_content_type(self).to_string(),
+                self.common_get_content_type().to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
@@ -96,9 +96,7 @@ impl
         header.append(&mut api_key);
         Ok(header)
     }
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
+
     fn get_url(
         &self,
         req: &types::PaymentsCaptureRouterData,
