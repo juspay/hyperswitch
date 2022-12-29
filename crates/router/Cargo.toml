@@ -10,7 +10,7 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store"]
+default = ["kv_store", "stripe"]
 kms = ["aws-config", "aws-sdk-kms"]
 basilisk = []
 stripe = ["dep:serde_qs"]

@@ -597,8 +597,7 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            // FIXME: This is not possible in schedule_refund_execution as it will always be scheduled
-                            // FIXME: as a part of refactoring
+                            // [#255]: This is not possible in schedule_refund_execution as it will always be scheduled
                             // sync_refund_with_gateway(data, &refund).await
                             Ok(refund)
                         }
@@ -606,7 +605,7 @@ pub async fn schedule_refund_execution(
                 }
             }
         }
-        //  FIXME: THis is not allowed to be otherwise or all
+        //  [#255]: This is not allowed to be otherwise or all
         _ => Ok(refund),
     }?;
     Ok(result)

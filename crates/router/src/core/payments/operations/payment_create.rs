@@ -407,7 +407,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if let Some(true) = request.confirm {
+        if request.confirm == Some(true)
+            && request.payment_method != Some(api_models::enums::PaymentMethodType::Paypal)
+        {
             helpers::validate_pm_or_token_given(
                 &request.payment_token,
                 &request.payment_method_data,
@@ -537,13 +539,10 @@ impl PaymentCreate {
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
-    let currency: enums::Currency = req
+    let currency = req
         .currency
-        .as_ref()
-        .parse_enum("currency")
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "invalid currency".to_string(),
-        })?;
+        .map(ForeignInto::foreign_into)
+        .get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }
