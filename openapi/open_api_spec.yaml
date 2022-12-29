@@ -46,6 +46,12 @@ tags:
     description: Process and manage payments across wide range of payment processors using the Unified Payments API.
   - name: Customers
     description: Create a Customer entity which you can use to store and retrieve specific customers' data and payment methods.
+  # TODO: Add descriptions for each of these tags
+  - name: PaymentMethods
+  - name: Refunds
+  - name: Mandates
+  - name: MerchantAccounts
+  - name: PaymentConnectors
 x-tagGroups:
   - name: Quick Start
     tags:
