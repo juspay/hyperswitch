@@ -142,12 +142,13 @@ impl ConnectorData {
             "stripe" => Ok(Box::new(&connector::Stripe)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "aci" => Ok(Box::new(&connector::Aci)),
-            "checkout" => Ok(Box::new(&connector::Checkout)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
+            "checkout" => Ok(Box::new(&connector::Checkout)),
+            "cybersource" => Ok(Box::new(&connector::Cybersource)),
+            "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
-            "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

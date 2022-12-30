@@ -494,6 +494,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Fiserv,
     Klarna,
     Shift4,
     Stripe,
