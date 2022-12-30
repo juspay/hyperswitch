@@ -131,6 +131,7 @@ impl
     fn get_headers(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let headers = vec![
             (
@@ -205,7 +206,9 @@ impl
                         self, req, connectors,
                     )?)
                     .headers(headers)
-                    .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
+                    .headers(types::PaymentsAuthorizeType::get_headers(
+                        self, req, connectors,
+                    )?)
                     .body(Some(cybersource_req))
                     .build();
 

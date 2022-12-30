@@ -34,6 +34,7 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
@@ -114,8 +115,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_headers(
         &self,
         req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -148,7 +150,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req)?)
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -187,8 +189,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_headers(
         &self,
         req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -204,7 +207,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(self, req)?)
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -265,8 +270,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -301,7 +307,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
+                .headers(types::PaymentsAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -341,8 +349,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -374,7 +383,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(self, req)?)
+            .headers(types::RefundExecuteType::get_headers(
+                self, req, connectors,
+            )?)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
@@ -411,8 +422,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
