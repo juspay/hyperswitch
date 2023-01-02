@@ -48,7 +48,6 @@ pub async fn start_producer(
             // Currently the producer workflow isn't parallel and a direct termination
             // will not cause any loss of data.
             // [#268]: resolving this issue will require a different logic for handling this termination.
-
             info!("Terminating producer");
             break;
         }
