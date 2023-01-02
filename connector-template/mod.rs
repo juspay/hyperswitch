@@ -278,8 +278,8 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(self, req)?)
-            .body(types::RefundExecuteType::get_request_body(self, req, connectors)?)
+            .headers(types::RefundExecuteType::get_headers(self, req, connectors)?)
+            .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }
@@ -307,7 +307,7 @@ impl
 
 impl
     ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for {{project-name | downcase | pascal_case}} {
-    fn get_headers(&self, _req: &types::RefundSyncRouterData) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+    fn get_headers(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
         todo!()
     }
 

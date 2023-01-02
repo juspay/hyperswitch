@@ -275,14 +275,14 @@ Try running the tests in `orca/crates/router/tests/connectors/{{connector-name}}
 All tests should pass and add appropiate tests for connector specific payment flows.
 
 ### **Build payment request and response from json schema**
-Some connectors will provide [json schema](https://developer.worldpay.com/docs/access-worldpay/api/references/payments) for each request and response supported. we can directly convert that schema to rust code by using below script. 
+Some connectors will provide [json schema](https://developer.worldpay.com/docs/access-worldpay/api/references/payments) for each request and response supported. we can directly convert that schema to rust code by using below script. On running the script a `temp.rs` file will be created in `src/connector/<connector-name>` folder
 
 *Note: The code generated may not be production ready and might fail for some case, we have to clean up the code as per our standards.*
 
 ```bash
 brew install openapi-generator
-export CONNECTOR_NAME="<CONNECTOR-NAME>"#Change it to appropriate connector name
-export SCHEMA_PATH="<PATH-TO-JSON-SCHEMA-FILE>"#it can be json or yaml, Refer samples below
+export CONNECTOR_NAME="<CONNECTOR-NAME>" #Change it to appropriate connector name
+export SCHEMA_PATH="<PATH-TO-JSON-SCHEMA-FILE>" #it can be json or yaml, Refer samples below
 openapi-generator generate -g rust  -i ${SCHEMA_PATH} -o temp &&  cat temp/src/models/* > crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && rm -rf temp && sed -i'' -r "s/^pub use.*//;s/^pub mod.*//;s/^\/.*//;s/^.\*.*//;s/crate::models:://g;" crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && cargo +nightly fmt
 ```
 JSON example
@@ -301,7 +301,7 @@ JSON example
                 "properties": {
                     "outcome": {
                         "type": "string"
-                    },
+                    }
                 },
                 "required": [
                     "outcome"

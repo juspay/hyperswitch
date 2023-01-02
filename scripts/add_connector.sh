@@ -2,6 +2,7 @@ pg=$1;
 pgc="$(tr '[:lower:]' '[:upper:]' <<< ${pg:0:1})${pg:1}"
 src="crates/router/src"
 conn="$src/connector"
+tests="../../tests/connectors/"
 SCRIPT="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 if [[ -z "$pg" ]]; then 
     echo 'Connector name not present: try "sh add_connector.sh <adyen>"'
@@ -25,9 +26,11 @@ cd $conn/
 cargo install cargo-generate
 cargo gen-pg $pg
 mv $pg/mod.rs $pg.rs
-mv $pg/test.rs ../../tests/connectors/$pg.rs
-git checkout ../../tests/connectors/main.rs
-sed -i'' -e "s/mod utils;/mod ${pg};\nmod utils;/" ../../tests/connectors/main.rs
-rm ../../tests/connectors/main.rs-e
+mv $pg/test.rs ${tests}/$pg.rs
+git checkout ${tests}/main.rs ${tests}/connector_auth.rs 
+sed -i'' -e "s/mod utils;/mod ${pg};\nmod utils;/" ${tests}/main.rs
+sed -i'' -e "s/struct ConnectorAuthentication {/struct ConnectorAuthentication {\n\tpub ${pg}: Option<HeaderKey>,/" ${tests}/connector_auth.rs 
+rm ${tests}/main.rs-e ${tests}/connector_auth.rs-e 
 cargo build
-echo "Successfully created connector: try running the tests of "$pg.rs
+echo "Successfully created connector. Running the tests of "$pg.rs
+cargo test --package router --test connectors -- $pg
