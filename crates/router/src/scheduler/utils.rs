@@ -51,7 +51,7 @@ pub async fn update_status_and_append(
         .collect();
     match flow {
         SchedulerFlow::Producer => {
-            state
+                state
                 .store
                 .process_tracker_update_process_status_by_ids(
                     process_ids,
@@ -93,7 +93,7 @@ pub async fn update_status_and_append(
 
     let field_value_pairs = pt_batch.to_redis_field_value_pairs()?;
 
-    state
+    match state
         .store
         .stream_append_entry(
             &pt_batch.stream_name,
@@ -101,7 +101,35 @@ pub async fn update_status_and_append(
             field_value_pairs,
         )
         .await
-        .change_context(errors::ProcessTrackerError::BatchInsertionFailed) // TODO: Handle error? (Update status of processes back to PENDING?)
+        .change_context(errors::ProcessTrackerError::BatchInsertionFailed)
+    {
+        Ok(x) => Ok(x),
+        Err(mut err) => {
+            match state
+                .store
+                .process_tracker_update_process_status_by_ids(
+                    pt_batch.trackers.iter().map(|process| process.id.clone()).collect(),
+                    storage::ProcessTrackerUpdate::StatusUpdate {
+                        status: ProcessTrackerStatus::Processing,
+                        business_status: None,
+                    },
+                )
+                .await.map_or_else(|error| {
+                    logger::error!(error=%error.current_context(),"Error while updating process status");
+                    Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
+                }, |count| {
+                    logger::debug!("Updated status of {count} processes");
+                    Ok(())
+                }) {
+                    Ok(_) => (),
+                    Err(inner_err) => {
+                        err.extend_one(inner_err);
+                    }
+                };
+
+            Err(err)
+        }
+    }
 }
 
 pub fn divide(
@@ -156,8 +184,7 @@ pub async fn get_batches(
         )
         .await
         .map_err(|error| {
-            // FIXME: Not a failure when the PT is not overloaded this will throw an error
-            logger::error!(%error, "Error finding batch in stream");
+            logger::warn!(%error, "Warning: finding batch in stream");
             error.change_context(errors::ProcessTrackerError::BatchNotFound)
         })?;
     metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
@@ -299,4 +326,32 @@ fn get_delay<'a>(
         }
         None => None,
     }
+}
+
+pub(crate) async fn lock_acquire_release<F, Fut, E>(
+    state: &AppState,
+    settings: &SchedulerSettings,
+    callback: F,
+) -> Result<(), E>
+where
+    F: Fn() -> Fut,
+    Fut: futures::Future<Output = Result<(), E>>,
+{
+    let tag = "PRODUCER_LOCK";
+    let lock_key = &settings.producer.lock_key;
+    let lock_val = "LOCKED";
+    let ttl = settings.producer.lock_ttl;
+
+    let result = if state
+        .store
+        .acquire_pt_lock(tag, lock_key, lock_val, ttl)
+        .await
+    {
+        let result = callback().await;
+        state.store.release_pt_lock(tag, lock_key).await;
+        result
+    } else {
+        Ok(())
+    };
+    result
 }
