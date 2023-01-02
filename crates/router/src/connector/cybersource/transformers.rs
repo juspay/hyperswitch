@@ -103,9 +103,9 @@ fn build_bill_to(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
+impl<'st> TryFrom<&types::PaymentsAuthorizeRouterData<'st>> for CybersourcePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'st>) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let address = item
@@ -220,12 +220,12 @@ pub struct CybersourcePaymentsResponse {
     status: CybersourcePaymentStatus,
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<CybersourcePaymentsResponse>>
-    for types::PaymentsAuthorizeRouterData
+impl<'st> TryFrom<types::PaymentsResponseRouterData<'st, CybersourcePaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData<'st>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::PaymentsResponseRouterData<CybersourcePaymentsResponse>,
+        item: types::PaymentsResponseRouterData<'st, CybersourcePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: item.response.status.into(),
@@ -259,9 +259,9 @@ pub struct CybersourceRefundRequest {
     order_information: OrderInformation,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
+impl<'st, F> TryFrom<&types::RefundsRouterData<'st, F>> for CybersourceRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<'st, F>) -> Result<Self, Self::Error> {
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
@@ -298,12 +298,12 @@ pub struct CybersourceRefundResponse {
     pub status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::RSync, CybersourceRefundResponse>>
+    for types::RefundsRouterData<'st, api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::RSync, CybersourceRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {

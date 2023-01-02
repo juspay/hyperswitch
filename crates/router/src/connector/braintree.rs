@@ -62,7 +62,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
@@ -84,7 +84,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
@@ -98,7 +98,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = Some(
@@ -131,7 +131,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let braintree_session_request =
             utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
@@ -141,11 +141,11 @@ impl
         Ok(Some(braintree_session_request))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsSessionRouterData,
+        data: &'rd types::PaymentsSessionRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSessionRouterData<'st>, errors::ConnectorError> {
         logger::debug!(payment_session_response_braintree=?res);
         let response: braintree::BraintreeSessionTokenResponse = res
             .response
@@ -190,7 +190,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
@@ -212,7 +212,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
@@ -232,7 +232,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -262,16 +262,16 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsSyncRouterData,
+        _req: &types::PaymentsSyncRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &'rd types::PaymentsSyncRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSyncRouterData<'st>, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
@@ -295,7 +295,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
@@ -313,7 +313,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
@@ -328,7 +328,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -345,7 +345,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let braintree_req =
             utils::Encode::<braintree::BraintreePaymentsRequest>::convert_and_encode(req)
@@ -353,11 +353,11 @@ impl
         Ok(Some(braintree_req))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &'rd types::PaymentsAuthorizeRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData<'st>, errors::ConnectorError> {
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -398,7 +398,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
@@ -420,7 +420,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
@@ -435,7 +435,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -465,16 +465,16 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        _req: &types::PaymentsCancelRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &'rd types::PaymentsCancelRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData<'st>, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
@@ -498,7 +498,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![
             (
@@ -520,7 +520,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
@@ -536,7 +536,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let braintree_req =
             utils::Encode::<braintree::BraintreeRefundRequest>::convert_and_url_encode(req)
@@ -546,7 +546,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -558,11 +558,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(Some(request))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &'rd types::RefundsRouterData<'st, api::Execute>,
         res: types::Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<types::RefundsRouterData<'st, api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
@@ -591,7 +591,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
     fn get_headers(
         &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RefundsRouterData<'_, api::RSync>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
@@ -602,7 +602,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_url(
         &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RefundsRouterData<'_, api::RSync>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
@@ -617,25 +617,25 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_request_body(
         &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RefundsRouterData<'_, api::RSync>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
     fn build_request(
         &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RefundsRouterData<'_, api::RSync>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        data: &'rd types::RefundsRouterData<'st, api::RSync>,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        types::RefundsRouterData<'st, api::RSync>,
         errors::ConnectorError,
     > {
         logger::debug!(target: "router::connector::braintree", response=?res);

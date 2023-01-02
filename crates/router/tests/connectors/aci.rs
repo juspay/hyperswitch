@@ -12,13 +12,14 @@ use router::{
 
 use crate::connector_auth::ConnectorAuthentication;
 
-fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
+fn construct_payment_router_data(st: &str) -> types::PaymentsAuthorizeRouterData<'_> {
     let auth = ConnectorAuthentication::new()
         .aci
         .expect("Missing ACI connector authentication configuration");
 
     types::RouterData {
         flow: PhantomData,
+        st,
         merchant_id: String::from("aci"),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -57,13 +58,14 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     }
 }
 
-fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
+fn construct_refund_router_data<F>(st: &str) -> types::RefundsRouterData<'_, F> {
     let auth = ConnectorAuthentication::new()
         .aci
         .expect("Missing ACI connector authentication configuration");
 
     types::RouterData {
         flow: PhantomData,
+        st,
         merchant_id: String::from("aci"),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -114,11 +116,11 @@ async fn payments_create_success() {
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
-    let request = construct_payment_router_data();
+    let request = construct_payment_router_data("state");
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -147,7 +149,7 @@ async fn payments_create_failure() {
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        let mut request = construct_payment_router_data();
+        let mut request = construct_payment_router_data("state");
         request.request.payment_method_data = types::api::PaymentMethod::Card(types::api::CCard {
             card_number: Secret::new("420000000000000000".to_string()),
             card_exp_month: Secret::new("10".to_string()),
@@ -159,7 +161,7 @@ async fn payments_create_failure() {
         let response = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
-            &request,
+            request,
             payments::CallConnectorAction::Trigger,
         )
         .await
@@ -186,11 +188,11 @@ async fn refund_for_successful_payments() {
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
-    let request = construct_payment_router_data();
+    let request = construct_payment_router_data("state");
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -205,7 +207,7 @@ async fn refund_for_successful_payments() {
         types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
-    let mut refund_request = construct_refund_router_data();
+    let mut refund_request = construct_refund_router_data("state");
     refund_request.request.connector_transaction_id = match response.response.unwrap() {
         types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
             resource_id.get_connector_transaction_id().unwrap()
@@ -215,7 +217,7 @@ async fn refund_for_successful_payments() {
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &refund_request,
+        refund_request,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -244,12 +246,12 @@ async fn refunds_create_failure() {
         types::RefundsData,
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
-    let mut request = construct_refund_router_data();
+    let mut request = construct_refund_router_data("state");
     request.request.connector_transaction_id = "1234".to_string();
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await

@@ -29,9 +29,9 @@ pub struct BraintreeSessionRequest {
     client_token: BraintreeApiVersion,
 }
 
-impl TryFrom<&types::PaymentsSessionRouterData> for BraintreeSessionRequest {
+impl<'st> TryFrom<&types::PaymentsSessionRouterData<'st>> for BraintreeSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(_item: &types::PaymentsSessionRouterData<'st>) -> Result<Self, Self::Error> {
         Ok(Self {
             client_token: BraintreeApiVersion {
                 version: "2".to_string(),
@@ -80,9 +80,9 @@ pub struct CardDetails {
     cvv: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
+impl<'st> TryFrom<&types::PaymentsAuthorizeRouterData<'st>> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'st>) -> Result<Self, Self::Error> {
         let submit_for_settlement = matches!(
             item.request.capture_method,
             Some(enums::CaptureMethod::Automatic) | None
@@ -183,13 +183,21 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BraintreePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<'st, F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            'st,
+            F,
+            BraintreePaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
+            'st,
             F,
             BraintreePaymentsResponse,
             T,
@@ -211,14 +219,21 @@ impl<F, T>
     }
 }
 
-impl<F, T>
+impl<'st, F, T>
     TryFrom<
-        types::ResponseRouterData<F, BraintreeSessionTokenResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            'st,
+            F,
+            BraintreeSessionTokenResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
+            'st,
             F,
             BraintreeSessionTokenResponse,
             T,
@@ -284,9 +299,9 @@ pub struct Amount {
     amount: Option<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
+impl<'st, F> TryFrom<&types::RefundsRouterData<'st, F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(_item: &types::RefundsRouterData<'st, F>) -> Result<Self, Self::Error> {
         Ok(Self {
             transaction: Amount { amount: None },
         })
@@ -318,12 +333,12 @@ pub struct RefundResponse {
     pub status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::Execute, RefundResponse>>
+    for types::RefundsRouterData<'st, api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -335,12 +350,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::RSync, RefundResponse>>
+    for types::RefundsRouterData<'st, api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {

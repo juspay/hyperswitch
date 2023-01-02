@@ -80,7 +80,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -100,7 +100,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData<'_>,
 
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
@@ -116,7 +116,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -125,7 +125,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData<'_>,
 
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
@@ -139,11 +139,11 @@ impl
         ))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &'rd types::PaymentsCaptureRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError>
+    ) -> CustomResult<types::PaymentsCaptureRouterData<'st>, errors::ConnectorError>
     where
         types::PaymentsCaptureData: Clone,
         types::PaymentsResponseData: Clone,
@@ -188,7 +188,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -208,7 +208,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
@@ -223,7 +223,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -236,11 +236,11 @@ impl
         ))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &'rd types::PaymentsSyncRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
+    ) -> CustomResult<types::PaymentsSyncRouterData<'st>, errors::ConnectorError>
     where
         types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
@@ -289,7 +289,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -309,7 +309,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -321,7 +321,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -330,7 +330,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -346,11 +346,11 @@ impl
         ))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &'rd types::PaymentsAuthorizeRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData<'st>, errors::ConnectorError> {
         logger::debug!(stripe_payments_create_response=?res);
         let response: stripe::PaymentIntentResponse = res
             .response
@@ -395,7 +395,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -415,7 +415,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_id = &req.request.connector_transaction_id;
@@ -428,7 +428,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::CancelRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
@@ -439,7 +439,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -451,11 +451,11 @@ impl
         Ok(Some(request))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &'rd types::PaymentsCancelRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsCancelRouterData<'st>, errors::ConnectorError> {
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -504,7 +504,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::VerifyRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -524,11 +524,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
-            api::Verify,
-            types::VerifyRequestData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::VerifyRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -540,7 +536,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::VerifyRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::SetupIntentRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -549,7 +545,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::VerifyRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -563,16 +559,12 @@ impl
         ))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::RouterData<
-            api::Verify,
-            types::VerifyRequestData,
-            types::PaymentsResponseData,
-        >,
+        data: &'rd types::VerifyRouterData<'st>,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        types::VerifyRouterData<'st>,
         errors::ConnectorError,
     >
     where
@@ -623,7 +615,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -643,7 +635,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
+        _req: &types::RefundsRouterData<'_, api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v1/refunds"))
@@ -651,7 +643,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::RefundRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -660,7 +652,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
+        req: &types::RefundsRouterData<'_, api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -673,11 +665,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 
     #[instrument(skip_all)]
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &'rd types::RefundsRouterData<'st, api::Execute>,
         res: types::Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<types::RefundsRouterData<'st, api::Execute>, errors::ConnectorError> {
         logger::debug!(response=?res);
 
         let response: stripe::RefundResponse =
@@ -718,7 +710,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &types::RefundsRouterData<'_, api::RSync>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -738,7 +730,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::RSync>,
+        req: &types::RefundsRouterData<'_, api::RSync>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
@@ -754,7 +746,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::RSync>,
+        req: &types::RefundsRouterData<'_, api::RSync>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -769,14 +761,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     }
 
     #[instrument(skip_all)]
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::RefundsRouterData<api::RSync>,
+        data: &'rd types::RefundsRouterData<'st, api::RSync>,
         res: types::Response,
-    ) -> CustomResult<
-        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<types::RefundsRouterData<'st, api::RSync>, errors::ConnectorError> {
         logger::debug!(response=?res);
 
         let response: stripe::RefundResponse =

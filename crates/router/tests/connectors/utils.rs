@@ -9,7 +9,14 @@ use router::{
     types::{self, api, storage::enums, PaymentAddress},
 };
 
+#[async_trait]
 pub trait Connector {
+    async fn get_state(&self) -> routes::AppState {
+        use router::configs::settings::Settings;
+        let conf = Settings::new().unwrap();
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+        state
+    }
     fn get_data(&self) -> types::api::ConnectorData;
     fn get_auth_token(&self) -> types::ConnectorAuthType;
     fn get_name(&self) -> String;
@@ -17,12 +24,14 @@ pub trait Connector {
 
 #[async_trait]
 pub trait ConnectorActions: Connector {
-    async fn authorize_payment(
+    async fn authorize_payment<'st>(
         &self,
+        st: &'st routes::AppState,
         payment_data: Option<types::PaymentsAuthorizeData>,
-    ) -> types::PaymentsAuthorizeRouterData {
+    ) -> types::PaymentsAuthorizeRouterData<'st> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = generate_data(
+            &st.flow_name,
             self.get_name(),
             self.get_auth_token(),
             payment_data.unwrap_or_else(|| types::PaymentsAuthorizeData {
@@ -30,27 +39,31 @@ pub trait ConnectorActions: Connector {
                 ..PaymentAuthorizeType::default().0
             }),
         );
-        call_connector(request, integration).await
+        call_connector(st, request, integration).await
     }
-    async fn make_payment(
+    async fn make_payment<'st>(
         &self,
+        st: &'st routes::AppState,
         payment_data: Option<types::PaymentsAuthorizeData>,
-    ) -> types::PaymentsAuthorizeRouterData {
+    ) -> types::PaymentsAuthorizeRouterData<'st> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = generate_data(
+            &st.flow_name,
             self.get_name(),
             self.get_auth_token(),
             payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
         );
-        call_connector(request, integration).await
+        call_connector(st, request, integration).await
     }
-    async fn capture_payment(
+    async fn capture_payment<'st>(
         &self,
+        st: &'st routes::AppState,
         transaction_id: String,
         payment_data: Option<types::PaymentsCaptureData>,
-    ) -> types::PaymentsCaptureRouterData {
+    ) -> types::PaymentsCaptureRouterData<'st> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = generate_data(
+            &st.flow_name,
             self.get_name(),
             self.get_auth_token(),
             payment_data.unwrap_or(types::PaymentsCaptureData {
@@ -58,15 +71,17 @@ pub trait ConnectorActions: Connector {
                 connector_transaction_id: transaction_id,
             }),
         );
-        call_connector(request, integration).await
+        call_connector(st, request, integration).await
     }
-    async fn refund_payment(
+    async fn refund_payment<'st>(
         &self,
+        st: &'st routes::AppState,
         transaction_id: String,
         payment_data: Option<types::RefundsData>,
-    ) -> types::RefundExecuteRouterData {
+    ) -> types::RefundExecuteRouterData<'st> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = generate_data(
+            &st.flow_name,
             self.get_name(),
             self.get_auth_token(),
             payment_data.unwrap_or_else(|| types::RefundsData {
@@ -78,25 +93,24 @@ pub trait ConnectorActions: Connector {
                 refund_amount: 100,
             }),
         );
-        call_connector(request, integration).await
+        call_connector(st, request, integration).await
     }
 }
 
 async fn call_connector<
+    'st,
     T: Debug + Clone + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    request: types::RouterData<T, Req, Resp>,
+    st: &'st routes::AppState,
+    request: types::RouterData<'st, T, Req, Resp>,
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
-) -> types::RouterData<T, Req, Resp> {
-    use router::configs::settings::Settings;
-    let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+) -> types::RouterData<'st, T, Req, Resp> {
     services::api::execute_connector_processing_step(
-        &state,
+        st,
         integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -155,7 +169,7 @@ impl Default for PaymentRefundType {
 }
 
 pub fn get_connector_transaction_id(
-    response: types::PaymentsAuthorizeRouterData,
+    response: types::PaymentsAuthorizeRouterData<'_>,
 ) -> Option<String> {
     match response.response {
         Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
@@ -167,12 +181,14 @@ pub fn get_connector_transaction_id(
 }
 
 fn generate_data<Flow, Req: From<Req>, Res>(
+    st: &str,
     connector: String,
     connector_auth_type: types::ConnectorAuthType,
     req: Req,
-) -> types::RouterData<Flow, Req, Res> {
+) -> types::RouterData<'_, Flow, Req, Res> {
     types::RouterData {
         flow: PhantomData,
+        st,
         merchant_id: connector.clone(),
         connector,
         payment_id: uuid::Uuid::new_v4().to_string(),

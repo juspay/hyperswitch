@@ -12,13 +12,14 @@ use router::{
 
 use crate::connector_auth::ConnectorAuthentication;
 
-fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
+fn construct_payment_router_data(st: &str) -> types::PaymentsAuthorizeRouterData<'_> {
     let auth = ConnectorAuthentication::new()
         .authorizedotnet
         .expect("Missing Authorize.net connector authentication configuration");
 
     types::RouterData {
         flow: PhantomData,
+        st,
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -57,13 +58,14 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     }
 }
 
-fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
+fn construct_refund_router_data<F>(st: &str) -> types::RefundsRouterData<'_, F> {
     let auth = ConnectorAuthentication::new()
         .authorizedotnet
         .expect("Missing Authorize.net connector authentication configuration");
 
     types::RouterData {
         flow: PhantomData,
+        st,
         connector_meta_data: None,
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),
@@ -112,12 +114,12 @@ async fn payments_create_success() {
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
-    let request = construct_payment_router_data();
+    let request = construct_payment_router_data("st");
 
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -149,7 +151,7 @@ async fn payments_create_failure() {
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        let mut request = construct_payment_router_data();
+        let mut request = construct_payment_router_data("st");
 
         request.request.payment_method_data = types::api::PaymentMethod::Card(types::api::CCard {
             card_number: Secret::new("542400000000001".to_string()),
@@ -162,7 +164,7 @@ async fn payments_create_failure() {
         let response = services::api::execute_connector_processing_step(
             &state,
             connector_integration,
-            &request,
+            request,
             payments::CallConnectorAction::Trigger,
         )
         .await
@@ -195,13 +197,13 @@ async fn refunds_create_success() {
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
 
-    let mut request = construct_refund_router_data();
+    let mut request = construct_refund_router_data("st");
     request.request.connector_transaction_id = "abfbc35c-4825-4dd4-ab2d-fae0acc22389".to_string();
 
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -232,13 +234,13 @@ async fn refunds_create_failure() {
         types::RefundsResponseData,
     > = connector.connector.get_connector_integration();
 
-    let mut request = construct_refund_router_data();
+    let mut request = construct_refund_router_data("st");
     request.request.connector_transaction_id = "1234".to_string();
 
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,
-        &request,
+        request,
         payments::CallConnectorAction::Trigger,
     )
     .await

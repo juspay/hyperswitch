@@ -10,39 +10,44 @@ pub mod api;
 pub mod storage;
 pub mod transformers;
 
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 pub use api_models::enums::Connector;
 use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::PaymentAddress;
+pub use crate::core::payments::{self as core_payments, flows, PaymentAddress};
 use crate::{core::errors, services};
 
-pub type PaymentsAuthorizeRouterData =
-    RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
-pub type PaymentsCaptureRouterData =
-    RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
-pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsSessionRouterData =
-    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
-pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
-pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
-pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
+pub type PaymentsAuthorizeRouterData<'st> =
+    RouterData<'st, api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsSyncRouterData<'st> =
+    RouterData<'st, api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsCaptureRouterData<'st> =
+    RouterData<'st, api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelRouterData<'st> =
+    RouterData<'st, api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData<'st> =
+    RouterData<'st, api::Session, PaymentsSessionData, PaymentsResponseData>;
+pub type RefundsRouterData<'st, F> = RouterData<'st, F, RefundsData, RefundsResponseData>;
+pub type RefundExecuteRouterData<'st> =
+    RouterData<'st, api::Execute, RefundsData, RefundsResponseData>;
+pub type RefundSyncRouterData<'st> = RouterData<'st, api::RSync, RefundsData, RefundsResponseData>;
+pub type VerifyRouterData<'st> =
+    RouterData<'st, api::Verify, VerifyRequestData, PaymentsResponseData>;
 
-pub type PaymentsResponseRouterData<R> =
-    ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsCancelResponseRouterData<R> =
-    ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsSyncResponseRouterData<R> =
-    ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
-pub type PaymentsSessionResponseRouterData<R> =
-    ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsResponseRouterData<'st, R> =
+    ResponseRouterData<'st, api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsCancelResponseRouterData<'st, R> =
+    ResponseRouterData<'st, api::Void, R, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsSyncResponseRouterData<'st, R> =
+    ResponseRouterData<'st, api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsSessionResponseRouterData<'st, R> =
+    ResponseRouterData<'st, api::Session, R, PaymentsSessionData, PaymentsResponseData>;
 
-pub type RefundsResponseRouterData<F, R> =
-    ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
+pub type RefundsResponseRouterData<'st, F, R> =
+    ResponseRouterData<'st, F, R, RefundsData, RefundsResponseData>;
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -59,10 +64,8 @@ pub type RefundExecuteType =
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
-pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
-
 #[derive(Debug, Clone)]
-pub struct RouterData<Flow, Request, Response> {
+pub struct RouterData<'st, Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
     pub connector: String,
@@ -79,6 +82,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
+
+    pub st: &'st str,
 
     /// Contains flow-specific data that the connector responds with.
     pub response: Result<Response, ErrorResponse>,
@@ -237,9 +242,9 @@ pub struct ConnectorResponse {
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,
 }
-pub struct ResponseRouterData<Flow, R, Request, Response> {
+pub struct ResponseRouterData<'st, Flow, R, Request, Response> {
     pub response: R,
-    pub data: RouterData<Flow, Request, Response>,
+    pub data: RouterData<'st, Flow, Request, Response>,
     pub http_code: u16,
 }
 

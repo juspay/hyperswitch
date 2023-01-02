@@ -46,9 +46,9 @@ pub struct SessionObject {
     pub initiative_context: String,
 }
 
-impl TryFrom<&types::PaymentsSessionRouterData> for ApplepaySessionRequest {
+impl<'st> TryFrom<&types::PaymentsSessionRouterData<'st>> for ApplepaySessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsSessionRouterData<'st>) -> Result<Self, Self::Error> {
         let metadata = item
             .connector_meta_data
             .to_owned()
@@ -68,13 +68,20 @@ impl TryFrom<&types::PaymentsSessionRouterData> for ApplepaySessionRequest {
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ApplepaySessionResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<'st, F, T>
+    TryFrom<
+        types::ResponseRouterData<'st, F, ApplepaySessionResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ApplepaySessionResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            'st,
+            F,
+            ApplepaySessionResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {

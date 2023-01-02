@@ -5,7 +5,7 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, transformers, PaymentData},
+        payments::{self, transformers},
     },
     routes::AppState,
     scheduler::metrics,
@@ -17,25 +17,20 @@ use crate::{
 };
 
 #[async_trait]
-impl
+impl<'st>
     ConstructFlowSpecificData<
+        'st,
         api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-    > for PaymentData<api::Authorize>
+    > for payments::PaymentData<api::Authorize>
 {
-    async fn construct_router_data<'a>(
+    async fn construct_router_data(
         &self,
-        state: &AppState,
+        state: &'st AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<
-        types::RouterData<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > {
+    ) -> RouterResult<types::PaymentsAuthorizeRouterData<'st>> {
         transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
             state,
             self.clone(),
@@ -47,63 +42,59 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
-    async fn decide_flows<'a>(
+impl<'st> Feature<'st, api::Authorize, types::PaymentsAuthorizeData>
+    for types::PaymentsAuthorizeRouterData<'st>
+{
+    type Output<'a> = types::PaymentsAuthorizeRouterData<'a>;
+    async fn decide_flows(
         self,
-        state: &AppState,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<Self> {
+    ) -> RouterResult<Self::Output<'st>> {
         let resp = self
             .decide_flow(
                 state,
                 connector,
                 customer,
-                Some(true),
                 call_connector_action,
                 storage_scheme,
             )
-            .await;
+            .await?;
 
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        resp
+        Ok(resp)
     }
 }
 
-impl types::PaymentsAuthorizeRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &'a AppState,
+impl<'st> types::PaymentsAuthorizeRouterData<'st> {
+    pub async fn decide_flow<'a>(
+        self,
+        state: &'st AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
-        confirm: Option<bool>,
+        maybe_customer: &'a Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<Self> {
-        match confirm {
-            Some(true) => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
-                    api::Authorize,
-                    types::PaymentsAuthorizeData,
-                    types::PaymentsResponseData,
-                > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
-                    state,
-                    connector_integration,
-                    self,
-                    call_connector_action,
-                )
-                .await
-                .map_err(|error| error.to_payment_failed_response())?;
+    ) -> RouterResult<types::PaymentsAuthorizeRouterData<'st>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            'static,
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            self,
+            call_connector_action,
+        )
+        .await
+        .map_err(|error| error.to_payment_failed_response())?;
 
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
-            }
-            _ => Ok(self.clone()),
-        }
+        mandate::mandate_procedure(state, resp, maybe_customer).await
     }
 }
 

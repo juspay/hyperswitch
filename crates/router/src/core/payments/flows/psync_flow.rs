@@ -15,17 +15,16 @@ use crate::{
 };
 
 #[async_trait]
-impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl<'st>
+    ConstructFlowSpecificData<'st, api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
 {
-    async fn construct_router_data<'a>(
+    async fn construct_router_data(
         &self,
-        state: &AppState,
+        state: &'st AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<
-        types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-    > {
+    ) -> RouterResult<types::PaymentsSyncRouterData<'st>> {
         transformers::construct_payment_router_data::<api::PSync, types::PaymentsSyncData>(
             state,
             self.clone(),
@@ -37,39 +36,31 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
 }
 
 #[async_trait]
-impl Feature<api::PSync, types::PaymentsSyncData>
-    for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-{
-    async fn decide_flows<'a>(
+impl<'st> Feature<'st, api::PSync, types::PaymentsSyncData> for types::PaymentsSyncRouterData<'st> {
+    type Output<'rd> = types::PaymentsSyncRouterData<'rd>;
+    async fn decide_flows(
         self,
-        state: &AppState,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<Self> {
-        self.decide_flow(
-            state,
-            connector,
-            customer,
-            Some(true),
-            call_connector_action,
-        )
-        .await
+        self.decide_flow(state, connector, customer, call_connector_action)
+            .await
     }
 }
 
-impl types::PaymentsSyncRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &'a AppState,
+impl<'st> types::PaymentsSyncRouterData<'st> {
+    pub async fn decide_flow(
+        self,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         _maybe_customer: &Option<storage::Customer>,
-        _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Self> {
+    ) -> RouterResult<types::PaymentsSyncRouterData<'st>> {
         let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+            'static,
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,

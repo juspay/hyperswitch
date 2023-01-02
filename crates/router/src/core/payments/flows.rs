@@ -18,25 +18,26 @@ use crate::{
 };
 
 #[async_trait]
-pub trait ConstructFlowSpecificData<F, Req, Res> {
-    async fn construct_router_data<'a>(
+pub trait ConstructFlowSpecificData<'st, F, Req, Res> {
+    async fn construct_router_data(
         &self,
-        state: &AppState,
+        state: &'st AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<types::RouterData<F, Req, Res>>;
+    ) -> RouterResult<types::RouterData<'st, F, Req, Res>>;
 }
 
 #[async_trait]
-pub trait Feature<F, T> {
-    async fn decide_flows<'a>(
+pub trait Feature<'st, F, T> {
+    type Output<'a>;
+    async fn decide_flows(
         self,
-        state: &AppState,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<Self>
+    ) -> RouterResult<Self::Output<'st>>
     where
         Self: Sized,
         F: Clone,

@@ -5,7 +5,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
-use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::{tracing, tracing::instrument};
@@ -37,8 +36,8 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn payments_operation_core<F, Req, Op, FData>(
-    state: &AppState,
+pub async fn payments_operation_core<'st, F, Req, Op, FData>(
+    state: &'st AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
@@ -46,12 +45,17 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'st,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    PaymentData<F>: ConstructFlowSpecificData<'st, F, FData, types::PaymentsResponseData>,
+    types::RouterData<'st, F, FData, types::PaymentsResponseData>: Feature<
+        'st,
+        F,
+        FData,
+        Output<'st> = types::RouterData<'st, F, FData, types::PaymentsResponseData>,
+    >,
 
     // To construct connector flow specific api
     dyn types::api::Connector:
@@ -59,7 +63,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    FData: Send,
+    FData: Clone + Send + 'st,
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
@@ -170,8 +174,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<F, Res, Req, Op, FData>(
-    state: &AppState,
+pub async fn payments_core<'st, F, Res, Req, Op, FData>(
+    state: &'st AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
@@ -180,14 +184,19 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
-    FData: Send,
+    F: Send + Clone + 'st,
+    FData: Clone + Send + 'st,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    PaymentData<F>: ConstructFlowSpecificData<'st, F, FData, types::PaymentsResponseData>,
+    types::RouterData<'st, F, FData, types::PaymentsResponseData>: Feature<
+        'st,
+        F,
+        FData,
+        Output<'st> = types::RouterData<'st, F, FData, types::PaymentsResponseData>,
+    >,
 
     // To construct connector flow specific api
     dyn types::api::Connector:
@@ -220,14 +229,13 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{:?}", operation).eq("PaymentStart")
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn handle_payments_redirect_response<'a, F>(
+pub async fn handle_payments_redirect_response<F>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     req: api::PaymentsRetrieveRequest,
 ) -> RouterResponse<api::RedirectionResponse>
 where
-    F: Send + Clone + 'a,
+    F: Send + Clone,
 {
     let connector = req.connector.clone().get_required_value("connector")?;
 
@@ -297,8 +305,8 @@ pub async fn payments_response_for_redirection_flows<'a>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn call_connector_service<F, Op, Req>(
-    state: &AppState,
+async fn call_connector_service<'st, F, Op, Req>(
+    state: &'st AppState,
     merchant_account: &storage::MerchantAccount,
     payment_id: &api::PaymentIdType,
     connector: api::ConnectorData,
@@ -309,11 +317,13 @@ async fn call_connector_service<F, Op, Req>(
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
-    F: Send + Clone,
+    Req: 'st,
+    F: Send + Clone + 'st,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
+    PaymentData<F>: ConstructFlowSpecificData<'st, F, Req, types::PaymentsResponseData>,
+    types::RouterData<'st, F, Req, types::PaymentsResponseData>: Feature<'st, F, Req, Output<'st> = types::RouterData<'st, F, Req, types::PaymentsResponseData>>
+        + Send,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
@@ -339,8 +349,8 @@ where
         )
         .await;
 
-    let response = res
-        .async_and_then(|response| async {
+    let response = match res {
+        Ok(response) => {
             let operation = helpers::response_operation::<F, Req>();
             let payment_data = operation
                 .to_post_update_tracker()?
@@ -353,18 +363,19 @@ where
                 )
                 .await?;
             Ok(payment_data)
-        })
-        .await?;
+        }
+        Err(err) => Err(err),
+    };
 
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
-    Ok(response)
+    response
 }
 
-async fn call_multiple_connectors_service<F, Op, Req>(
-    state: &AppState,
+async fn call_multiple_connectors_service<'st, F, Op, Req>(
+    state: &'st AppState,
     merchant_account: &storage::MerchantAccount,
     connectors: Vec<api::ConnectorData>,
     _operation: &Op,
@@ -373,11 +384,17 @@ async fn call_multiple_connectors_service<F, Op, Req>(
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
-    F: Send + Clone,
+    Req: Clone,
+    F: Send + Clone + 'st,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+    PaymentData<F>: ConstructFlowSpecificData<'st, F, Req, types::PaymentsResponseData>,
+    types::RouterData<'st, F, Req, types::PaymentsResponseData>: Feature<
+        'st,
+        F,
+        Req,
+        Output<'st> = types::RouterData<'st, F, Req, types::PaymentsResponseData>,
+    >,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,

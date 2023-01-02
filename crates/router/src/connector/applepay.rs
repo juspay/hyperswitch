@@ -91,7 +91,7 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        _req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -102,7 +102,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        _req: &types::PaymentsSessionRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -114,7 +114,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req = utils::Encode::<applepay::ApplepaySessionRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -123,7 +123,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -137,11 +137,11 @@ impl
         Ok(Some(request))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsSessionRouterData,
+        data: &'rd types::PaymentsSessionRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSessionRouterData<'st>, errors::ConnectorError> {
         let response: applepay::ApplepaySessionResponse = res
             .response
             .parse_struct("ApplepaySessionResponse")
@@ -171,7 +171,7 @@ impl
 
     fn get_certificate(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let metadata = req
             .connector_meta_data
@@ -188,7 +188,7 @@ impl
 
     fn get_certificate_key(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let metadata = req
             .connector_meta_data

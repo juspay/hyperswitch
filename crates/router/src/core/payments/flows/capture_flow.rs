@@ -15,16 +15,20 @@ use crate::{
 };
 
 #[async_trait]
-impl
-    ConstructFlowSpecificData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for PaymentData<api::Capture>
+impl<'st>
+    ConstructFlowSpecificData<
+        'st,
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::Capture>
 {
-    async fn construct_router_data<'a>(
+    async fn construct_router_data(
         &self,
-        state: &AppState,
+        state: &'st AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<types::PaymentsCaptureRouterData> {
+    ) -> RouterResult<types::PaymentsCaptureRouterData<'st>> {
         transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
             state,
             self.clone(),
@@ -36,17 +40,18 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Capture, types::PaymentsCaptureData>
-    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+impl<'st> Feature<'st, api::Capture, types::PaymentsCaptureData>
+    for types::PaymentsCaptureRouterData<'st>
 {
-    async fn decide_flows<'a>(
+    type Output<'rd> = types::PaymentsCaptureRouterData<'rd>;
+    async fn decide_flows(
         self,
-        state: &AppState,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<Self> {
+    ) -> RouterResult<Self::Output<'st>> {
         self.decide_flow(
             state,
             connector,
@@ -58,18 +63,17 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
     }
 }
 
-impl types::PaymentsCaptureRouterData {
-    #[allow(clippy::too_many_arguments)]
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &'a AppState,
+impl<'st> types::PaymentsCaptureRouterData<'st> {
+    pub async fn decide_flow(
+        self,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         _maybe_customer: &Option<storage::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Self> {
+    ) -> RouterResult<types::PaymentsCaptureRouterData<'st>> {
         let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+            'static,
             api::Capture,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,

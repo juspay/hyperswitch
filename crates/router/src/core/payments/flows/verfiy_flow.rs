@@ -16,15 +16,20 @@ use crate::{
 };
 
 #[async_trait]
-impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for PaymentData<api::Verify>
+impl<'st>
+    ConstructFlowSpecificData<
+        'st,
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::Verify>
 {
-    async fn construct_router_data<'a>(
+    async fn construct_router_data(
         &self,
-        state: &AppState,
+        state: &'st AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<types::VerifyRouterData> {
+    ) -> RouterResult<types::VerifyRouterData<'st>> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
             self.clone(),
@@ -36,10 +41,11 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
 }
 
 #[async_trait]
-impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData {
-    async fn decide_flows<'a>(
+impl<'st> Feature<'st, api::Verify, types::VerifyRequestData> for types::VerifyRouterData<'st> {
+    type Output<'rd> = types::VerifyRouterData<'rd>;
+    async fn decide_flows(
         self,
-        state: &AppState,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
@@ -49,7 +55,6 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             state,
             connector,
             customer,
-            Some(true),
             call_connector_action,
             storage_scheme,
         )
@@ -57,36 +62,30 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     }
 }
 
-impl types::VerifyRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &'a AppState,
+impl<'st> types::VerifyRouterData<'st> {
+    pub async fn decide_flow(
+        self,
+        state: &'st AppState,
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
-        confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<Self> {
-        match confirm {
-            Some(true) => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
-                    api::Verify,
-                    types::VerifyRequestData,
-                    types::PaymentsResponseData,
-                > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
-                    state,
-                    connector_integration,
-                    self,
-                    call_connector_action,
-                )
-                .await
-                .map_err(|err| err.to_verify_failed_response())?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
-            }
-            _ => Ok(self.clone()),
-        }
+    ) -> RouterResult<types::VerifyRouterData<'st>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            'static,
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            self,
+            call_connector_action,
+        )
+        .await
+        .map_err(|err| err.to_verify_failed_response())?;
+        mandate::mandate_procedure(state, resp, maybe_customer).await
     }
 }
 

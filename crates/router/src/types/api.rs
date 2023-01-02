@@ -64,9 +64,9 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
 {
     /// common header builder when every request for the connector have same headers
-    fn build_headers(
+    fn build_headers<'rd>(
         &self,
-        _req: &types::RouterData<Flow, Req, Resp>,
+        _req: &'rd types::RouterData<'_, Flow, Req, Resp>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(Vec::new())
     }

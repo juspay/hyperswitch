@@ -37,9 +37,9 @@ pub struct KlarnaSessionResponse {
     pub session_id: String,
 }
 
-impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
+impl<'st> TryFrom<&types::PaymentsSessionRouterData<'st>> for KlarnaSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsSessionRouterData<'st>) -> Result<Self, Self::Error> {
         let request = &item.request;
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
@@ -62,12 +62,12 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
     }
 }
 
-impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
-    for types::PaymentsSessionRouterData
+impl<'st> TryFrom<types::PaymentsSessionResponseRouterData<'st, KlarnaSessionResponse>>
+    for types::PaymentsSessionRouterData<'st>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>,
+        item: types::PaymentsSessionResponseRouterData<'st, KlarnaSessionResponse>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         Ok(Self {
@@ -82,9 +82,9 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
+impl<'st> TryFrom<&types::PaymentsAuthorizeRouterData<'st>> for KlarnaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'st>) -> Result<Self, Self::Error> {
         let request = &item.request;
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
@@ -105,12 +105,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
     }
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
-    for types::PaymentsAuthorizeRouterData
+impl<'st> TryFrom<types::PaymentsResponseRouterData<'st, KlarnaPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData<'st>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
+        item: types::PaymentsResponseRouterData<'st, KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         let url = Url::parse(&response.redirection_url)

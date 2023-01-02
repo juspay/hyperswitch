@@ -26,7 +26,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
-) -> RouterResult<types::RefundsRouterData<F>> {
+) -> RouterResult<types::RefundsRouterData<'a, F>> {
     let db = &*state.store;
     //TODO: everytime parsing the json may have impact?
     let merchant_connector_account = db
@@ -60,6 +60,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
+        st: &state.flow_name,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_attempt.payment_id.clone(),

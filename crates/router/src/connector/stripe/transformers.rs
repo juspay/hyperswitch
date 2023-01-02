@@ -142,9 +142,9 @@ pub enum StripePaymentMethodData {
     Paypal,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData<'_>> for PaymentIntentRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'_>) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string(); //Fetch autogenrated txn_uuid from Database.
@@ -256,9 +256,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     }
 }
 
-impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
+impl TryFrom<&types::VerifyRouterData<'_>> for SetupIntentRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::VerifyRouterData<'_>) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string();
@@ -352,13 +352,20 @@ pub struct SetupIntentResponse {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<'st, F, T>
+    TryFrom<
+        types::ResponseRouterData<'st, F, PaymentIntentResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            'st,
+            F,
+            PaymentIntentResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.next_action.as_ref().map(
             |StripeNextActionResponse::RedirectToUrl(response)| {
@@ -404,13 +411,19 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<'st, F, T>
+    TryFrom<types::ResponseRouterData<'st, F, SetupIntentResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            'st,
+            F,
+            SetupIntentResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.next_action.as_ref().map(
             |StripeNextActionResponse::RedirectToUrl(response)| {
@@ -499,9 +512,9 @@ pub struct RefundRequest {
     pub metadata_txn_uuid: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<'st, F> TryFrom<&types::RefundsRouterData<'st, F>> for RefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<'st, F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
         let metadata_txn_uuid = "Fetch txn_id from DB".to_string();
@@ -550,12 +563,12 @@ pub struct RefundResponse {
     pub status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::Execute, RefundResponse>>
+    for types::RefundsRouterData<'st, api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -567,12 +580,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::RSync, RefundResponse>>
+    for types::RefundsRouterData<'st, api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -632,9 +645,9 @@ pub struct CancelRequest {
     cancellation_reason: Option<CancellationReason>,
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData<'_>> for CancelRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData<'_>) -> Result<Self, Self::Error> {
         let cancellation_reason = match &item.request.cancellation_reason {
             Some(c) => Some(
                 CancellationReason::from_str(c)
@@ -685,9 +698,9 @@ pub struct CaptureRequest {
     amount_to_capture: Option<i64>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
+impl TryFrom<&types::PaymentsCaptureRouterData<'_>> for CaptureRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCaptureRouterData<'_>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: item.request.amount_to_capture,
         })

@@ -83,11 +83,11 @@ pub async fn get_customer_mandates(
     }
 }
 
-pub async fn mandate_procedure<F, FData>(
-    state: &AppState,
-    mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
-) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+pub async fn mandate_procedure<'st, 'a, F, FData>(
+    state: &'st AppState,
+    mut resp: types::RouterData<'st, F, FData, types::PaymentsResponseData>,
+    maybe_customer: &'a Option<storage::Customer>,
+) -> errors::RouterResult<types::RouterData<'st, F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
 {

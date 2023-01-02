@@ -251,9 +251,9 @@ impl TryFrom<&types::BrowserInformation> for AdyenBrowserInfo {
 }
 
 // Payment Request Transform
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
+impl<'st> TryFrom<&types::PaymentsAuthorizeRouterData<'st>> for AdyenPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'st>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let reference = item.payment_id.to_string();
         let amount = Amount {
@@ -380,9 +380,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
+impl<'st> TryFrom<&types::PaymentsCancelRouterData<'st>> for AdyenCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData<'st>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
@@ -392,12 +392,12 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     }
 }
 
-impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
-    for types::PaymentsCancelRouterData
+impl<'st> TryFrom<types::PaymentsCancelResponseRouterData<'st, AdyenCancelResponse>>
+    for types::PaymentsCancelRouterData<'st>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
+        item: types::PaymentsCancelResponseRouterData<'st, AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.response.as_str() {
             "received" => storage_enums::AttemptStatus::Voided,
@@ -521,13 +521,20 @@ pub fn get_redirection_response(
     Ok((status, error, payments_response_data))
 }
 
-impl<F, Req>
-    TryFrom<types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>>
-    for types::RouterData<F, Req, types::PaymentsResponseData>
+impl<'st, F, Req>
+    TryFrom<
+        types::ResponseRouterData<'st, F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
+    > for types::RouterData<'st, F, Req, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            'st,
+            F,
+            AdyenPaymentResponse,
+            Req,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data) = match item.response {
             AdyenPaymentResponse::AdyenResponse(response) => get_adyen_response(response)?,
@@ -579,9 +586,9 @@ impl From<AdyenPaymentStatus> for enums::Status {
 }
 */
 // Refund Request Transform
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
+impl<'st, F> TryFrom<&types::RefundsRouterData<'st, F>> for AdyenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<'st, F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
@@ -591,12 +598,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
 }
 
 // Refund Response Transform
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
-    for types::RefundsRouterData<F>
+impl<'st, F> TryFrom<types::RefundsResponseRouterData<'st, F, AdyenRefundResponse>>
+    for types::RefundsRouterData<'st, F>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<F, AdyenRefundResponse>,
+        item: types::RefundsResponseRouterData<'st, F, AdyenRefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = match item.response.status.as_str() {
             // From the docs, the only value returned is "received", outcome of refund is available

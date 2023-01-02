@@ -28,9 +28,9 @@ pub struct Card {
     cardholder_name: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
+impl<'st> TryFrom<&types::PaymentsAuthorizeRouterData<'st>> for Shift4PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'st>) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let submit_for_settlement = matches!(
@@ -141,13 +141,20 @@ pub struct Shift4PaymentsResponse {
     refunded: bool,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, Shift4PaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<'st, F, T>
+    TryFrom<
+        types::ResponseRouterData<'st, F, Shift4PaymentsResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, Shift4PaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            'st,
+            F,
+            Shift4PaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: get_payment_status(&item.response),
@@ -171,9 +178,9 @@ pub struct Shift4RefundRequest {
     amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<'_, F>> for Shift4RefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<'_, F>) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
             amount: item.request.amount,
@@ -209,12 +216,12 @@ pub enum Shift4RefundStatus {
     Failed,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::Execute, RefundResponse>>
+    for types::RefundsRouterData<'st, api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
@@ -227,12 +234,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl<'st> TryFrom<types::RefundsResponseRouterData<'st, api::RSync, RefundResponse>>
+    for types::RefundsRouterData<'st, api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<'st, api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {

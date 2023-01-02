@@ -26,10 +26,10 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
+) -> RouterResult<types::RouterData<'a, F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentData<F>>,
-    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
+    types::RouterData<'a, F, T, types::PaymentsResponseData>: Feature<'a, F, T>,
     F: Clone,
     error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
@@ -78,6 +78,7 @@ where
 
     router_data = types::RouterData {
         flow: PhantomData,
+        st: &state.flow_name,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),

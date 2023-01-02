@@ -135,7 +135,7 @@ pub async fn trigger_refund_to_gateway(
     let router_data = services::execute_connector_processing_step(
         state,
         connector_integration,
-        &router_data,
+        router_data,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -277,7 +277,7 @@ pub async fn sync_refund_with_gateway(
     let router_data = services::execute_connector_processing_step(
         state,
         connector_integration,
-        &router_data,
+        router_data,
         payments::CallConnectorAction::Trigger,
     )
     .await
@@ -497,10 +497,10 @@ fn mk_new_refund(
     }
 }
 
-impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
+impl<'st, F> TryFrom<types::RefundsRouterData<'st, F>> for refunds::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
+    fn try_from(data: types::RefundsRouterData<'st, F>) -> RouterResult<Self> {
         let refund_id = data.request.refund_id.to_string();
         let response = data.response;
 

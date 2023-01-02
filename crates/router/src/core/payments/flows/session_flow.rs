@@ -17,16 +17,20 @@ use crate::{
 };
 
 #[async_trait]
-impl
-    ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for PaymentData<api::Session>
+impl<'st>
+    ConstructFlowSpecificData<
+        'st,
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::Session>
 {
-    async fn construct_router_data<'a>(
+    async fn construct_router_data(
         &self,
-        state: &routes::AppState,
+        state: &'st routes::AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<types::PaymentsSessionRouterData> {
+    ) -> RouterResult<types::PaymentsSessionRouterData<'st>> {
         transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
             state,
             self.clone(),
@@ -38,29 +42,26 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
-    async fn decide_flows<'a>(
+impl<'st> Feature<'st, api::Session, types::PaymentsSessionData>
+    for types::PaymentsSessionRouterData<'st>
+{
+    type Output<'rd> = types::PaymentsSessionRouterData<'rd>;
+    async fn decide_flows(
         self,
-        state: &routes::AppState,
+        state: &'st routes::AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _storage_schema: enums::MerchantStorageScheme,
     ) -> RouterResult<Self> {
-        self.decide_flow(
-            state,
-            connector,
-            customer,
-            Some(true),
-            call_connector_action,
-        )
-        .await
+        self.decide_flow(state, connector, customer, call_connector_action)
+            .await
     }
 }
 
-fn create_gpay_session_token(
-    router_data: &types::PaymentsSessionRouterData,
-) -> RouterResult<types::PaymentsSessionRouterData> {
+fn create_gpay_session_token<'rd, 'st>(
+    router_data: &'rd types::PaymentsSessionRouterData<'st>,
+) -> RouterResult<types::PaymentsSessionRouterData<'st>> {
     let connector_metadata = router_data.connector_meta_data.clone();
 
     let gpay_data = connector_metadata
@@ -97,17 +98,16 @@ fn create_gpay_session_token(
     Ok(response_router_data)
 }
 
-impl types::PaymentsSessionRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &'a routes::AppState,
+impl<'st> types::PaymentsSessionRouterData<'st> {
+    pub async fn decide_flow(
+        self,
+        state: &'st routes::AppState,
         connector: &api::ConnectorData,
         _customer: &Option<storage::Customer>,
-        _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Self> {
+    ) -> RouterResult<types::PaymentsSessionRouterData<'st>> {
         match connector.get_token {
-            api::GetToken::Metadata => create_gpay_session_token(self),
+            api::GetToken::Metadata => create_gpay_session_token(&self),
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,

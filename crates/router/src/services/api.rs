@@ -33,7 +33,7 @@ use crate::{
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
-    Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
+    Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync + 'a)>;
 
 pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
@@ -49,9 +49,9 @@ where
 }
 
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
-    fn get_headers(
+    fn get_headers<'rd>(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &'rd types::RouterData<'_, T, Req, Resp>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![])
     }
@@ -60,34 +60,34 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         mime::APPLICATION_JSON.essence_str()
     }
 
-    fn get_url(
+    fn get_url<'rd>(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &'rd types::RouterData<'_, T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(String::new())
     }
 
-    fn get_request_body(
+    fn get_request_body<'rd>(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &'rd types::RouterData<'_, T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn build_request(
+    fn build_request<'rd, 'st>(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &'rd types::RouterData<'st, T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::RouterData<T, Req, Resp>,
+        data: &'rd types::RouterData<'st, T, Req, Resp>,
         _res: types::Response,
-    ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<types::RouterData<'st, T, Req, Resp>, errors::ConnectorError>
     where
         T: Clone,
         Req: Clone,
@@ -103,16 +103,16 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(ErrorResponse::get_not_implemented())
     }
 
-    fn get_certificate(
+    fn get_certificate<'rd>(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &'rd types::RouterData<'_, T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn get_certificate_key(
+    fn get_certificate_key<'rd>(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &'rd types::RouterData<'_, T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
@@ -120,20 +120,18 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
 #[instrument(skip_all)]
 pub async fn execute_connector_processing_step<
-    'b,
-    'a,
+    'st,
     T: 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    state: &'b AppState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
-    req: &'b types::RouterData<T, Req, Resp>,
+    state: &'st AppState,
+    connector_integration: BoxedConnectorIntegration<'static, T, Req, Resp>,
+    req: types::RouterData<'st, T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
-) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
+) -> CustomResult<types::RouterData<'st, T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug,
-    // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
@@ -145,7 +143,7 @@ where
                 status_code: 200,
             };
 
-            connector_integration.handle_response(req, response)
+            connector_integration.handle_response(&req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate(status) => {
@@ -153,13 +151,13 @@ where
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {
-            match connector_integration.build_request(req, &state.conf.connectors)? {
+            match connector_integration.build_request(&req, &state.conf.connectors)? {
                 Some(request) => {
                     let response = call_connector_api(state, request).await;
                     match response {
                         Ok(body) => {
                             let response = match body {
-                                Ok(body) => connector_integration.handle_response(req, body)?,
+                                Ok(body) => connector_integration.handle_response(&req, body)?,
                                 Err(body) => {
                                     let error =
                                         connector_integration.get_error_response(body.response)?;

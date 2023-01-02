@@ -97,9 +97,9 @@ pub enum AciPaymentType {
     Refund,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
+impl<'st> TryFrom<&types::PaymentsAuthorizeRouterData<'st>> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData<'st>) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => PaymentDetails::Card(CardDetails {
                 card_number: ccard.card_number.peek().clone(),
@@ -128,9 +128,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
+impl<'st> TryFrom<&types::PaymentsCancelRouterData<'st>> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData<'st>) -> Result<Self, Self::Error> {
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
         let aci_payment_request = Self {
             entity_id: auth.entity_id,
@@ -201,13 +201,19 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<'st, F, T>
+    TryFrom<types::ResponseRouterData<'st, F, AciPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<'st, F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            'st,
+            F,
+            AciPaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
@@ -233,9 +239,9 @@ pub struct AciRefundRequest {
     pub entity_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
+impl<'st, F> TryFrom<&types::RefundsRouterData<'st, F>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<'st, F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let currency = item.request.currency;
         let payment_type = AciPaymentType::Refund;
@@ -297,12 +303,12 @@ pub struct AciRefundResponse {
     pub(super) result: ResultCode,
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
-    for types::RefundsRouterData<F>
+impl<'st, F> TryFrom<types::RefundsResponseRouterData<'st, F, AciRefundResponse>>
+    for types::RefundsRouterData<'st, F>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<F, AciRefundResponse>,
+        item: types::RefundsResponseRouterData<'st, F, AciRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {

@@ -62,7 +62,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -82,7 +82,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        _req: &types::PaymentsSessionRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -94,7 +94,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         // encode only for for urlencoded things.
         let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_encode(req)
@@ -105,7 +105,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -118,11 +118,11 @@ impl
         ))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsSessionRouterData,
+        data: &types::PaymentsSessionRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsSessionRouterData<'st>, errors::ConnectorError> {
         logger::debug!(klarna_session_response_logs=?res);
         let response: klarna::KlarnaSessionResponse = res
             .response
@@ -190,7 +190,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -210,7 +210,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
@@ -233,7 +233,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -243,7 +243,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData<'_>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -258,11 +258,11 @@ impl
         ))
     }
 
-    fn handle_response(
+    fn handle_response<'rd, 'st>(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &types::PaymentsAuthorizeRouterData<'st>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData<'st>, errors::ConnectorError> {
         logger::debug!(klarna_raw_response=?res);
         let response: klarna::KlarnaPaymentsResponse = res
             .response
