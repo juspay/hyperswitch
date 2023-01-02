@@ -347,9 +347,28 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             )),
             test_mode: merchant_ca.test_mode,
             disabled: merchant_ca.disabled,
-            metadata: None,
+            metadata: merchant_ca.metadata,
             payment_methods_enabled,
         }
         .into())
+    }
+}
+
+impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address::AddressNew> {
+    fn from(item: F<api_models::payments::AddressDetails>) -> Self {
+        let address = item.0;
+        storage_models::address::AddressNew {
+            city: address.city,
+            country: address.country,
+            line1: address.line1,
+            line2: address.line2,
+            line3: address.line3,
+            state: address.state,
+            zip: address.zip,
+            first_name: address.first_name,
+            last_name: address.last_name,
+            ..Default::default()
+        }
+        .into()
     }
 }

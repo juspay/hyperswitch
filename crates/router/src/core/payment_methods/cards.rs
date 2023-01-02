@@ -138,7 +138,6 @@ pub async fn add_card(
     let locker = &state.conf.locker;
     let db = &*state.store;
     let request = payment_methods::mk_add_card_request(locker, &card, &customer_id, &req)?;
-    // FIXME use call_api 2. Serde's handle should be inside the generic function
     let response = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
@@ -280,7 +279,6 @@ pub async fn get_card_from_legacy_locker<'a>(
     let request = payment_methods::mk_get_card_request(locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making get card request failed")?;
-    // FIXME use call_api 2. Serde's handle should be inside the generic function
     let get_card_result = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
@@ -315,7 +313,6 @@ pub async fn delete_card<'a>(
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
-    // FIXME use call_api 2. Serde's handle should be inside the generic function
     let delete_card_resp = if !locker.mock_locker {
         services::call_connector_api(state, request)
             .await

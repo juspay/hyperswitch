@@ -52,6 +52,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![])
     }

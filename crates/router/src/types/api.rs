@@ -67,6 +67,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     fn build_headers(
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
