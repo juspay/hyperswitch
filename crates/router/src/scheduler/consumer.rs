@@ -68,10 +68,15 @@ pub async fn start_consumer(
             ))
             .tick()
             .await;
-            let _active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-            // TODO: Handle termination?
-            info!("Terminating consumer");
-            break;
+            let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
+
+            match active_tasks {
+                0 => {
+                    info!("Terminating consumer");
+                    break;
+                }
+                _ => continue,
+            }
         }
     }
 
