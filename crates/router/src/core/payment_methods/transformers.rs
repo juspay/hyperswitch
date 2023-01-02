@@ -74,10 +74,10 @@ pub fn mk_add_card_request(
         customer_id,
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
-        merchant_id: "m0010", //FIXME: Need mapping for application mid to lockeId
-        email_address: Some("dummy@gmail.com".to_string().into()), //FIXME: If these are mandatory need to have customer object
-        name_on_card: Some("juspay".to_string().into()),           //FIXME
-        nickname: Some("orca".to_string()),                        //FIXME
+        merchant_id: "m0010", // [#253]: Need mapping for application mid to lockeId
+        email_address: Some("dummy@gmail.com".to_string().into()), //
+        name_on_card: Some("juspay".to_string().into()), // [#256]
+        nickname: Some("orca".to_string()), //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
         .change_context(errors::CardVaultError::RequestEncodingFailed)?;
@@ -99,11 +99,11 @@ pub fn mk_add_card_response(
     let card = api::CardDetailFromLocker {
         scheme: None,
         last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-        issuer_country: None, // TODO bin mapping
+        issuer_country: None, // [#256] bin mapping
         card_number: Some(card.card_number),
         expiry_month: Some(card.card_exp_month),
         expiry_year: Some(card.card_exp_year),
-        card_token: Some(response.external_id.into()), // TODO ?
+        card_token: Some(response.external_id.into()), // [#256]
         card_fingerprint: Some(response.card_fingerprint),
         card_holder_name: None,
     };
@@ -118,11 +118,11 @@ pub fn mk_add_card_response(
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
         payment_method_issuer_code: req.payment_method_issuer_code,
-        recurring_enabled: false,           //TODO
-        installment_payment_enabled: false, //TODO
+        recurring_enabled: false,           // [#256]
+        installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![
             api_models::payment_methods::PaymentExperience::RedirectToUrl,
-        ]), //TODO,
+        ]), // [#256]
     }
 }
 
@@ -132,7 +132,7 @@ pub fn mk_get_card_request<'a>(
     card_id: &'a str,
 ) -> CustomResult<services::Request, errors::CardVaultError> {
     let get_card_req = GetCard {
-        merchant_id: "m0010", //FIXME: need to assign locker id to every merchant
+        merchant_id: "m0010", // [#253]: need to assign locker id to every merchant
         card_id,
     };
 

@@ -322,8 +322,12 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<'st, F, Req, types::PaymentsResponseData>,
-    types::RouterData<'st, F, Req, types::PaymentsResponseData>: Feature<'st, F, Req, Output<'st> = types::RouterData<'st, F, Req, types::PaymentsResponseData>>
-        + Send,
+    types::RouterData<'st, F, Req, types::PaymentsResponseData>: Feature<
+            'st,
+            F,
+            Req,
+            Output<'st> = types::RouterData<'st, F, Req, types::PaymentsResponseData>,
+        > + Send,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,

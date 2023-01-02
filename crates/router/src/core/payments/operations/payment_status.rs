@@ -9,7 +9,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        errors::{self, ApiErrorResponse, CustomResult, RouterResult, StorageErrorExt},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
@@ -19,7 +19,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -109,7 +109,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
-    ) -> CustomResult<(), ApiErrorResponse> {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         helpers::add_domain_task_to_pt(self, state, payment_attempt).await
     }
 
@@ -118,7 +118,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request_connector: Option<api_enums::Connector>,
-    ) -> CustomResult<api::ConnectorCallType, ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
@@ -249,18 +249,6 @@ async fn get_tracker_for_sync<
     let billing_address =
         helpers::get_address_by_id(db, payment_intent.billing_address_id.clone()).await?;
 
-    utils::when(
-        request.force_sync && !helpers::can_call_connector(payment_intent.status),
-        || {
-            Err(ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "cannot perform force_sync as status: {}",
-                    payment_intent.status
-                ),
-            })
-        },
-    )?;
-
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
@@ -271,7 +259,6 @@ async fn get_tracker_for_sync<
         PaymentData {
             flow: PhantomData,
             payment_intent,
-            payment_attempt,
             connector_response,
             currency,
             amount,
@@ -285,7 +272,10 @@ async fn get_tracker_for_sync<
             },
             confirm: Some(request.force_sync),
             payment_method_data: None,
-            force_sync: Some(request.force_sync),
+            force_sync: Some(
+                request.force_sync && helpers::can_call_connector(&payment_attempt.status),
+            ),
+            payment_attempt,
             refunds,
             sessions_token: vec![],
             card_cvc: None,

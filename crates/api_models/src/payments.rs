@@ -28,7 +28,7 @@ pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     pub amount: Option<Amount>,
     pub connector: Option<api_enums::Connector>,
-    pub currency: Option<String>,
+    pub currency: Option<api_enums::Currency>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub amount_to_capture: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]

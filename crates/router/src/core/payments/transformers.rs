@@ -33,8 +33,6 @@ where
     F: Clone,
     error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
-    //TODO: everytime parsing the json may have impact?
-
     let (merchant_connector_account, payment_method, router_data);
     let db = &*state.store;
     merchant_connector_account = db
@@ -58,7 +56,7 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    //FIXME[#44]: why should response be filled during request
+    // [#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
@@ -97,6 +95,7 @@ where
         connector_meta_data: merchant_connector_account.metadata,
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        amount_captured: payment_data.payment_intent.amount_captured,
     };
 
     Ok(router_data)
