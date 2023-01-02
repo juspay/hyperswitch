@@ -5,19 +5,19 @@ use quote::{quote, ToTokens};
 use syn::{spanned::Spanned, DeriveInput};
 
 #[derive(Debug)]
-enum MacroErrors {
+enum MacroError {
     SynError(syn::Error),
     NotFound { message: String, span: Span },
     FormatError { message: String, span: Span },
 }
 
-impl std::error::Error for MacroErrors {}
-impl fmt::Display for MacroErrors {
+impl std::error::Error for MacroError {}
+impl fmt::Display for MacroError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-impl From<syn::Error> for MacroErrors {
+impl From<syn::Error> for MacroError {
     fn from(value: syn::Error) -> Self {
         Self::SynError(value)
     }
@@ -27,10 +27,10 @@ pub fn auto_into_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
     error_unwrap(auto_into_derive(token))
 }
 
-fn auto_into_derive(token: proc_macro::TokenStream) -> Result<TokenStream, MacroErrors> {
+fn auto_into_derive(token: proc_macro::TokenStream) -> Result<TokenStream, MacroError> {
     let input = syn::parse::<DeriveInput>(token)?;
     let ident = &input.ident;
-    let attributes = get_supported_structs(&input.attrs).ok_or(MacroErrors::NotFound {
+    let attributes = get_supported_structs(&input.attrs).ok_or(MacroError::NotFound {
         message: "no attributes for `#[converts(...)]` found".to_string(),
         span: ident.span(),
     })?;
@@ -44,7 +44,7 @@ fn auto_into_derive(token: proc_macro::TokenStream) -> Result<TokenStream, Macro
     {
         Ok(named)
     } else {
-        Err(MacroErrors::NotFound {
+        Err(MacroError::NotFound {
             message: "unable to find fields in the current struct".to_string(),
             span: Span::call_site(),
         })
@@ -77,13 +77,13 @@ fn get_supported_structs(attr: &[syn::Attribute]) -> Option<&syn::Attribute> {
     })
 }
 
-fn convert_to_ident(attr: &syn::Attribute) -> Result<Vec<TokenStream>, MacroErrors> {
+fn convert_to_ident(attr: &syn::Attribute) -> Result<Vec<TokenStream>, MacroError> {
     let meta = attr.parse_meta()?;
     match meta {
         syn::Meta::List(syn::MetaList { nested, .. }) => {
             Ok(nested.into_iter().filter_map(get_ident).collect())
         }
-        _ => Err(MacroErrors::FormatError {
+        _ => Err(MacroError::FormatError {
             message: "unable to detect a list of similar structs to be parsed".to_string(),
             span: attr.span(),
         }),
@@ -135,21 +135,21 @@ fn conversion(
     }
 }
 
-fn to_compile_error(m_err: MacroErrors) -> TokenStream {
-    match m_err {
-        MacroErrors::SynError(err) => err.to_compile_error(),
-        MacroErrors::NotFound { message, span } => {
-            syn::Error::new(span, message).to_compile_error()
-        }
-        MacroErrors::FormatError { message, span } => {
-            syn::Error::new(span, message).to_compile_error()
+impl MacroError {
+    fn to_compile_error(&self) -> TokenStream {
+        match self {
+            Self::SynError(err) => err.to_compile_error(),
+            Self::NotFound { message, span } => syn::Error::new(*span, message).to_compile_error(),
+            Self::FormatError { message, span } => {
+                syn::Error::new(*span, message).to_compile_error()
+            }
         }
     }
 }
 
-fn error_unwrap(res: Result<TokenStream, MacroErrors>) -> proc_macro::TokenStream {
+fn error_unwrap(res: Result<TokenStream, MacroError>) -> proc_macro::TokenStream {
     match res {
         Ok(value) => value.into(),
-        Err(err) => to_compile_error(err).into(),
+        Err(err) => err.to_compile_error().into(),
     }
 }

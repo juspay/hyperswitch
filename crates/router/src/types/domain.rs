@@ -7,7 +7,6 @@ use common_utils::errors;
 pub use payments::*;
 
 use crate::consts;
-mod transformers;
 ///
 /// This is a wrapper that acts as a extension to existing types
 /// <T, I>: Where I is the inner data type & T is the Extension used
