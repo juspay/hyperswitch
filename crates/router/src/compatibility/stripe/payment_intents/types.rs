@@ -1,4 +1,6 @@
 use api_models::{payments, refunds};
+use common_utils::ext_traits::StringExt;
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -131,12 +133,20 @@ pub struct StripePaymentIntentRequest {
     pub client_secret: Option<pii::Secret<String>>,
 }
 
-impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
-    fn from(item: StripePaymentIntentRequest) -> Self {
-        Self {
+impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
+        Ok(Self {
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
-            currency: item.currency.as_ref().map(|c| c.to_uppercase()),
+            currency: item
+                .currency
+                .as_ref()
+                .map(|c| c.to_uppercase().parse_enum("currency"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "currency",
+                })?,
             capture_method: item.capture_method,
             amount_to_capture: item.amount_capturable,
             confirm: item.confirm,
@@ -171,7 +181,7 @@ impl From<StripePaymentIntentRequest> for payments::PaymentsRequest {
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             ..Default::default()
-        }
+        })
     }
 }
 

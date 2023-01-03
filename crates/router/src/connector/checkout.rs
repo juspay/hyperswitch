@@ -184,6 +184,7 @@ impl
     fn get_headers(
         &self,
         req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -222,7 +223,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req)?)
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
@@ -283,6 +284,7 @@ impl
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -327,7 +329,9 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
+                .headers(types::PaymentsAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
                 .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
@@ -382,6 +386,7 @@ impl
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -424,7 +429,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsVoidType::get_headers(self, req)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -479,6 +484,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -526,7 +532,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(self, req)?)
+            .headers(types::RefundExecuteType::get_headers(
+                self, req, connectors,
+            )?)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
@@ -581,6 +589,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -616,7 +625,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(self, req)?)
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
