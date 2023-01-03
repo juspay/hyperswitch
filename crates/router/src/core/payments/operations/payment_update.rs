@@ -20,7 +20,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{OptionExt, StringExt},
+    utils::OptionExt,
 };
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
@@ -65,11 +65,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })?;
 
         currency = match request.currency {
-            Some(ref cur) => cur.clone().parse_enum("currency").change_context(
-                errors::ApiErrorResponse::InvalidRequestData {
-                    message: "invalid currency".to_string(),
-                },
-            )?,
+            Some(cur) => cur.foreign_into(),
             None => payment_attempt.currency.get_required_value("currency")?,
         };
 
