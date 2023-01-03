@@ -155,7 +155,7 @@ pub async fn add_card(
         response
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_add_card(db, &card_id, &card, None).await?
+        mock_add_card(db, &card_id, &card, None, None).await?
     };
 
     if let Some(false) = response.duplicate {
@@ -187,6 +187,7 @@ pub async fn mock_add_card(
     card_id: &str,
     card: &api::CardDetail,
     card_cvc: Option<String>,
+    payment_method_id: Option<String>,
 ) -> errors::CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
     let locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
@@ -198,6 +199,7 @@ pub async fn mock_add_card(
         card_exp_year: card.card_exp_year.peek().to_string(),
         card_exp_month: card.card_exp_month.peek().to_string(),
         card_cvc,
+        payment_method_id,
     };
 
     let response = db
@@ -231,7 +233,9 @@ pub async fn mock_get_card<'a>(
         .await
         .change_context(errors::CardVaultError::FetchCardFailed)?;
     let add_card_response = payment_methods::AddCardResponse {
-        card_id: locker_mock_up.card_id,
+        card_id: locker_mock_up
+            .payment_method_id
+            .unwrap_or(locker_mock_up.card_id),
         external_id: locker_mock_up.external_id,
         card_fingerprint: locker_mock_up.card_fingerprint.into(),
         card_global_fingerprint: locker_mock_up.card_global_fingerprint.into(),
@@ -563,7 +567,7 @@ pub async fn get_lookup_key_from_locker(
         .attach_printable("Get Card Details Failed")?;
     let card = card_detail.clone();
     let resp =
-        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card)
+        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
             .await?;
     Ok(resp)
 }
@@ -576,6 +580,7 @@ impl BasiliskCardSupport {
         state: &routes::AppState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
+        pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card
             .card_number
@@ -604,10 +609,16 @@ impl BasiliskCardSupport {
             card_holder_name: Some(card_holder_name.into()),
         };
         let db = &*state.store;
-        mock_add_card(db, payment_token, &card_detail, None)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
+        mock_add_card(
+            db,
+            payment_token,
+            &card_detail,
+            None,
+            Some(pm.payment_method_id.to_string()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed")?;
         Ok(card)
     }
 }
@@ -619,6 +630,7 @@ impl BasiliskCardSupport {
         state: &routes::AppState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
+        pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card
             .card_number
@@ -656,9 +668,15 @@ impl BasiliskCardSupport {
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Value1 for locker")?;
-        let value2 = payment_methods::mk_card_value2(None, Some(card_fingerprint), None, None)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value2 for locker")?;
+        let value2 = payment_methods::mk_card_value2(
+            None,
+            Some(card_fingerprint),
+            None,
+            Some(pm.customer_id.to_string()),
+            Some(pm.payment_method_id.to_string()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value2 for locker")?;
         create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
         Ok(card)
     }
@@ -738,11 +756,23 @@ pub async fn delete_payment_method(
     merchant_account: storage::MerchantAccount,
     pm: api::PaymentMethodId,
 ) -> errors::RouterResponse<api::DeletePaymentMethodResponse> {
+    let (_, value2) =
+        helpers::Vault::get_payment_method_data_from_locker(state, &pm.payment_method_id).await?;
+    let payment_method_id = value2.map_or(
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound),
+        |pm_value2| {
+            pm_value2
+                .payment_method_id
+                .map_or(Err(errors::ApiErrorResponse::PaymentMethodNotFound), |x| {
+                    Ok(x)
+                })
+        },
+    )?;
     let pm = state
         .store
         .delete_payment_method_by_merchant_id_payment_method_id(
             &merchant_account.merchant_id,
-            &pm.payment_method_id,
+            &payment_method_id,
         )
         .await
         .map_err(|error| {
@@ -750,7 +780,7 @@ pub async fn delete_payment_method(
         })?;
 
     if pm.payment_method == enums::PaymentMethodType::Card {
-        let response = delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
+        let response = delete_card(state, &pm.merchant_id, &payment_method_id).await?;
         if response.status == "success" {
             print!("Card From locker deleted Successfully")
         } else {
