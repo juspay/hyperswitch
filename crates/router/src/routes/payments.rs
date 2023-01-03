@@ -1,38 +1,26 @@
-use std::borrow::Cow;
+use std::borrow;
 
-use actix_web::{
-    body::{BoxBody, MessageBody},
-    web, HttpRequest, HttpResponse, Responder,
-};
+use actix_web::{body, web, Responder};
 use error_stack::report;
 use router_env::{
     tracing::{self, instrument},
     Flow,
 };
 
-use super::app::AppState;
 use crate::{
+    self as app,
     core::{errors::http_not_implemented, payments},
     services::api,
-    types::api::{
-        self as api_types, enums as api_enums,
-        payments::{
-            PaymentIdType, PaymentListConstraints, PaymentsCancelRequest, PaymentsCaptureRequest,
-            PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
-        },
-        Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsSessionRequest,
-        PaymentsSessionResponse, PaymentsStartRequest, Session, Verify, Void,
-    },
-    //FIXME: remove specific imports
+    types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
 pub async fn payments_create(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<PaymentsRequest>,
-) -> HttpResponse {
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
+) -> impl Responder {
     let payload = json_payload.into_inner();
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
@@ -49,7 +37,13 @@ pub async fn payments_create(
                 let connector = req.connector;
                 match req.amount.as_ref() {
                     Some(api_types::Amount::Value(_)) | None => {
-                        payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+                        payments::payments_core::<
+                            api_types::Authorize,
+                            payment_types::PaymentsResponse,
+                            _,
+                            _,
+                            _,
+                        >(
                             state,
                             merchant_account,
                             payments::PaymentCreate,
@@ -62,7 +56,13 @@ pub async fn payments_create(
                     }
 
                     Some(api_types::Amount::Zero) => {
-                        payments::payments_core::<Verify, PaymentsResponse, _, _, _>(
+                        payments::payments_core::<
+                            api_types::Verify,
+                            payment_types::PaymentsResponse,
+                            _,
+                            _,
+                            _,
+                        >(
                             state,
                             merchant_account,
                             payments::PaymentCreate,
@@ -83,12 +83,12 @@ pub async fn payments_create(
 
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
-    state: web::Data<AppState>,
-    req: HttpRequest,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
     path: web::Path<(String, String, String)>,
-) -> HttpResponse {
+) -> impl Responder {
     let (payment_id, merchant_id, attempt_id) = path.into_inner();
-    let payload = PaymentsStartRequest {
+    let payload = payment_types::PaymentsStartRequest {
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
         txn_id: attempt_id.clone(),
@@ -98,7 +98,7 @@ pub async fn payments_start(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::operations::PaymentStart,
@@ -108,7 +108,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
+        api::MerchantAuthentication::MerchantId(borrow::Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -116,13 +116,13 @@ pub async fn payments_start(
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
-    state: web::Data<AppState>,
-    req: HttpRequest,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Query<PaymentRetrieveBody>,
-) -> HttpResponse {
-    let payload = PaymentsRetrieveRequest {
-        resource_id: PaymentIdType::PaymentIntentId(path.to_string()),
+    json_payload: web::Query<payment_types::PaymentRetrieveBody>,
+) -> impl Responder {
+    let payload = payment_types::PaymentsRetrieveRequest {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
         param: None,
@@ -139,7 +139,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<PSync, PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -157,11 +157,11 @@ pub async fn payments_retrieve(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 // #[post("/{payment_id}")]
 pub async fn payments_update(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<PaymentsRequest>,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
     path: web::Path<String>,
-) -> HttpResponse {
+) -> impl Responder {
     let mut payload = json_payload.into_inner();
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
@@ -170,7 +170,7 @@ pub async fn payments_update(
 
     let payment_id = path.into_inner();
 
-    payload.payment_id = Some(PaymentIdType::PaymentIntentId(payment_id));
+    payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
 
     let auth_type;
     (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
@@ -186,7 +186,7 @@ pub async fn payments_update(
         payload,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -204,11 +204,11 @@ pub async fn payments_update(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 // #[post("/{payment_id}/confirm")]
 pub async fn payments_confirm(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<PaymentsRequest>,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
     path: web::Path<String>,
-) -> HttpResponse {
+) -> impl Responder {
     let mut payload = json_payload.into_inner();
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
@@ -216,7 +216,7 @@ pub async fn payments_confirm(
     };
 
     let payment_id = path.into_inner();
-    payload.payment_id = Some(PaymentIdType::PaymentIntentId(payment_id));
+    payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
     let auth_type;
@@ -232,7 +232,7 @@ pub async fn payments_confirm(
         payload,
         |state, merchant_account, req| {
             let connector = req.connector;
-            payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
@@ -250,12 +250,12 @@ pub async fn payments_confirm(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
 pub async fn payments_capture(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<PaymentsCaptureRequest>,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCaptureRequest>,
     path: web::Path<String>,
-) -> HttpResponse {
-    let capture_payload = PaymentsCaptureRequest {
+) -> impl Responder {
+    let capture_payload = payment_types::PaymentsCaptureRequest {
         payment_id: Some(path.into_inner()),
         ..json_payload.into_inner()
     };
@@ -265,7 +265,7 @@ pub async fn payments_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Capture, PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -282,10 +282,10 @@ pub async fn payments_capture(
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub async fn payments_connector_session(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<PaymentsSessionRequest>,
-) -> HttpResponse {
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsSessionRequest>,
+) -> impl Responder {
     let sessions_payload = json_payload.into_inner();
 
     api::server_wrap(
@@ -293,7 +293,13 @@ pub async fn payments_connector_session(
         &req,
         sessions_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Session, PaymentsSessionResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Session,
+                payment_types::PaymentsSessionResponse,
+                _,
+                _,
+                _,
+            >(
                 state,
                 merchant_account,
                 payments::PaymentSession,
@@ -310,15 +316,15 @@ pub async fn payments_connector_session(
 
 #[instrument(skip_all)]
 pub async fn payments_response(
-    state: web::Data<AppState>,
-    req: HttpRequest,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
     path: web::Path<(String, String, String)>,
-) -> HttpResponse {
+) -> impl Responder {
     let (payment_id, merchant_id, connector) = path.into_inner();
     let param_string = req.query_string();
 
-    let payload = PaymentsRetrieveRequest {
-        resource_id: PaymentIdType::PaymentIntentId(payment_id),
+    let payload = payment_types::PaymentsRetrieveRequest {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
         force_sync: true,
         param: Some(param_string.to_string()),
@@ -329,9 +335,13 @@ pub async fn payments_response(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::handle_payments_redirect_response::<PSync>(state, merchant_account, req)
+            payments::handle_payments_redirect_response::<api_types::PSync>(
+                state,
+                merchant_account,
+                req,
+            )
         },
-        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
+        api::MerchantAuthentication::MerchantId(borrow::Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -339,9 +349,9 @@ pub async fn payments_response(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 // #[post("/{payment_id}/cancel")]
 pub async fn payments_cancel(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<PaymentsCancelRequest>,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCancelRequest>,
     path: web::Path<String>,
 ) -> impl Responder {
     let mut payload = json_payload.into_inner();
@@ -353,7 +363,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Void, PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,
@@ -371,10 +381,10 @@ pub async fn payments_cancel(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 // #[get("/list")]
 pub async fn payments_list(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Query<PaymentListConstraints>,
-) -> HttpResponse {
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::PaymentListConstraints>,
+) -> impl Responder {
     let payload = payload.into_inner();
     api::server_wrap(
         &state,
@@ -386,11 +396,4 @@ pub async fn payments_list(
         api::MerchantAuthentication::ApiKey,
     )
     .await
-}
-
-fn _http_response<T: MessageBody + 'static>(response: T) -> HttpResponse<BoxBody> {
-    HttpResponse::Ok()
-        .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
-        .body(response)
 }
