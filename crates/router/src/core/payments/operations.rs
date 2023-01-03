@@ -93,6 +93,7 @@ pub trait GetTracker<F, D, R>: Send {
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
         storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 

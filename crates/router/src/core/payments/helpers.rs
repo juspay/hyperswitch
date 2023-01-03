@@ -103,6 +103,7 @@ pub async fn get_token_pm_type_mandate_details(
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTxnType>,
     merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethodType>,
@@ -122,7 +123,8 @@ pub async fn get_token_pm_type_mandate_details(
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
             let (token_, payment_method_type_) =
-                get_token_for_recurring_mandate(state, request, merchant_id).await?;
+                get_token_for_recurring_mandate(state, request, merchant_id, merchant_account)
+                    .await?;
             Ok((token_, payment_method_type_, None))
         }
         None => Ok((
@@ -137,6 +139,7 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethodType>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
@@ -177,8 +180,11 @@ pub async fn get_token_for_recurring_mandate(
         })?;
 
     let token = Uuid::new_v4().to_string();
-
-    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
+    let locker_id = merchant_account
+        .locker_id
+        .to_owned()
+        .get_required_value("locker_id")?;
+    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
         let pm: storage_enums::PaymentMethodType = payment_method_from_request.foreign_into();
@@ -472,7 +478,7 @@ where
 #[instrument(skip_all)]
 pub(crate) async fn call_payment_method(
     state: &AppState,
-    merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
     payment_method: Option<&api::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     maybe_customer: &Option<storage::Customer>,
@@ -502,7 +508,7 @@ pub(crate) async fn call_payment_method(
                             let resp = cards::add_payment_method(
                                 state,
                                 payment_method_request,
-                                merchant_id.to_string(),
+                                merchant_account,
                             )
                             .await
                             .attach_printable("Error on adding payment method")?;
@@ -530,13 +536,10 @@ pub(crate) async fn call_payment_method(
                         metadata: None,
                         customer_id: None,
                     };
-                    let resp = cards::add_payment_method(
-                        state,
-                        payment_method_request,
-                        merchant_id.to_string(),
-                    )
-                    .await
-                    .attach_printable("Error on adding payment method")?;
+                    let resp =
+                        cards::add_payment_method(state, payment_method_request, merchant_account)
+                            .await
+                            .attach_printable("Error on adding payment method")?;
                     match resp {
                         crate::services::BachResponse::Json(payment_method) => Ok(payment_method),
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)

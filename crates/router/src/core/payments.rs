@@ -78,6 +78,7 @@ where
             &req,
             validate_result.mandate_type,
             validate_result.storage_scheme,
+            &merchant_account,
         )
         .await?;
 
@@ -335,7 +336,7 @@ where
             &connector,
             customer,
             call_connector_action,
-            merchant_account.storage_scheme,
+            merchant_account,
         )
         .await;
 
@@ -399,7 +400,7 @@ where
             connector,
             customer,
             CallConnectorAction::Trigger,
-            merchant_account.storage_scheme,
+            merchant_account,
         );
 
         join_handlers.push(res);

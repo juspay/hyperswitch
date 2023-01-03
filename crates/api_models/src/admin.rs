@@ -24,6 +24,7 @@ pub struct CreateMerchantAccount {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub metadata: Option<serde_json::Value>,
     pub publishable_key: Option<String>,
+    pub locker_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
