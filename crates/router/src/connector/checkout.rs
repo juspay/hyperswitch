@@ -134,7 +134,9 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(self, req, connectors)?)
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
                 .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
