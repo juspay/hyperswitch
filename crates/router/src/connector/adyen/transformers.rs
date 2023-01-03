@@ -590,7 +590,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(AdyenCaptureRequest {
+        Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference: item.payment_id.to_string(),
             amount: Amount {
@@ -629,7 +629,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             ),
             _ => (storage_enums::AttemptStatus::Pending, None),
         };
-        Ok(types::RouterData {
+        Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
