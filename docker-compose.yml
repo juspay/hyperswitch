@@ -57,8 +57,6 @@ services:
     profiles:
       - monitoring
     restart: unless-stopped
-    environment:
-      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
     volumes:
       - ./config/grafana.ini:/etc/grafana/grafana.ini
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
@@ -148,4 +146,18 @@ services:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
       - "9090"
+    restart: unless-stopped
+  
+  tempo:
+    image: grafana/tempo:latest
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    ports:
+      - "3200" # tempo
+      - "4317" # otlp grpc
     restart: unless-stopped
