@@ -130,7 +130,7 @@ impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
     fn from(item: StripeSetupIntentRequest) -> Self {
         Self {
             amount: Some(api_types::Amount::Zero),
-            currency: Some(api_enums::Currency::default().to_string()),
+            currency: Some(api_enums::Currency::default()),
             capture_method: None,
             amount_to_capture: None,
             confirm: item.confirm,

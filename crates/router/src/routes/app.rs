@@ -60,7 +60,7 @@ impl Payments {
             .service(web::resource("").route(web::post().to(payments_create)))
             .service(web::resource("/list").route(web::get().to(payments_list)))
             .service(
-                web::resource("/session_tokens").route(web::get().to(payments_connector_session)),
+                web::resource("/session_tokens").route(web::post().to(payments_connector_session)),
             )
             .service(
                 web::resource("/{payment_id}")

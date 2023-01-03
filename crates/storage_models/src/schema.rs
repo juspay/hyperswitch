@@ -108,6 +108,7 @@ diesel::table! {
         customer_id -> Nullable<Varchar>,
         duplicate -> Nullable<Bool>,
         card_cvc -> Nullable<Varchar>,
+        payment_method_id -> Nullable<Varchar>,
     }
 }
 

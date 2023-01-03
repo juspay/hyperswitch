@@ -19,13 +19,13 @@ datasources:
     url: http://prometheus:9090/
     editable: true
     datasources:
-  - name: ClickHouse
-    type: grafana-clickhouse-datasource
-    jsonData:
-      defaultDatabase: default
-      port: 9000
-      server: clickhouse-server
-      username: default
-      tlsSkipVerify: true
-      protocol: native
-    editable: true
+  # - name: ClickHouse
+  #   type: grafana-clickhouse-datasource
+  #   jsonData:
+  #     defaultDatabase: default
+  #     port: 9000
+  #     server: clickhouse-server
+  #     username: default
+  #     tlsSkipVerify: true
+  #     protocol: native
+  #   editable: true
