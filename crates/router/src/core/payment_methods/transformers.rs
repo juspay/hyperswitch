@@ -235,12 +235,14 @@ pub fn mk_card_value2(
     card_fingerprint: Option<String>,
     external_id: Option<String>,
     customer_id: Option<String>,
+    payment_method_id: Option<String>,
 ) -> CustomResult<String, errors::CardVaultError> {
     let value2 = api::TokenizedCardValue2 {
         card_security_code,
         card_fingerprint,
         external_id,
         customer_id,
+        payment_method_id,
     };
     let value2_req = utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
         .change_context(errors::CardVaultError::FetchCardFailed)?;

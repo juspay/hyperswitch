@@ -727,7 +727,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                let pm = Vault::get_payment_method_data_from_locker(state, token).await?;
+                let (pm, _) = Vault::get_payment_method_data_from_locker(state, token).await?;
                 let updated_pm = match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
                         let mut updated_card = card;
@@ -764,7 +764,7 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
-    ) -> RouterResult<Option<api::PaymentMethod>> {
+    ) -> RouterResult<(Option<api::PaymentMethod>, Option<api::TokenizedCardValue2>)> {
         let (resp, card_cvc) = cards::mock_get_card(&*state.store, lookup_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -782,14 +782,21 @@ impl Vault {
             .expose_option()
             .get_required_value("expiry_year")?;
         let card_holder_name = card.name_on_card.expose_option().unwrap_or_default();
-        let card = api::PaymentMethod::Card(api::CCard {
+        let pm = api::PaymentMethod::Card(api::CCard {
             card_number: card_number.into(),
             card_exp_month: card_exp_month.into(),
             card_exp_year: card_exp_year.into(),
             card_holder_name: card_holder_name.into(),
             card_cvc: card_cvc.unwrap_or_default().into(),
         });
-        Ok(Some(card))
+        let value2 = api::TokenizedCardValue2 {
+            card_security_code: None,
+            card_fingerprint: None,
+            external_id: None,
+            customer_id: None,
+            payment_method_id: Some(card.card_id),
+        };
+        Ok((Some(pm), Some(value2)))
     }
 
     #[instrument(skip_all)]
@@ -805,10 +812,16 @@ impl Vault {
             card_holder_name: Some(card.card_holder_name.clone()),
         };
         let db = &*state.store;
-        cards::mock_add_card(db, txn_id, &card_detail, Some(card.card_cvc.peek().clone()))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
+        cards::mock_add_card(
+            db,
+            txn_id,
+            &card_detail,
+            Some(card.card_cvc.peek().clone()),
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed")?;
         Ok(txn_id.to_string())
     }
 
@@ -836,32 +849,27 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
-    ) -> RouterResult<Option<api::PaymentMethod>> {
+    ) -> RouterResult<(Option<api::PaymentMethod>, Option<api::TokenizedCardValue2>)> {
         let de_tokenize = cards::get_tokenized_data(state, lookup_key, true).await?;
         let value1: api::TokenizedCardValue1 = de_tokenize
             .value1
             .parse_struct("TokenizedCardValue1")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error parsing TokenizedCardValue1")?;
-        let value2 = de_tokenize.value2;
-        let card_cvc = if value2.is_empty() {
-            //mandatory field in api contract (when querying from legacy locker we don't get cvv), cvv handling needs to done
-            "".to_string()
-        } else {
-            let tk_value2: api::TokenizedCardValue2 = value2
-                .parse_struct("TokenizedCardValue2")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error parsing TokenizedCardValue2")?;
-            tk_value2.card_security_code.unwrap_or_default()
-        };
+        let value2: api::TokenizedCardValue2 = de_tokenize
+            .value2
+            .parse_struct("TokenizedCardValue2")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error parsing TokenizedCardValue2")?;
+
         let card = api::PaymentMethod::Card(api::CCard {
             card_number: value1.card_number.into(),
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.unwrap_or_default().into(),
-            card_cvc: card_cvc.into(),
+            card_cvc: value2.card_security_code.clone().unwrap_or_default().into(),
         });
-        Ok(Some(card))
+        Ok((Some(card), Some(value2)))
     }
 
     #[instrument(skip_all)]
@@ -881,10 +889,15 @@ impl Vault {
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Value1 for locker")?;
-        let value2 =
-            transformers::mk_card_value2(Some(card.card_cvc.peek().clone()), None, None, None)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting Value12 for locker")?;
+        let value2 = transformers::mk_card_value2(
+            Some(card.card_cvc.peek().clone()),
+            None,
+            None,
+            None,
+            None,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value12 for locker")?;
         cards::create_tokenize(state, value1, Some(value2), txn_id.to_string()).await
     }
 
