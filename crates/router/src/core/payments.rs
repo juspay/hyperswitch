@@ -297,7 +297,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn call_connector_service<F, Op, Req>(
+pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     payment_id: &api::PaymentIdType,
@@ -363,7 +363,7 @@ where
     Ok(response)
 }
 
-async fn call_multiple_connectors_service<F, Op, Req>(
+pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     connectors: Vec<api::ConnectorData>,
