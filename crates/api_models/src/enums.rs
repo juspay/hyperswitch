@@ -499,6 +499,15 @@ pub enum Connector {
     Stripe,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportedWallets {
+    Paypal,
+    ApplePay,
+    Klarna,
+    Gpay,
+}
+
 impl From<AttemptStatus> for IntentStatus {
     fn from(s: AttemptStatus) -> Self {
         match s {
