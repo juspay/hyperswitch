@@ -33,7 +33,7 @@ use crate::{
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 #[instrument(skip_all)]
@@ -582,9 +582,6 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    utils::when(data.is_empty(), || {
-        Err(errors::ApiErrorResponse::PaymentNotFound)
-    })?;
     Ok(services::BachResponse::Json(api::PaymentListResponse {
         size: data.len(),
         data,
