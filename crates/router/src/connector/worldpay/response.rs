@@ -100,7 +100,6 @@ pub struct ResponseIdStr {
 impl TryFrom<Option<PaymentLinks>> for ResponseIdStr {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(links: Option<PaymentLinks>) -> Result<Self, Self::Error> {
-        println!("{:?}", links);
         get_resource_id(links, |id| Self { id })
     }
 }
@@ -108,7 +107,6 @@ impl TryFrom<Option<PaymentLinks>> for ResponseIdStr {
 impl TryFrom<Option<PaymentLinks>> for types::ResponseId {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(links: Option<PaymentLinks>) -> Result<Self, Self::Error> {
-        println!("{:?}", links);
         get_resource_id(links, Self::ConnectorTransactionId)
     }
 }
