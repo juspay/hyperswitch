@@ -192,21 +192,19 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
     }
 }
 
-mod status {
-    #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
-    pub enum AuthorizedotnetPaymentStatus {
-        #[serde(rename = "1")]
-        Approved,
-        #[serde(rename = "2")]
-        Declined,
-        #[serde(rename = "3")]
-        Error,
-        #[serde(rename = "4")]
-        #[default]
-        HeldForReview,
-    }
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
+pub enum AuthorizedotnetPaymentStatus {
+    #[serde(rename = "1")]
+    Approved,
+    #[serde(rename = "2")]
+    Declined,
+    #[serde(rename = "3")]
+    Error,
+    #[serde(rename = "4")]
+    #[default]
+    HeldForReview,
 }
-pub use status::AuthorizedotnetPaymentStatus;
+
 pub type AuthorizedotnetRefundStatus = AuthorizedotnetPaymentStatus;
 
 impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
