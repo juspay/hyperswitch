@@ -196,20 +196,15 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
 // of u8
 #[allow(clippy::as_conversions)]
 mod status {
-    #[derive(
-        Debug,
-        Clone,
-        Default,
-        PartialEq,
-        Eq,
-        serde_repr::Serialize_repr,
-        serde_repr::Deserialize_repr,
-    )]
-    #[repr(u8)]
+    #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     pub enum AuthorizedotnetPaymentStatus {
+        #[serde(rename = "1")]
         Approved = 1,
+        #[serde(rename = "2")]
         Declined = 2,
+        #[serde(rename = "3")]
         Error = 3,
+        #[serde(rename = "4")]
         #[default]
         HeldForReview = 4,
     }
