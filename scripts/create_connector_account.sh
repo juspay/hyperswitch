@@ -42,7 +42,7 @@ case "$connector" in
     braintree) required_connector="braintree";;
     shift4) required_connector="shift4";;
     worldpay) required_connector="worldpay";;
-		*) echo "This connector is not supported" 1>&2;exit 1;;
+    *) echo "This connector is not supported" 1>&2;exit 1;;
 esac
 
 keys="$(read_keys)"

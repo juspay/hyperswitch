@@ -1,9 +1,8 @@
+use std::str::FromStr;
+
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
-use serde::{Deserialize, Serialize};
 use storage_models::enums;
-use uuid::Uuid;
 
 use super::{requests::*, response::*};
 use crate::{
@@ -11,30 +10,47 @@ use crate::{
     types::{self, api},
 };
 
-fn to_int(
+fn parse_int<T: FromStr>(
     val: masking::Secret<String, masking::WithType>,
-) -> CustomResult<i32, errors::ConnectorError> {
-    val.peek()
-        .parse()
-        .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+) -> CustomResult<T, errors::ConnectorError>
+where
+    <T as FromStr>::Err: Sync,
+{
+    let res = val.peek().parse::<T>();
+    if let Ok(val) = res {
+        Ok(val)
+    } else {
+        Err(errors::ConnectorError::RequestEncodingFailed)?
+    }
 }
 
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethod,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment::new(
-            CardExpiryDate::new(to_int(card.card_exp_month)?, to_int(card.card_exp_year)?),
-            card.card_number.peek().to_string(),
-        ))),
+        api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+            card_expiry_date: CardExpiryDate {
+                month: parse_int::<u8>(card.card_exp_month)?,
+                year: parse_int::<u16>(card.card_exp_year)?,
+            },
+            card_number: card.card_number.peek().to_string(),
+            ..CardPayment::default()
+        })),
         api::PaymentMethod::Wallet(wallet) => match wallet.issuer_name {
-            api_models::enums::WalletIssuer::ApplePay => Ok(PaymentInstrument::Applepay(
-                WalletPayment::new(PaymentType::Applepay, wallet.token),
-            )),
-            api_models::enums::WalletIssuer::GooglePay => Ok(PaymentInstrument::Googlepay(
-                WalletPayment::new(PaymentType::Googlepay, wallet.token),
-            )),
+            api_models::enums::WalletIssuer::ApplePay => {
+                Ok(PaymentInstrument::Applepay(WalletPayment {
+                    payment_type: PaymentType::Applepay,
+                    wallet_token: wallet.token,
+                    ..WalletPayment::default()
+                }))
+            }
+            api_models::enums::WalletIssuer::GooglePay => {
+                Ok(PaymentInstrument::Googlepay(WalletPayment {
+                    payment_type: PaymentType::Googlepay,
+                    wallet_token: wallet.token,
+                    ..WalletPayment::default()
+                }))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Wallet Type".to_string()).into()),
         },
         _ => {
@@ -43,18 +59,36 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        Ok(Self::new(
-            Instruction::new(
-                PaymentValue::new(item.request.amount, item.request.currency.to_string()),
-                InstructionNarrative::new(item.merchant_id.clone()),
-                fetch_payment_instrument(item.request.payment_method_data.clone())?,
-            ),
-            Merchant::new(item.merchant_id.clone()),
-            Uuid::new_v4().to_string(),
-        ))
+        Ok(Self {
+            instruction: Instruction {
+                value: PaymentValue {
+                    amount: item.request.amount,
+                    currency: item.request.currency.to_string(),
+                },
+                narrative: InstructionNarrative {
+                    line1: item.merchant_id.clone(),
+                    ..Default::default()
+                },
+                payment_instrument: fetch_payment_instrument(
+                    item.request.payment_method_data.clone(),
+                )?,
+                debt_repayment: None,
+            },
+            merchant: Merchant {
+                entity: item.payment_id.clone(),
+                ..Default::default()
+            },
+            transaction_reference: item.attempt_id.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "attempt_id".to_string(),
+                },
+            )?,
+            channel: None,
+            customer: None,
+        })
     }
 }
 
@@ -83,12 +117,34 @@ impl From<Outcome> for enums::AttemptStatus {
     }
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
+impl From<EventType> for enums::AttemptStatus {
+    fn from(value: EventType) -> Self {
+        match value {
+            EventType::Authorized => Self::Authorized,
+            EventType::CaptureFailed => Self::CaptureFailed,
+            EventType::Refused => Self::Failure,
+            EventType::Charged => Self::Charged,
+            _ => Self::Pending,
+        }
+    }
+}
+
+impl From<EventType> for enums::RefundStatus {
+    fn from(value: EventType) -> Self {
+        match value {
+            EventType::Refunded => Self::Success,
+            EventType::RefundFailed => Self::Failure,
+            _ => Self::Pending,
+        }
+    }
+}
+
+impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsResponseRouterData<PaymentsResponse>,
+        item: types::PaymentsResponseRouterData<WorldpayPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: match item.response.outcome {
@@ -99,7 +155,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             },
             description: item.response.description,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::try_from(item.response._links)?,
+                resource_id: types::ResponseId::try_from(item.response.links)?,
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
@@ -114,17 +170,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldpayRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             reference: item.request.connector_transaction_id.clone(),
-            value: Box::new(PaymentValue {
+            value: PaymentValue {
                 amount: item.request.amount,
                 currency: item.request.currency.to_string(),
-            }),
+            },
         })
     }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorldpayErrorResponse {
-    pub error_name: String,
-    pub message: String,
 }

@@ -67,7 +67,6 @@ time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
-wiremock = "0.5"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
@@ -90,6 +89,7 @@ time = { version = "0.3.17", features = ["macros"] }
 tokio = "1.23.0"
 toml = "0.5.9"
 serial_test = "0.10.0"
+wiremock = "0.5"
 
 [[bin]]
 name = "router"

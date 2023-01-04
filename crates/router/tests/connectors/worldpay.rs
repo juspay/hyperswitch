@@ -155,13 +155,12 @@ async fn should_fail_capture_for_invalid_payment() {
     let authorize_response = connector.authorize_payment(None).await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let response = connector.capture_payment("12345".to_string(), None).await;
-    if let Err(err) = response.response {
-        assert_eq!(
-            err.message,
-            "You must provide valid transaction id to capture payment".to_string()
-        );
-        assert_eq!(err.code, "invalid-id".to_string());
-    }
+    let err = response.response.unwrap_err();
+    assert_eq!(
+        err.message,
+        "You must provide valid transaction id to capture payment".to_string()
+    );
+    assert_eq!(err.code, "invalid-id".to_string());
 }
 
 #[actix_web::test]
@@ -173,13 +172,12 @@ async fn should_refund_succeeded_payment() {
     let response = connector.make_payment(None).await;
 
     //try refund for previous payment
-    if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
-        let response = connector.refund_payment(transaction_id, None).await;
-        assert_eq!(
-            response.response.unwrap().refund_status,
-            enums::RefundStatus::Success,
-        );
-    }
+    let transaction_id = utils::get_connector_transaction_id(response).unwrap();
+    let response = connector.refund_payment(transaction_id, None).await;
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
 }
 
 #[actix_web::test]

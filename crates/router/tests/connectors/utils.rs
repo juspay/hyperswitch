@@ -275,6 +275,7 @@ fn generate_data<Flow, Req: From<Req>, Res>(
         merchant_id: connector.clone(),
         connector,
         payment_id: uuid::Uuid::new_v4().to_string(),
+        attempt_id: Some(uuid::Uuid::new_v4().to_string()),
         status: enums::AttemptStatus::default(),
         orca_return_url: None,
         auth_type,

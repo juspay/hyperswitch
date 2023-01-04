@@ -75,9 +75,9 @@ impl ConnectorCommon for Worldpay {
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: worldpay::WorldpayErrorResponse =
-            res.parse_struct("WorldpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: WorldpayErrorResponse = res
+            .parse_struct("WorldpayErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             code: response.error_name,
             message: response.message,
@@ -150,14 +150,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     {
         match res.status_code {
             202 => {
-                let response: PaymentsResponse = res
+                let response: WorldpayPaymentsResponse = res
                     .response
-                    .parse_struct("PaymentsResponse")
+                    .parse_struct("Worldpay PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 Ok(types::PaymentsCancelRouterData {
                     status: enums::AttemptStatus::Voided,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::try_from(response._links)?,
+                        resource_id: types::ResponseId::try_from(response.links)?,
                         redirection_data: None,
                         redirect: false,
                         mandate_reference: None,
@@ -237,20 +237,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: EventResponse = res
+        let response: WorldpayEventResponse = res
             .response
-            .parse_struct("EventResponse")
+            .parse_struct("Worldpay EventResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let attempt_status = match response.last_event {
-            EventType::Authorized => enums::AttemptStatus::Authorized,
-            EventType::CaptureFailed => enums::AttemptStatus::CaptureFailed,
-            EventType::Refused => enums::AttemptStatus::RouterDeclined,
-            EventType::Charged => enums::AttemptStatus::Charged,
-            _ => enums::AttemptStatus::Pending,
-        };
         Ok(types::PaymentsSyncRouterData {
-            status: attempt_status,
+            status: enums::AttemptStatus::from(response.last_event),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: data.request.connector_transaction_id.clone(),
                 redirection_data: None,
@@ -302,14 +295,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         logger::debug!(worldpaypayments_capture_response=?res);
         match res.status_code {
             202 => {
-                let response: PaymentsResponse = res
+                let response: WorldpayPaymentsResponse = res
                     .response
-                    .parse_struct("PaymentsResponse")
+                    .parse_struct("Worldpay PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 Ok(types::PaymentsCaptureRouterData {
                     status: enums::AttemptStatus::Charged,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::try_from(response._links)?,
+                        resource_id: types::ResponseId::try_from(response.links)?,
                         redirection_data: None,
                         redirect: false,
                         mandate_reference: None,
@@ -381,7 +374,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let worldpay_req = utils::Encode::<PaymentsRequest>::convert_and_encode(req)
+        let worldpay_req = utils::Encode::<WorldpayPaymentsRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldpay_req))
     }
@@ -410,9 +403,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: PaymentsResponse = res
+        let response: WorldpayPaymentsResponse = res
             .response
-            .parse_struct("PaymentsResponse")
+            .parse_struct("Worldpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(worldpaypayments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -496,13 +489,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         logger::debug!(target: "router::connector::worldpay", response=?res);
         match res.status_code {
             202 => {
-                let response: PaymentsResponse = res
+                let response: WorldpayPaymentsResponse = res
                     .response
-                    .parse_struct("PaymentsResponse")
+                    .parse_struct("Worldpay PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 Ok(types::RefundExecuteRouterData {
                     response: Ok(types::RefundsResponseData {
-                        connector_refund_id: ResponseIdStr::try_from(response._links)?.id,
+                        connector_refund_id: ResponseIdStr::try_from(response.links)?.id,
                         refund_status: enums::RefundStatus::Success,
                     }),
                     ..data.clone()
@@ -565,20 +558,14 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: EventResponse = res
+        let response: WorldpayEventResponse = res
             .response
-            .parse_struct("EventResponse")
+            .parse_struct("Worldpay EventResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let refund_status = match response.last_event {
-            EventType::Refunded => enums::RefundStatus::Success,
-            EventType::RefundFailed => enums::RefundStatus::Failure,
-            _ => enums::RefundStatus::Pending,
-        };
         Ok(types::RefundSyncRouterData {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: data.request.refund_id.clone(),
-                refund_status,
+                refund_status: enums::RefundStatus::from(response.last_event),
             }),
             ..data.clone()
         })

@@ -52,9 +52,17 @@ sh add_connector.sh <connector-name>
 
 For this tutorial `<connector-name>` would be `checkout`.
 
-`orca/crates/router/src/connector/checkout/transformers.rs` will contain connectors API Request and Response types, and conversion between the router and connector API types.
-`orca/crates/router/src/connector/checkout.rs` will contain the trait implementations for the connector.
-`orca/crates/router/tests/connectors/checkout.rs` will contain the basic tests for the payments flows.
+The folder structure will be modified as below
+```
+crates/router/src/connector
+├── checkout
+│   └── transformers.rs
+└── checkout.rs
+```
+
+`crates/router/src/connector/checkout/transformers.rs` will contain connectors API Request and Response types, and conversion between the router and connector API types.
+`crates/router/src/connector/checkout.rs` will contain the trait implementations for the connector.
+`crates/router/tests/connectors/checkout.rs` will contain the basic tests for the payments flows.
 
 There is boiler plate code with `todo!()` in the above mentioned files. Go through the rest of the guide and fill in code wherever necessary.
 
@@ -271,11 +279,11 @@ Refer to other conector code for trait implementations. mostly tThe rust compile
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
 
 ### **Test the connector**
-Try running the tests in `orca/crates/router/tests/connectors/{{connector-name}}.rs`.
+Try running the tests in `crates/router/tests/connectors/{{connector-name}}.rs`.
 All tests should pass and add appropiate tests for connector specific payment flows.
 
 ### **Build payment request and response from json schema**
-Some connectors will provide [json schema](https://developer.worldpay.com/docs/access-worldpay/api/references/payments) for each request and response supported. we can directly convert that schema to rust code by using below script. On running the script a `temp.rs` file will be created in `src/connector/<connector-name>` folder
+Some connectors will provide [json schema](https://developer.worldpay.com/docs/access-worldpay/api/references/payments) for each request and response supported. We can directly convert that schema to rust code by using below script. On running the script a `temp.rs` file will be created in `src/connector/<connector-name>` folder
 
 *Note: The code generated may not be production ready and might fail for some case, we have to clean up the code as per our standards.*
 
@@ -285,6 +293,7 @@ export CONNECTOR_NAME="<CONNECTOR-NAME>" #Change it to appropriate connector nam
 export SCHEMA_PATH="<PATH-TO-JSON-SCHEMA-FILE>" #it can be json or yaml, Refer samples below
 openapi-generator generate -g rust  -i ${SCHEMA_PATH} -o temp &&  cat temp/src/models/* > crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && rm -rf temp && sed -i'' -r "s/^pub use.*//;s/^pub mod.*//;s/^\/.*//;s/^.\*.*//;s/crate::models:://g;" crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && cargo +nightly fmt
 ```
+
 JSON example
 ```json
 {
@@ -311,6 +320,7 @@ JSON example
     }
 }
 ```
+
 YAML example
 ```yaml
 ---

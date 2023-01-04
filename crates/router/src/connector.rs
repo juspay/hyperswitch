@@ -6,10 +6,8 @@ pub mod braintree;
 pub mod checkout;
 pub mod cybersource;
 pub mod klarna;
-pub mod stripe;
-
 pub mod shift4;
-
+pub mod stripe;
 pub mod worldpay;
 
 pub use self::{
