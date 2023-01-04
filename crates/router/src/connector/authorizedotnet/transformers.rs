@@ -196,14 +196,14 @@ mod status {
     #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
     pub enum AuthorizedotnetPaymentStatus {
         #[serde(rename = "1")]
-        Approved = 1,
+        Approved,
         #[serde(rename = "2")]
-        Declined = 2,
+        Declined,
         #[serde(rename = "3")]
-        Error = 3,
+        Error,
         #[serde(rename = "4")]
         #[default]
-        HeldForReview = 4,
+        HeldForReview,
     }
 }
 pub use status::AuthorizedotnetPaymentStatus;
