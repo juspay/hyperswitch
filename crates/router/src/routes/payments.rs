@@ -1,4 +1,4 @@
-use std::borrow;
+use std::borrow::Cow;
 
 use actix_web::{web, Responder};
 use error_stack::report;
@@ -72,7 +72,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::MerchantId(borrow::Cow::Borrowed(&merchant_id)),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
@@ -299,7 +299,7 @@ pub async fn payments_response(
                 req,
             )
         },
-        api::MerchantAuthentication::MerchantId(borrow::Cow::Borrowed(&merchant_id)),
+        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
     )
     .await
 }
