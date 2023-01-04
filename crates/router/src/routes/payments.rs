@@ -46,7 +46,6 @@ pub async fn payments_create(
         |state, merchant_account, req| {
             // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
             async {
-                let connector = req.connector;
                 match req.amount.as_ref() {
                     Some(api_types::Amount::Value(_)) | None => {
                         payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
@@ -55,7 +54,6 @@ pub async fn payments_create(
                             payments::PaymentCreate,
                             req,
                             api::AuthFlow::Merchant,
-                            connector,
                             payments::CallConnectorAction::Trigger,
                         )
                         .await
@@ -68,7 +66,6 @@ pub async fn payments_create(
                             payments::PaymentCreate,
                             req,
                             api::AuthFlow::Merchant,
-                            connector,
                             payments::CallConnectorAction::Trigger,
                         )
                         .await
@@ -104,7 +101,6 @@ pub async fn payments_start(
                 payments::operations::PaymentStart,
                 req,
                 api::AuthFlow::Client,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -145,7 +141,6 @@ pub async fn payments_retrieve(
                 payments::PaymentStatus,
                 req,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -185,14 +180,12 @@ pub async fn payments_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -231,14 +224,12 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<Authorize, PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -271,7 +262,6 @@ pub async fn payments_capture(
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -299,7 +289,6 @@ pub async fn payments_connector_session(
                 payments::PaymentSession,
                 payload,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -359,7 +348,6 @@ pub async fn payments_cancel(
                 payments::PaymentCancel,
                 req,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },

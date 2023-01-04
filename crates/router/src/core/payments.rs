@@ -28,8 +28,7 @@ use crate::{
     scheduler::utils as pt_utils,
     services,
     types::{
-        self,
-        api::{self, enums as api_enums},
+        self, api,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -42,7 +41,6 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
-    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
@@ -113,7 +111,7 @@ where
 
     let connector_details = operation
         .to_domain()?
-        .get_connector(&merchant_account, state, use_connector)
+        .get_connector(&merchant_account, state, &req)
         .await?;
 
     if let api::ConnectorCallType::Single(ref connector) = connector_details {
@@ -176,7 +174,6 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
-    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
@@ -201,7 +198,6 @@ where
         merchant_account,
         operation.clone(),
         req,
-        use_connector,
         call_connector_action,
     )
     .await?;
@@ -289,7 +285,6 @@ pub async fn payments_response_for_redirection_flows<'a>(
         PaymentStatus,
         req,
         services::api::AuthFlow::Merchant,
-        None,
         flow_type,
     )
     .await

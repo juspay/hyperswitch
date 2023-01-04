@@ -17,7 +17,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -245,8 +245,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        let request_connector = request.connector.clone();
         helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }

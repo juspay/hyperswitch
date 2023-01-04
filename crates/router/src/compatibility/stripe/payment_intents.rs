@@ -47,14 +47,12 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -103,7 +101,6 @@ pub async fn payment_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -157,14 +154,12 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -219,14 +214,12 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -276,7 +269,6 @@ pub async fn payment_intents_capture(
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -331,7 +323,6 @@ pub async fn payment_intents_cancel(
                 payments::PaymentCancel,
                 req,
                 auth_flow,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
