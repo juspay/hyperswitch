@@ -1080,7 +1080,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("order_id", payment_intent_id),
+                ("payment_intent_client_secret", payment_intent_id),
             ],
         )
         .into_report()
@@ -1092,7 +1092,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("order_id", payment_intent_id),
+                ("payment_intent_client_secret", payment_intent_id),
                 ("amount", amount.to_string()),
             ],
         )
