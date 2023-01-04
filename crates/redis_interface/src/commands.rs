@@ -251,15 +251,18 @@ impl super::RedisConnectionPool {
         &self,
         kv: &[(&str, V)],
         field: &str,
-    ) -> CustomResult<HsetnxReply, errors::RedisError>
+    ) -> CustomResult<Vec<HsetnxReply>, errors::RedisError>
     where
         V: serde::Serialize + Debug,
     {
+        let mut hsetnx: Vec<HsetnxReply> = Vec::with_capacity(kv.len());
         for (key, val) in kv {
-            self.serialize_and_set_hash_field_if_not_exist(key, field, val)
-                .await?;
+            hsetnx.push(
+                self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                    .await?,
+            );
         }
-        Ok(HsetnxReply::KeySet)
+        Ok(hsetnx)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

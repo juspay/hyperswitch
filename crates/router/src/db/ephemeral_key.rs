@@ -22,9 +22,7 @@ pub trait EphemeralKeyInterface {
 }
 
 mod storage {
-    use common_utils::{
-        date_time,
-    };
+    use common_utils::date_time;
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
     use time::ext::NumericalDuration;
@@ -65,11 +63,13 @@ mod storage {
                 )
                 .await
             {
-                Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
-                    "Ephemeral key already exists".to_string(),
-                )
-                .into()),
-                Ok(HsetnxReply::KeySet) => {
+                Ok(v) if v.contains(&HsetnxReply::KeyNotSet) => {
+                    Err(errors::StorageError::DuplicateValue(
+                        "Ephemeral key already exists".to_string(),
+                    )
+                    .into())
+                }
+                Ok(_) => {
                     let expire_at = expires.assume_utc().unix_timestamp();
                     self.redis_conn
                         .set_expire_at(&secret_key, expire_at)
