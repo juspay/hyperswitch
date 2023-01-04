@@ -22,7 +22,9 @@ pub trait EphemeralKeyInterface {
 }
 
 mod storage {
-    use common_utils::{date_time, ext_traits::StringExt};
+    use common_utils::{
+        date_time,
+    };
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
     use time::ext::NumericalDuration;
@@ -87,14 +89,9 @@ mod storage {
             key: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let key = format!("epkey_{}", key);
-            let value: String = self
-                .redis_conn
-                .get_key(&key)
+            self.redis_conn
+                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
                 .await
-                .change_context(errors::StorageError::KVError)?;
-
-            value
-                .parse_struct("EphemeralKey")
                 .change_context(errors::StorageError::KVError)
         }
         async fn delete_ephemeral_key(
