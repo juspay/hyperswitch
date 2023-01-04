@@ -14,7 +14,7 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 use fred::{
-    interfaces::{HashesInterface, KeysInterface, StreamsInterface, TransactionInterface},
+    interfaces::{HashesInterface, KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
         RedisKey, RedisMap, RedisValue, SetOptions, XCap, XReadResponse,
@@ -255,26 +255,11 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let multi = self
-            .pool
-            .multi(true)
-            .await
-            .into_report()
-            .change_context(errors::RedisError::TransactionCreationFailed)?;
         for (key, val) in kv {
-            let serialized = Encode::<V>::encode_to_vec(val)
-                .change_context(errors::RedisError::JsonSerializationFailed)?;
-            multi
-                .hsetnx::<HsetnxReply, _, _, _>(*key, field, serialized.as_slice())
-                .await
-                .into_report()
-                .change_context(errors::RedisError::QueueFailed)?;
+            self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                .await?;
         }
-        multi
-            .exec()
-            .await
-            .into_report()
-            .change_context(errors::RedisError::SetHashFieldFailed)
+        Ok(HsetnxReply::KeySet)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

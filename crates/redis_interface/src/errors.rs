@@ -40,10 +40,6 @@ pub enum RedisError {
     JsonSerializationFailed,
     #[error("Failed to deserialize application type from JSON")]
     JsonDeserializationFailed,
-    #[error("Error while creating a transaction")]
-    TransactionCreationFailed,
-    #[error("Error while adding a command to the queue")]
-    QueueFailed,
     #[error("Failed to set hash in Redis")]
     SetHashFailed,
     #[error("Failed to set hash field in Redis")]
