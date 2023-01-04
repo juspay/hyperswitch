@@ -273,7 +273,7 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        _request_connector: Option<api_enums::Connector>,
+        request: &api::PaymentsSessionRequest,
     ) -> RouterResult<api::ConnectorCallType> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
@@ -292,10 +292,10 @@ where
                 supported_connectors.contains(&connector_account.connector_name)
             })
             .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect::<Vec<String>>();
+            .collect::<std::collections::HashSet<String>>();
 
         // Parse the payment methods enabled to check if the merchant has enabled gpay ( wallet )
-        // through that connector this parsing from Value to payment method is costly and has to be done for every connector
+        // through that connector. This parsing from serde_json::Value to payment method is costly and has to be done for every connector
         // for sure looks like an area of optimization
         let session_token_from_metadata_connectors = connector_accounts
             .iter()
@@ -315,29 +315,80 @@ where
                     })
             })
             .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect::<Vec<String>>();
+            .collect::<std::collections::HashSet<String>>();
 
-        let mut connectors_data = Vec::with_capacity(
-            normal_connector_names.len() + session_token_from_metadata_connectors.len(),
-        );
+        let given_wallets = request.wallets.clone();
 
-        for connector_name in normal_connector_names {
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                connectors,
-                &connector_name,
-                api::GetToken::Connector,
-            )?;
-            connectors_data.push(connector_data);
-        }
+        let connectors_data = if !given_wallets.is_empty() {
+            // Create connectors for provided wallets
+            let mut connectors_data = Vec::with_capacity(supported_connectors.len());
+            for wallet in given_wallets {
+                match wallet {
+                    // Check if merchant has enabled the required merchant connector account
+                    api_enums::SupportedWallets::Gpay => {
+                        if session_token_from_metadata_connectors.contains("adyen") {
+                            connectors_data.push(api::ConnectorData::get_connector_by_name(
+                                connectors,
+                                "adyen",
+                                api::GetToken::Metadata,
+                            )?);
+                        }
+                    }
+                    api_enums::SupportedWallets::ApplePay => {
+                        if normal_connector_names.contains("applepay") {
+                            connectors_data.push(api::ConnectorData::get_connector_by_name(
+                                connectors,
+                                "applepay",
+                                api::GetToken::Connector,
+                            )?);
+                        }
+                    }
+                    api_enums::SupportedWallets::Paypal => {
+                        if normal_connector_names.contains("braintree") {
+                            connectors_data.push(api::ConnectorData::get_connector_by_name(
+                                connectors,
+                                "braintree",
+                                api::GetToken::Connector,
+                            )?);
+                        }
+                    }
+                    api_enums::SupportedWallets::Klarna => {
+                        if normal_connector_names.contains("klarna") {
+                            connectors_data.push(api::ConnectorData::get_connector_by_name(
+                                connectors,
+                                "klarna",
+                                api::GetToken::Connector,
+                            )?);
+                        }
+                    }
+                }
+            }
+            connectors_data
+        } else {
+            // Create connectors for all enabled wallets
+            let mut connectors_data = Vec::with_capacity(
+                normal_connector_names.len() + session_token_from_metadata_connectors.len(),
+            );
 
-        for connector_name in session_token_from_metadata_connectors {
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                connectors,
-                &connector_name,
-                api::GetToken::Metadata,
-            )?;
-            connectors_data.push(connector_data);
-        }
+            for connector_name in normal_connector_names {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    connectors,
+                    &connector_name,
+                    api::GetToken::Connector,
+                )?;
+                connectors_data.push(connector_data);
+            }
+
+            for connector_name in session_token_from_metadata_connectors {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    connectors,
+                    &connector_name,
+                    api::GetToken::Metadata,
+                )?;
+                connectors_data.push(connector_data);
+            }
+            connectors_data
+        };
 
         Ok(api::ConnectorCallType::Multiple(connectors_data))
     }
