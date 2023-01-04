@@ -192,11 +192,8 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
     }
 }
 
-// Safety: Enum as u8 conversions, we are specifying discriminants which are well within the range
-// of u8
-#[allow(clippy::as_conversions)]
 mod status {
-    #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
     pub enum AuthorizedotnetPaymentStatus {
         #[serde(rename = "1")]
         Approved = 1,
