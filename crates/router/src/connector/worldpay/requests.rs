@@ -71,9 +71,9 @@ pub struct ThreeDS {
 pub enum ThreeDSVersion {
     #[default]
     #[serde(rename = "1")]
-    One = 1,
+    One,
     #[serde(rename = "2")]
-    Two = 2,
+    Two,
 }
 
 #[derive(
