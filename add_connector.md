@@ -58,6 +58,8 @@ crates/router/src/connector
 ├── checkout
 │   └── transformers.rs
 └── checkout.rs
+crates/router/tests/connectors
+└── checkout.rs
 ```
 
 `crates/router/src/connector/checkout/transformers.rs` will contain connectors API Request and Response types, and conversion between the router and connector API types.
