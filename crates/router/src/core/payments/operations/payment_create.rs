@@ -162,18 +162,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
         }?;
 
-        if request.confirm.unwrap_or(false) {
-            helpers::validate_customer_id_mandatory_cases_storage(
-                &shipping_address,
-                &billing_address,
-                &payment_intent.setup_future_usage,
-                &payment_intent
-                    .customer_id
-                    .clone()
-                    .or_else(|| request.customer_id.clone()),
-            )?;
-        }
-
         connector_response = match db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),

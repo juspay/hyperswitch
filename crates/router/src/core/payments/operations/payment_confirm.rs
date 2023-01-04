@@ -111,7 +111,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         helpers::validate_customer_id_mandatory_cases_storage(
             &shipping_address,
             &billing_address,
-            &payment_intent.setup_future_usage,
+            &payment_intent
+                .setup_future_usage
+                .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
             &payment_intent
                 .customer_id
                 .clone()
@@ -367,12 +369,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
             })?;
 
         helpers::validate_pm_or_token_given(&request.payment_token, &request.payment_method_data)?;
-        helpers::validate_customer_id_mandatory_cases_api(
-            &request.shipping,
-            &request.billing,
-            &request.setup_future_usage,
-            &request.customer_id,
-        )?;
 
         let mandate_type = helpers::validate_mandate(request)?;
 
