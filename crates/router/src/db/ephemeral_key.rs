@@ -24,7 +24,7 @@ pub trait EphemeralKeyInterface {
 mod storage {
     use common_utils::{date_time, ext_traits::StringExt};
     use error_stack::ResultExt;
-    use redis_interface::MsetnxReply;
+    use redis_interface::HsetnxReply;
     use time::ext::NumericalDuration;
 
     use super::EphemeralKeyInterface;
@@ -32,7 +32,6 @@ mod storage {
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-        utils,
     };
 
     #[async_trait::async_trait]
@@ -55,21 +54,20 @@ mod storage {
                 merchant_id: new.merchant_id,
                 secret: new.secret,
             };
-            let redis_value = utils::Encode::<EphemeralKey>::encode_to_string_of_json(&created_ek)
-                .change_context(errors::StorageError::KVError)
-                .attach_printable("Unable to serialize ephemeral key")?;
 
-            let redis_map = vec![(&secret_key, &redis_value), (&id_key, &redis_value)];
             match self
                 .redis_conn
-                .set_multiple_keys_if_not_exist(redis_map)
+                .serialize_and_set_multiple_hash_field_if_not_exist(
+                    &[(&secret_key, &created_ek), (&id_key, &created_ek)],
+                    "ephkey",
+                )
                 .await
             {
-                Ok(MsetnxReply::KeysNotSet) => Err(errors::StorageError::DuplicateValue(
+                Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
                     "Ephemeral key already exists".to_string(),
                 )
                 .into()),
-                Ok(MsetnxReply::KeysSet) => {
+                Ok(HsetnxReply::KeySet) => {
                     let expire_at = expires.assume_utc().unix_timestamp();
                     self.redis_conn
                         .set_expire_at(&secret_key, expire_at)

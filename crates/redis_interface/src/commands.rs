@@ -247,6 +247,22 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
+        &self,
+        kv: &[(&str, V)],
+        field: &str,
+    ) -> CustomResult<HsetnxReply, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        for (key, val) in kv {
+            self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                .await?;
+        }
+        Ok(HsetnxReply::KeySet)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
         key: &str,
