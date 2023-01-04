@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
@@ -292,7 +293,7 @@ where
                 supported_connectors.contains(&connector_account.connector_name)
             })
             .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect::<std::collections::HashSet<String>>();
+            .collect::<HashSet<String>>();
 
         // Parse the payment methods enabled to check if the merchant has enabled gpay ( wallet )
         // through that connector. This parsing from serde_json::Value to payment method is costly and has to be done for every connector
@@ -315,7 +316,7 @@ where
                     })
             })
             .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect::<std::collections::HashSet<String>>();
+            .collect::<HashSet<String>>();
 
         let given_wallets = request.wallets.clone();
 
