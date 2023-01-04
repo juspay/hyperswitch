@@ -1,6 +1,6 @@
 use std::borrow;
 
-use actix_web::{body, web, Responder};
+use actix_web::{web, Responder};
 use error_stack::report;
 use router_env::{
     tracing::{self, instrument},
@@ -32,49 +32,13 @@ pub async fn payments_create(
         &req,
         payload,
         |state, merchant_account, req| {
-            // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
-            async {
-                let connector = req.connector;
-                match req.amount.as_ref() {
-                    Some(api_types::Amount::Value(_)) | None => {
-                        payments::payments_core::<
-                            api_types::Authorize,
-                            payment_types::PaymentsResponse,
-                            _,
-                            _,
-                            _,
-                        >(
-                            state,
-                            merchant_account,
-                            payments::PaymentCreate,
-                            req,
-                            api::AuthFlow::Merchant,
-                            connector,
-                            payments::CallConnectorAction::Trigger,
-                        )
-                        .await
-                    }
-
-                    Some(api_types::Amount::Zero) => {
-                        payments::payments_core::<
-                            api_types::Verify,
-                            payment_types::PaymentsResponse,
-                            _,
-                            _,
-                            _,
-                        >(
-                            state,
-                            merchant_account,
-                            payments::PaymentCreate,
-                            req,
-                            api::AuthFlow::Merchant,
-                            connector,
-                            payments::CallConnectorAction::Trigger,
-                        )
-                        .await
-                    }
-                }
-            }
+            authorize_verify_select(
+                payments::PaymentCreate,
+                state,
+                merchant_account,
+                req,
+                api::AuthFlow::Merchant,
+            )
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -185,15 +149,12 @@ pub async fn payments_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+            authorize_verify_select(
+                payments::PaymentUpdate,
                 state,
                 merchant_account,
-                payments::PaymentUpdate,
                 req,
                 auth_flow,
-                connector,
-                payments::CallConnectorAction::Trigger,
             )
         },
         auth_type,
@@ -231,15 +192,12 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+            authorize_verify_select(
+                payments::PaymentConfirm,
                 state,
                 merchant_account,
-                payments::PaymentConfirm,
                 req,
                 auth_flow,
-                connector,
-                payments::CallConnectorAction::Trigger,
             )
         },
         auth_type,
@@ -396,4 +354,58 @@ pub async fn payments_list(
         api::MerchantAuthentication::ApiKey,
     )
     .await
+}
+
+async fn authorize_verify_select<Op>(
+    operation: Op,
+    state: &app::AppState,
+    merchant_account: storage_models::merchant_account::MerchantAccount,
+    req: api_models::payments::PaymentsRequest,
+    auth_flow: api::AuthFlow,
+) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>
+where
+    Op: Sync
+        + Clone
+        + std::fmt::Debug
+        + payments::operations::Operation<api_types::Authorize, api_models::payments::PaymentsRequest>
+        + payments::operations::Operation<api_types::Verify, api_models::payments::PaymentsRequest>,
+{
+    // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
+    // This is a temporary fix.
+    // After analyzing the code structure,
+    // the operation are flow agnostic, and the flow is only required in the post_update_tracker
+    // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
+
+    let connector = req.connector;
+    match req.amount.as_ref() {
+        Some(api_types::Amount::Value(_)) | None => payments::payments_core::<
+            api_types::Authorize,
+            payment_types::PaymentsResponse,
+            _,
+            _,
+            _,
+        >(
+            state,
+            merchant_account,
+            operation,
+            req,
+            auth_flow,
+            connector,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await,
+
+        Some(api_types::Amount::Zero) => {
+            payments::payments_core::<api_types::Verify, payment_types::PaymentsResponse, _, _, _>(
+                state,
+                merchant_account,
+                operation,
+                req,
+                auth_flow,
+                connector,
+                payments::CallConnectorAction::Trigger,
+            )
+            .await
+        }
+    }
 }
