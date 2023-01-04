@@ -265,7 +265,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::error!(authorizedotnetpayments_create_error_response=?res);
+        logger::debug!(authorizedotnetpayments_create_error_response=?res);
         get_error_response(res)
     }
 }
