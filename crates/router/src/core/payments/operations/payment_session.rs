@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-use std::marker::PhantomData;
+use std::{collections::HashSet, marker::PhantomData};
 
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
