@@ -78,6 +78,8 @@ pub enum StorageError {
     KVError,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Customer with this id is Redacted")]
+    CustomerRedacted,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {

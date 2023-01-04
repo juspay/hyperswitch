@@ -105,13 +105,9 @@ pub async fn delete_customer(
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
-    let cust = db
-        .find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
+    db.find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
         .await
         .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
-    if cust.name == Some("Redacted".to_string()) {
-        Err(errors::ApiErrorResponse::CustomerRedacted)?
-    }
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
@@ -200,6 +196,13 @@ pub async fn update_customer(
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let update_customer = update_customer.validate()?;
+    //Add this in update call if customer can be updated anywhere else
+    db.find_customer_by_customer_id_merchant_id(
+        &update_customer.customer_id,
+        &merchant_account.merchant_id,
+    )
+    .await
+    .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
     if let Some(addr) = &update_customer.address {
         let customer_address: api_models::payments::AddressDetails = addr
