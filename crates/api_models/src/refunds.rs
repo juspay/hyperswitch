@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::enums;
 
@@ -32,6 +33,31 @@ pub struct RefundResponse {
     pub status: RefundStatus,
     pub metadata: Option<serde_json::Value>,
     pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RefundListRequest {
+    pub payment_id: Option<String>,
+    pub limit: Option<i64>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.lt")]
+    pub created_lt: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.gt")]
+    pub created_gt: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.lte")]
+    pub created_lte: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.gte")]
+    pub created_gte: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RefundListResponse {
+    pub data: Vec<RefundResponse>,
 }
 
 #[derive(Debug, Eq, Clone, PartialEq, Default, Deserialize, Serialize)]
