@@ -155,7 +155,7 @@ pub async fn add_card(
         response
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_add_card(db, &card_id, &card, None, None, &Some(customer_id.clone())).await?
+        mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
     };
 
     if let Some(false) = response.duplicate {
@@ -188,7 +188,7 @@ pub async fn mock_add_card(
     card: &api::CardDetail,
     card_cvc: Option<String>,
     payment_method_id: Option<String>,
-    customer_id: &Option<String>,
+    customer_id: Option<&str>,
 ) -> errors::CustomResult<payment_methods::AddCardResponse, errors::CardVaultError> {
     let locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
@@ -201,7 +201,7 @@ pub async fn mock_add_card(
         card_exp_month: card.card_exp_month.peek().to_string(),
         card_cvc,
         payment_method_id,
-        customer_id: customer_id.to_owned(),
+        customer_id: customer_id.map(str::to_string),
     };
 
     let response = db
@@ -617,7 +617,7 @@ impl BasiliskCardSupport {
             &card_detail,
             None,
             Some(pm.payment_method_id.to_string()),
-            &Some(pm.customer_id.to_string()),
+            Some(&pm.customer_id),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

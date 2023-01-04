@@ -725,18 +725,17 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 // TODO: Handle token expiry
                 let (pm, tokenize_value2) =
                     Vault::get_payment_method_data_from_locker(state, &token).await?;
-                if let Some(value2) = tokenize_value2 {
+                tokenize_value2.map(|value2| {
                     utils::when(
                         value2
                             .customer_id
                             .ne(&payment_data.payment_intent.customer_id),
                         || {
-                            Err(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "customer_id",
-                            })
+                            Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
                         },
-                    )?
-                }
+                    )?;
+                    Ok::<(), error_stack::Report<errors::ApiErrorResponse>>(())
+                });
                 payment_data.token = Some(token.to_string());
                 match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
@@ -840,7 +839,7 @@ impl Vault {
             &card_detail,
             Some(card.card_cvc.peek().clone()),
             None,
-            &customer_id,
+            customer_id.as_deref(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
