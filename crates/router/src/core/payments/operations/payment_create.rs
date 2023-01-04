@@ -162,6 +162,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             }
         }?;
 
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_customer_id_mandatory_cases_storage(
+                &shipping_address,
+                &billing_address,
+                &payment_intent.setup_future_usage,
+                &payment_intent
+                    .customer_id
+                    .clone()
+                    .or_else(|| request.customer_id.clone()),
+            )?;
+        }
+
         connector_response = match db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
@@ -407,12 +419,22 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if request.confirm == Some(true)
-            && request.payment_method != Some(api_models::enums::PaymentMethodType::Paypal)
-        {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
+        if request.confirm.unwrap_or(false) {
+            if !matches!(
+                request.payment_method,
+                Some(api_models::enums::PaymentMethodType::Paypal)
+            ) {
+                helpers::validate_pm_or_token_given(
+                    &request.payment_token,
+                    &request.payment_method_data,
+                )?;
+            }
+
+            helpers::validate_customer_id_mandatory_cases_api(
+                &request.shipping,
+                &request.billing,
+                &request.setup_future_usage,
+                &request.customer_id,
             )?;
         }
 
