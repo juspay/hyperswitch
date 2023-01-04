@@ -324,44 +324,22 @@ where
             // Create connectors for provided wallets
             let mut connectors_data = Vec::with_capacity(supported_connectors.len());
             for wallet in given_wallets {
-                match wallet {
-                    // Check if merchant has enabled the required merchant connector account
-                    api_enums::SupportedWallets::Gpay => {
-                        if session_token_from_metadata_connectors.contains("adyen") {
-                            connectors_data.push(api::ConnectorData::get_connector_by_name(
-                                connectors,
-                                "adyen",
-                                api::GetToken::Metadata,
-                            )?);
-                        }
-                    }
-                    api_enums::SupportedWallets::ApplePay => {
-                        if normal_connector_names.contains("applepay") {
-                            connectors_data.push(api::ConnectorData::get_connector_by_name(
-                                connectors,
-                                "applepay",
-                                api::GetToken::Connector,
-                            )?);
-                        }
-                    }
-                    api_enums::SupportedWallets::Paypal => {
-                        if normal_connector_names.contains("braintree") {
-                            connectors_data.push(api::ConnectorData::get_connector_by_name(
-                                connectors,
-                                "braintree",
-                                api::GetToken::Connector,
-                            )?);
-                        }
-                    }
-                    api_enums::SupportedWallets::Klarna => {
-                        if normal_connector_names.contains("klarna") {
-                            connectors_data.push(api::ConnectorData::get_connector_by_name(
-                                connectors,
-                                "klarna",
-                                api::GetToken::Connector,
-                            )?);
-                        }
-                    }
+                let (connector_name, connector_type) = match wallet {
+                    api_enums::SupportedWallets::Gpay => ("adyen", api::GetToken::Metadata),
+                    api_enums::SupportedWallets::ApplePay => ("applepay", api::GetToken::Connector),
+                    api_enums::SupportedWallets::Paypal => ("braintree", api::GetToken::Connector),
+                    api_enums::SupportedWallets::Klarna => ("klarna", api::GetToken::Connector),
+                };
+
+                // Check if merchant has enabled the required merchant connector account
+                if session_token_from_metadata_connectors.contains(connector_name)
+                    || normal_connector_names.contains(connector_name)
+                {
+                    connectors_data.push(api::ConnectorData::get_connector_by_name(
+                        connectors,
+                        connector_name,
+                        connector_type,
+                    )?);
                 }
             }
             connectors_data
