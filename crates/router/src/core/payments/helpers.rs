@@ -753,6 +753,11 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     (_, _) => pm,
                 }
             } else {
+                utils::when(payment_method_type.is_none(), || {
+                    Err(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "payment_method_type".to_owned(),
+                    })
+                })?;
                 // TODO: Implement token flow for other payment methods
                 None
             },
