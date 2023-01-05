@@ -108,6 +108,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_customer_id_mandatory_cases_storage(
+                &shipping_address,
+                &billing_address,
+                &payment_intent
+                    .setup_future_usage
+                    .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
+                &payment_intent
+                    .customer_id
+                    .clone()
+                    .or_else(|| request.customer_id.clone()),
+            )?;
+        }
+
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
@@ -371,7 +385,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             None => None,
         };
 
-        if let Some(true) = request.confirm {
+        if request.confirm.unwrap_or(false)
+            && !matches!(
+                request.payment_method,
+                Some(api_models::enums::PaymentMethodType::Paypal)
+            )
+        {
             helpers::validate_pm_or_token_given(
                 &request.payment_token,
                 &request.payment_method_data,

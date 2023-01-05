@@ -407,12 +407,22 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if request.confirm == Some(true)
-            && request.payment_method != Some(api_models::enums::PaymentMethodType::Paypal)
-        {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
+        if request.confirm.unwrap_or(false) {
+            if !matches!(
+                request.payment_method,
+                Some(api_models::enums::PaymentMethodType::Paypal)
+            ) {
+                helpers::validate_pm_or_token_given(
+                    &request.payment_token,
+                    &request.payment_method_data,
+                )?;
+            }
+
+            helpers::validate_customer_id_mandatory_cases_api(
+                &request.shipping,
+                &request.billing,
+                &request.setup_future_usage,
+                &request.customer_id,
             )?;
         }
 

@@ -305,6 +305,44 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
     Ok(())
 }
 
+pub fn validate_customer_id_mandatory_cases_api(
+    shipping: &Option<api::Address>,
+    billing: &Option<api::Address>,
+    setup_future_usage: &Option<api_enums::FutureUsage>,
+    customer_id: &Option<String>,
+) -> RouterResult<()> {
+    match (shipping, billing, setup_future_usage, customer_id) {
+        (Some(_), _, _, None) | (_, Some(_), _, None) | (_, _, Some(_), None) => {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "customer_id is mandatory when shipping or billing \
+                address is given or when setup_future_usage is given"
+                    .to_string(),
+            })
+            .into_report()
+        }
+        _ => Ok(()),
+    }
+}
+
+pub fn validate_customer_id_mandatory_cases_storage(
+    shipping: &Option<storage::Address>,
+    billing: &Option<storage::Address>,
+    setup_future_usage: &Option<storage_enums::FutureUsage>,
+    customer_id: &Option<String>,
+) -> RouterResult<()> {
+    match (shipping, billing, setup_future_usage, customer_id) {
+        (Some(_), _, _, None) | (_, Some(_), _, None) | (_, _, Some(_), None) => {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "customer_id is mandatory when shipping or billing \
+                address is given or when setup_future_usage is given"
+                    .to_string(),
+            })
+            .into_report()
+        }
+        _ => Ok(()),
+    }
+}
+
 pub fn create_startpay_url(
     server: &Server,
     payment_attempt: &storage::PaymentAttempt,
