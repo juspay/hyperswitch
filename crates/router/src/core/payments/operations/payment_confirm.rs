@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
-use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -209,37 +208,22 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        let (op, payment_method_data, payment_token) = helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await?;
+        let (op, payment_method_data) =
+            helpers::make_pm_data(Box::new(self), state, payment_data).await?;
 
-        if payment_method != Some(enums::PaymentMethodType::Paypal) {
+        if payment_data.payment_attempt.payment_method != Some(enums::PaymentMethodType::Paypal) {
             utils::when(payment_method_data.is_none(), || {
                 Err(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
         }
 
-        Ok((op, payment_method_data, payment_token))
+        Ok((op, payment_method_data))
     }
 
     #[instrument(skip_all)]

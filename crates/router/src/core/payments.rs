@@ -92,24 +92,12 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (operation, payment_method_data, payment_token) = operation
+    let (operation, payment_method_data) = operation
         .to_domain()?
-        .make_pm_data(
-            state,
-            payment_data.payment_attempt.payment_method,
-            &payment_data.payment_attempt.attempt_id,
-            &payment_data.payment_attempt,
-            &payment_data.payment_method_data,
-            &payment_data.token,
-            payment_data.card_cvc.clone(),
-            validate_result.storage_scheme,
-        )
+        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
         .await?;
 
     payment_data.payment_method_data = payment_method_data;
-    if let Some(token) = payment_token {
-        payment_data.token = Some(token)
-    }
 
     let connector_details = operation
         .to_domain()?
