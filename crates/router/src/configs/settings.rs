@@ -37,7 +37,7 @@ pub struct Settings {
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
-    pub jwekey: Jwekey,
+    pub jwekey: Jwekey,    
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -47,6 +47,8 @@ pub struct Keys {
     #[cfg(feature = "kms")]
     pub aws_region: String,
     pub temp_card_key: String,
+    pub jwt_secret : String,
+    pub admin_api_key: String, 
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -88,6 +90,7 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub base_url: String,
+    
 }
 
 #[derive(Debug, Deserialize, Clone)]

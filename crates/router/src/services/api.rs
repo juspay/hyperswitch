@@ -10,7 +10,7 @@ use masking::ExposeOptionInterface;
 use router_env::{
     tracing::{self, instrument},
     Tag,
-};
+}; 
 use serde::Serialize;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
@@ -431,7 +431,7 @@ pub async fn server_wrap_util<'a, 'b, T, Q, F, Fut>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: ApiAuthentication<'a>,
+    api_authentication: ApiAuthentication<'a>, 
 ) -> RouterResult<BachResponse<Q>>
 where
     F: Fn(&'b AppState, storage::MerchantAccount, T) -> Fut,
@@ -441,7 +441,7 @@ where
 {
     let merchant_account = match api_authentication {
         ApiAuthentication::Merchant(merchant_auth) => {
-            authenticate_merchant(request, &*state.store, merchant_auth).await?
+            authenticate_merchant(request, state, merchant_auth).await?
         }
         ApiAuthentication::Connector(connector_auth) => {
             authenticate_connector(request, &*state.store, connector_auth).await?
@@ -530,17 +530,17 @@ where
 
 pub async fn authenticate_merchant<'a>(
     request: &HttpRequest,
-    store: &dyn StorageInterface,
+    state: &AppState,
     merchant_authentication: MerchantAuthentication<'a>,
 ) -> RouterResult<storage::MerchantAccount> {
     match merchant_authentication {
         MerchantAuthentication::ApiKey => {
             let api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            authenticate_by_api_key(store, api_key).await
+            authenticate_by_api_key(&*state.store, api_key).await
         }
 
-        MerchantAuthentication::MerchantId(merchant_id) => store
+        MerchantAuthentication::MerchantId(merchant_id) => (*state.store)
             .find_merchant_account_by_merchant_id(&merchant_id)
             .await
             .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized)),
@@ -548,10 +548,10 @@ pub async fn authenticate_merchant<'a>(
         MerchantAuthentication::AdminApiKey => {
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            if admin_api_key != "test_admin" {
+            if admin_api_key != state.conf.keys.admin_api_key {   
                 Err(report!(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Admin Authentication Failure"))?;
-            }
+            } 
 
             Ok(storage::MerchantAccount {
                 id: -1,
@@ -576,7 +576,7 @@ pub async fn authenticate_merchant<'a>(
         MerchantAuthentication::PublishableKey => {
             let api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            authenticate_by_publishable_key(store, api_key).await
+            authenticate_by_publishable_key(&*state.store, api_key).await
         }
     }
 }
@@ -626,7 +626,7 @@ pub async fn authenticate_eph_key<'a>(
             ek.merchant_id,
         )))
     } else {
-        Ok(MerchantAuthentication::ApiKey)
+        Ok(MerchantAuthentication::ApiKey) 
     }
 }
 
