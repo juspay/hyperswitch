@@ -260,6 +260,14 @@ pub enum ConnectorAuthType {
         key1: String,
         api_secret: String,
     },
+    AccessToken {
+        api_key: String,
+        id: String,
+        #[serde(skip_deserializing)]
+        expires_at: i64, // Store as unix timestamp
+        #[serde(skip_deserializing)]
+        access_token: Option<String>,
+    },
     #[default]
     NoKey,
 }
