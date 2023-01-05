@@ -91,7 +91,7 @@ dependencies = [
  "rand",
  "sha1",
  "smallvec",
- "tracing 0.1.36",
+ "tracing",
  "zstd",
 ]
 
@@ -115,7 +115,7 @@ dependencies = [
  "http",
  "regex",
  "serde",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -144,7 +144,7 @@ dependencies = [
  "num_cpus",
  "socket2",
  "tokio",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -454,7 +454,7 @@ dependencies = [
  "time",
  "tokio",
  "tower",
- "tracing 0.1.36",
+ "tracing",
  "zeroize",
 ]
 
@@ -469,7 +469,7 @@ dependencies = [
  "aws-types",
  "http",
  "regex",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -487,7 +487,7 @@ dependencies = [
  "lazy_static",
  "percent-encoding",
  "pin-project-lite",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -566,7 +566,7 @@ dependencies = [
  "aws-smithy-http",
  "aws-types",
  "http",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -584,7 +584,7 @@ dependencies = [
  "regex",
  "ring",
  "time",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -619,7 +619,7 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tower",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -640,7 +640,7 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util 0.7.4",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -655,7 +655,7 @@ dependencies = [
  "http-body",
  "pin-project-lite",
  "tower",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -710,7 +710,7 @@ dependencies = [
  "aws-smithy-types",
  "http",
  "rustc_version",
- "tracing 0.1.36",
+ "tracing",
  "zeroize",
 ]
 
@@ -1325,7 +1325,7 @@ dependencies = [
  "tokio-native-tls",
  "tokio-stream",
  "tokio-util 0.6.10",
- "tracing 0.1.36",
+ "tracing",
  "tracing-futures",
  "url",
 ]
@@ -1555,7 +1555,7 @@ dependencies = [
  "slab",
  "tokio",
  "tokio-util 0.7.4",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -1666,7 +1666,7 @@ dependencies = [
  "socket2",
  "tokio",
  "tower-service",
- "tracing 0.1.36",
+ "tracing",
  "want",
 ]
 
@@ -2168,29 +2168,20 @@ name = "opentelemetry"
 version = "0.18.0"
 source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
- "opentelemetry_api 0.18.0 (git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658)",
- "opentelemetry_sdk 0.18.0 (git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658)",
-]
-
-[[package]]
-name = "opentelemetry"
-version = "0.18.0"
-source = "git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8#a82056696ca3d26960458269a894e5cf15056ad8"
-dependencies = [
- "opentelemetry_api 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
- "opentelemetry_sdk 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
+ "opentelemetry_api",
+ "opentelemetry_sdk",
 ]
 
 [[package]]
 name = "opentelemetry-otlp"
 version = "0.11.0"
-source = "git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8#a82056696ca3d26960458269a894e5cf15056ad8"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "futures",
  "futures-util",
  "http",
- "opentelemetry 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
+ "opentelemetry",
  "opentelemetry-proto",
  "prost",
  "thiserror",
@@ -2201,11 +2192,11 @@ dependencies = [
 [[package]]
 name = "opentelemetry-proto"
 version = "0.1.0"
-source = "git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8#a82056696ca3d26960458269a894e5cf15056ad8"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "futures",
  "futures-util",
- "opentelemetry 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
+ "opentelemetry",
  "prost",
  "tonic",
 ]
@@ -2226,21 +2217,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opentelemetry_api"
-version = "0.18.0"
-source = "git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8#a82056696ca3d26960458269a894e5cf15056ad8"
-dependencies = [
- "fnv",
- "futures-channel",
- "futures-util",
- "indexmap",
- "js-sys",
- "once_cell",
- "pin-project-lite",
- "thiserror",
-]
-
-[[package]]
 name = "opentelemetry_sdk"
 version = "0.18.0"
 source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
@@ -2253,26 +2229,7 @@ dependencies = [
  "futures-executor",
  "futures-util",
  "once_cell",
- "opentelemetry_api 0.18.0 (git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658)",
- "percent-encoding",
- "rand",
- "thiserror",
-]
-
-[[package]]
-name = "opentelemetry_sdk"
-version = "0.18.0"
-source = "git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8#a82056696ca3d26960458269a894e5cf15056ad8"
-dependencies = [
- "async-trait",
- "crossbeam-channel",
- "dashmap",
- "fnv",
- "futures-channel",
- "futures-executor",
- "futures-util",
- "once_cell",
- "opentelemetry_api 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
+ "opentelemetry_api",
  "percent-encoding",
  "rand",
  "thiserror",
@@ -2848,7 +2805,7 @@ dependencies = [
  "config",
  "gethostname",
  "once_cell",
- "opentelemetry 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
+ "opentelemetry",
  "opentelemetry-otlp",
  "rustc-hash",
  "serde",
@@ -2857,12 +2814,12 @@ dependencies = [
  "strum",
  "time",
  "tokio",
- "tracing 0.2.0",
+ "tracing",
  "tracing-actix-web",
  "tracing-appender",
- "tracing-attributes 0.1.22",
- "tracing-opentelemetry 0.16.0",
- "tracing-subscriber 0.3.0",
+ "tracing-attributes",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
  "vergen",
 ]
 
@@ -3496,7 +3453,7 @@ dependencies = [
  "futures-sink",
  "pin-project-lite",
  "tokio",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -3536,7 +3493,7 @@ dependencies = [
  "tower",
  "tower-layer",
  "tower-service",
- "tracing 0.1.36",
+ "tracing",
  "tracing-futures",
 ]
 
@@ -3557,7 +3514,7 @@ dependencies = [
  "tokio-util 0.7.4",
  "tower-layer",
  "tower-service",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -3600,19 +3557,8 @@ dependencies = [
  "cfg-if",
  "log",
  "pin-project-lite",
- "tracing-attributes 0.1.22",
- "tracing-core 0.1.30",
-]
-
-[[package]]
-name = "tracing"
-version = "0.2.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
-dependencies = [
- "cfg-if",
- "pin-project-lite",
- "tracing-attributes 0.2.0",
- "tracing-core 0.2.0",
+ "tracing-attributes",
+ "tracing-core",
 ]
 
 [[package]]
@@ -3622,22 +3568,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d725b8fa6ef307b3f4856913523337de45c47cc79271bafd7acfb39559e3a2da"
 dependencies = [
  "actix-web",
- "opentelemetry 0.18.0 (git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658)",
+ "opentelemetry",
  "pin-project",
- "tracing 0.1.36",
- "tracing-opentelemetry 0.18.0",
+ "tracing",
+ "tracing-opentelemetry",
  "uuid",
 ]
 
 [[package]]
 name = "tracing-appender"
-version = "0.2.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e"
 dependencies = [
  "crossbeam-channel",
- "thiserror",
  "time",
- "tracing-subscriber 0.3.0",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3645,16 +3591,6 @@ name = "tracing-attributes"
 version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11c75893af559bc8e10716548bdef5cb2b983f8e637db9d0e15126b61b484ee2"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "tracing-attributes"
-version = "0.2.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3672,21 +3608,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-core"
-version = "0.2.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
-dependencies = [
- "once_cell",
-]
-
-[[package]]
 name = "tracing-futures"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
  "pin-project",
- "tracing 0.1.36",
+ "tracing",
 ]
 
 [[package]]
@@ -3697,31 +3625,7 @@ checksum = "78ddad33d2d10b1ed7eb9d1f518a5674713876e97e5bb9b7345a7984fbb4f922"
 dependencies = [
  "lazy_static",
  "log",
- "tracing-core 0.1.30",
-]
-
-[[package]]
-name = "tracing-log"
-version = "0.2.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
-dependencies = [
- "log",
- "once_cell",
- "tracing-core 0.2.0",
-]
-
-[[package]]
-name = "tracing-opentelemetry"
-version = "0.16.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
-dependencies = [
- "async-trait",
- "once_cell",
- "opentelemetry 0.18.0 (git+https://github.com/jarnura/opentelemetry-rust?rev=a82056696ca3d26960458269a894e5cf15056ad8)",
- "tracing 0.2.0",
- "tracing-core 0.2.0",
- "tracing-log 0.2.0",
- "tracing-subscriber 0.3.0",
+ "tracing-core",
 ]
 
 [[package]]
@@ -3731,26 +3635,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21ebb87a95ea13271332df069020513ab70bdb5637ca42d6e492dc3bbbad48de"
 dependencies = [
  "once_cell",
- "opentelemetry 0.18.0 (git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658)",
- "tracing 0.1.36",
- "tracing-core 0.1.30",
- "tracing-log 0.1.3",
- "tracing-subscriber 0.3.16",
+ "opentelemetry",
+ "tracing",
+ "tracing-core",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]
 name = "tracing-serde"
-version = "0.2.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc6b213177105856957181934e4920de57730fc69bf42c37ee5bb664d406d9e1"
 dependencies = [
  "serde",
- "tracing-core 0.2.0",
+ "tracing-core",
 ]
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.0"
-source = "git+https://github.com/jarnura/tracing?rev=16d277227f60788750528e4f4cc1db4f36b0869f#16d277227f60788750528e4f4cc1db4f36b0869f"
+version = "0.3.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6176eae26dd70d0c919749377897b54a9276bd7061339665dd68777926b5a70"
 dependencies = [
  "matchers",
  "nu-ansi-term",
@@ -3761,21 +3667,10 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
- "tracing 0.2.0",
- "tracing-core 0.2.0",
- "tracing-log 0.2.0",
+ "tracing",
+ "tracing-core",
+ "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.3.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6176eae26dd70d0c919749377897b54a9276bd7061339665dd68777926b5a70"
-dependencies = [
- "sharded-slab",
- "thread_local",
- "tracing-core 0.1.30",
 ]
 
 [[package]]

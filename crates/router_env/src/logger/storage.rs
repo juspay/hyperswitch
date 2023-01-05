@@ -7,9 +7,9 @@ use std::{collections::HashMap, fmt, time::Instant};
 use tracing::{
     field::{Field, Visit},
     span::{Attributes, Record},
-    Collect, Id,
+    Id, Subscriber,
 };
-use tracing_subscriber::{subscribe::Context, Subscribe};
+use tracing_subscriber::{layer::Context, Layer};
 
 /// Storage to store key value pairs of spans.
 #[derive(Clone, Debug)]
@@ -89,7 +89,7 @@ impl Visit for Storage<'_> {
 }
 
 #[allow(clippy::expect_used)]
-impl<S: Collect + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Subscribe<S>
+impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
     for StorageSubscription
 {
     /// On new span.
