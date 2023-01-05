@@ -87,6 +87,97 @@ impl
         types::PaymentsResponseData,
     > for Checkout
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let id = req.request.connector_transaction_id.as_str();
+        Ok(format!(
+            "{}payments/{id}/captures",
+            self.base_url(connectors)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let checkout_req =
+            utils::Encode::<checkout::PaymentCaptureRequest>::convert_and_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(checkout_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCaptureRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        let response: checkout::PaymentCaptureResponse = res
+            .response
+            .parse_struct("CaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: checkout::ErrorResponse = res
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            code: response
+                .error_codes
+                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
+                .join(" & "),
+            message: response
+                .error_type
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
 }
 
 impl

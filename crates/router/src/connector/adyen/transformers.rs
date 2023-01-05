@@ -35,6 +35,16 @@ pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub enum AuthType {
+    #[default]
+    PreAuth,
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct AdditionalData {
+    authorisation_type: AuthType,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest {
@@ -47,6 +57,7 @@ pub struct AdyenPaymentRequest {
     shopper_interaction: AdyenShopperInteraction,
     #[serde(skip_serializing_if = "Option::is_none")]
     recurring_processing_model: Option<AdyenRecurringModel>,
+    additional_data: Option<AdditionalData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -363,6 +374,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             None
         };
 
+        let additional_data = match item.request.capture_method {
+            Some(storage_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
+                authorisation_type: AuthType::PreAuth,
+            }),
+            _ => None,
+        };
+
         Ok(Self {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -376,6 +394,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             shopper_interaction,
             recurring_processing_model,
             browser_info,
+            additional_data,
         })
     }
 }
@@ -419,6 +438,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
 
 pub fn get_adyen_response(
     response: AdyenResponse,
+    is_capture_manual: bool,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -429,7 +449,13 @@ pub fn get_adyen_response(
 > {
     let result = response.result_code;
     let status = match result.as_str() {
-        "Authorised" => storage_enums::AttemptStatus::Charged,
+        "Authorised" => {
+            if is_capture_manual {
+                storage_enums::AttemptStatus::Authorized
+            } else {
+                storage_enums::AttemptStatus::Charged
+            }
+        }
         "Refused" => storage_enums::AttemptStatus::Failure,
         _ => storage_enums::AttemptStatus::Pending,
     };
@@ -522,15 +548,24 @@ pub fn get_redirection_response(
 }
 
 impl<F, Req>
-    TryFrom<types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>>
-    for types::RouterData<F, Req, types::PaymentsResponseData>
+    TryFrom<(
+        types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
+        bool,
+    )> for types::RouterData<F, Req, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
+        items: (
+            types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
+        let item = items.0;
+        let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::AdyenResponse(response) => get_adyen_response(response)?,
+            AdyenPaymentResponse::AdyenResponse(response) => {
+                get_adyen_response(response, is_manual_capture)?
+            }
             AdyenPaymentResponse::AdyenRedirectResponse(response) => {
                 get_redirection_response(response)?
             }
@@ -539,7 +574,70 @@ impl<F, Req>
         Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
+            ..item.data
+        })
+    }
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenCaptureRequest {
+    merchant_account: String,
+    amount: Amount,
+    reference: String,
+}
 
+impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            merchant_account: auth_type.merchant_account,
+            reference: item.payment_id.to_string(),
+            amount: Amount {
+                currency: item.request.currency.to_string(),
+                value: item
+                    .request
+                    .amount_to_capture
+                    .unwrap_or(item.request.amount),
+            },
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenCaptureResponse {
+    merchant_account: String,
+    payment_psp_reference: String,
+    psp_reference: String,
+    reference: String,
+    status: String,
+    amount: Amount,
+}
+
+impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
+    for types::PaymentsCaptureRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (status, amount_captured) = match item.response.status.as_str() {
+            "received" => (
+                storage_enums::AttemptStatus::Charged,
+                Some(item.response.amount.value),
+            ),
+            _ => (storage_enums::AttemptStatus::Pending, None),
+        };
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
+                redirect: false,
+                redirection_data: None,
+                mandate_reference: None,
+            }),
+            amount_captured,
             ..item.data
         })
     }
