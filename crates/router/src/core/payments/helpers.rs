@@ -18,6 +18,7 @@ use crate::{
         payment_methods::cards,
     },
     db::StorageInterface,
+    logger,
     pii::Secret,
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
@@ -42,7 +43,6 @@ pub async fn get_address_for_payment_request(
     merchant_id: &str,
     customer_id: &Option<String>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
-    // TODO: Refactor this function for more readability (TryFrom)
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -59,17 +59,10 @@ pub async fn get_address_for_payment_request(
                         .as_deref()
                         .get_required_value("customer_id")
                         .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+
+                    let address_details = address.address.clone().unwrap_or_default();
                     Some(
                         db.insert_address(storage::AddressNew {
-                            city: address.address.as_ref().and_then(|a| a.city.clone()),
-                            country: address.address.as_ref().and_then(|a| a.country.clone()),
-                            line1: address.address.as_ref().and_then(|a| a.line1.clone()),
-                            line2: address.address.as_ref().and_then(|a| a.line2.clone()),
-                            line3: address.address.as_ref().and_then(|a| a.line3.clone()),
-                            state: address.address.as_ref().and_then(|a| a.state.clone()),
-                            zip: address.address.as_ref().and_then(|a| a.zip.clone()),
-                            first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                            last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
                             phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
                             country_code: address
                                 .phone
@@ -77,7 +70,8 @@ pub async fn get_address_for_payment_request(
                                 .and_then(|a| a.country_code.clone()),
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-                            ..storage::AddressNew::default()
+
+                            ..address_details.foreign_into()
                         })
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
@@ -171,7 +165,7 @@ pub async fn get_token_for_recurring_mandate(
     };
     verify_mandate_details(
         req.amount.get_required_value("amount")?.into(),
-        req.currency.clone().get_required_value("currency")?,
+        req.currency.get_required_value("currency")?,
         mandate.clone(),
     )?;
 
@@ -311,6 +305,44 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
     Ok(())
 }
 
+pub fn validate_customer_id_mandatory_cases_api(
+    shipping: &Option<api::Address>,
+    billing: &Option<api::Address>,
+    setup_future_usage: &Option<api_enums::FutureUsage>,
+    customer_id: &Option<String>,
+) -> RouterResult<()> {
+    match (shipping, billing, setup_future_usage, customer_id) {
+        (Some(_), _, _, None) | (_, Some(_), _, None) | (_, _, Some(_), None) => {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "customer_id is mandatory when shipping or billing \
+                address is given or when setup_future_usage is given"
+                    .to_string(),
+            })
+            .into_report()
+        }
+        _ => Ok(()),
+    }
+}
+
+pub fn validate_customer_id_mandatory_cases_storage(
+    shipping: &Option<storage::Address>,
+    billing: &Option<storage::Address>,
+    setup_future_usage: &Option<storage_enums::FutureUsage>,
+    customer_id: &Option<String>,
+) -> RouterResult<()> {
+    match (shipping, billing, setup_future_usage, customer_id) {
+        (Some(_), _, _, None) | (_, Some(_), _, None) | (_, _, Some(_), None) => {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "customer_id is mandatory when shipping or billing \
+                address is given or when setup_future_usage is given"
+                    .to_string(),
+            })
+            .into_report()
+        }
+        _ => Ok(()),
+    }
+}
+
 pub fn create_startpay_url(
     server: &Server,
     payment_attempt: &storage::PaymentAttempt,
@@ -359,7 +391,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
 pub fn verify_mandate_details(
     request_amount: i64,
-    request_currency: String,
+    request_currency: api_enums::Currency,
     mandate: storage::Mandate,
 ) -> RouterResult<()> {
     match mandate.mandate_type {
@@ -391,7 +423,7 @@ pub fn verify_mandate_details(
     utils::when(
         mandate
             .mandate_currency
-            .map(|mandate_currency| mandate_currency.to_string() != request_currency)
+            .map(|mandate_currency| mandate_currency != request_currency.foreign_into())
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
@@ -487,7 +519,6 @@ pub(crate) async fn call_payment_method(
         Some(pm_data) => match payment_method_type {
             Some(payment_method_type) => match pm_data {
                 api::PaymentMethod::Card(card) => {
-                    //TODO: get it from temp_card
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
@@ -565,7 +596,7 @@ pub(crate) async fn call_payment_method(
 
 pub(crate) fn client_secret_auth<P>(
     payload: P,
-    auth_type: &services::api::MerchantAuthentication,
+    auth_type: &services::api::MerchantAuthentication<'_>,
 ) -> RouterResult<P>
 where
     P: services::Authenticate,
@@ -734,7 +765,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
                 // TODO: Handle token expiry
-                let pm = Vault::get_payment_method_data_from_locker(state, token).await?;
+                let (pm, _) = Vault::get_payment_method_data_from_locker(state, token).await?;
                 let updated_pm = match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
                         let mut updated_card = card;
@@ -771,7 +802,7 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
-    ) -> RouterResult<Option<api::PaymentMethod>> {
+    ) -> RouterResult<(Option<api::PaymentMethod>, Option<api::TokenizedCardValue2>)> {
         let (resp, card_cvc) = cards::mock_get_card(&*state.store, lookup_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -789,14 +820,21 @@ impl Vault {
             .expose_option()
             .get_required_value("expiry_year")?;
         let card_holder_name = card.name_on_card.expose_option().unwrap_or_default();
-        let card = api::PaymentMethod::Card(api::CCard {
+        let pm = api::PaymentMethod::Card(api::CCard {
             card_number: card_number.into(),
             card_exp_month: card_exp_month.into(),
             card_exp_year: card_exp_year.into(),
             card_holder_name: card_holder_name.into(),
             card_cvc: card_cvc.unwrap_or_default().into(),
         });
-        Ok(Some(card))
+        let value2 = api::TokenizedCardValue2 {
+            card_security_code: None,
+            card_fingerprint: None,
+            external_id: None,
+            customer_id: None,
+            payment_method_id: Some(card.card_id),
+        };
+        Ok((Some(pm), Some(value2)))
     }
 
     #[instrument(skip_all)]
@@ -812,11 +850,31 @@ impl Vault {
             card_holder_name: Some(card.card_holder_name.clone()),
         };
         let db = &*state.store;
-        cards::mock_add_card(db, txn_id, &card_detail, Some(card.card_cvc.peek().clone()))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
+        cards::mock_add_card(
+            db,
+            txn_id,
+            &card_detail,
+            Some(card.card_cvc.peek().clone()),
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed")?;
         Ok(txn_id.to_string())
+    }
+
+    #[instrument(skip_all)]
+    pub async fn delete_locker_payment_method_by_lookup_key(
+        state: &AppState,
+        lookup_key: &Option<String>,
+    ) {
+        let db = &*state.store;
+        if let Some(id) = lookup_key {
+            match cards::mock_delete_card(db, id).await {
+                Ok(_) => logger::info!("Card Deleted from locker mock up"),
+                Err(err) => logger::error!("Err: Card Delete from locker Failed : {}", err),
+            }
+        }
     }
 }
 
@@ -829,32 +887,27 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
-    ) -> RouterResult<Option<api::PaymentMethod>> {
+    ) -> RouterResult<(Option<api::PaymentMethod>, Option<api::TokenizedCardValue2>)> {
         let de_tokenize = cards::get_tokenized_data(state, lookup_key, true).await?;
         let value1: api::TokenizedCardValue1 = de_tokenize
             .value1
             .parse_struct("TokenizedCardValue1")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error parsing TokenizedCardValue1")?;
-        let value2 = de_tokenize.value2;
-        let card_cvc = if value2.is_empty() {
-            //mandatory field in api contract (when querying from legacy locker we don't get cvv), cvv handling needs to done
-            "".to_string()
-        } else {
-            let tk_value2: api::TokenizedCardValue2 = value2
-                .parse_struct("TokenizedCardValue2")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error parsing TokenizedCardValue2")?;
-            tk_value2.card_security_code.unwrap_or_default()
-        };
+        let value2: api::TokenizedCardValue2 = de_tokenize
+            .value2
+            .parse_struct("TokenizedCardValue2")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error parsing TokenizedCardValue2")?;
+
         let card = api::PaymentMethod::Card(api::CCard {
             card_number: value1.card_number.into(),
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.unwrap_or_default().into(),
-            card_cvc: card_cvc.into(),
+            card_cvc: value2.card_security_code.clone().unwrap_or_default().into(),
         });
-        Ok(Some(card))
+        Ok((Some(card), Some(value2)))
     }
 
     #[instrument(skip_all)]
@@ -874,11 +927,36 @@ impl Vault {
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Value1 for locker")?;
-        let value2 =
-            transformers::mk_card_value2(Some(card.card_cvc.peek().clone()), None, None, None)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting Value12 for locker")?;
+        let value2 = transformers::mk_card_value2(
+            Some(card.card_cvc.peek().clone()),
+            None,
+            None,
+            None,
+            None,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value12 for locker")?;
         cards::create_tokenize(state, value1, Some(value2), txn_id.to_string()).await
+    }
+
+    #[instrument(skip_all)]
+    pub async fn delete_locker_payment_method_by_lookup_key(
+        state: &AppState,
+        lookup_key: &Option<String>,
+    ) {
+        if let Some(lookup_key) = lookup_key {
+            let delete_resp = cards::delete_tokenized_data(state, lookup_key).await;
+            match delete_resp {
+                Ok(resp) => {
+                    if resp == "Ok" {
+                        logger::info!("Card From locker deleted Successfully")
+                    } else {
+                        logger::error!("Error: Deleting Card From Locker : {}", resp)
+                    }
+                }
+                Err(err) => logger::error!("Err: Deleting Card From Locker : {}", err),
+            }
+        }
     }
 }
 
@@ -959,13 +1037,16 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
-pub fn can_call_connector(status: storage_enums::IntentStatus) -> bool {
-    matches!(
+pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
+    !matches!(
         status,
-        storage_enums::IntentStatus::Failed
-            | storage_enums::IntentStatus::Processing
-            | storage_enums::IntentStatus::Succeeded
-            | storage_enums::IntentStatus::RequiresCustomerAction
+        storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::Failure
     )
 }
 
@@ -1037,7 +1118,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("order_id", payment_intent_id),
+                ("payment_intent_client_secret", payment_intent_id),
             ],
         )
         .into_report()
@@ -1049,7 +1130,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("order_id", payment_intent_id),
+                ("payment_intent_client_secret", payment_intent_id),
                 ("amount", amount.to_string()),
             ],
         )
@@ -1160,7 +1241,7 @@ pub fn make_url_with_signature(
 }
 
 pub fn hmac_sha256_sorted_query_params<'a>(
-    params: &mut [(Cow<str>, Cow<str>)],
+    params: &mut [(Cow<'_, str>, Cow<'_, str>)],
     key: &'a str,
 ) -> RouterResult<String> {
     params.sort();

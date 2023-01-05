@@ -13,6 +13,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
+    pii,
     pii::Secret,
     routes::AppState,
     types::{
@@ -101,7 +102,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
-        let db = db as &dyn StorageInterface;
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
@@ -132,6 +132,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 payment_attempt,
                 currency,
                 amount,
+                email: None::<Secret<String, pii::Email>>,
                 mandate_id: None,
                 token: None,
                 setup_mandate: None,

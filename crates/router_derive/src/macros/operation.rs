@@ -83,7 +83,7 @@ enum Conversion {
 }
 
 impl From<String> for Conversion {
-    fn from(s: String) -> Conversion {
+    fn from(s: String) -> Self {
         match s.as_str() {
             "validate_request" => Self::ValidateRequest,
             "get_tracker" => Self::GetTracker,
@@ -91,6 +91,7 @@ impl From<String> for Conversion {
             "update_tracker" => Self::UpdateTracker,
             "post_tracker" => Self::PostUpdateTracker,
             "all" => Self::All,
+            #[allow(clippy::panic)] // FIXME: Use `compile_error!()` instead
             _ => panic!("Invalid conversion identifier {}", s),
         }
     }
@@ -118,36 +119,36 @@ impl Conversion {
     fn to_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
         match self {
-            Conversion::ValidateRequest => quote! {
+            Self::ValidateRequest => quote! {
                 fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
-            Conversion::GetTracker => quote! {
+            Self::GetTracker => quote! {
                 fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
-            Conversion::Domain => quote! {
+            Self::Domain => quote! {
                 fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type>> {
                     Ok(self)
                 }
             },
-            Conversion::UpdateTracker => quote! {
+            Self::UpdateTracker => quote! {
                 fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
-            Conversion::PostUpdateTracker => quote! {
+            Self::PostUpdateTracker => quote! {
                 fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
-            Conversion::All => {
-                let validate_request = Conversion::ValidateRequest.to_function(ident);
-                let get_tracker = Conversion::GetTracker.to_function(ident);
-                let domain = Conversion::Domain.to_function(ident);
-                let update_tracker = Conversion::UpdateTracker.to_function(ident);
+            Self::All => {
+                let validate_request = Self::ValidateRequest.to_function(ident);
+                let get_tracker = Self::GetTracker.to_function(ident);
+                let domain = Self::Domain.to_function(ident);
+                let update_tracker = Self::UpdateTracker.to_function(ident);
 
                 quote! {
                     #validate_request
@@ -162,36 +163,36 @@ impl Conversion {
     fn to_ref_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
         match self {
-            Conversion::ValidateRequest => quote! {
+            Self::ValidateRequest => quote! {
                 fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
-            Conversion::GetTracker => quote! {
+            Self::GetTracker => quote! {
                 fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
-            Conversion::Domain => quote! {
+            Self::Domain => quote! {
                 fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type>)> {
                     Ok(*self)
                 }
             },
-            Conversion::UpdateTracker => quote! {
+            Self::UpdateTracker => quote! {
                 fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
-            Conversion::PostUpdateTracker => quote! {
+            Self::PostUpdateTracker => quote! {
                 fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
-            Conversion::All => {
-                let validate_request = Conversion::ValidateRequest.to_ref_function(ident);
-                let get_tracker = Conversion::GetTracker.to_ref_function(ident);
-                let domain = Conversion::Domain.to_ref_function(ident);
-                let update_tracker = Conversion::UpdateTracker.to_ref_function(ident);
+            Self::All => {
+                let validate_request = Self::ValidateRequest.to_ref_function(ident);
+                let get_tracker = Self::GetTracker.to_ref_function(ident);
+                let domain = Self::Domain.to_ref_function(ident);
+                let update_tracker = Self::UpdateTracker.to_ref_function(ident);
 
                 quote! {
                     #validate_request
@@ -205,6 +206,7 @@ impl Conversion {
 }
 
 fn find_operation_attr(a: &[syn::Attribute]) -> syn::Attribute {
+    #[allow(clippy::expect_used)] // FIXME: Use `compile_error!()` instead
     a.iter()
         .find(|a| {
             a.path
@@ -232,6 +234,9 @@ fn find_value(v: NestedMeta) -> Option<(String, Vec<String>)> {
         _ => None,
     }
 }
+
+// FIXME: Propagate errors in a better manner instead of `expect()`, maybe use `compile_error!()`
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 fn find_properties(attr: &syn::Attribute) -> Option<HashMap<String, Vec<String>>> {
     let meta = attr.parse_meta();
     match meta {
@@ -251,6 +256,8 @@ fn find_properties(attr: &syn::Attribute) -> Option<HashMap<String, Vec<String>>
     }
 }
 
+// FIXME: Propagate errors in a better manner instead of `expect()`, maybe use `compile_error!()`
+#[allow(clippy::expect_used)]
 pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(token as DeriveInput);
     let struct_name = &input.ident;

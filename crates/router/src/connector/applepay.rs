@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Applepay;
 
-impl api::ConnectorCommon for Applepay {
+impl ConnectorCommon for Applepay {
     fn id(&self) -> &'static str {
         "applepay"
     }
@@ -92,6 +92,7 @@ impl
     fn get_headers(
         &self,
         _req: &types::PaymentsSessionRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -129,7 +130,9 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
-            .headers(types::PaymentsSessionType::get_headers(self, req)?)
+            .headers(types::PaymentsSessionType::get_headers(
+                self, req, connectors,
+            )?)
             .body(types::PaymentsSessionType::get_request_body(self, req)?)
             .add_certificate(types::PaymentsSessionType::get_certificate(self, req)?)
             .add_certificate_key(types::PaymentsSessionType::get_certificate_key(self, req)?)

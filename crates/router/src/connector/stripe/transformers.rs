@@ -309,7 +309,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Succeeded => Self::Charged,
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::PendingVbv,
+            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
             StripePaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
@@ -399,6 +399,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
             }),
+            amount_captured: Some(item.response.amount_received),
             ..item.data
         })
     }
@@ -528,8 +529,8 @@ pub enum RefundStatus {
     RequiresAction,
 }
 
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
             self::RefundStatus::Succeeded => Self::Success,
             self::RefundStatus::Failed => Self::Failure,

@@ -153,6 +153,7 @@ impl CustomerInterface for MockDb {
     ) -> CustomResult<storage::Customer, errors::StorageError> {
         let mut customers = self.customers.lock().await;
         let customer = storage::Customer {
+            #[allow(clippy::as_conversions)]
             id: customers.len() as i32,
             customer_id: customer_data.customer_id,
             merchant_id: customer_data.merchant_id,

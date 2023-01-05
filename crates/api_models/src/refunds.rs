@@ -34,30 +34,23 @@ pub struct RefundResponse {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Eq, Clone, PartialEq, Default, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
+    #[default]
     Pending,
     Review,
-}
-
-impl Default for RefundStatus {
-    fn default() -> Self {
-        RefundStatus::Pending
-    }
 }
 
 impl From<enums::RefundStatus> for RefundStatus {
     fn from(status: enums::RefundStatus) -> Self {
         match status {
-            enums::RefundStatus::Failure | enums::RefundStatus::TransactionFailure => {
-                RefundStatus::Failed
-            }
-            enums::RefundStatus::ManualReview => RefundStatus::Review,
-            enums::RefundStatus::Pending => RefundStatus::Pending,
-            enums::RefundStatus::Success => RefundStatus::Succeeded,
+            enums::RefundStatus::Failure | enums::RefundStatus::TransactionFailure => Self::Failed,
+            enums::RefundStatus::ManualReview => Self::Review,
+            enums::RefundStatus::Pending => Self::Pending,
+            enums::RefundStatus::Success => Self::Succeeded,
         }
     }
 }

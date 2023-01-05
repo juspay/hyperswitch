@@ -38,7 +38,7 @@ locker_decryption_key2 = ""
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource"]
 
 [eph_key]
 validity = 1
@@ -66,6 +66,12 @@ base_url = "https://api-na.playground.klarna.com/"
 
 [connectors.applepay]
 base_url = "https://apple-pay-gateway.apple.com/"
+
+[connectors.cybersource]
+base_url = "https://apitest.cybersource.com/"
+
+[connectors.shift4]
+base_url = "https://api.shift4.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

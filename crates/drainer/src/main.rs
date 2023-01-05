@@ -5,7 +5,10 @@ use structopt::StructOpt;
 async fn main() -> DrainerResult<()> {
     // Get configuration
     let cmd_line = settings::CmdLineConf::from_args();
-    let conf = settings::Settings::with_config_path(cmd_line.config_path).unwrap();
+
+    #[allow(clippy::expect_used)]
+    let conf = settings::Settings::with_config_path(cmd_line.config_path)
+        .expect("Unable to construct application configuration");
 
     let store = services::Store::new(&conf, false).await;
     let store = std::sync::Arc::new(store);

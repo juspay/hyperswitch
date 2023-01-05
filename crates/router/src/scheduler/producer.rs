@@ -15,25 +15,6 @@ use crate::{
     types::storage::{self, enums::ProcessTrackerStatus},
 };
 
-//TODO: move to env
-pub fn fetch_upper_limit() -> i64 {
-    0
-}
-
-pub fn fetch_lower_limit() -> i64 {
-    1800
-}
-
-pub fn producer_lock_key() -> &'static str {
-    "PRODUCER_LOCKING_KEY"
-}
-
-pub fn producer_lock_ttl() -> i64 {
-    // ttl_offset = config.scheduler_lock_offset.or_else(60);
-    // (scheduler_looper_interval / 100) + (ttl_offset)
-    160 //seconds
-}
-
 #[instrument(skip_all)]
 pub async fn start_producer(
     state: &AppState,
@@ -64,7 +45,9 @@ pub async fn start_producer(
                 }
             }
         } else {
-            // TODO: Handle termination?
+            // Currently the producer workflow isn't parallel and a direct termination
+            // will not cause any loss of data.
+            // [#268]: resolving this issue will require a different logic for handling this termination.
             info!("Terminating producer");
             break;
         }
@@ -79,24 +62,21 @@ pub async fn run_producer_flow(
     op: &SchedulerOptions,
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    let tag = "PRODUCER_LOCK";
-    let lock_key = producer_lock_key();
-    let lock_val = "LOCKED";
-    let ttl = settings.producer.lock_ttl;
+    lock_acquire_release::<_, _, error_stack::Report<errors::ProcessTrackerError>>(
+        state,
+        settings,
+        move || async {
+            let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
+            debug!("Producer count of tasks {}", tasks.len());
 
-    // TODO: Pass callback function to acquire_pt_lock() to run after acquiring lock
-    if state
-        .store
-        .acquire_pt_lock(tag, lock_key, lock_val, ttl)
-        .await
-    {
-        let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
-        debug!("Producer count of tasks {}", tasks.len());
-        //TODO based on pt.name decide which pt goes to which stream
-        // (LIVE_TRAFFIC_STRM,SCHEDULER_STREAM); array of [(stream,Vec<ProcessTracker>)]
-        divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
-        state.store.release_pt_lock(tag, lock_key).await;
-    }
+            // [#268]: Allow task based segregation of tasks
+
+            divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
+
+            Ok(())
+        },
+    )
+    .await?;
 
     Ok(())
 }
@@ -147,6 +127,9 @@ pub async fn fetch_producer_tasks(
     }
 
     new_tasks.append(&mut pending_tasks);
+
+    // Safety: Assuming we won't deal with more than `u64::MAX` tasks at once
+    #[allow(clippy::as_conversions)]
     metrics::TASKS_PICKED_COUNT.add(&metrics::CONTEXT, new_tasks.len() as u64, &[]);
     Ok(new_tasks)
 }

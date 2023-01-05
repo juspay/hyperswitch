@@ -88,7 +88,7 @@ impl ProcessTracker {
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         runner: &str,
-        limit: u64,
+        limit: usize,
     ) -> StorageResult<Vec<Self>> {
         let mut x: Vec<Self> = generics::generic_filter::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -100,7 +100,7 @@ impl ProcessTracker {
         )
         .await?;
         x.sort_by(|a, b| a.schedule_time.cmp(&b.schedule_time));
-        x.truncate(limit as usize);
+        x.truncate(limit);
         Ok(x)
     }
 

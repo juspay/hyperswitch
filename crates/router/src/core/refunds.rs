@@ -127,6 +127,7 @@ pub async fn trigger_refund_to_gateway(
 
     logger::debug!(?router_data);
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -268,6 +269,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
 
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         api::RSync,
         types::RefundsData,
         types::RefundsResponseData,
@@ -417,10 +419,10 @@ pub async fn validate_and_create_refund(
             validator::validate_maximum_refund_against_payment_attempt(&all_refunds)
                 .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
-            let connector = payment_attempt
-                .connector
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            let connector = payment_attempt.connector.clone().ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("connector not populated in payment attempt.")
+            })?;
 
             refund_create_req = mk_new_refund(
                 req,
@@ -595,8 +597,7 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            // FIXME: This is not possible in schedule_refund_execution as it will always be scheduled
-                            // FIXME: as a part of refactoring
+                            // [#255]: This is not possible in schedule_refund_execution as it will always be scheduled
                             // sync_refund_with_gateway(data, &refund).await
                             Ok(refund)
                         }
@@ -604,7 +605,7 @@ pub async fn schedule_refund_execution(
                 }
             }
         }
-        //  FIXME: THis is not allowed to be otherwise or all
+        //  [#255]: This is not allowed to be otherwise or all
         _ => Ok(refund),
     }?;
     Ok(result)

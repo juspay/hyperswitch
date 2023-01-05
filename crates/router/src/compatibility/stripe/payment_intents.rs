@@ -23,14 +23,16 @@ pub async fn payment_intents_create(
 ) -> HttpResponse {
     let payload: types::StripePaymentIntentRequest = match qs_config
         .deserialize_bytes(&form_payload)
+        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
     {
         Ok(p) => p,
-        Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
-        }
+        Err(err) => return api::log_and_return_error_response(err),
     };
 
-    let create_payment_req: payment_types::PaymentsRequest = payload.into();
+    let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
+        Ok(req) => req,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
 
     wrap::compatibility_api_wrap::<
         _,
@@ -129,7 +131,11 @@ pub async fn payment_intents_update(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = match stripe_payload.try_into() {
+        Ok(req) => req,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
 
     let auth_type;
@@ -186,7 +192,11 @@ pub async fn payment_intents_confirm(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = match stripe_payload.try_into() {
+        Ok(req) => req,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 

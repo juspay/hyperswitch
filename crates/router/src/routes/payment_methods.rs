@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn test_custom_list_deserialization() {
         let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true&accepted_countries=US&accepted_countries=IN";
-        let de_query: web::Query<payment_methods::ListPaymentMethodRequest> =
+        let de_query: web::Query<ListPaymentMethodRequest> =
             web::Query::from_query(dummy_data).unwrap();
         let de_struct = de_query.into_inner();
         assert_eq!(

@@ -471,7 +471,7 @@ pub fn get_redirection_response(
         "Authorised" => storage_enums::AttemptStatus::Charged,
         "Refused" => storage_enums::AttemptStatus::Failure,
         "Cancelled" => storage_enums::AttemptStatus::Failure,
-        "RedirectShopper" => storage_enums::AttemptStatus::PendingVbv,
+        "RedirectShopper" => storage_enums::AttemptStatus::AuthenticationPending,
         _ => storage_enums::AttemptStatus::Pending,
     };
 

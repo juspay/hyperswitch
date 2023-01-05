@@ -119,11 +119,16 @@ base_url = "https://api-na.playground.klarna.com/"
 [connectors.applepay]
 base_url = "https://apple-pay-gateway.apple.com/"
 
+[connectors.cybersource]
+base_url = "https://apitest.cybersource.com/"
+
+[connectors.shift4]
+base_url = "https://api.shift4.com/"
+
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
-
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource"]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
 # It defines the the streams/queues name and configuration as well as event selection variables

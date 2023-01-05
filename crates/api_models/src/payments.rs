@@ -28,7 +28,7 @@ pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     pub amount: Option<Amount>,
     pub connector: Option<api_enums::Connector>,
-    pub currency: Option<String>,
+    pub currency: Option<api_enums::Currency>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub amount_to_capture: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -77,7 +77,7 @@ impl From<Amount> for i64 {
 
 impl From<i64> for Amount {
     fn from(val: i64) -> Self {
-        NonZeroI64::new(val).map_or(Amount::Zero, Amount::Value)
+        NonZeroI64::new(val).map_or(Self::Zero, Amount::Value)
     }
 }
 
@@ -241,10 +241,11 @@ pub enum PayLaterData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethod {
     #[serde(rename(deserialize = "card"))]
     Card(CCard),
+    #[default]
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
     #[serde(rename(deserialize = "wallet"))]
@@ -277,12 +278,6 @@ pub enum PaymentMethodDataResponse {
     Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
-}
-
-impl Default for PaymentMethod {
-    fn default() -> Self {
-        PaymentMethod::BankTransfer
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -683,13 +678,11 @@ impl From<CCard> for CCardResponse {
 impl From<PaymentMethod> for PaymentMethodDataResponse {
     fn from(payment_method_data: PaymentMethod) -> Self {
         match payment_method_data {
-            PaymentMethod::Card(card) => PaymentMethodDataResponse::Card(CCardResponse::from(card)),
-            PaymentMethod::BankTransfer => PaymentMethodDataResponse::BankTransfer,
-            PaymentMethod::PayLater(pay_later_data) => {
-                PaymentMethodDataResponse::PayLater(pay_later_data)
-            }
-            PaymentMethod::Wallet(wallet_data) => PaymentMethodDataResponse::Wallet(wallet_data),
-            PaymentMethod::Paypal => PaymentMethodDataResponse::Paypal,
+            PaymentMethod::Card(card) => Self::Card(CCardResponse::from(card)),
+            PaymentMethod::BankTransfer => Self::BankTransfer,
+            PaymentMethod::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
+            PaymentMethod::Wallet(wallet_data) => Self::Wallet(wallet_data),
+            PaymentMethod::Paypal => Self::Paypal,
         }
     }
 }
@@ -873,7 +866,7 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
@@ -888,7 +881,7 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for OptionalPaymentIdVisitor {
         type Value = Option<PaymentIdType>;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
@@ -944,7 +937,7 @@ mod amount {
     impl<'de> de::Visitor<'de> for AmountVisitor {
         type Value = Amount;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "amount as integer")
         }
 
@@ -952,13 +945,24 @@ mod amount {
         where
             E: de::Error,
         {
-            self.visit_i64(v as i64)
+            let v = i64::try_from(v).map_err(|_| {
+                E::custom(format!(
+                    "invalid value `{v}`, expected an integer between 0 and {}",
+                    i64::MAX
+                ))
+            })?;
+            self.visit_i64(v)
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
+            if v.is_negative() {
+                return Err(E::custom(format!(
+                    "invalid value `{v}`, expected a positive integer"
+                )));
+            }
             Ok(Amount::from(v))
         }
     }
@@ -966,7 +970,7 @@ mod amount {
     impl<'de> de::Visitor<'de> for OptionalAmountVisitor {
         type Value = Option<Amount>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "option of amount (as integer)")
         }
 
@@ -1002,6 +1006,7 @@ mod amount {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

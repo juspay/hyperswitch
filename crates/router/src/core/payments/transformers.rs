@@ -13,8 +13,7 @@ use crate::{
     routes::AppState,
     services::{self, RedirectForm},
     types::{
-        self,
-        api::{self, NextAction, PaymentsResponse},
+        self, api,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -32,11 +31,8 @@ where
     T: TryFrom<PaymentData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
     F: Clone,
-    error_stack::Report<errors::ApiErrorResponse>:
-        std::convert::From<<T as TryFrom<PaymentData<F>>>::Error>,
+    error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
-    //TODO: everytime parsing the json may have impact?
-
     let (merchant_connector_account, payment_method, router_data);
     let db = &*state.store;
     merchant_connector_account = db
@@ -60,7 +56,7 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    //FIXME[#44]: why should response be filled during request
+    // [#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
@@ -98,6 +94,7 @@ where
         connector_meta_data: merchant_connector_account.metadata,
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        amount_captured: payment_data.payment_intent.amount_captured,
     };
 
     Ok(router_data)
@@ -143,7 +140,6 @@ where
             payment_data.address,
             server,
             payment_data.connector_response.authentication_data,
-            payment_data.token,
             operation,
         )
     }
@@ -233,7 +229,6 @@ pub fn payments_to_payments_response<R, Op>(
     address: PaymentAddress,
     server: &Server,
     redirection_data: Option<serde_json::Value>,
-    payment_token: Option<String>,
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
@@ -260,10 +255,10 @@ where
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
                 services::BachResponse::Form(form)
             } else {
-                let mut response: PaymentsResponse = request.into();
+                let mut response: api::PaymentsResponse = request.into();
                 let mut next_action_response = None;
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
-                    next_action_response = Some(NextAction {
+                    next_action_response = Some(api::NextAction {
                         next_action_type: api::NextActionType::RedirectToUrl,
                         redirect_to_url: Some(helpers::create_startpay_url(
                             server,
@@ -314,7 +309,7 @@ where
                             payment_method_data.map(api::PaymentMethodDataResponse::from),
                             auth_flow == services::AuthFlow::Merchant,
                         )
-                        .set_payment_token(payment_token)
+                        .set_payment_token(payment_attempt.payment_token)
                         .set_error_message(payment_attempt.error_message)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
@@ -342,7 +337,7 @@ where
                 )
             }
         }
-        None => services::BachResponse::Json(PaymentsResponse {
+        None => services::BachResponse::Json(api::PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
             status: payment_intent.status.foreign_into(),
@@ -377,6 +372,7 @@ where
             shipping: address.shipping,
             billing: address.billing,
             cancellation_reason: payment_attempt.cancellation_reason,
+            payment_token: payment_attempt.payment_token,
             ..Default::default()
         }),
     })
@@ -435,6 +431,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
             browser_info,
+            email: payment_data.email,
             order_details,
         })
     }

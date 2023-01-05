@@ -214,6 +214,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_attempt,
                 currency,
                 amount,
+                email: request.email.clone(),
                 mandate_id,
                 setup_mandate,
                 token,
@@ -406,10 +407,22 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if let Some(true) = request.confirm {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
+        if request.confirm.unwrap_or(false) {
+            if !matches!(
+                request.payment_method,
+                Some(api_models::enums::PaymentMethodType::Paypal)
+            ) {
+                helpers::validate_pm_or_token_given(
+                    &request.payment_token,
+                    &request.payment_method_data,
+                )?;
+            }
+
+            helpers::validate_customer_id_mandatory_cases_api(
+                &request.shipping,
+                &request.billing,
+                &request.setup_future_usage,
+                &request.customer_id,
             )?;
         }
 
@@ -536,13 +549,10 @@ impl PaymentCreate {
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
-    let currency: enums::Currency = req
+    let currency = req
         .currency
-        .as_ref()
-        .parse_enum("currency")
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "invalid currency".to_string(),
-        })?;
+        .map(ForeignInto::foreign_into)
+        .get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }

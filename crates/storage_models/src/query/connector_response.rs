@@ -47,7 +47,7 @@ impl ConnectorResponse {
         payment_id: &str,
         merchant_id: &str,
         attempt_id: &str,
-    ) -> StorageResult<ConnectorResponse> {
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()).and(

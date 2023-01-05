@@ -4,7 +4,7 @@ pub(crate) mod utils;
 
 use std::fmt::Display;
 
-use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
+use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
 use error_stack;
@@ -24,7 +24,7 @@ pub type BachResponse<T> = BachResult<services::BachResponse<T>>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
-        impl std::fmt::Display for $st {
+        impl Display for $st {
             fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(
                     fmt,
@@ -224,7 +224,7 @@ impl ResponseError for BachError {
     }
 }
 
-pub fn http_not_implemented() -> HttpResponse<BoxBody> {
+pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     ApiErrorResponse::NotImplemented.error_response()
 }
 

@@ -187,13 +187,13 @@ impl From<F<storage_enums::AttemptStatus>> for F<storage_enums::IntentStatus> {
             storage_enums::AttemptStatus::Authorized => {
                 storage_enums::IntentStatus::RequiresCapture
             }
-            storage_enums::AttemptStatus::PendingVbv => {
+            storage_enums::AttemptStatus::AuthenticationPending => {
                 storage_enums::IntentStatus::RequiresCustomerAction
             }
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
-            | storage_enums::AttemptStatus::VbvSuccessful
+            | storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::VoidInitiated
@@ -203,7 +203,7 @@ impl From<F<storage_enums::AttemptStatus>> for F<storage_enums::IntentStatus> {
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::AuthorizationFailed
             | storage_enums::AttemptStatus::VoidFailed
-            | storage_enums::AttemptStatus::JuspayDeclined
+            | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure => storage_enums::IntentStatus::Failed,
             storage_enums::AttemptStatus::Voided => storage_enums::IntentStatus::Cancelled,
@@ -347,9 +347,28 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             )),
             test_mode: merchant_ca.test_mode,
             disabled: merchant_ca.disabled,
-            metadata: None,
+            metadata: merchant_ca.metadata,
             payment_methods_enabled,
         }
         .into())
+    }
+}
+
+impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address::AddressNew> {
+    fn from(item: F<api_models::payments::AddressDetails>) -> Self {
+        let address = item.0;
+        storage_models::address::AddressNew {
+            city: address.city,
+            country: address.country,
+            line1: address.line1,
+            line2: address.line2,
+            line3: address.line3,
+            state: address.state,
+            zip: address.zip,
+            first_name: address.first_name,
+            last_name: address.last_name,
+            ..Default::default()
+        }
+        .into()
     }
 }

@@ -25,7 +25,7 @@ impl TempCard {
     pub async fn find_by_transaction_id(
         conn: &PgPooledConn,
         transaction_id: &str,
-    ) -> StorageResult<Option<TempCard>> {
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::txn_id.eq(transaction_id.to_owned()),

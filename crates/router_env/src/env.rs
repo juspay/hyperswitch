@@ -63,7 +63,7 @@ pub fn workspace_path() -> PathBuf {
     // for (key, value) in std::env::vars() {
     //     println!("{key} : {value}");
     // }
-    if let Result::Ok(manifest_dir) = std::env::var(CARGO_MANIFEST_DIR) {
+    if let Ok(manifest_dir) = std::env::var(CARGO_MANIFEST_DIR) {
         let mut path = PathBuf::from(manifest_dir);
         path.pop();
         path.pop();

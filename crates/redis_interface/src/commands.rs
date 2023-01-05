@@ -75,7 +75,7 @@ impl super::RedisConnectionPool {
         let serialized = Encode::<V>::encode_to_vec(&value)
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        self.set_key(key, &serialized as &[u8]).await
+        self.set_key(key, serialized.as_slice()).await
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -242,8 +242,27 @@ impl super::RedisConnectionPool {
         let serialized = Encode::<V>::encode_to_vec(&value)
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        self.set_hash_field_if_not_exist(key, field, &serialized as &[u8])
+        self.set_hash_field_if_not_exist(key, field, serialized.as_slice())
             .await
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
+        &self,
+        kv: &[(&str, V)],
+        field: &str,
+    ) -> CustomResult<Vec<HsetnxReply>, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let mut hsetnx: Vec<HsetnxReply> = Vec::with_capacity(kv.len());
+        for (key, val) in kv {
+            hsetnx.push(
+                self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                    .await?,
+            );
+        }
+        Ok(hsetnx)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -561,6 +580,7 @@ impl super::RedisConnectionPool {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
 
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
 

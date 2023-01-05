@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Klarna;
 
-impl api::ConnectorCommon for Klarna {
+impl ConnectorCommon for Klarna {
     fn id(&self) -> &'static str {
         "klarna"
     }
@@ -63,6 +63,7 @@ impl
     fn get_headers(
         &self,
         req: &types::PaymentsSessionRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -112,7 +113,9 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSessionType::get_headers(self, req)?)
+                .headers(types::PaymentsSessionType::get_headers(
+                    self, req, connectors,
+                )?)
                 .body(types::PaymentsSessionType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -191,6 +194,7 @@ impl
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![
             (
@@ -252,7 +256,9 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsAuthorizeType::get_headers(self, req)?)
+                .headers(types::PaymentsAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))

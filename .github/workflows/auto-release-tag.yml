@@ -13,13 +13,16 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build router Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.ref_name }} --build-arg APP_MODE=router
+        run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.ref_name }} --build-arg BINARY=router
 
       - name: Build consumer Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca-consumer:${{ github.ref_name }} --build-arg APP_MODE=consumer --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Consumer
+        run: docker build . --file Dockerfile --tag juspaydotin/orca-consumer:${{ github.ref_name }} --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Consumer
 
       - name: Build producer Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca-producer:${{ github.ref_name }} --build-arg APP_MODE=producer --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Producer
+        run: docker build . --file Dockerfile --tag juspaydotin/orca-producer:${{ github.ref_name }} --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Producer
+
+      - name: Build drainer Docker image
+        run: docker build . --file Dockerfile --tag juspaydotin/orca:drainer-${{ github.ref_name }} --build-arg BINARY=drainer
 
       - name: Docker Login      
         env:
@@ -35,3 +38,6 @@ jobs:
 
       - name: Push producer Docker image
         run: docker push juspaydotin/orca-producer:${{ github.ref_name }}
+
+      - name: Push drainer Docker image
+        run: docker push juspaydotin/orca:drainer-${{ github.ref_name }}

@@ -87,6 +87,7 @@ impl TempCardInterface for MockDb {
     ) -> CustomResult<storage::TempCard, errors::StorageError> {
         let mut cards = self.temp_cards.lock().await;
         let card = storage::TempCard {
+            #[allow(clippy::as_conversions)]
             id: cards.len() as i32,
             date_created: insert.date_created,
             txn_id: insert.txn_id,

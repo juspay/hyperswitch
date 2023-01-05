@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 mod utils;
 
 #[allow(dead_code)]

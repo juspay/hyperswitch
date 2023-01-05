@@ -1,9 +1,9 @@
 pub(crate) trait KvStorePartition {
-    fn partition_number(key: PartitionKey, num_partitions: u8) -> u32 {
+    fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
         crc32fast::hash(key.to_string().as_bytes()) % u32::from(num_partitions)
     }
 
-    fn shard_key(key: PartitionKey, num_partitions: u8) -> String {
+    fn shard_key(key: PartitionKey<'_>, num_partitions: u8) -> String {
         format!("shard_{}", Self::partition_number(key, num_partitions))
     }
 }

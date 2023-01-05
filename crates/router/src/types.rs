@@ -7,13 +7,13 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
-pub mod connector;
 pub mod storage;
 pub mod transformers;
 
 use std::marker::PhantomData;
 
 pub use api_models::enums::Connector;
+use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 
 use self::{api::payments, storage::enums as storage_enums};
@@ -29,6 +29,8 @@ pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, Pa
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
+pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
+pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -74,6 +76,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<serde_json::Value>,
+    pub amount_captured: Option<i64>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -89,6 +92,7 @@ pub struct RouterData<Flow, Request, Response> {
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
     pub amount: i64,
+    pub email: Option<masking::Secret<String, Email>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,

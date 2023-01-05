@@ -48,11 +48,13 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             capture_method: None,
             browser_info: None,
             order_details: None,
+            email: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
         address: PaymentAddress::default(),
         connector_meta_data: None,
+        amount_captured: None,
     }
 }
 
@@ -92,6 +94,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
         connector_meta_data: None,
+        amount_captured: None,
     }
 }
 
@@ -108,6 +111,7 @@ async fn payments_create_success() {
         get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -140,6 +144,7 @@ async fn payments_create_failure() {
             get_token: types::api::GetToken::Connector,
         };
         let connector_integration: services::BoxedConnectorIntegration<
+            '_,
             types::api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -178,6 +183,7 @@ async fn refund_for_successful_payments() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -196,6 +202,7 @@ async fn refund_for_successful_payments() {
         "The payment failed"
     );
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -234,6 +241,7 @@ async fn refunds_create_failure() {
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
+        '_,
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
