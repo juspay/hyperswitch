@@ -56,6 +56,8 @@ pub trait ConnectorActions: Connector {
             payment_data.unwrap_or(types::PaymentsCaptureData {
                 amount_to_capture: Some(100),
                 connector_transaction_id: transaction_id,
+                currency: enums::Currency::USD,
+                amount: 100,
             }),
         );
         call_connector(request, integration).await
