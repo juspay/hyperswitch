@@ -1,5 +1,3 @@
-// TODO: Move this to router_env https://juspay.atlassian.net/browse/ORCA-345
-
 use once_cell::sync::Lazy;
 use router_env::opentelemetry::{
     global,
