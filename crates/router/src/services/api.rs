@@ -10,7 +10,7 @@ use masking::ExposeOptionInterface;
 use router_env::{
     tracing::{self, instrument},
     Tag,
-}; 
+};
 use serde::Serialize;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
@@ -431,7 +431,7 @@ pub async fn server_wrap_util<'a, 'b, T, Q, F, Fut>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: ApiAuthentication<'a>, 
+    api_authentication: ApiAuthentication<'a>,
 ) -> RouterResult<BachResponse<Q>>
 where
     F: Fn(&'b AppState, storage::MerchantAccount, T) -> Fut,
@@ -548,10 +548,10 @@ pub async fn authenticate_merchant<'a>(
         MerchantAuthentication::AdminApiKey => {
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            if admin_api_key != state.conf.keys.admin_api_key {   
+            if admin_api_key != state.conf.keys.admin_api_key {
                 Err(report!(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Admin Authentication Failure"))?;
-            } 
+            }
 
             Ok(storage::MerchantAccount {
                 id: -1,
@@ -626,7 +626,7 @@ pub async fn authenticate_eph_key<'a>(
             ek.merchant_id,
         )))
     } else {
-        Ok(MerchantAuthentication::ApiKey) 
+        Ok(MerchantAuthentication::ApiKey)
     }
 }
 
