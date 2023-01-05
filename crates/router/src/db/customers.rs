@@ -56,15 +56,13 @@ impl CustomerInterface for Store {
         .await
         .map_err(Into::into)
         .into_report()?;
-        maybe_customer
-            .clone()
-            .map_or(Ok(maybe_customer), |customer| {
-                if customer.name == Some("Redacted".to_string()) {
-                    Err(errors::StorageError::CustomerRedacted)?
-                } else {
-                    Ok(Some(customer))
-                }
-            })
+        maybe_customer.map_or(Ok(None), |customer| {
+            if customer.name == Some("Redacted".to_string()) {
+                Err(errors::StorageError::CustomerRedacted)?
+            } else {
+                Ok(Some(customer))
+            }
+        })
     }
 
     async fn update_customer_by_customer_id_merchant_id(
