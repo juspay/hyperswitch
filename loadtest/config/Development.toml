@@ -32,6 +32,10 @@ basilisk_host = ""
 [eph_key]
 validity = 1
 
+[refund]
+max_attempts = 10
+max_age = 365
+
 [jwekey]
 locker_key_identifier1 = ""
 locker_key_identifier2 = ""

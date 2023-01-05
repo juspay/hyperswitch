@@ -33,6 +33,7 @@ pub struct Settings {
     pub keys: Keys, //remove this during refactoring
     pub locker: Locker,
     pub connectors: Connectors,
+    pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
@@ -54,6 +55,12 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Refund {
+    pub max_attempts: usize,
+    pub max_age: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -10,9 +10,6 @@ use crate::{
     utils,
 };
 
-pub(super) const REFUND_MAX_AGE: i64 = 365;
-pub(super) const REFUND_MAX_ATTEMPTS: usize = 10;
-
 #[derive(Debug, thiserror::Error)]
 pub enum RefundValidationError {
     #[error("The payment attempt was not successful")]
@@ -38,7 +35,6 @@ pub fn validate_success_transaction(
     Ok(())
 }
 
-//todo: max refund request count
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
     payment_attempt_amount: i64, // &storage::PaymentAttempt,
@@ -71,11 +67,12 @@ pub fn validate_refund_amount(
 #[instrument(skip_all)]
 pub fn validate_payment_order_age(
     created_at: &PrimitiveDateTime,
+    refund_max_age: i64,
 ) -> CustomResult<(), RefundValidationError> {
     let current_time = common_utils::date_time::now();
 
     utils::when(
-        (current_time - *created_at).whole_days() > REFUND_MAX_AGE,
+        (current_time - *created_at).whole_days() > refund_max_age,
         || Err(report!(RefundValidationError::OrderExpired)),
     )
 }
@@ -83,9 +80,9 @@ pub fn validate_payment_order_age(
 #[instrument(skip_all)]
 pub fn validate_maximum_refund_against_payment_attempt(
     all_refunds: &[storage::Refund],
+    refund_max_attempts: usize,
 ) -> CustomResult<(), RefundValidationError> {
-    // TODO: Make this configurable
-    utils::when(all_refunds.len() > REFUND_MAX_ATTEMPTS, || {
+    utils::when(all_refunds.len() > refund_max_attempts, || {
         Err(report!(RefundValidationError::MaxRefundCountReached))
     })
 }

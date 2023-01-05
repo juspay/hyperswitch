@@ -50,6 +50,10 @@ port = 6379
 cluster_enabled = true
 cluster_urls = ["redis-queue:6379"]
 
+[refund]
+max_attempts = 10
+max_age = 365
+
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
 
