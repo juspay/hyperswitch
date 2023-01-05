@@ -59,7 +59,7 @@ async fn payments_incoming_webhook_flow(
     .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
     match payments_response {
-        services::BachResponse::Json(payments_response) => {
+        services::ApplicationResponse::Json(payments_response) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()

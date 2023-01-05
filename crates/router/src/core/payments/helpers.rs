@@ -507,7 +507,7 @@ pub(crate) async fn call_payment_method(
                             .await
                             .attach_printable("Error on adding payment method")?;
                             match resp {
-                                crate::services::BachResponse::Json(payment_method) => {
+                                crate::services::ApplicationResponse::Json(payment_method) => {
                                     Ok(payment_method)
                                 }
                                 _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -538,7 +538,7 @@ pub(crate) async fn call_payment_method(
                     .await
                     .attach_printable("Error on adding payment method")?;
                     match resp {
-                        crate::services::BachResponse::Json(payment_method) => Ok(payment_method),
+                        crate::services::ApplicationResponse::Json(payment_method) => Ok(payment_method),
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Error on adding payment method")),
                     }
@@ -1123,7 +1123,7 @@ pub async fn make_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub async fn delete_ephemeral_key(
@@ -1135,7 +1135,7 @@ pub async fn delete_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub fn make_pg_redirect_response(

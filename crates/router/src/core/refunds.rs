@@ -82,7 +82,7 @@ pub async fn refund_create_core(
         req,
     )
     .await
-    .map(services::BachResponse::Json)
+    .map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -180,7 +180,7 @@ where
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         f(state, merchant_account, refund_id).await?.foreign_into(),
     ))
 }
@@ -337,7 +337,7 @@ pub async fn refund_update_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok(services::BachResponse::Json(response.foreign_into()))
+    Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
 
 // ********************************************** VALIDATIONS **********************************************

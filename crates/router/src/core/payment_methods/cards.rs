@@ -92,7 +92,7 @@ pub async fn add_payment_method(
             })
         }
     }
-    .map(services::BachResponse::Json)
+    .map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -367,7 +367,7 @@ pub async fn list_payment_methods(
     response
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
-        .unwrap_or(Ok(services::BachResponse::Json(response)))
+        .unwrap_or(Ok(services::ApplicationResponse::Json(response)))
 }
 
 fn filter_payment_methods(
@@ -548,7 +548,7 @@ pub async fn list_customer_payment_method(
         customer_payment_methods: vec,
     };
 
-    Ok(services::BachResponse::Json(response))
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 pub async fn get_lookup_key_from_locker(
@@ -731,7 +731,7 @@ pub async fn retrieve_payment_method(
     } else {
         None
     };
-    Ok(services::BachResponse::Json(api::PaymentMethodResponse {
+    Ok(services::ApplicationResponse::Json(api::PaymentMethodResponse {
         merchant_id: pm.merchant_id,
         customer_id: Some(pm.customer_id),
         payment_method_id: pm.payment_method_id,
@@ -788,7 +788,7 @@ pub async fn delete_payment_method(
         }
     };
 
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         api::DeletePaymentMethodResponse {
             payment_method_id: pm.payment_method_id,
             deleted: true,

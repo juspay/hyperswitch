@@ -630,8 +630,8 @@ impl api::IncomingWebhook for Adyen {
 
     fn get_webhook_api_response(
         &self,
-    ) -> CustomResult<services::api::BachResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(services::api::BachResponse::TextPlain(
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(services::api::ApplicationResponse::TextPlain(
             "[accepted]".to_string(),
         ))
     }
