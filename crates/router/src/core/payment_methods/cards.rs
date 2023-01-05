@@ -761,16 +761,9 @@ pub async fn delete_payment_method(
 ) -> errors::RouterResponse<api::DeletePaymentMethodResponse> {
     let (_, value2) =
         helpers::Vault::get_payment_method_data_from_locker(state, &pm.payment_method_id).await?;
-    let payment_method_id = value2.map_or(
-        Err(errors::ApiErrorResponse::PaymentMethodNotFound),
-        |pm_value2| {
-            pm_value2
-                .payment_method_id
-                .map_or(Err(errors::ApiErrorResponse::PaymentMethodNotFound), |x| {
-                    Ok(x)
-                })
-        },
-    )?;
+    let payment_method_id = value2
+        .payment_method_id
+        .map_or(Err(errors::ApiErrorResponse::PaymentMethodNotFound), Ok)?;
     let pm = state
         .store
         .delete_payment_method_by_merchant_id_payment_method_id(

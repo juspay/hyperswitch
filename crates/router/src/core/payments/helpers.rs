@@ -725,17 +725,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 // TODO: Handle token expiry
                 let (pm, tokenize_value2) =
                     Vault::get_payment_method_data_from_locker(state, &token).await?;
-                tokenize_value2.map(|value2| {
-                    utils::when(
-                        value2
-                            .customer_id
-                            .ne(&payment_data.payment_intent.customer_id),
-                        || {
-                            Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
-                        },
-                    )?;
-                    Ok::<(), error_stack::Report<errors::ApiErrorResponse>>(())
-                });
+                utils::when(
+                    tokenize_value2
+                        .customer_id
+                        .ne(&payment_data.payment_intent.customer_id),
+                    || {
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
+                    },
+                )?;
                 payment_data.token = Some(token.to_string());
                 match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
@@ -789,7 +786,7 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethod>, Option<api::TokenizedCardValue2>)> {
+    ) -> RouterResult<(Option<api::PaymentMethod>, api::TokenizedCardValue2)> {
         let (resp, card_cvc) = cards::mock_get_card(&*state.store, lookup_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -821,7 +818,7 @@ impl Vault {
             customer_id: card.customer_id,
             payment_method_id: Some(card.card_id),
         };
-        Ok((Some(pm), Some(value2)))
+        Ok((Some(pm), value2))
     }
 
     #[instrument(skip_all)]
@@ -876,7 +873,7 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &AppState,
         lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethod>, Option<api::TokenizedCardValue2>)> {
+    ) -> RouterResult<(Option<api::PaymentMethod>, api::TokenizedCardValue2)> {
         let de_tokenize = cards::get_tokenized_data(state, lookup_key, true).await?;
         let value1: api::TokenizedCardValue1 = de_tokenize
             .value1
@@ -896,7 +893,7 @@ impl Vault {
             card_holder_name: value1.name_on_card.unwrap_or_default().into(),
             card_cvc: value2.card_security_code.clone().unwrap_or_default().into(),
         });
-        Ok((Some(card), Some(value2)))
+        Ok((Some(card), value2))
     }
 
     #[instrument(skip_all)]
