@@ -61,6 +61,7 @@ pub trait RefundInterface {
         merchant_id: &str,
         refund_details: &api_models::refunds::RefundListRequest,
         storage_scheme: enums::MerchantStorageScheme,
+        limit: i64,
     ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError>;
 }
 
@@ -559,11 +560,12 @@ mod storage {
             merchant_id: &str,
             refund_details: &api_models::refunds::RefundListRequest,
             storage_scheme: enums::MerchantStorageScheme,
+            limit: i64,
         ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = pg_connection(&self.master_pool).await;
-                    <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details)
+                    <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -683,6 +685,7 @@ impl RefundInterface for MockDb {
         _merchant_id: &str,
         _refund_details: &api_models::refunds::RefundListRequest,
         _storage_scheme: enums::MerchantStorageScheme,
+        _limit: i64,
     ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

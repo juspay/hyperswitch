@@ -1,3 +1,4 @@
+use common_utils::custom_serde;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -39,19 +40,23 @@ pub struct RefundResponse {
 pub struct RefundListRequest {
     pub payment_id: Option<String>,
     pub limit: Option<i64>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.lt")]
+    #[serde(default, rename = "created.lt", with = "custom_serde::iso8601::option")]
     pub created_lt: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gt")]
+    #[serde(default, rename = "created.gt", with = "custom_serde::iso8601::option")]
     pub created_gt: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.lte")]
+    #[serde(
+        default,
+        rename = "created.lte",
+        with = "custom_serde::iso8601::option"
+    )]
     pub created_lte: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gte")]
+    #[serde(
+        default,
+        rename = "created.gte",
+        with = "custom_serde::iso8601::option"
+    )]
     pub created_gte: Option<PrimitiveDateTime>,
 }
 

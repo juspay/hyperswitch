@@ -456,10 +456,9 @@ pub async fn validate_and_create_refund(
 }
 
 // ********************************************** Refund list **********************************************
-/**
- *  If payment-id is provided, lists all the refunds associated with that particular payment-id
- *  If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
- */
+
+///   If payment-id is provided, lists all the refunds associated with that particular payment-id
+///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
 
 #[instrument(skip_all)]
 pub async fn refund_list(
@@ -467,11 +466,13 @@ pub async fn refund_list(
     merchant_account: storage::merchant_account::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
+    let limit = validator::validate_refund_list(req.limit)?;
     let refund_list = db
         .filter_refund_by_constraints(
             &merchant_account.merchant_id,
             &req,
             merchant_account.storage_scheme,
+            limit,
         )
         .await
         .change_context(errors::ApiErrorResponse::RefundNotFound)?;

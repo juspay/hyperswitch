@@ -7,7 +7,7 @@ pub use storage_models::refund::{
 };
 use storage_models::{errors, schema::refund::dsl};
 
-use crate::connection::PgPooledConn;
+use crate::{connection::PgPooledConn, logger};
 
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
@@ -18,6 +18,7 @@ pub trait RefundDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &str,
         refund_list_details: &api_models::refunds::RefundListRequest,
+        limit: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
 
@@ -27,6 +28,7 @@ impl RefundDbExt for Refund {
         conn: &PgPooledConn,
         merchant_id: &str,
         refund_list_details: &api_models::refunds::RefundListRequest,
+        limit: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -38,7 +40,6 @@ impl RefundDbExt for Refund {
                 filter = filter.filter(dsl::payment_id.eq(pid.to_owned()));
             }
             None => {
-                let limit = refund_list_details.limit.unwrap_or(10);
                 filter = filter.limit(limit);
             }
         };
@@ -59,7 +60,7 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::created_at.gt(created_gte));
         }
 
-        crate::logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
             .get_results_async(conn)
