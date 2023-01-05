@@ -1,3 +1,4 @@
+use api_models::payments;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -106,7 +107,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             })),
             api::PaymentMethod::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
-                    payment_method_nonce: wallet_data.token.to_string(),
+                    payment_method_nonce: match wallet_data.token.to_owned() {
+                        payments::TokenCheck::TokenExists(token) => Ok(token),
+                        payments::TokenCheck::NoToken => {
+                            Err(errors::ConnectorError::FailedToObtainSessionToken)
+                        }
+                    }?,
                 }))
             }
             _ => Err(errors::ConnectorError::NotImplemented(format!(

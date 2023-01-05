@@ -407,9 +407,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if request.confirm == Some(true)
-            && request.payment_method != Some(api_models::enums::PaymentMethodType::Paypal)
-        {
+        if let Some(true) = request.confirm {
             helpers::validate_pm_or_token_given(
                 &request.payment_token,
                 &request.payment_method_data,

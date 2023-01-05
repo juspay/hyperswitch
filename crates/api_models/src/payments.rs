@@ -256,10 +256,19 @@ pub enum PaymentMethod {
     Paypal,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct WalletData {
     pub issuer_name: api_enums::WalletIssuer,
-    pub token: String,
+    pub token: TokenCheck,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum TokenCheck {
+    TokenExists(String),
+    #[default]
+    NoToken,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]

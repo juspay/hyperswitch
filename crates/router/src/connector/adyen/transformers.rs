@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
+use api_models::payments;
 use error_stack::{IntoReport, ResultExt};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -287,9 +288,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
 
         let payment_type = match item.payment_method {
             storage_enums::PaymentMethodType::Card => "scheme".to_string(),
-            storage_enums::PaymentMethodType::Paypal => "paypal".to_string(),
             storage_enums::PaymentMethodType::Wallet => wallet_data
-                .get_required_value("issuer_name")
+                .get_required_value("wallet_data")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .issuer_name
                 .to_string(),
@@ -310,18 +310,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             }
 
             storage_enums::PaymentMethodType::Wallet => match wallet_data
-                .get_required_value("issuer_name")
+                .get_required_value("wallet_data")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .issuer_name
             {
                 api_enums::WalletIssuer::GooglePay => {
                     let gpay_data = AdyenGPay {
                         payment_type,
-                        google_pay_token: wallet_data
-                            .get_required_value("token")
+                        google_pay_token: match wallet_data
+                            .get_required_value("wallet_data")
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?
                             .token
-                            .to_string(),
+                            .to_owned()
+                        {
+                            payments::TokenCheck::TokenExists(token) => Ok(token),
+                            payments::TokenCheck::NoToken => {
+                                Err(errors::ConnectorError::FailedToObtainSessionToken)
+                            }
+                        }?,
                     };
                     Ok(AdyenPaymentMethod::Gpay(gpay_data))
                 }
@@ -329,25 +335,35 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 api_enums::WalletIssuer::ApplePay => {
                     let apple_pay_data = AdyenApplePay {
                         payment_type,
-                        apple_pay_token: wallet_data
-                            .get_required_value("token")
+                        apple_pay_token: match wallet_data
+                            .get_required_value("wallet_data")
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?
                             .token
-                            .to_string(),
+                            .to_owned()
+                        {
+                            payments::TokenCheck::TokenExists(token) => Ok(token),
+                            payments::TokenCheck::NoToken => {
+                                Err(errors::ConnectorError::FailedToObtainSessionToken)
+                            }
+                        }?,
                     };
                     Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
                 }
-
-                api_enums::WalletIssuer::Paypal => Err(errors::ConnectorError::NotImplemented(
-                    "Adyen - Paypal".to_string(),
-                )),
+                api_enums::WalletIssuer::Paypal => {
+                    match wallet_data
+                        .get_required_value("wallet_data")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                        .token
+                    {
+                        payments::TokenCheck::TokenExists(_) => Err(
+                            errors::ConnectorError::NotImplemented("Paypal wallet".to_string()),
+                        ),
+                        payments::TokenCheck::NoToken => Ok(()),
+                    }?;
+                    let wallet = AdyenPaypal { payment_type };
+                    Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
+                }
             },
-
-            storage_enums::PaymentMethodType::Paypal => {
-                let wallet = AdyenPaypal { payment_type };
-                Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
-            }
-
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method".to_string(),
             }),

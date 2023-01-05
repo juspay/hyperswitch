@@ -223,11 +223,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         )
         .await?;
 
-        if payment_method != Some(enums::PaymentMethodType::Paypal) {
-            utils::when(payment_method_data.is_none(), || {
-                Err(errors::ApiErrorResponse::PaymentMethodNotFound)
-            })?;
-        }
+        utils::when(payment_method_data.is_none(), || {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
 
         Ok((op, payment_method_data, payment_token))
     }
