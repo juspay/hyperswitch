@@ -357,7 +357,9 @@ pub async fn retrieve_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(mca.foreign_try_into()?))
+    Ok(service_api::ApplicationResponse::Json(
+        mca.foreign_try_into()?,
+    ))
 }
 
 pub async fn list_payment_connectors(

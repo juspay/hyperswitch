@@ -731,23 +731,27 @@ pub async fn retrieve_payment_method(
     } else {
         None
     };
-    Ok(services::ApplicationResponse::Json(api::PaymentMethodResponse {
-        merchant_id: pm.merchant_id,
-        customer_id: Some(pm.customer_id),
-        payment_method_id: pm.payment_method_id,
-        payment_method: pm.payment_method.foreign_into(),
-        payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
-        payment_method_issuer: pm.payment_method_issuer,
-        card,
-        metadata: pm.metadata,
-        created: Some(pm.created_at),
-        payment_method_issuer_code: pm.payment_method_issuer_code.map(ForeignInto::foreign_into),
-        recurring_enabled: false,           //TODO
-        installment_payment_enabled: false, //TODO
-        payment_experience: Some(vec![
-            api_models::payment_methods::PaymentExperience::RedirectToUrl,
-        ]), //TODO,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodResponse {
+            merchant_id: pm.merchant_id,
+            customer_id: Some(pm.customer_id),
+            payment_method_id: pm.payment_method_id,
+            payment_method: pm.payment_method.foreign_into(),
+            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_issuer: pm.payment_method_issuer,
+            card,
+            metadata: pm.metadata,
+            created: Some(pm.created_at),
+            payment_method_issuer_code: pm
+                .payment_method_issuer_code
+                .map(ForeignInto::foreign_into),
+            recurring_enabled: false,           //TODO
+            installment_payment_enabled: false, //TODO
+            payment_experience: Some(vec![
+                api_models::payment_methods::PaymentExperience::RedirectToUrl,
+            ]), //TODO,
+        },
+    ))
 }
 
 #[instrument(skip_all)]

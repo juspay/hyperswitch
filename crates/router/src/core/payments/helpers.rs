@@ -538,7 +538,9 @@ pub(crate) async fn call_payment_method(
                     .await
                     .attach_printable("Error on adding payment method")?;
                     match resp {
-                        crate::services::ApplicationResponse::Json(payment_method) => Ok(payment_method),
+                        crate::services::ApplicationResponse::Json(payment_method) => {
+                            Ok(payment_method)
+                        }
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Error on adding payment method")),
                     }

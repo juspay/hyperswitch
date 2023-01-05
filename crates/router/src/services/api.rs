@@ -491,16 +491,18 @@ where
         },
         Ok(ApplicationResponse::StatusOk) => http_response_ok(),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
-        Ok(ApplicationResponse::JsonForRedirection(response)) => match serde_json::to_string(&response) {
-            Ok(res) => http_redirect_response(res, response),
-            Err(_) => http_response_err(
-                r#"{
+        Ok(ApplicationResponse::JsonForRedirection(response)) => {
+            match serde_json::to_string(&response) {
+                Ok(res) => http_redirect_response(res, response),
+                Err(_) => http_response_err(
+                    r#"{
                     "error": {
                         "message": "Error serializing response from connector"
                     }
                 }"#,
-            ),
-        },
+                ),
+            }
+        }
         Ok(ApplicationResponse::Form(response)) => build_redirection_form(&response)
             .respond_to(request)
             .map_into_boxed_body(),
