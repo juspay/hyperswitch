@@ -407,15 +407,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if request.confirm == Some(true)
-            && request.payment_method != Some(api_models::enums::PaymentMethodType::Paypal)
-        {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
-            )?;
-        }
-
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -432,6 +423,19 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         let mandate_type = helpers::validate_mandate(request)?;
+
+        if request.confirm.unwrap_or(false)
+            && !matches!(
+                request.payment_method,
+                Some(api_models::enums::PaymentMethodType::Paypal)
+            )
+            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
+        {
+            helpers::validate_pm_or_token_given(
+                &request.payment_token,
+                &request.payment_method_data,
+            )?;
+        }
 
         Ok((
             Box::new(self),
