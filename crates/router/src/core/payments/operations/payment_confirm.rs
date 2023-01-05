@@ -87,23 +87,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
-
-        payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
-
-        connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -121,6 +107,30 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_intent.customer_id,
         )
         .await?;
+
+        helpers::validate_customer_id_mandatory_cases_storage(
+            &shipping_address,
+            &billing_address,
+            &payment_intent
+                .setup_future_usage
+                .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
+            &payment_intent
+                .customer_id
+                .clone()
+                .or_else(|| request.customer_id.clone()),
+        )?;
+
+        connector_response = db
+            .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                &payment_attempt.payment_id,
+                &payment_attempt.merchant_id,
+                &payment_attempt.attempt_id,
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
