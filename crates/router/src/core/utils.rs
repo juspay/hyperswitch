@@ -54,7 +54,10 @@ pub async fn construct_refund_router_data<'a, F>(
         None => {
             let (pm, _) = helpers::Vault::get_payment_method_data_from_locker(
                 state,
-                &payment_attempt.attempt_id,
+                payment_attempt
+                    .payment_method_id
+                    .as_ref()
+                    .get_required_value("payment_method_id")?,
             )
             .await?;
             pm.get_required_value("payment_method_data")?
