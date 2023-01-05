@@ -247,5 +247,7 @@ pub async fn update_customer(
 
     let mut customer_update_response: customers::CustomerResponse = response.into();
     customer_update_response.address = update_customer.address;
-    Ok(services::ApplicationResponse::Json(customer_update_response))
+    Ok(services::ApplicationResponse::Json(
+        customer_update_response,
+    ))
 }

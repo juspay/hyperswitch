@@ -570,10 +570,12 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    Ok(services::ApplicationResponse::Json(api::PaymentListResponse {
-        size: data.len(),
-        data,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
 }
 
 pub async fn add_process_sync_task(

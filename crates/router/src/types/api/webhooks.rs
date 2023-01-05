@@ -136,7 +136,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     fn get_webhook_api_response(
         &self,
-    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
         Ok(services::api::ApplicationResponse::StatusOk)
     }
 }
