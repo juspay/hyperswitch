@@ -4,6 +4,8 @@ volumes:
   cargo_cache:
   pg_data:
   cargo_build_cache:
+  p_cargo_build_cache:
+  c_cargo_build_cache:
 
 networks:
   router_net:
@@ -97,6 +99,41 @@ services:
       retries: 3
       start_period: 20s
       timeout: 10s
+
+  orca-producer:
+    image: rust:1.65
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - p_cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
+      - SCHEDULER_FLOW=producer
+    labels:
+      logs: "promtail"
+    
+  orca-consumer:
+    image: rust:1.65
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - c_cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
+      - SCHEDULER_FLOW=consumer
+    labels:
+      logs: "promtail"
+    
 
   redis-queue:
     image: redis:7    
