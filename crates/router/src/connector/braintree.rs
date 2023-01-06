@@ -500,6 +500,7 @@ impl
 impl api::Refund for Braintree {}
 impl api::RefundExecute for Braintree {}
 impl api::RefundSync for Braintree {}
+impl api::RefundCommon for Braintree {}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Braintree

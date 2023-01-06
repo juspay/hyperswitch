@@ -430,6 +430,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_specific_metadata: None,
             }),
             ..item.data
         })
@@ -478,6 +479,7 @@ pub fn get_adyen_response(
         redirection_data: None,
         redirect: false,
         mandate_reference: None,
+        connector_specific_metadata: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -543,6 +545,7 @@ pub fn get_redirection_response(
         redirection_data: Some(redirection_data),
         redirect: true,
         mandate_reference: None,
+        connector_specific_metadata: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -636,6 +639,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_specific_metadata: None,
             }),
             amount_captured,
             ..item.data

@@ -80,15 +80,9 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             amount: 100,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
-            payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
-                card_number: Secret::new("5424000000000015".to_string()),
-                card_exp_month: Secret::new("10".to_string()),
-                card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
-                card_cvc: Secret::new("999".to_string()),
-            }),
             connector_transaction_id: String::new(),
             refund_amount: 1,
+            connector_specific_data: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -131,6 +125,68 @@ async fn payments_create_success() {
         response.status == enums::AttemptStatus::Charged,
         "The payment failed"
     );
+}
+
+#[actix_web::test]
+async fn test_payment_sync() {
+    let conf = Settings::new().unwrap();
+    static CV: Authorizedotnet = Authorizedotnet;
+    let connector = types::api::ConnectorData {
+        connector: Box::new(&CV),
+        connector_name: types::Connector::Authorizedotnet,
+        get_token: types::api::GetToken::Connector,
+    };
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let connector_integration: services::BoxedConnectorIntegration<
+        '_,
+        types::api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    > = connector.connector.get_connector_integration();
+
+    let request = types::RouterData::<
+        types::api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    > {
+        payment_id: "pay_RKsU1fHwgp5PLwzD7kJQ".to_string(),
+        merchant_id: "juspay_merchant".to_string(),
+        flow: PhantomData,
+        connector: "authorizedotnet".to_string(),
+        request: types::PaymentsSyncData {
+            connector_transaction_id: types::ResponseId::ConnectorTransactionId(
+                "40111650483".to_string(),
+            ),
+            encoded_data: None,
+        },
+        address: Default::default(),
+        amount_captured: None,
+        auth_type: Default::default(),
+        connector_auth_type: types::ConnectorAuthType::BodyKey {
+            api_key: "4eZ296Dg8".to_string(),
+            key1: "55HEqRP6X4r9tX2V".to_string(),
+        },
+        connector_meta_data: None,
+        description: None,
+        orca_return_url: None,
+        payment_method_id: None,
+        return_url: None,
+        payment_method: enums::PaymentMethodType::Card,
+        // response: Ok(types::PaymentsResponseData::TransactionResponse { resource_id: router::types::ResponseId::ConnectorTransactionId("40111650483".to_string()), redirection_data: None, redirect: false, mandate_reference: None, connector_specific_metadata: None }),
+        response: Err(types::ErrorResponse::default()),
+        status: Default::default(),
+    };
+    let response = services::api::execute_connector_processing_step(
+        &state,
+        connector_integration,
+        &request,
+        payments::CallConnectorAction::Trigger,
+    )
+    .await
+    .unwrap();
+    let p_res = response.response.unwrap();
+
+    println!("{:#?}", p_res);
 }
 
 #[actix_web::test]

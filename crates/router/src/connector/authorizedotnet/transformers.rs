@@ -38,22 +38,23 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
     }
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct CreditCardDetails {
-    card_number: String,
-    expiration_date: String,
-    card_code: String,
+pub struct CreditCardDetails {
+    pub card_number: String,
+    pub expiration_date: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_code: Option<String>,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct BankAccountDetails {
-    account_number: String,
+pub struct BankAccountDetails {
+    pub account_number: String,
 }
 
-#[derive(Serialize, PartialEq)]
-enum PaymentDetails {
+#[derive(Serialize, Deserialize, PartialEq)]
+pub enum PaymentDetails {
     #[serde(rename = "creditCard")]
     CreditCard(CreditCardDetails),
     #[serde(rename = "bankAccount")]
@@ -140,7 +141,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
                 PaymentDetails::CreditCard(CreditCardDetails {
                     card_number: ccard.card_number.peek().clone(),
                     expiration_date: format!("{expiry_year}-{expiry_month}"),
-                    card_code: ccard.card_cvc.peek().clone(),
+                    card_code: Some(ccard.card_cvc.peek().clone()),
                 })
             }
             api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(BankAccountDetails {
@@ -305,6 +306,7 @@ impl<F, T>
                     redirection_data: None,
                     redirect: false,
                     mandate_reference: None,
+                    connector_specific_metadata: None,
                 }),
             },
             ..item.data
@@ -318,7 +320,7 @@ struct RefundTransactionRequest {
     transaction_type: TransactionType,
     amount: i64,
     currency_code: String,
-    payment: PaymentDetails,
+    payment: serde_json::Value,
     #[serde(rename = "refTransId")]
     reference_transaction_id: String,
 }
@@ -340,32 +342,18 @@ pub struct CreateRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let (payment_details, merchant_authentication, transaction_request);
-        payment_details = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                let expiry_month = ccard.card_exp_month.peek().clone();
-                let expiry_year = ccard.card_exp_year.peek().clone();
-
-                PaymentDetails::CreditCard(CreditCardDetails {
-                    card_number: ccard.card_number.peek().clone(),
-                    expiration_date: format!("{expiry_year}-{expiry_month}"),
-                    card_code: ccard.card_cvc.peek().clone(),
-                })
-            }
-            api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(BankAccountDetails {
-                account_number: "XXXXX".to_string(),
-            }),
-            api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
-            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
-        };
+        let (merchant_authentication, transaction_request);
 
         merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.request.refund_amount,
-            payment: payment_details,
+            payment: item.request.connector_specific_data.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment".to_string(),
+                },
+            )?,
             currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
@@ -466,22 +454,33 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
-        let transaction_id = item
-            .response
-            .as_ref()
-            .ok()
-            .map(|payment_response_data| match payment_response_data {
-                types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
-                    resource_id.get_connector_transaction_id()
+        // let transaction_id = item
+        //     .response
+        //     .as_ref()
+        //     .ok()
+        //     .map(|payment_response_data| match payment_response_data {
+        //         types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
+        //             resource_id.get_connector_transaction_id()
+        //         }
+        //         _ => Err(error_stack::report!(
+        //             errors::ValidationError::MissingRequiredField {
+        //                 field_name: "transaction_id".to_string()
+        //             }
+        //         )),
+        //     })
+        //     .transpose()
+        //     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        let transaction_id = match &item.request.connector_transaction_id {
+            types::ResponseId::ConnectorTransactionId(connector_txn_id) => {
+                Ok(Some(connector_txn_id.clone()))
+            }
+            _ => Err(error_stack::report!(
+                errors::ValidationError::MissingRequiredField {
+                    field_name: "transaction_id".to_string()
                 }
-                _ => Err(error_stack::report!(
-                    errors::ValidationError::MissingRequiredField {
-                        field_name: "transaction_id".to_string()
-                    }
-                )),
-            })
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            )),
+        }
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
@@ -514,6 +513,7 @@ pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
     transaction_status: SyncStatus,
+    payment: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -590,6 +590,7 @@ impl<F, Req>
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_specific_metadata: Some(item.response.transaction.payment),
             }),
             status: payment_status,
             ..item.data

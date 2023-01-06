@@ -399,6 +399,7 @@ impl
 impl api::Refund for Aci {}
 impl api::RefundExecute for Aci {}
 impl api::RefundSync for Aci {}
+impl api::RefundCommon for Aci {}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Aci

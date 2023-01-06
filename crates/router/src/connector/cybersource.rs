@@ -266,6 +266,7 @@ impl
 impl api::Refund for Cybersource {}
 impl api::RefundExecute for Cybersource {}
 impl api::RefundSync for Cybersource {}
+impl api::RefundCommon for Cybersource {}
 
 #[allow(dead_code)]
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>

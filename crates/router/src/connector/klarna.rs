@@ -310,6 +310,7 @@ impl
 impl api::Refund for Klarna {}
 impl api::RefundExecute for Klarna {}
 impl api::RefundSync for Klarna {}
+impl api::RefundCommon for Klarna {}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Klarna

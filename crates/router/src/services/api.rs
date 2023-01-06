@@ -322,6 +322,40 @@ async fn handle_response(
         .await
 }
 
+pub fn router_data_conversion<F1, F2, Req1, Req2, Res1, Res2>(
+    router_data: types::RouterData<F1, Req1, Res1>,
+    request: Req2,
+    response: Result<Res2, ErrorResponse>,
+) -> (
+    types::RouterData<F2, Req2, Res2>,
+    Req1,
+    Result<Res1, ErrorResponse>,
+) {
+    (
+        types::RouterData {
+            flow: std::marker::PhantomData,
+            request,
+            response,
+            merchant_id: router_data.merchant_id,
+            address: router_data.address,
+            amount_captured: router_data.amount_captured,
+            auth_type: router_data.auth_type,
+            connector: router_data.connector,
+            connector_auth_type: router_data.connector_auth_type,
+            connector_meta_data: router_data.connector_meta_data,
+            description: router_data.description,
+            orca_return_url: router_data.orca_return_url,
+            payment_id: router_data.payment_id,
+            payment_method: router_data.payment_method,
+            payment_method_id: router_data.payment_method_id,
+            return_url: router_data.return_url,
+            status: router_data.status,
+        },
+        router_data.request,
+        router_data.response,
+    )
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum BachResponse<R> {
     Json(R),

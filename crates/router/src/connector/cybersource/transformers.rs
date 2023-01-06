@@ -234,6 +234,7 @@ impl TryFrom<types::PaymentsResponseRouterData<CybersourcePaymentsResponse>>
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_specific_metadata: None,
             }),
             ..item.data
         })

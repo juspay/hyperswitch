@@ -210,6 +210,7 @@ impl
 impl api::Refund for Applepay {}
 impl api::RefundExecute for Applepay {}
 impl api::RefundSync for Applepay {}
+impl api::RefundCommon for Applepay {}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Applepay

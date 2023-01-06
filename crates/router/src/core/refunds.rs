@@ -118,14 +118,17 @@ pub async fn trigger_refund_to_gateway(
         &connector_id,
         merchant_account,
         (payment_attempt.amount, currency),
-        None,
         payment_intent,
         payment_attempt,
         refund,
     )
     .await?;
 
-    logger::debug!(?router_data);
+    let router_data = connector
+        .connector
+        .refund_execute_update_tracker(state, &connector, router_data, payment_attempt)
+        .await?;
+
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Execute,
@@ -261,7 +264,6 @@ pub async fn sync_refund_with_gateway(
         &connector_id,
         merchant_account,
         (payment_attempt.amount, currency),
-        None,
         payment_intent,
         payment_attempt,
         refund,

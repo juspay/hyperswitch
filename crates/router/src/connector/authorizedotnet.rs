@@ -4,20 +4,24 @@ mod transformers;
 use std::fmt::Debug;
 
 use bytes::Bytes;
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as authorizedotnet;
 
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
-    headers,
+    core::{
+        errors::{self, ConnectorErrorExt, CustomResult},
+        payments,
+    },
+    headers, routes,
     services::{self, logger},
     types::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, BytesExt},
+    utils::{self, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -365,6 +369,92 @@ impl
 impl api::Refund for Authorizedotnet {}
 impl api::RefundExecute for Authorizedotnet {}
 impl api::RefundSync for Authorizedotnet {}
+// impl api::RefundCommon for Authorizedotnet {}
+
+#[async_trait::async_trait]
+impl api::RefundCommon for Authorizedotnet {
+    async fn refund_execute_update_tracker<'a>(
+        &'a self,
+        state: &'a routes::AppState,
+        connector: &'a api::ConnectorData,
+        router_data: types::RefundsRouterData<api::Execute>,
+        payment_attempt: &'a storage_models::payment_attempt::PaymentAttempt,
+    ) -> errors::RouterResult<types::RefundsRouterData<api::Execute>> {
+        let request = types::PaymentsSyncData {
+            connector_transaction_id: types::ResponseId::ConnectorTransactionId(
+                payment_attempt
+                    .connector_transaction_id
+                    .as_ref()
+                    .get_required_value("connector_transaction_id")?
+                    .clone(),
+            ),
+            encoded_data: None,
+        };
+        // let response = types::PaymentsResponseData::TransactionResponse { resource_id: (), redirection_data: (), redirect: (), mandate_reference: (), connector_specific_metadata: () }
+        let response = Err(types::ErrorResponse::default());
+        let (router_data_inner, request, response) =
+            services::router_data_conversion::<_, api::PSync, _, _, _, _>(
+                router_data,
+                request,
+                response,
+            );
+        let connector_integration = connector.connector.get_connector_integration();
+
+        let router_data_inner = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data_inner,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|err| err.to_payment_failed_response())?;
+        let (mut router_data, _request, response) =
+            services::router_data_conversion(router_data_inner, request, response);
+        let connector_payment_data = match response.ok().and_then(|inner_resp| match inner_resp {
+            types::PaymentsResponseData::TransactionResponse {
+                connector_specific_metadata,
+                ..
+            } => connector_specific_metadata,
+            _ => None,
+        }) {
+            None => None,
+            Some(val) => {
+                let payment_details: transformers::PaymentDetails = val
+                    .parse_value("payment_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                Some(
+                    serde_json::to_value(payment_details)
+                        .into_report()
+                        .change_context(errors::ParsingError)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                )
+            }
+        };
+
+        // let connector_payment_data = Some(serde_json::to_value(match payments::helpers::Vault::get_payment_method_data_from_locker(state, payment_attempt.payment_method_id.as_ref().get_required_value("payment_method_id")?).await?.0.get_required_value("payment_method")? {
+        //     api::PaymentMethod::Card(ref ccard) => {
+        //         let expiry_month = ccard.card_exp_month.peek().clone();
+        //         let expiry_year = ccard.card_exp_year.peek().clone();
+
+        //         PaymentDetails::CreditCard(transformers::CreditCardDetails {
+        //             card_number: ccard.card_number.peek().clone(),
+        //             expiration_date: Some(format!("{expiry_year}-{expiry_month}")),
+        //             card_code: Some(ccard.card_cvc.peek().clone()),
+        //         })
+        //     }
+        //     api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(transformers::BankAccountDetails {
+        //         account_number: "XXXXX".to_string(),
+        //     }),
+        //     api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
+        //     api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
+        //     api::PaymentMethod::Paypal => PaymentDetails::Paypal,
+        // }).into_report().change_context(errors::ParsingError).change_context(errors::ApiErrorResponse::InternalServerError)?);
+
+        router_data.request.connector_specific_data = connector_payment_data;
+        Ok(router_data)
+    }
+}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Authorizedotnet

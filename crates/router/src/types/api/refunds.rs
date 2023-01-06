@@ -1,7 +1,8 @@
 pub use api_models::refunds::{RefundRequest, RefundResponse, RefundStatus};
 
-use super::ConnectorCommon;
 use crate::{
+    core::errors,
+    routes,
     services::api,
     types::{self, storage::enums as storage_enums, transformers::Foreign},
 };
@@ -34,4 +35,17 @@ pub trait RefundSync:
 {
 }
 
-pub trait Refund: ConnectorCommon + RefundExecute + RefundSync {}
+#[async_trait::async_trait]
+pub trait RefundCommon {
+    async fn refund_execute_update_tracker<'a>(
+        &'a self,
+        _state: &'a routes::AppState,
+        _connector: &'a types::api::ConnectorData,
+        router_data: types::RefundsRouterData<Execute>,
+        _payment_attempt: &'a storage_models::payment_attempt::PaymentAttempt,
+    ) -> errors::RouterResult<types::RefundsRouterData<Execute>> {
+        Ok(router_data)
+    }
+}
+
+pub trait Refund: types::api::ConnectorCommon + RefundExecute + RefundSync + RefundCommon {}

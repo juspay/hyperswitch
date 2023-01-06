@@ -164,6 +164,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         redirect: bool,
         mandate_reference: Option<String>,
+        connector_specific_metadata: Option<serde_json::Value>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -196,7 +197,7 @@ impl ResponseId {
 #[derive(Debug, Clone)]
 pub struct RefundsData {
     pub refund_id: String,
-    pub payment_method_data: payments::PaymentMethod,
+    pub connector_specific_data: Option<serde_json::Value>,
     pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued

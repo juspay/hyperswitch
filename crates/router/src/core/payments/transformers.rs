@@ -66,6 +66,7 @@ where
             redirection_data: None,
             redirect: false,
             mandate_reference: None,
+            connector_specific_metadata: None,
         });
 
     let orca_return_url = Some(helpers::create_redirect_url(

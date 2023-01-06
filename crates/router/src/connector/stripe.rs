@@ -625,6 +625,7 @@ impl
 impl api::Refund for Stripe {}
 impl api::RefundExecute for Stripe {}
 impl api::RefundSync for Stripe {}
+impl api::RefundCommon for Stripe {}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Stripe

@@ -480,6 +480,7 @@ impl
 impl api::Refund for Checkout {}
 impl api::RefundExecute for Checkout {}
 impl api::RefundSync for Checkout {}
+impl api::RefundCommon for Checkout {}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Checkout

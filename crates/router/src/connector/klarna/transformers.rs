@@ -131,6 +131,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 redirect: true,
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
+                connector_specific_metadata: None,
             }),
             ..item.data
         })
