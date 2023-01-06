@@ -20,10 +20,6 @@ impl<T> From<T> for Foreign<T> {
     }
 }
 
-pub trait FromX<T, X> {
-    fn fromx(item: T) -> X;
-}
-
 pub trait ForeignInto<T> {
     fn foreign_into(self) -> T;
 }

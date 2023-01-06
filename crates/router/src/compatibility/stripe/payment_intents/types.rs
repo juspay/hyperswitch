@@ -9,7 +9,7 @@ use crate::{
     pii::{self, PeekInterface},
     types::{
         api::enums as api_enums,
-        transformers::FromX,
+        transformers::{Foreign, ForeignInto},
     },
 };
 
@@ -184,7 +184,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
-            authentication_type: Some(<api_models::enums::AuthenticationType as FromX<_,_>>::fromx(item.payment_method_options.unwrap())),
+            authentication_type: Some(item.payment_method_options.unwrap().foreign_into()),
             ..Default::default()
         })
     }
@@ -383,17 +383,15 @@ pub enum Request3DS {
     Any,
 }
 
-impl FromX<StripePaymentMethodOptions, api_models::enums::AuthenticationType>
-    for api_models::enums::AuthenticationType
-{
-    fn fromx(item: StripePaymentMethodOptions) -> api_models::enums::AuthenticationType {
-        match item {
+impl From<Foreign<StripePaymentMethodOptions>> for Foreign<api_models::enums::AuthenticationType> {
+    fn from(item: Foreign<StripePaymentMethodOptions>) -> Self {
+        Self(match item.0 {
             StripePaymentMethodOptions::Card {
-                request_three_d_secure
+                request_three_d_secure,
             } => match request_three_d_secure.unwrap() {
                 Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
-                Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs
-            }
-        }
+                Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
+            },
+        })
     }
 }
