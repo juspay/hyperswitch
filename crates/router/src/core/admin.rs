@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use uuid::Uuid;
 
 use crate::{
@@ -253,18 +253,13 @@ async fn get_parent_merchant(
                     report!(errors::ValidationError::MissingRequiredField {
                         field_name: "parent_merchant_id".to_string()
                     })
-                    .attach_printable(
-                        "If `sub_merchants_enabled` is true, then `parent_merchant_id` is mandatory",
-                    )
-                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "parent_merchant_id".to_string(),
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "If `sub_merchants_enabled` is `true`, then `parent_merchant_id` is mandatory".to_string(),
                     })
                 })
-                // TODO: Update the API validation error structs to provide more info about which field caused an error
-                // In this case we have multiple fields which use merchant_id (merchant_id & parent_merchant_id)
-                // making it hard to figure out what went wrong
-                // https://juspay.atlassian.net/browse/ORCA-358
-                .map(|id| validate_merchant_id(db, id))?.await?.merchant_id
+                .map(|id| validate_merchant_id(db, id).change_context(
+                    errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
+                ))?.await?.merchant_id
             )
         }
         _ => None,
