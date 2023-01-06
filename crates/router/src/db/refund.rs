@@ -171,6 +171,25 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
+
+        async fn filter_refund_by_constraints(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            _storage_scheme: enums::MerchantStorageScheme,
+            limit: i64,
+        ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
+            let conn = pg_connection(&self.master_pool).await;
+            <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+                limit,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        }
     }
 }
 
