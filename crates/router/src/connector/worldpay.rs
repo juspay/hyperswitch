@@ -237,10 +237,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: WorldpayEventResponse = res
-            .response
-            .parse_struct("Worldpay EventResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: WorldpayEventResponse =
+            res.response
+                .parse_struct("Worldpay EventResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(types::PaymentsSyncRouterData {
             status: enums::AttemptStatus::from(response.last_event),
@@ -558,10 +558,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: WorldpayEventResponse = res
-            .response
-            .parse_struct("Worldpay EventResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: WorldpayEventResponse =
+            res.response
+                .parse_struct("Worldpay EventResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::RefundSyncRouterData {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: data.request.refund_id.clone(),
