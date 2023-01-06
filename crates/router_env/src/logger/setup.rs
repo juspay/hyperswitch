@@ -16,9 +16,7 @@ use opentelemetry::{
 };
 use opentelemetry_otlp::WithExportConfig;
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{
-    filter, fmt, subscribe::CollectExt, util::SubscriberInitExt, EnvFilter, Subscribe,
-};
+use tracing_subscriber::{filter, fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
 
 use crate::{config, FormattingLayer, Level, StorageSubscription};
 
@@ -73,9 +71,7 @@ pub fn setup<Str: AsRef<str>>(
     };
 
     let telemetry_layer = match telemetry {
-        Some(Ok(ref tracer)) => {
-            Some(tracing_opentelemetry::subscriber().with_tracer(tracer.clone()))
-        }
+        Some(Ok(ref tracer)) => Some(tracing_opentelemetry::layer().with_tracer(tracer.clone())),
         _ => None,
     };
 
@@ -102,7 +98,7 @@ pub fn setup<Str: AsRef<str>>(
 
         match conf.console.log_format {
             config::LogFormat::Default => {
-                let logging_layer = fmt::subscriber()
+                let logging_layer = fmt::layer()
                     .with_timer(fmt::time::time())
                     .with_span_events(fmt::format::FmtSpan::ACTIVE)
                     .pretty()
