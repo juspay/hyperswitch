@@ -13,9 +13,12 @@ This guide will help you get started.
 **Do not let this guide intimidate you.**
 It should be considered a map to help you navigate the process.
 
-You can also get help with contributing on our [Discussions][discussions] space.
+You can also get help with contributing on our [Discord server][discord],
+[Slack workspace][slack], or [Discussions][discussions] space.
 Please join us!
 
+[discord]: https://discord.gg/XbHNKqeAjE
+[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
 [discussions]: https://github.com/juspay/hyperswitch/discussions
 
 ## Table of Contents

@@ -31,6 +31,7 @@ _hyperswitch is wire-compatible with top processors like Stripe making it easy t
 - [Supported Features](#supported-features)
 - [What's Included](#whats-included)
 - [Join us in building hyperswitch](#join-us-in-building-hyperswitch)
+- [Community](#community)
 - [Bugs and feature requests](#bugs-and-feature-requests)
 - [Versioning](#versioning)
 - [Copyright and License](#copyright-and-license)
@@ -158,17 +159,14 @@ Important note for Rust developers: We aim for contributions from the community 
 Hence, we have prioritized simplicity and code readability over purely idiomatic code.
 For example, some of the code in core functions (e.g. `payments_core`) is written to be more readable rather than being pure-idiomatic.
 
-<!--
 ## Community
 
-Get updates on ORCA development and chat with the community:
+Get updates on hyperswitch development and chat with the community:
 
-- Join our Slack channel [Link]
-- Join our Discord channel [Link]
-- Follow @orca_juspay on Twitter [Link]
-- Read and subscribe to The Official Orca Blog [Link]
-- Ask and explore our GitHub Discussion [Link]
--->
+- Read and subscribe to [the official hyperswitch blog](https://blog.hyperswitch.io)
+- Join our [Discord server](https://discord.gg/XbHNKqeAjE)
+- Join our [Slack workspace](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg)
+- Ask and explore our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
 ## Bugs and feature requests
 
