@@ -31,7 +31,7 @@ use crate::{
     utils::{
         self,
         crypto::{self, SignMessage},
-        OptionExt, ValueExt,
+        OptionExt,
     },
 };
 
@@ -658,8 +658,9 @@ pub async fn get_connector_default(
             .parse_value("CustomRoutingRulesVec")
             .change_context(errors::ConnectorError::RoutingRulesParsingError)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let custom_routing_rules: api::CustomRoutingRules = vec_val[0]
-            .clone()
+        let custom_routing_rules: api::CustomRoutingRules = vec_val
+            .first()
+            .cloned()
             .parse_value("CustomRoutingRules")
             .change_context(errors::ConnectorError::RoutingRulesParsingError)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
