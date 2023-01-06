@@ -40,6 +40,10 @@ temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
 [eph_key]
 validity = 1
 
+[refund]
+max_attempts = 10
+max_age = 365
+
 [scheduler]
 stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"
