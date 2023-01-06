@@ -4,10 +4,10 @@ host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
 [log.file]
-enabled = false              # Whether you want to store log in log files.
+enabled = false             # Whether you want to store log in log files.
 path = "logs"               # Where to store log files.
 level = "DEBUG"             # What gets into log files.
-# rotation = "60"             # mins # current framework doesn't support configuring rotation. set to hourly rotation.
+# rotation = "60"           # mins # current framework doesn't support configuring rotation. set to hourly rotation.
 
 [log.console]
 enabled = true              # Whether you want to see log in your terminal.
@@ -21,7 +21,7 @@ username = "db_user"
 password = "db_pass"
 host = "pg"
 port = 5432
-dbname = "orca_db"
+dbname = "hyperswitch_db"
 pool_size = 5
 
 [proxy]
@@ -81,5 +81,5 @@ base_url = "https://apitest.cybersource.com/"
 base_url = "https://api.shift4.com/"
 
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","shift4","cybersource"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource"]

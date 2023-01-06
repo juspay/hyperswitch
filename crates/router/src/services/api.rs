@@ -327,13 +327,7 @@ pub enum BachResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
-    /*
-    redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    RedirectResponse(BachRedirectResponse),
-    Form(BachRedirectForm),
-    */
     JsonForRedirection(api::RedirectionResponse),
-    // RedirectResponse(BachRedirectResponse),
     Form(RedirectForm),
 }
 

@@ -54,9 +54,9 @@ Check the Table Of Contents to jump to the relevant section.
 5. Run database migrations:
 
    ```shell
-   docker compose run orca-server bash -c \
+   docker compose run hyperswitch-server bash -c \
       "cargo install diesel_cli && \
-      diesel migration --database-url postgres://db_user:db_pass@pg:5432/orca_db run"
+      diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run"
    ```
 
 6. Verify that the server is up and running by hitting the health endpoint:
@@ -217,7 +217,7 @@ Once you're done with setting up the dependencies, proceed with
    ```shell
    export DB_USER="db_user"
    export DB_PASS="db_pass"
-   export DB_NAME="orca_db"
+   export DB_NAME="hyperswitch_db"
    ```
 
    On Ubuntu-based systems:
