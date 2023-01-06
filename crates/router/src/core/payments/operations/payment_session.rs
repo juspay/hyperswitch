@@ -37,11 +37,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _merchant_account: &storage::MerchantAccount,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -52,6 +50,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(
@@ -254,20 +254,14 @@ where
     async fn make_pm_data<'b>(
         &'b self,
         _state: &'b AppState,
-        _payment_method: Option<enums::PaymentMethodType>,
-        _txn_id: &str,
-        _payment_attempt: &storage::PaymentAttempt,
-        _request: &Option<api::PaymentMethod>,
-        _token: &Option<String>,
-        _card_cvc: Option<Secret<String>>,
+        _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None, None))
+        Ok((Box::new(self), None))
     }
 
     async fn get_connector<'a>(

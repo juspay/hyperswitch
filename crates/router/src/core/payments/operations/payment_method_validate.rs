@@ -16,7 +16,6 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    pii::Secret,
     routes::AppState,
     types::{
         self,
@@ -67,17 +66,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_account: &storage::MerchantAccount,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
         let db = &state.store;
+
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
+
         let (payment_intent, payment_attempt, connector_response);
 
         let payment_id = payment_id
@@ -238,29 +239,13 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<storage_enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await
+        helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 
     async fn get_connector<'a>(

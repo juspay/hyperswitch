@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
-use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -35,10 +34,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -46,6 +43,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         Option<CustomerDetails>,
     )> {
         let db = &*state.store;
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
         let (mut payment_intent, mut payment_attempt, currency, amount, connector_response);
 
         let payment_id = payment_id
@@ -57,7 +56,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 state,
                 request,
                 mandate_type,
-                merchant_id,
                 merchant_account,
             )
             .await?;
@@ -94,23 +92,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
-
-        payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
-
-        connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -128,6 +112,30 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_intent.customer_id,
         )
         .await?;
+
+        helpers::validate_customer_id_mandatory_cases_storage(
+            &shipping_address,
+            &billing_address,
+            &payment_intent
+                .setup_future_usage
+                .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
+            &payment_intent
+                .customer_id
+                .clone()
+                .or_else(|| request.customer_id.clone()),
+        )?;
+
+        connector_response = db
+            .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                &payment_attempt.payment_id,
+                &payment_attempt.merchant_id,
+                &payment_attempt.attempt_id,
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
@@ -206,37 +214,22 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        let (op, payment_method_data, payment_token) = helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await?;
+        let (op, payment_method_data) =
+            helpers::make_pm_data(Box::new(self), state, payment_data).await?;
 
-        if payment_method != Some(enums::PaymentMethodType::Paypal) {
+        if payment_data.payment_attempt.payment_method != Some(enums::PaymentMethodType::Paypal) {
             utils::when(payment_method_data.is_none(), || {
                 Err(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
         }
 
-        Ok((op, payment_method_data, payment_token))
+        Ok((op, payment_method_data))
     }
 
     #[instrument(skip_all)]
@@ -365,11 +358,19 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 
-        helpers::validate_pm_or_token_given(&request.payment_token, &request.payment_method_data)?;
-
         let mandate_type = helpers::validate_mandate(request)?;
-
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+
+        if !matches!(
+            request.payment_method,
+            Some(api_models::enums::PaymentMethodType::Paypal)
+        ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
+        {
+            helpers::validate_pm_or_token_given(
+                &request.payment_token,
+                &request.payment_method_data,
+            )?;
+        }
 
         Ok((
             Box::new(self),

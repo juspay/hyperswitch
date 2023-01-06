@@ -40,6 +40,8 @@ pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsCaptureResponseRouterData<R> =
+    ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
@@ -112,6 +114,8 @@ pub struct PaymentsAuthorizeData {
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
     pub connector_transaction_id: String,
+    pub currency: storage_enums::Currency,
+    pub amount: i64,
 }
 
 #[derive(Debug, Clone)]

@@ -69,14 +69,10 @@ pub fn mk_add_card_request(
     customer_id: &str,
     _req: &api::CreatePaymentMethod,
     locker_id: &str,
-    merchant_id: &str,
+    _merchant_id: &str,
 ) -> CustomResult<services::Request, errors::CardVaultError> {
-    let customer_id = if locker_id == "m0010" {
-        //Default locker for testing in sbx
-        format!("{}::{}", customer_id, merchant_id)
-    } else {
-        customer_id.to_owned()
-    };
+    #[cfg(feature = "sandbox")]
+    let customer_id = format!("{}::{}", customer_id, _merchant_id);
     let add_card_req = AddCardRequest {
         card_number: card.card_number.clone(),
         customer_id: &customer_id,
