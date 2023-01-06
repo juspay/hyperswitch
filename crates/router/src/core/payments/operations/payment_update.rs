@@ -50,8 +50,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let db = &*state.store;
         let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
-                .await?;
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type.clone(),
+                merchant_id,
+            )
+            .await?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(
@@ -119,6 +124,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .clone()
                     .or_else(|| request.customer_id.clone()),
             )?;
+        }
+
+        let token = token.or_else(|| payment_attempt.payment_token.clone());
+
+        if request.confirm.unwrap_or(false)
+            && !matches!(
+                request.payment_method,
+                Some(api_enums::PaymentMethodType::Paypal)
+            )
+            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
+        {
+            helpers::validate_pm_or_token_given(&token, &request.payment_method_data)?;
         }
 
         let connector_response = db
@@ -386,19 +403,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
 
         let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
-
-        if request.confirm.unwrap_or(false)
-            && !matches!(
-                request.payment_method,
-                Some(api_enums::PaymentMethodType::Paypal)
-            )
-            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-        {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
-            )?;
-        }
 
         Ok((
             Box::new(self),
