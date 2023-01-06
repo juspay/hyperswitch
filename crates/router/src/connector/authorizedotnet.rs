@@ -241,6 +241,7 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         use bytes::Buf;
+        logger::debug!(authorizedotnetpayments_create_response=?res);
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
         let encoding = encoding_rs::UTF_8;
@@ -251,7 +252,6 @@ impl
         let response: authorizedotnet::AuthorizedotnetPaymentsResponse = intermediate_response
             .parse_struct("AuthorizedotnetPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(authorizedotnetpayments_create_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -265,6 +265,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(authorizedotnetpayments_create_error_response=?res);
         get_error_response(res)
     }
 }
