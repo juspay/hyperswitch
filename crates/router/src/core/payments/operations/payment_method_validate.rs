@@ -16,7 +16,6 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    pii::Secret,
     routes::AppState,
     types::{
         self,
@@ -237,29 +236,13 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<storage_enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await
+        helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 
     async fn get_connector<'a>(

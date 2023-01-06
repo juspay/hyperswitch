@@ -77,7 +77,7 @@ pub fn mk_add_card_request(
         merchant_id: "m0010", // [#253]: Need mapping for application mid to lockeId
         email_address: Some("dummy@gmail.com".to_string().into()), //
         name_on_card: Some("juspay".to_string().into()), // [#256]
-        nickname: Some("orca".to_string()), //
+        nickname: Some("router".to_string()), //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
         .change_context(errors::CardVaultError::RequestEncodingFailed)?;
@@ -235,12 +235,14 @@ pub fn mk_card_value2(
     card_fingerprint: Option<String>,
     external_id: Option<String>,
     customer_id: Option<String>,
+    payment_method_id: Option<String>,
 ) -> CustomResult<String, errors::CardVaultError> {
     let value2 = api::TokenizedCardValue2 {
         card_security_code,
         card_fingerprint,
         external_id,
         customer_id,
+        payment_method_id,
     };
     let value2_req = utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
         .change_context(errors::CardVaultError::FetchCardFailed)?;

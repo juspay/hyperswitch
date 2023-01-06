@@ -28,7 +28,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
-        orca_return_url: None,
+        router_return_url: None,
         return_url: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
@@ -71,7 +71,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: None,
         status: enums::AttemptStatus::default(),
-        orca_return_url: None,
+        router_return_url: None,
         payment_method: enums::PaymentMethodType::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),

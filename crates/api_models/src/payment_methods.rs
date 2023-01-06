@@ -285,4 +285,5 @@ pub struct TokenizedCardValue2 {
     pub card_fingerprint: Option<String>,
     pub external_id: Option<String>,
     pub customer_id: Option<String>,
+    pub payment_method_id: Option<String>,
 }

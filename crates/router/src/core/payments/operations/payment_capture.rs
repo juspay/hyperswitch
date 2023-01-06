@@ -115,7 +115,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         )
         .await?;
 
-        // TODO: get payment method data for response
         Ok((
             Box::new(self),
             payments::PaymentData {

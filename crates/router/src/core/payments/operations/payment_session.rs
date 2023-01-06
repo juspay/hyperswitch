@@ -253,20 +253,14 @@ where
     async fn make_pm_data<'b>(
         &'b self,
         _state: &'b AppState,
-        _payment_method: Option<enums::PaymentMethodType>,
-        _txn_id: &str,
-        _payment_attempt: &storage::PaymentAttempt,
-        _request: &Option<api::PaymentMethod>,
-        _token: &Option<String>,
-        _card_cvc: Option<Secret<String>>,
+        _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None, None))
+        Ok((Box::new(self), None))
     }
 
     async fn get_connector<'a>(
