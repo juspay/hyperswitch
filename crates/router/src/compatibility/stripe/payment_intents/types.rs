@@ -189,9 +189,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                     request_three_d_secure,
                 } = pmo;
 
-                request_three_d_secure
-                    .unwrap_or_else(Request3DS::default)
-                    .foreign_into()
+                request_three_d_secure.foreign_into()
             }),
             ..Self::default()
         })
@@ -391,9 +389,9 @@ pub enum Request3DS {
     Any,
 }
 
-impl From<Foreign<Request3DS>> for Foreign<api_models::enums::AuthenticationType> {
-    fn from(item: Foreign<Request3DS>) -> Self {
-        Self(match item.0 {
+impl From<Foreign<Option<Request3DS>>> for Foreign<api_models::enums::AuthenticationType> {
+    fn from(item: Foreign<Option<Request3DS>>) -> Self {
+        Self(match item.0.unwrap_or_default() {
             Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
             Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
         })
