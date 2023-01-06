@@ -9,7 +9,7 @@ use crate::{
     pii::{self, PeekInterface},
     types::{
         api::enums as api_enums,
-        transformers::{Foreign, ForeignInto},
+        transformers::{self, ForeignInto},
     },
 };
 
@@ -389,8 +389,10 @@ pub enum Request3DS {
     Any,
 }
 
-impl From<Foreign<Option<Request3DS>>> for Foreign<api_models::enums::AuthenticationType> {
-    fn from(item: Foreign<Option<Request3DS>>) -> Self {
+impl From<transformers::Foreign<Option<Request3DS>>>
+    for transformers::Foreign<api_models::enums::AuthenticationType>
+{
+    fn from(item: transformers::Foreign<Option<Request3DS>>) -> Self {
         Self(match item.0.unwrap_or_default() {
             Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
             Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
