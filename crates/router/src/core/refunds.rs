@@ -402,7 +402,6 @@ pub async fn validate_and_create_refund(
                 .attach_printable("Failed to fetch refund")?;
             currency = payment_attempt.currency.get_required_value("currency")?;
 
-            //[#294]: Add Connector Based Validation here.
             validator::validate_payment_order_age(&payment_intent.created_at).change_context(
                 errors::ApiErrorResponse::InvalidDataFormat {
                     field_name: "created_at".to_string(),
