@@ -184,8 +184,16 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
-            authentication_type: Some(item.payment_method_options.unwrap().foreign_into()),
-            ..Default::default()
+            authentication_type: item.payment_method_options.map(|pmo| {
+                let StripePaymentMethodOptions::Card {
+                    request_three_d_secure,
+                } = pmo;
+
+                request_three_d_secure
+                    .unwrap_or_else(Request3DS::default)
+                    .foreign_into()
+            }),
+            ..Self::default()
         })
     }
 }
@@ -383,15 +391,11 @@ pub enum Request3DS {
     Any,
 }
 
-impl From<Foreign<StripePaymentMethodOptions>> for Foreign<api_models::enums::AuthenticationType> {
-    fn from(item: Foreign<StripePaymentMethodOptions>) -> Self {
+impl From<Foreign<Request3DS>> for Foreign<api_models::enums::AuthenticationType> {
+    fn from(item: Foreign<Request3DS>) -> Self {
         Self(match item.0 {
-            StripePaymentMethodOptions::Card {
-                request_three_d_secure,
-            } => match request_three_d_secure.unwrap() {
-                Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
-                Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
-            },
+            Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
+            Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
         })
     }
 }
