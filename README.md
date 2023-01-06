@@ -39,144 +39,21 @@ _Orca is wire-compatible with top processors like Stripe making it easy to integ
 
 ### Try It Out
 
-**Step 1:** Use [**Orca Sandbox**](https://orca-test-app.netlify.app/) to create your account and test payments.
-Please save the API key for the next step.
+You have two options to try out Orca:
 
-**Step 2:** Import our [**Postman Collection**](https://www.getpostman.com/collections/63d0d419ce1d1140fc9f) using the link below.
-(Please use the API key auth type.)
-
-```text
-https://www.getpostman.com/collections/63d0d419ce1d1140fc9f
-```
-
-### Installation Options
-
-**Option 1:** Self-hosting with **Docker Image**.
-_(This option is coming soon!!)_
-
-**Option 2:** Setup dev environment using **Docker Compose**:
-
-1. [Install Docker Compose](https://docs.docker.com/compose/install/).
-
-2. Clone the repository:
-
-   ```bash
-   git clone https://github.com/juspay/orca.git
-   ```
-
-   You might need to create a [Personal Access Token (PAT)](https://docs.github.com/en/enterprise-server@3.4/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) if you are prompted to authenticate.
-   Use the generated PAT as the password.
-
-3. [Optional] Configure your settings in [docker_compose.toml](./config/docker_compose.toml)
-
-4. Run the application and create an account:
-
-   1. Build and run Orca using Docker Compose:
-
-      ```bash
-      docker compose up -d
-      ```
-
-   2. Run database migrations:
-
-      ```bash
-      docker compose run orca-server bash -c "cargo install diesel_cli && diesel migration --database-url postgres://db_user:db_pass@pg:5432/orca_db run"
-      ```
-
-   3. Verify that the Orca server is up by checking your local server health:
-
-      ```bash
-      curl --location --request GET 'http://localhost:8080/health'
-      ```
-
-   4. Create your Merchant Account and get your account information:
-
-      ```bash
-      bash ./scripts/create_merchant_account.sh
-      ```
-
-#### Configure & Test
-
-5. Configure & test using your API key:
-
-   1. Add your Connector API keys in [`keys.conf`](./keys.conf) file.
-      You can fetch API keys from the Connector's Dashboard (say Stripe/Adyen/Checkout dashboard).
-
-   2. Configure the connector in your dev environment:
-
-      ```bash
-      bash ./scripts/create_connector_account.sh <connector_name> <your Orca merchant_id>
-      ```
-
-      Use the Orca merchant ID generated from the previous step.
-
-   3. Run a health check for your local server:
-
-      ```bash
-      curl --location --request GET 'http://localhost:8080/health'
-      ```
-
-   4. Update the below command with your Orca API key and perform a test transaction.
-      Refer our [Postman collection](https://www.getpostman.com/collections/63d0d419ce1d1140fc9f) to test more features (refunds, customers, payment methods etc.,)
-
-      ```bash
-      export API_KEY="<your api-key>"
-      curl --location --request POST "http://localhost:8080/payments" \
-      --header "Content-Type: application/json" \
-      --header "Accept: application/json" \
-      --header "api-key: ${API_KEY}" \
-      --data-raw '{
-      "amount": 6540,
-      "currency": "USD",
-      "confirm" :true,
-      "return_url": "https://juspay.io",
-      "payment_method": "card",
-      "payment_method_data": {
-         "card": {
-            "card_number": "4000056655665556",
-            "card_exp_month": "10",
-            "card_exp_year": "25",
-            "card_holder_name": "John Doe",
-            "card_cvc": "123"
-         }
-      }
-      }'
-      ```
-
-**Option 3:** Local setup:
-
-a. [For MacOS](/INSTALL_macos.md)
-
-b. [For Linux](/INSTALL_linux.md)
-
-<!-- 4. Install with **Setup Script**
-
-    a. Clone the repository
-    ```
-    git clone https://github.com/juspay/orca.git
-    ```
-
-    b. Execute script
-    ```
-    install orca.sh
-    ```
-
-    b. Create your Merchant Account
-    ```
-    create_merchant_account.sh
-    ```
-
-    c. [Configure & Test](#configure--test-the-setup) the setup using the api-key generated in Step 2 -->
+1. [Try out our sandbox environment](/docs/try_sandbox.md): Requires the least
+   effort and does not involve setting up anything on your system.
+2. [Try out Orca on your local system](/docs/try_local_system.md): Requires
+   comparatively more effort as it involves setting up dependencies on your
+   system.
 
 ### Fast Integration for Stripe Users
 
 If you are already using Stripe, integrating with Orca is fun, fast & easy.
 Try the steps below to get a feel for how quick the setup is:
 
-1. Download Stripe's [demo app](https://stripe.com/docs/payments/quickstart)
-2. Change server and client SDK dependencies in your app
-3. Change API keys in your App
-4. [Configure & Test](#configure--test)
+1. Get API keys from our [dashboard](https://orca-dahboard.netlify.app).
+2. Follow the instructions detailed on our [documentation page](https://hyperswitch.io/docs).
 
 ## Supported Features
 
