@@ -500,7 +500,29 @@ impl
 impl api::Refund for Braintree {}
 impl api::RefundExecute for Braintree {}
 impl api::RefundSync for Braintree {}
-impl api::RefundCommon for Braintree {}
+
+#[async_trait::async_trait]
+impl api::RefundCommon for Braintree {
+    async fn refund_execute_update_tracker<'a>(
+        &'a self,
+        _state: &'a crate::routes::AppState,
+        _connector: &'a types::api::ConnectorData,
+        router_data: types::RefundsRouterData<api::Execute>,
+        payment_attempt: &'a storage_models::payment_attempt::PaymentAttempt,
+    ) -> errors::RouterResult<types::RefundsRouterData<api::Execute>> {
+        // Validation for unsupported refunds
+        match payment_attempt.payment_method {
+            Some(storage_models::enums::PaymentMethodType::Paypal) | None => {
+                Err(errors::ApiErrorResponse::RefundNotPossible {
+                    connector: "braintree",
+                })?
+            }
+            _ => {}
+        }
+
+        Ok(router_data)
+    }
+}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Braintree
