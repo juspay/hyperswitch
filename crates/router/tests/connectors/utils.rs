@@ -179,7 +179,7 @@ fn generate_data<Flow, Req: From<Req>, Res>(
         connector,
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        orca_return_url: None,
+        router_return_url: None,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type,
