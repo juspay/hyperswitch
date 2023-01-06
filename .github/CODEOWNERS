@@ -8,7 +8,6 @@ contrib/ @juspay/orca-maintainers
 .github/ @juspay/orca-maintainers
 .gitignore @juspay/orca-maintainers
 Makefile @juspay/orca-maintainers
-keys.conf @juspay/orca-maintainers
 
 
 crates/ @juspay/orca-framework
