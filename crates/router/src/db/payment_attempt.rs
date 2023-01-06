@@ -564,26 +564,42 @@ mod storage {
         async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
             &self,
             connector_transaction_id: &str,
-            _payment_id: &str,
+            payment_id: &str,
             merchant_id: &str,
-            _storage_scheme: enums::MerchantStorageScheme,
+            storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-            let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
-            let lookup = self
-                .get_lookup_by_lookup_id(&lookup_id)
-                .await
-                .map_err(Into::<errors::StorageError>::into)
-                .into_report()?;
-            let key = &lookup.pk_id;
-            self.redis_conn
-                .get_hash_field_and_deserialize::<PaymentAttempt>(
-                    key,
-                    &lookup.sk_id,
-                    "PaymentAttempt",
-                )
-                .await
-                .map_err(|error| error.to_redis_failed_response(key))
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = pg_connection(&self.master_pool).await;
+                    PaymentAttempt::find_by_connector_transaction_id_payment_id_merchant_id(
+                        &conn,
+                        connector_transaction_id,
+                        payment_id,
+                        merchant_id,
+                    )
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+                }
+                enums::MerchantStorageScheme::RedisKv => {
+                    // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
+                    let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id)
+                        .await
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
+                    let key = &lookup.pk_id;
+                    self.redis_conn
+                        .get_hash_field_and_deserialize::<PaymentAttempt>(
+                            key,
+                            &lookup.sk_id,
+                            "PaymentAttempt",
+                        )
+                        .await
+                        .map_err(|error| error.to_redis_failed_response(key))
+                }
+            }
         }
 
         async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(

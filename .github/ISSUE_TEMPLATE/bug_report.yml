@@ -7,8 +7,8 @@ body:
     attributes:
       value: |
         We value your time and effort to submit this bug report. Here are a few things to check before clicking the submit button :)
-        1. Make sure you're on the latest version of the app. The current release can be found here: https://github.com/juspay/orca/releases/latest.
-        2. Search through **both** open and closed issues for your bug: https://github.com/juspay/orca/issues?q=is%3Aissue+sort%3Aupdated-desc+.
+        1. Make sure you're on the latest version of the app. The current release can be found here: https://github.com/juspay/hyperswitch/releases/latest.
+        2. Search through **both** open and closed issues for your bug: https://github.com/juspay/hyperswitch/issues?q=is%3Aissue+sort%3Aupdated-desc+.
         3. Please try to fill this template completely to the best of your abilities. A bug report that is clear and has a reproducible example lets us get to work faster.
 
   - type: textarea
@@ -66,7 +66,8 @@ body:
       label: Environment
       description: Provide information about the environment where you are running or trying to build the app.
       value: |
-        Are you using Orca hosted version? Yes/No
+        Are you using hyperswitch hosted version? Yes/No
+        If yes, please provide the value of the `x-request-id` response header for helping us debug your issue.
 
         If not (or if building/running locally), please provide the following details:
         1. Operating System or Linux distribution: 
@@ -88,7 +89,7 @@ body:
     attributes:
       label: Have you read the Contributing Guidelines?
       options:
-        - label: I have read the [Contributing Guidelines](https://github.com/juspay/orca/blob/main/contrib/CONTRIBUTING.md)
+        - label: I have read the [Contributing Guidelines](https://github.com/juspay/hyperswitch/blob/main/contrib/CONTRIBUTING.md)
           required: true
 
   - type: dropdown
