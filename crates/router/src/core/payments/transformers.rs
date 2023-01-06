@@ -463,6 +463,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
                 .payment_attempt
                 .connector_transaction_id
                 .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?,
+            currency: payment_data.currency,
+            amount: payment_data.amount.into(),
         })
     }
 }

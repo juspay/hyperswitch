@@ -262,12 +262,12 @@ pub async fn payments_connector_session(
                 merchant_account,
                 payments::PaymentSession,
                 payload,
-                api::AuthFlow::Merchant,
+                api::AuthFlow::Client,
                 None,
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        api::MerchantAuthentication::PublishableKey,
     )
     .await
 }

@@ -276,6 +276,7 @@ pub struct PaymentVoidResponse {
     action_id: String,
     reference: String,
 }
+
 impl From<&PaymentVoidResponse> for enums::AttemptStatus {
     fn from(item: &PaymentVoidResponse) -> Self {
         if item.status == 202 {
@@ -312,6 +313,69 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PaymentVoidRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             reference: item.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub enum CaptureType {
+    Final,
+    NonFinal,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymentCaptureRequest {
+    pub amount: Option<i64>,
+    pub capture_type: Option<CaptureType>,
+    pub processing_channel_id: String,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let connector_auth = &item.connector_auth_type;
+        let auth_type: CheckoutAuthType = connector_auth.try_into()?;
+        let processing_channel_id = auth_type.processing_channel_id;
+        Ok(Self {
+            amount: item.request.amount_to_capture,
+            capture_type: Some(CaptureType::Final),
+            processing_channel_id,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PaymentCaptureResponse {
+    pub action_id: String,
+}
+
+impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
+    for types::PaymentsCaptureRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (status, amount_captured) = if item.http_code == 202 {
+            (
+                enums::AttemptStatus::Charged,
+                item.data.request.amount_to_capture,
+            )
+        } else {
+            (enums::AttemptStatus::Pending, None)
+        };
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.data.request.connector_transaction_id.to_owned(),
+                ),
+                redirect: false,
+                redirection_data: None,
+                mandate_reference: None,
+            }),
+            status,
+            amount_captured,
+            ..item.data
         })
     }
 }
