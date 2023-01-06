@@ -98,8 +98,6 @@ pub struct PaymentsAuthorizeData {
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    // redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    // pub redirection: Option<Redirection>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,

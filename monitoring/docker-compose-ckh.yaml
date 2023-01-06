@@ -155,7 +155,7 @@ services:
         soft: 262144
         hard: 262144
   
-  orca-server:
+  hyperswitch-server:
     image: rust:1.65
     command: cargo run -- -f ./config/docker_compose.toml
     working_dir: /app
@@ -192,7 +192,7 @@ services:
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
-      - POSTGRES_DB=orca_db
+      - POSTGRES_DB=hyperswitch_db
   
   redis-queue:
     image: redis:7    

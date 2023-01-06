@@ -1,5 +1,5 @@
 {
-  description = "orca devshell";
+  description = "hyperswitch devshell";
 
   inputs = {
     nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";
