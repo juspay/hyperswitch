@@ -11,8 +11,8 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "db_user"
-password = "db_pass"
+username = "cloud"
+password = "scape"
 host = "localhost"
 port = 5432
 dbname = "orca_db"
@@ -21,19 +21,23 @@ pool_size = 5
 [proxy]
 
 [keys]
+aws_key_id = "67b4b067-4a4a-493c-a219-97d13d1698a7"
+aws_region = "ap-south-1"
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
 
 [locker]
 host = ""
 mock_locker = true
-basilisk_host = ""
+basilisk_host = "http://localhost:8012"
 
 [jwekey]
-locker_key_identifier1 = ""
+aws_key_id = "67b4b067-4a4a-493c-a219-97d13d1698a7"
+aws_region = "ap-south-1"
+locker_key_identifier1 = "key1"
 locker_key_identifier2 = ""
-locker_encryption_key1 = ""
+locker_encryption_key1 = "AQICAHi6eddGCN6IYN9iNVBkIarAsSeUekjG64LXdvBGzs0/2gEeAEaCCehNIRJDyl7quB8hAAACJTCCAiEGCSqGSIb3DQEHBqCCAhIwggIOAgEAMIICBwYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAyqK6IOvIW6x1+HARECARCAggHYBnZ4rT/535nyvPGPIEcDPCT9toHnfcB8Sh4a9XzI4yJBCLEw63KsGkECCo4Q6hJ6nZ3ajDh/rmCgS/DplMiYEZkHFVGPp3B/uFg3EYnFd4qDZblibAgCHhuoxMbNcyUuIKSFB3AhQ+wIZK34UD/4jlu6G90183OqNoiEHcCP/vyNY/YZbkBsokQ153Wn8cadr75goRBXQUG+YTz3gpdrf9MehKXzdCtj6MhmbgHzl8LXHTWy4saUk/a/oHvazwb3VPPuZyACEQnwsWEmGoranKqgyysO8JRGXUO0C6ScNJeu+qr03GeZgsTyFq+dec2wmnr3gd00OhrP2gXn2nDMHWNEXj90zxHTYiOmdyMQIfXCpiFGhzYMgyMmvXGz6nYXS7oK3pMfE9Zi+IAtNEO4gas6G5KJslAuQZHewqJxo9HNPlmA6oDU3jIqxJpMxCmfe/AhWRYvFlazdGOpCKR37znAQhoE/nOeRgP9Hzsr4ixbO4tw5/X95QXeuCHfR66UC9pI7Gy+F7PVZobfSUd86Teu5Vtv2mp36wzjZcEUK9yi0UPDw2mzqlth3SHlBvU2t3f1AHu8wflecV8OOMUHCVAzf6x1Iz0Tn29eZJHFHrsEIV4kirOvVg=="
 locker_encryption_key2 = ""
-locker_decryption_key1 = ""
+locker_decryption_key1 = "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"
 locker_decryption_key2 = ""
 
 [connectors.supported]
@@ -72,6 +76,9 @@ base_url = "https://apitest.cybersource.com/"
 
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
+
+[connectors.rapyd]
+base_url = "https://sandboxapi.rapyd.net/v1"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

@@ -125,6 +125,9 @@ base_url = "https://apitest.cybersource.com/"
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
 
+[connectors.rapyd]
+base_url = "https://sandboxapi.rapyd.net/v1"
+
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]

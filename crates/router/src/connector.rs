@@ -6,6 +6,7 @@ pub mod braintree;
 pub mod checkout;
 pub mod cybersource;
 pub mod klarna;
+pub mod rapyd;
 pub mod stripe;
 
 pub mod shift4;
@@ -13,5 +14,5 @@ pub mod shift4;
 pub use self::{
     aci::Aci, adyen::Adyen, applepay::Applepay, authorizedotnet::Authorizedotnet,
     braintree::Braintree, checkout::Checkout, cybersource::Cybersource, klarna::Klarna,
-    shift4::Shift4, stripe::Stripe,
+    rapyd::Rapyd, shift4::Shift4, stripe::Stripe,
 };
