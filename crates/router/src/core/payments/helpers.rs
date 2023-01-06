@@ -659,8 +659,8 @@ pub async fn get_connector_default(
             .change_context(errors::ConnectorError::RoutingRulesParsingError)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let custom_routing_rules: api::CustomRoutingRules = vec_val
-            .first()
-            .cloned()
+            .into_iter()
+            .next()
             .parse_value("CustomRoutingRules")
             .change_context(errors::ConnectorError::RoutingRulesParsingError)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
