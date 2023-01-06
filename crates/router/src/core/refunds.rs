@@ -2,9 +2,9 @@ pub mod validator;
 
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
-use uuid::Uuid;
 
 use crate::{
+    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments, utils as core_utils,
@@ -430,7 +430,7 @@ pub async fn validate_and_create_refund(
 
             refund_create_req = storage::RefundNew::default()
                 .set_refund_id(refund_id.to_string())
-                .set_internal_reference_id(Uuid::new_v4().to_string())
+                .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
                 .set_external_reference_id(Some(refund_id))
                 .set_payment_id(req.payment_id)
                 .set_merchant_id(merchant_account.merchant_id.clone())
