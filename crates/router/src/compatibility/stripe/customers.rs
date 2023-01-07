@@ -2,7 +2,7 @@ pub mod types;
 
 use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
 use error_stack::report;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     compatibility::{stripe::errors, wrap},

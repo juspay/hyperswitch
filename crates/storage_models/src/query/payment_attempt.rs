@@ -1,6 +1,6 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::IntoReport;
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{

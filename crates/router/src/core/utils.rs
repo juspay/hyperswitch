@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use error_stack::ResultExt;
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{

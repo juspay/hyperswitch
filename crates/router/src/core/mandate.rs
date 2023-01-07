@@ -1,5 +1,5 @@
 use error_stack::{report, ResultExt};
-use router_env::{logger, tracing, tracing::instrument};
+use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
 
 use super::payments::helpers;
