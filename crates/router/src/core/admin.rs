@@ -261,7 +261,7 @@ async fn get_parent_merchant(
                     })
                 })
                 // TODO: Update the API validation error structs to provide more info about which field caused an error
-                // In this case we have multiple fields which use merchant_id (perchant_id & parent_merchant_id)
+                // In this case we have multiple fields which use merchant_id (merchant_id & parent_merchant_id)
                 // making it hard to figure out what went wrong
                 // https://juspay.atlassian.net/browse/ORCA-358
                 .map(|id| validate_merchant_id(db, id))?.await?.merchant_id

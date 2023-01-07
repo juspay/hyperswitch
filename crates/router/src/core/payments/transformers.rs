@@ -68,7 +68,7 @@ where
             mandate_reference: None,
         });
 
-    let orca_return_url = Some(helpers::create_redirect_url(
+    let router_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
         &merchant_connector_account.connector_name,
@@ -84,7 +84,7 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        orca_return_url,
+        router_return_url,
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data.address.clone(),
         auth_type: payment_data

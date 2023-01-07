@@ -9,13 +9,12 @@ if [[ -z "$pg" ]]; then
 fi
 cd $SCRIPT/..
 rm -rf $conn/$pg $conn/$pg.rs
-git checkout $conn.rs $src/types/api.rs scripts/create_connector_account.sh $src/configs/settings.rs
+git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs
 sed -i'' -e "s/pub use self::{/pub mod ${pg};\n\npub use self::{/" $conn.rs
 sed -i'' -e "s/};/${pg}::${pgc},\n};/" $conn.rs 
 sed -i'' -e "s/_ => Err/\"${pg}\" => Ok(Box::new(\&connector::${pgc})),\n\t\t\t_ => Err/" $src/types/api.rs
-sed -i'' -e "s/*) echo \"This connector/${pg}) required_connector=\"${pg}\";;\n\t\t*) echo \"This connector/" scripts/create_connector_account.sh
 sed -i'' -e "s/pub supported: SupportedConnectors,/pub supported: SupportedConnectors,\n\tpub ${pg}: ConnectorParams,/" $src/configs/settings.rs
-rm $conn.rs-e $src/types/api.rs-e scripts/create_connector_account.sh-e $src/configs/settings.rs-e
+rm $conn.rs-e $src/types/api.rs-e  $src/configs/settings.rs-e
 cd $conn/ 
 cargo gen-pg $pg
 mv $pg/mod.rs $pg.rs
