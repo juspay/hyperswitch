@@ -327,13 +327,7 @@ pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
-    /*
-    redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    RedirectResponse(ApplicationRedirectResponse),
-    Form(ApplicationRedirectForm),
-    */
     JsonForRedirection(api::RedirectionResponse),
-    // RedirectResponse(ApplicationRedirectResponse),
     Form(RedirectForm),
 }
 
