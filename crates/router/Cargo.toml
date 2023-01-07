@@ -90,7 +90,7 @@ toml = "0.5.9"
 
 [[bin]]
 name = "router"
-path = "src/bin/router.rs"
+path = "src/bin/oltp.rs"
 
 [[bin]]
 name = "scheduler"

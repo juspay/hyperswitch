@@ -7,6 +7,7 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     self as app,
     core::{errors::http_not_implemented, payments},
+    routes,
     services::api,
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
@@ -14,7 +15,7 @@ use crate::{
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
 pub async fn payments_create(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
 ) -> impl Responder {
@@ -44,7 +45,7 @@ pub async fn payments_create(
 
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<(String, String, String)>,
 ) -> impl Responder {
@@ -77,7 +78,7 @@ pub async fn payments_start(
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<String>,
     json_payload: web::Query<payment_types::PaymentRetrieveBody>,
@@ -118,7 +119,7 @@ pub async fn payments_retrieve(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 // #[post("/{payment_id}")]
 pub async fn payments_update(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
     path: web::Path<String>,
@@ -162,7 +163,7 @@ pub async fn payments_update(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 // #[post("/{payment_id}/confirm")]
 pub async fn payments_confirm(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
     path: web::Path<String>,
@@ -205,7 +206,7 @@ pub async fn payments_confirm(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
 pub async fn payments_capture(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCaptureRequest>,
     path: web::Path<String>,
@@ -237,7 +238,7 @@ pub async fn payments_capture(
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub async fn payments_connector_session(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsSessionRequest>,
 ) -> impl Responder {
@@ -271,7 +272,7 @@ pub async fn payments_connector_session(
 
 #[instrument(skip_all)]
 pub async fn payments_response(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<(String, String, String)>,
 ) -> impl Responder {
@@ -304,7 +305,7 @@ pub async fn payments_response(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 // #[post("/{payment_id}/cancel")]
 pub async fn payments_cancel(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCancelRequest>,
     path: web::Path<String>,
@@ -336,7 +337,7 @@ pub async fn payments_cancel(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 // #[get("/list")]
 pub async fn payments_list(
-    state: web::Data<app::AppState>,
+    state: web::Data<routes::AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<payment_types::PaymentListConstraints>,
 ) -> impl Responder {
@@ -355,7 +356,7 @@ pub async fn payments_list(
 
 async fn authorize_verify_select<Op>(
     operation: Op,
-    state: &app::AppState,
+    state: &routes::AppState,
     merchant_account: storage_models::merchant_account::MerchantAccount,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,

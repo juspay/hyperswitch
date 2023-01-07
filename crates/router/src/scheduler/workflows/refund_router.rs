@@ -1,7 +1,5 @@
 use super::{ProcessTrackerWorkflow, RefundWorkflowRouter};
-use crate::{
-    core::refunds as refund_flow, errors, logger::error, routes::AppState, types::storage,
-};
+use crate::{core::{refunds as refund_flow, errors}, logger::error, routes::AppState, types::storage};
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for RefundWorkflowRouter {

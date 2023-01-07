@@ -43,7 +43,12 @@ impl AppState {
 pub struct Health;
 
 impl Health {
-    pub fn server(state: AppState) -> Scope {
+    pub fn oltp_server(state: AppState) -> Scope {
+        web::scope("")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/health").route(web::get().to(health)))
+    }
+    pub fn olap_server(state: AppState) -> Scope {
         web::scope("")
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
@@ -53,12 +58,16 @@ impl Health {
 pub struct Payments;
 
 impl Payments {
-    pub fn server(state: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
+        web::scope("/payments")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::get().to(payments_list)))
+    }
+    pub fn oltp_server(state: AppState) -> Scope {
         // Routes are matched in the order they are declared.
         web::scope("/payments")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(payments_create)))
-            .service(web::resource("/list").route(web::get().to(payments_list)))
             .service(
                 web::resource("/session_tokens").route(web::post().to(payments_connector_session)),
             )
@@ -84,7 +93,15 @@ impl Payments {
 pub struct Customers;
 
 impl Customers {
-    pub fn server(state: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
+        web::scope("/customers")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{customer_id}/mandates")
+                    .route(web::get().to(get_customer_mandates)),
+            )
+    }
+    pub fn oltp_server(state: AppState) -> Scope {
         web::scope("/customers")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(customers_create)))
@@ -93,10 +110,6 @@ impl Customers {
                     .route(web::get().to(customers_retrieve))
                     .route(web::post().to(customers_update))
                     .route(web::delete().to(customers_delete)),
-            )
-            .service(
-                web::resource("/{customer_id}/mandates")
-                    .route(web::get().to(get_customer_mandates)),
             )
             .service(
                 web::resource("/{customer_id}/payment_methods")
@@ -108,7 +121,12 @@ impl Customers {
 pub struct Refunds;
 
 impl Refunds {
-    pub fn server(state: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
+        web::scope("/refunds")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::get().to(refunds_list)))
+    }
+    pub fn oltp_server(state: AppState) -> Scope {
         // Routes are matches in the order they are declared.
         web::scope("/refunds")
             .app_data(web::Data::new(state))
@@ -125,7 +143,12 @@ impl Refunds {
 pub struct Payouts;
 
 impl Payouts {
-    pub fn server(state: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
+        web::scope("/payouts")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/accounts").route(web::get().to(payouts_accounts)))
+    }
+    pub fn oltp_server(state: AppState) -> Scope {
         web::scope("/payouts")
             .app_data(web::Data::new(state))
             .service(web::resource("/create").route(web::post().to(payouts_create)))
@@ -133,14 +156,16 @@ impl Payouts {
             .service(web::resource("/update").route(web::post().to(payouts_update)))
             .service(web::resource("/reverse").route(web::post().to(payouts_reverse)))
             .service(web::resource("/cancel").route(web::post().to(payouts_cancel)))
-            .service(web::resource("/accounts").route(web::get().to(payouts_accounts)))
     }
 }
 
 pub struct PaymentMethods;
 
 impl PaymentMethods {
-    pub fn server(state: AppState) -> Scope {
+    // pub fn olap_server(state: AppState) -> Scope {
+    //     web::scope("/payment_methods").app_data(web::Data::new(state))
+    // }
+    pub fn oltp_server(state: AppState) -> Scope {
         web::scope("/payment_methods")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(create_payment_method_api)))
@@ -156,9 +181,9 @@ impl PaymentMethods {
 pub struct MerchantAccount;
 
 impl MerchantAccount {
-    pub fn server(config: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
         web::scope("/accounts")
-            .app_data(web::Data::new(config))
+            .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
             .service(
                 web::resource("/{id}")
@@ -167,14 +192,17 @@ impl MerchantAccount {
                     .route(web::delete().to(delete_merchant_account)),
             )
     }
+    // pub fn oltp_server(config: AppState) -> Scope {
+    //     web::scope("/accounts").app_data(web::Data::new(config))
+    // }
 }
 
 pub struct MerchantConnectorAccount;
 
 impl MerchantConnectorAccount {
-    pub fn server(config: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
         web::scope("/account")
-            .app_data(web::Data::new(config))
+            .app_data(web::Data::new(state))
             .service(
                 web::resource("/{merchant_id}/connectors")
                     .route(web::post().to(payment_connector_create))
@@ -191,12 +219,18 @@ impl MerchantConnectorAccount {
                     .route(web::delete().to(payment_connector_delete)),
             )
     }
+    // pub fn oltp_server(config: AppState) -> Scope {
+    //     web::scope("/account").app_data(web::Data::new(config))
+    // }
 }
 
 pub struct EphemeralKey;
 
 impl EphemeralKey {
-    pub fn server(config: AppState) -> Scope {
+    // pub fn olap_server(state: AppState) -> Scope {
+    //     web::scope("/ephemeral_keys").app_data(web::Data::new(state))
+    // }
+    pub fn oltp_server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::post().to(ephemeral_key_create)))
@@ -207,10 +241,14 @@ impl EphemeralKey {
 pub struct Mandates;
 
 impl Mandates {
-    pub fn server(config: AppState) -> Scope {
+    pub fn olap_server(state: AppState) -> Scope {
+        web::scope("/mandates")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/{id}").route(web::get().to(get_mandate)))
+    }
+    pub fn oltp_server(config: AppState) -> Scope {
         web::scope("/mandates")
             .app_data(web::Data::new(config))
-            .service(web::resource("/{id}").route(web::get().to(get_mandate)))
             .service(web::resource("/revoke/{id}").route(web::post().to(revoke_mandate)))
     }
 }
@@ -218,7 +256,10 @@ impl Mandates {
 pub struct Webhooks;
 
 impl Webhooks {
-    pub fn server(config: AppState) -> Scope {
+    // pub fn olap_server(state: AppState) -> Scope {
+    //     web::scope("/webhooks").app_data(web::Data::new(state))
+    // }
+    pub fn oltp_server(config: AppState) -> Scope {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
