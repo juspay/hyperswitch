@@ -54,8 +54,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
-        let mut is_update = false;
-
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -111,15 +109,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
             Err(err) => {
                 if err.current_context().is_db_unique_violation() {
-                    is_update = true;
-                    db.find_payment_attempt_by_payment_id_merchant_id(
-                        &payment_id,
-                        merchant_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                    Err(err).change_context(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
                     })
                 } else {
                     Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
@@ -145,15 +136,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
             Err(err) => {
                 if err.current_context().is_db_unique_violation() {
-                    is_update = true;
-                    db.find_payment_intent_by_payment_id_merchant_id(
-                        &payment_id,
-                        merchant_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                    Err(err).change_context(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
                     })
                 } else {
                     Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
@@ -199,7 +183,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .transpose()?;
 
         let operation = payments::if_not_create_change_operation::<_, F>(
-            is_update,
             payment_intent.status,
             request.confirm,
             self,
