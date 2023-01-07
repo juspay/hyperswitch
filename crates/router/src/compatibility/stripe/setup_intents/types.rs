@@ -122,7 +122,7 @@ pub struct StripeSetupIntentRequest {
     pub billing_details: Option<StripeBillingDetails>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<Value>,
+    pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
 }
 

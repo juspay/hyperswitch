@@ -405,7 +405,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             .transpose()
             .unwrap_or_default();
 
-        let order_details = parsed_metadata.map(|data| data.order_details);
+        let order_details = parsed_metadata.and_then(|data| data.order_details);
 
         Ok(Self {
             payment_method_data: {
@@ -503,7 +503,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
             .transpose()
             .unwrap_or_default();
 
-        let order_details = parsed_metadata.map(|data| data.order_details);
+        let order_details = parsed_metadata.and_then(|data| data.order_details);
 
         Ok(Self {
             amount: payment_data.amount.into(),

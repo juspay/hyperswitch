@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::pii;
+use common_utils::{ext_traits::Encode, pii};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -12,11 +12,6 @@ pub enum PaymentOp {
     Create,
     Update,
     Confirm,
-}
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct Metadata {
-    pub order_details: OrderDetails,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -52,7 +47,7 @@ pub struct PaymentsRequest {
     pub billing: Option<Address>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<Metadata>,
     pub client_secret: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub mandate_id: Option<String>,
@@ -547,7 +542,9 @@ impl From<PaymentsRequest> for PaymentsResponse {
             off_session: item.off_session,
             shipping: item.shipping,
             billing: item.billing,
-            metadata: item.metadata,
+            metadata: item
+                .metadata
+                .map(|a| Encode::<Metadata>::encode_to_value(&a).unwrap()),
             capture_method: item.capture_method,
             payment_method: item.payment_method,
             capture_on: item.capture_on,
@@ -731,10 +728,17 @@ pub enum SupportedWallets {
     Gpay,
 }
 
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetails {
     pub product_name: String,
     pub quantity: u16,
+}
+
+#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Metadata {
+    pub order_details: Option<OrderDetails>,
+    #[serde(flatten)]
+    pub data: serde_json::Value,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

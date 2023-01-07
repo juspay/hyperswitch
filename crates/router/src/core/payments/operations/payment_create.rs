@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -499,7 +499,10 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata: request.metadata.clone(),
+            metadata: request
+                .metadata
+                .as_ref()
+                .map(|a| Encode::<api_models::payments::Metadata>::encode_to_value(a).unwrap()),
             ..storage::PaymentIntentNew::default()
         }
     }
