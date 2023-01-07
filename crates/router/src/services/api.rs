@@ -548,10 +548,11 @@ pub async fn authenticate_merchant<'a>(
         MerchantAuthentication::AdminApiKey => {
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            if admin_api_key != state.conf.keys.admin_api_key {
-                Err(report!(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Admin Authentication Failure"))?;
-            }
+            utils::when(admin_api_key != state.conf.keys.admin_api_key, || {
+                Err(errors::ApiErrorResponse::Unauthorized)
+                    .into_report()
+                    .attach_printable("Admin Authentication Failure")
+            })?;
 
             Ok(storage::MerchantAccount {
                 id: -1,
