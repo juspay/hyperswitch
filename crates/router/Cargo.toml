@@ -66,6 +66,7 @@ thiserror = "1.0.37"
 time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
+utoipa = { git = "https://github.com/SanchithHegde/utoipa", branch = "retain-property-order" }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 
 # First party crates

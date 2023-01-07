@@ -1,0 +1,25 @@
+#[derive(utoipa::OpenApi)]
+#[openapi(
+    paths(
+        crate::routes::refunds::refunds_create,
+        crate::routes::admin::merchant_account_create
+    ),
+    components(schemas(
+        crate::types::api::refunds::RefundRequest,
+        crate::types::api::refunds::RefundType,
+        crate::types::api::refunds::RefundResponse,
+        crate::types::api::refunds::RefundStatus,
+        crate::types::api::admin::CreateMerchantAccount,
+        crate::types::api::admin::CustomRoutingRules,
+        api_models::enums::RoutingAlgorithm,
+        api_models::enums::PaymentMethodType,
+        api_models::enums::PaymentMethodSubType,
+        api_models::enums::Currency,
+        api_models::payments::AddressDetails,
+        crate::types::api::admin::MerchantAccountResponse,
+        crate::types::api::admin::MerchantConnectorId,
+        crate::types::api::admin::MerchantDetails,
+        crate::types::api::admin::WebhookDetails,
+    ))
+)]
+pub(crate) struct ApiDoc;

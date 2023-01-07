@@ -16,6 +16,7 @@ pub mod routes;
 pub mod scheduler;
 
 mod middleware;
+mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -110,6 +111,14 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
+    std::fs::write(
+        "openapi/generated.json",
+        <openapi::ApiDoc as utoipa::OpenApi>::openapi()
+            .to_pretty_json()
+            .unwrap(),
+    )
+    .unwrap();
+
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let state = routes::AppState::new(conf).await;
