@@ -58,7 +58,7 @@ pub struct CreateMerchantAccount {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(example = r#"{ "city": "NY", "unit": "245" }"#)]
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<serde_json::Value>,
 
     /// API key that will be used for server side API access
@@ -124,7 +124,7 @@ pub struct WebhookDetails {
     pub webhook_password: Option<Secret<String>>,
 
     ///The url for the webhook endpoint
-    #[schema(example = r#"www.ekart.com/webhooks"#)]
+    #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
     pub webhook_url: Option<Secret<String>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created

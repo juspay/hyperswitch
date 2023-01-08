@@ -41,7 +41,7 @@ pub struct RefundRequest {
     pub refund_type: Option<RefundType>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(example = r#"{ "city": "NY", "unit": "245" }"#)]
+    #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -61,6 +61,7 @@ pub struct RefundResponse {
     pub currency: String,
     pub reason: Option<String>,
     pub status: RefundStatus,
+    #[schema(value_type = Option<Object>)]
     pub metadata: Option<serde_json::Value>,
     pub error_message: Option<String>,
 }

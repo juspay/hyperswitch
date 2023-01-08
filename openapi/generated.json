@@ -230,7 +230,7 @@
             "example": true
           },
           "metadata": {
-            "$ref": "#/components/schemas/serde_json.Value"
+            "type": "object"
           },
           "publishable_key": {
             "type": "string",
@@ -589,7 +589,7 @@
             "example": true
           },
           "metadata": {
-            "$ref": "#/components/schemas/serde_json.Value"
+            "type": "object"
           },
           "publishable_key": {
             "type": "string",
@@ -749,7 +749,7 @@
             "$ref": "#/components/schemas/RefundType"
           },
           "metadata": {
-            "$ref": "#/components/schemas/serde_json.Value"
+            "type": "object"
           }
         }
       },
@@ -783,7 +783,7 @@
             "$ref": "#/components/schemas/RefundStatus"
           },
           "metadata": {
-            "$ref": "#/components/schemas/serde_json.Value"
+            "type": "object"
           },
           "error_message": {
             "type": "string"
@@ -842,7 +842,9 @@
             "maxLength": 255
           },
           "webhook_url": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "The url for the webhook endpoint",
+            "example": "www.ekart.com/webhooks"
           },
           "payment_created_enabled": {
             "type": "boolean",
