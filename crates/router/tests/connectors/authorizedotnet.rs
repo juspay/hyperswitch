@@ -172,7 +172,6 @@ async fn test_payment_sync() {
         payment_method_id: None,
         return_url: None,
         payment_method: enums::PaymentMethodType::Card,
-        // response: Ok(types::PaymentsResponseData::TransactionResponse { resource_id: router::types::ResponseId::ConnectorTransactionId("40111650483".to_string()), redirection_data: None, redirect: false, mandate_reference: None, connector_specific_metadata: None }),
         response: Err(types::ErrorResponse::default()),
         status: Default::default(),
     };

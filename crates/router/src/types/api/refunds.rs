@@ -37,12 +37,12 @@ pub trait RefundSync:
 
 #[async_trait::async_trait]
 pub trait RefundCommon {
-    async fn refund_execute_update_tracker<'a>(
-        &'a self,
-        _state: &'a routes::AppState,
-        _connector: &'a types::api::ConnectorData,
+    async fn refund_execute_update_tracker(
+        &self,
+        _state: &routes::AppState,
+        _connector: &types::api::ConnectorData,
         router_data: types::RefundsRouterData<Execute>,
-        _payment_attempt: &'a storage_models::payment_attempt::PaymentAttempt,
+        _payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     ) -> errors::RouterResult<types::RefundsRouterData<Execute>> {
         Ok(router_data)
     }
