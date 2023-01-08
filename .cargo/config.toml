@@ -17,10 +17,6 @@ rustflags = [
     # "-Wmissing_docs",
     "-Wrust_2018_idioms",
     "-Wunused_qualifications",
-
-    # FATAL: This is required because super traits created with async_trait indicate future
-    # deprication of object safety
-    "-Awhere_clauses_object_safety",
 ]
 
 [alias]
