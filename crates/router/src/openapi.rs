@@ -38,6 +38,10 @@ request Authorization header.
 Never share your secret api keys. Keep them guarded and secure.
 "#,
     ),
+    servers(
+        (url = "https://sandbox-router.juspay.io", description = "Sandbox Environment"),
+        (url = "https://router.juspay.io", description = "Production Environment")
+    ),
     paths(
         crate::routes::refunds::refunds_create,
         crate::routes::admin::merchant_account_create

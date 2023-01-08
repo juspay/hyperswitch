@@ -13,6 +13,16 @@
     },
     "version": "0.2.0"
   },
+  "servers": [
+    {
+      "url": "https://sandbox-router.juspay.io",
+      "description": "Sandbox Environment"
+    },
+    {
+      "url": "https://router.juspay.io",
+      "description": "Production Environment"
+    }
+  ],
   "paths": {
     "/account": {
       "post": {
