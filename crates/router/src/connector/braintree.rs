@@ -276,7 +276,7 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
+        logger::debug!(payment_sync_response_braintree=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -365,11 +365,11 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!(braintreepayments_create_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(braintreepayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),

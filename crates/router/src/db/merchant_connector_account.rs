@@ -9,6 +9,62 @@ use crate::{
 };
 
 #[async_trait::async_trait]
+pub trait ConnectorAccessToken {
+    async fn get_access_token(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+    ) -> CustomResult<Option<String>, errors::StorageError>;
+
+    async fn set_access_token_with_expiry(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+        expiry: u64,
+    ) -> CustomResult<(), errors::StorageError>;
+}
+
+#[async_trait::async_trait]
+impl ConnectorAccessToken for Store {
+    async fn get_access_token(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+    ) -> CustomResult<Option<String>, errors::StorageError> {
+        Ok(Some("TODO".to_string()))
+    }
+
+    async fn set_access_token_with_expiry(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+        expiry: u64,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl ConnectorAccessToken for MockDb {
+    async fn get_access_token(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+    ) -> CustomResult<Option<String>, errors::StorageError> {
+        Ok(Some("TODO".to_string()))
+    }
+
+    async fn set_access_token_with_expiry(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+        expiry: u64,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
 pub trait MerchantConnectorAccountInterface {
     async fn find_merchant_connector_account_by_merchant_id_connector(
         &self,

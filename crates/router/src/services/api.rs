@@ -22,8 +22,9 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    logger,
+    headers, logger,
     routes::AppState,
+    services,
     types::{
         self, api,
         storage::{self, enums},
@@ -46,6 +47,15 @@ where
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
         Box::new(self)
     }
+}
+
+pub trait AccessTokenRefresh {
+    fn get_headers(&self) -> CustomResult<Vec<(String, String)>, errors::ConnectorError>;
+    fn get_content_type(&self) -> &'static str;
+    fn get_url(&self) -> CustomResult<String, errors::ConnectorError>;
+    fn get_request_body(&self) -> CustomResult<Option<String>, errors::ConnectorError>;
+    fn build_request(&self) -> CustomResult<Option<Request>, errors::ConnectorError>;
+    fn handle_response_token(&self) -> CustomResult<String, errors::ConnectorError>;
 }
 
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
@@ -753,6 +763,32 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
             }
         }
     }
+}
+
+pub async fn refresh_connector_access_token<'a>(
+    state: &'a AppState,
+    connector_name: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    let headers = vec![(
+        headers::CONTENT_TYPE.to_string(),
+        "application/json".to_string(),
+    )];
+
+    let body = "{}".to_string();
+
+    let request = services::RequestBuilder::new()
+        .method(services::Method::Post)
+        .url("https://apis.sandbox.globalpay.com/ucp/accesstoken")
+        .headers(headers)
+        .body(Some(body))
+        .build();
+
+    // Acquire a lock on the resource ( merchant_account+connector ) to prevent the accesstoken to
+    // be refreshed by another request.
+    let response = send_request(state, request).await;
+
+    // release lock, all others waiting should get the value -> how to do this?
+    Ok("access_token".to_string())
 }
 
 #[cfg(test)]
