@@ -22,4 +22,4 @@
         crate::types::api::admin::WebhookDetails,
     ))
 )]
-pub(crate) struct ApiDoc;
+pub struct ApiDoc;
