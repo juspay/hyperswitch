@@ -56,6 +56,8 @@ pub trait ConnectorActions: Connector {
             payment_data.unwrap_or(types::PaymentsCaptureData {
                 amount_to_capture: Some(100),
                 connector_transaction_id: transaction_id,
+                currency: enums::Currency::USD,
+                amount: 100,
             }),
         );
         call_connector(request, integration).await
@@ -177,7 +179,7 @@ fn generate_data<Flow, Req: From<Req>, Res>(
         connector,
         payment_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        orca_return_url: None,
+        router_return_url: None,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethodType::Card,
         connector_auth_type,

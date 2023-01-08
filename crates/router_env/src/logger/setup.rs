@@ -16,9 +16,7 @@ use opentelemetry::{
 };
 use opentelemetry_otlp::WithExportConfig;
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{
-    filter, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
-};
+use tracing_subscriber::{filter, fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
 
 use crate::{config, FormattingLayer, Level, StorageSubscription};
 
@@ -72,8 +70,14 @@ pub fn setup<Str: AsRef<str>>(
         None
     };
 
+    let telemetry_layer = match telemetry {
+        Some(Ok(ref tracer)) => Some(tracing_opentelemetry::layer().with_tracer(tracer.clone())),
+        _ => None,
+    };
+
     // Use 'RUST_LOG' environment variable will override the config settings
     let subscriber = tracing_subscriber::registry()
+        .with(telemetry_layer)
         .with(StorageSubscription)
         .with(file_writer)
         .with(

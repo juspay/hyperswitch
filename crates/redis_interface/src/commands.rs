@@ -21,7 +21,7 @@ use fred::{
     },
 };
 use futures::StreamExt;
-use router_env::{logger, tracing, tracing::instrument};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     errors,
@@ -244,6 +244,25 @@ impl super::RedisConnectionPool {
 
         self.set_hash_field_if_not_exist(key, field, serialized.as_slice())
             .await
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
+        &self,
+        kv: &[(&str, V)],
+        field: &str,
+    ) -> CustomResult<Vec<HsetnxReply>, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let mut hsetnx: Vec<HsetnxReply> = Vec::with_capacity(kv.len());
+        for (key, val) in kv {
+            hsetnx.push(
+                self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                    .await?,
+            );
+        }
+        Ok(hsetnx)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

@@ -1,13 +1,13 @@
-mod payment_cancel;
-mod payment_capture;
-mod payment_confirm;
-mod payment_create;
-mod payment_method_validate;
-mod payment_response;
-mod payment_session;
-mod payment_start;
-mod payment_status;
-mod payment_update;
+pub mod payment_cancel;
+pub mod payment_capture;
+pub mod payment_confirm;
+pub mod payment_create;
+pub mod payment_method_validate;
+pub mod payment_response;
+pub mod payment_session;
+pub mod payment_start;
+pub mod payment_status;
+pub mod payment_update;
 
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
@@ -24,7 +24,6 @@ use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
-    pii::Secret,
     routes::AppState,
     types::{
         self,
@@ -111,18 +110,9 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        _payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, R>,
-        Option<api::PaymentMethod>,
-        Option<String>,
-    )>;
+    ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
@@ -212,29 +202,13 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await
+        helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 }
 
@@ -272,19 +246,13 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a AppState,
-        _payment_method: Option<enums::PaymentMethodType>,
-        _txn_id: &str,
-        _payment_attempt: &storage::PaymentAttempt,
-        _request: &Option<api::PaymentMethod>,
-        _token: &Option<String>,
-        _card_cvc: Option<Secret<String>>,
+        _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        Ok((Box::new(self), None, None))
+        Ok((Box::new(self), None))
     }
 
     async fn get_connector<'a>(
@@ -332,19 +300,13 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a AppState,
-        _payment_method: Option<enums::PaymentMethodType>,
-        _txn_id: &str,
-        _payment_attempt: &storage::PaymentAttempt,
-        _request: &Option<api::PaymentMethod>,
-        _token: &Option<String>,
-        _card_cvc: Option<Secret<String>>,
+        _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        Ok((Box::new(self), None, None))
+        Ok((Box::new(self), None))
     }
 
     async fn get_connector<'a>(

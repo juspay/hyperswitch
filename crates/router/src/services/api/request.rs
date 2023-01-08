@@ -2,7 +2,7 @@ use std::{collections, str::FromStr};
 
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 
 use crate::{

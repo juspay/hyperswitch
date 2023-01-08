@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use error_stack::ResultExt;
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{
@@ -52,9 +52,12 @@ pub async fn construct_refund_router_data<'a, F>(
     let payment_method_data = match payment_method_data.cloned() {
         Some(v) => v,
         None => {
-            helpers::Vault::get_payment_method_data_from_locker(state, &payment_attempt.attempt_id)
-                .await?
-                .get_required_value("payment_method_data")?
+            let (pm, _) = helpers::Vault::get_payment_method_data_from_locker(
+                state,
+                &payment_attempt.attempt_id,
+            )
+            .await?;
+            pm.get_required_value("payment_method_data")?
         }
     };
 
@@ -68,7 +71,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        orca_return_url: None,
+        router_return_url: None,
         payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
