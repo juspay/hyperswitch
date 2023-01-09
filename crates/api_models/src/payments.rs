@@ -750,7 +750,7 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetails {
     pub product_name: String,
     pub quantity: u16,

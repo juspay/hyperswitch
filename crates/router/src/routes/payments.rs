@@ -257,7 +257,6 @@ pub async fn payments_connector_session(
                 payments::PaymentSession,
                 payload,
                 api::AuthFlow::Client,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -369,7 +368,6 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    let connector = req.connector;
     match req.amount.as_ref() {
         Some(api_types::Amount::Value(_)) | None => payments::payments_core::<
             api_types::Authorize,
@@ -383,7 +381,6 @@ where
             operation,
             req,
             auth_flow,
-            connector,
             payments::CallConnectorAction::Trigger,
         )
         .await,
@@ -395,7 +392,6 @@ where
                 operation,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
             .await
