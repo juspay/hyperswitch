@@ -593,37 +593,6 @@ pub(crate) async fn call_payment_method(
     }
 }
 
-pub(crate) fn client_secret_auth<P>(
-    payload: P,
-    auth_type: &services::api::MerchantAuthentication<'_>,
-) -> RouterResult<P>
-where
-    P: services::Authenticate,
-{
-    match auth_type {
-        services::MerchantAuthentication::PublishableKey => {
-            payload
-                .get_client_secret()
-                .check_value_present("client_secret")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret".to_owned(),
-                })?;
-            Ok(payload)
-        }
-        services::api::MerchantAuthentication::ApiKey => {
-            if payload.get_client_secret().is_some() {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "client_secret is not a valid parameter".to_owned(),
-                }))
-            } else {
-                Ok(payload)
-            }
-        }
-        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unexpected Auth type")),
-    }
-}
-
 pub async fn get_customer_from_details(
     db: &dyn StorageInterface,
     customer_id: Option<String>,

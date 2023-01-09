@@ -9,7 +9,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::payments,
     routes,
-    services::api,
+    services::{api, authentication::*},
     types::api as api_types,
 };
 
@@ -55,7 +55,7 @@ pub async fn setup_intents_create(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &ApiKeyAuth,
     )
     .await
 }
@@ -75,11 +75,10 @@ pub async fn setup_intents_retrieve(
         param: None,
     };
 
-    let auth_type = match api::get_auth_type(&req) {
-        Ok(auth_type) => auth_type,
+    let (auth_type, auth_flow) = match get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
 
     wrap::compatibility_api_wrap::<
         _,
@@ -104,7 +103,7 @@ pub async fn setup_intents_retrieve(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -131,12 +130,11 @@ pub async fn setup_intents_update(
     let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
+    let (auth_type, auth_flow) = match check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -161,7 +159,7 @@ pub async fn setup_intents_update(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -189,12 +187,11 @@ pub async fn setup_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
+    let (auth_type, auth_flow) = match check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -219,7 +216,7 @@ pub async fn setup_intents_confirm(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
