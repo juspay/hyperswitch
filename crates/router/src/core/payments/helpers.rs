@@ -1374,11 +1374,11 @@ pub(crate) async fn verify_client_secret(
     storage_scheme: storage_enums::MerchantStorageScheme,
     client_secret: Option<String>,
     merchant_id: &str,
-) -> error_stack::Result<(), errors::ApiErrorResponse> {
+) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
     match client_secret {
-        None => Ok(()),
+        None => Ok(None),
         Some(cs) => {
-            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+            let payment_id = get_payment_id_from_client_secret(&cs);
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -1390,9 +1390,15 @@ pub(crate) async fn verify_client_secret(
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(|err| err.into())
+                .map_err(errors::ApiErrorResponse::from)?;
+            Ok(Some(payment_intent))
         }
     }
+}
+
+#[inline]
+pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> String {
+    cs.split('_').take(2).collect::<Vec<&str>>().join("_")
 }
 
 #[cfg(test)]

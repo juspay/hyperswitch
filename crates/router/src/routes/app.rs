@@ -181,7 +181,7 @@ impl MerchantConnectorAccount {
                     .route(web::get().to(payment_connector_list)),
             )
             .service(
-                web::resource("/{merchant_id}/payment_methods")
+                web::resource("/payment_methods")
                     .route(web::get().to(list_payment_method_api)),
             )
             .service(

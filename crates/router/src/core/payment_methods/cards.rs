@@ -341,7 +341,7 @@ pub async fn list_payment_methods(
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
 ) -> errors::RouterResponse<Vec<api::ListPaymentMethodResponse>> {
-    helpers::verify_client_secret(
+    let payment_intent = helpers::verify_client_secret(
         db,
         merchant_account.storage_scheme,
         req.client_secret.clone(),
@@ -364,19 +364,31 @@ pub async fn list_payment_methods(
             None => continue,
         };
 
-        filter_payment_methods(payment_methods, &mut req, &mut response);
+        filter_payment_methods(
+            db,
+            payment_methods,
+            &merchant_account,
+            &mut req,
+            &mut response,
+            payment_intent.as_ref(),
+        )
+        .await?;
     }
+
     response
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
         .unwrap_or(Ok(services::BachResponse::Json(response)))
 }
 
-fn filter_payment_methods(
+async fn filter_payment_methods(
+    db: &dyn db::StorageInterface,
     payment_methods: Vec<serde_json::Value>,
+    merchant_account: &storage::MerchantAccount,
     req: &mut api::ListPaymentMethodRequest,
     resp: &mut Vec<api::ListPaymentMethodResponse>,
-) {
+    payment_intent: Option<&storage::PaymentIntent>,
+) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         if let Ok(payment_method_object) =
             serde_json::from_value::<api::ListPaymentMethodResponse>(payment_method)
@@ -406,13 +418,29 @@ fn filter_payment_methods(
                     &payment_method_object.accepted_currencies,
                     &req.accepted_currencies,
                 );
+                let filter3 = if let Some(payment_intent) = payment_intent {
+                    filter_payment_country_based(db, payment_intent, &payment_method_object).await?
+                        && filter_payment_currency_based(payment_intent, &payment_method_object)
+                        && filter_payment_amount_based(payment_intent, &payment_method_object)
+                        && filter_payment_mandate_based(
+                            db,
+                            &payment_intent.payment_id,
+                            &merchant_account.merchant_id,
+                            merchant_account.storage_scheme,
+                            &payment_method_object,
+                        )
+                        .await?
+                } else {
+                    true
+                };
 
-                if filter && filter2 {
+                if filter && filter2 && filter3 {
                     resp.push(payment_method_object);
                 }
             }
         }
     }
+    Ok(())
 }
 
 fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
@@ -435,7 +463,7 @@ fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
 
 fn filter_amount_based(
     payment_method: &api::ListPaymentMethodResponse,
-    amount: Option<i32>,
+    amount: Option<i64>,
 ) -> bool {
     let min_check = amount
         .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
@@ -468,6 +496,60 @@ fn filter_installment_based(
     installment_payment_enabled.map_or(true, |enabled| {
         payment_method.installment_payment_enabled == enabled
     })
+}
+
+async fn filter_payment_country_based(
+    db: &dyn db::StorageInterface,
+    payment_intent: &storage::PaymentIntent,
+    pm: &api::ListPaymentMethodResponse,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+    let address = helpers::get_address_by_id(db, payment_intent.billing_address_id.clone()).await?;
+    Ok(address.map_or(true, |address| {
+        address.country.map_or(true, |country| {
+            pm.accepted_countries
+                .clone()
+                .map_or(true, |ac| ac.contains(&country))
+        })
+    }))
+}
+
+fn filter_payment_currency_based(
+    payment_intent: &storage::PaymentIntent,
+    pm: &api::ListPaymentMethodResponse,
+) -> bool {
+    payment_intent.currency.map_or(true, |currency| {
+        pm.accepted_currencies
+            .clone()
+            .map_or(true, |ac| ac.contains(&currency.foreign_into()))
+    })
+}
+
+fn filter_payment_amount_based(
+    payment_intent: &storage::PaymentIntent,
+    pm: &api::ListPaymentMethodResponse,
+) -> bool {
+    let amount = payment_intent.amount;
+    pm.maximum_amount.map_or(true, |amt| amount < amt)
+        && pm.minimum_amount.map_or(true, |amt| amount > amt)
+}
+
+async fn filter_payment_mandate_based(
+    db: &dyn db::StorageInterface,
+    payment_id: &str,
+    merchant_id: &str,
+    storage_scheme: enums::MerchantStorageScheme,
+    pm: &api::ListPaymentMethodResponse,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+    let payment_attempt = db
+        .find_payment_attempt_by_payment_id_merchant_id(payment_id, merchant_id, storage_scheme)
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+    let recurring_filter = if !pm.recurring_enabled {
+        payment_attempt.mandate_id.is_none()
+    } else {
+        true
+    };
+    Ok(recurring_filter)
 }
 
 pub async fn list_customer_payment_method(

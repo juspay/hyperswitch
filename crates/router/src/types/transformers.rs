@@ -279,6 +279,11 @@ impl From<F<api_enums::Currency>> for F<storage_enums::Currency> {
         Self(frunk::labelled_convert_from(currency.0))
     }
 }
+impl From<F<storage_enums::Currency>> for F<api_enums::Currency> {
+    fn from(currency: F<storage_enums::Currency>) -> Self {
+        Self(frunk::labelled_convert_from(currency.0))
+    }
+}
 
 impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
     fn from(address: F<&api_types::Address>) -> Self {

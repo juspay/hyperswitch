@@ -35,7 +35,6 @@ pub async fn create_payment_method_api(
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    _merchant_id: web::Path<String>,
     json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
 ) -> HttpResponse {
     //let merchant_id = merchant_id.into_inner();
