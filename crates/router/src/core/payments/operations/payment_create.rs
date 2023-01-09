@@ -444,7 +444,7 @@ impl PaymentCreate {
         let metadata = request
             .metadata
             .as_ref()
-            .map(|a| Encode::<api_models::payments::Metadata>::encode_to_value(&a))
+            .map(Encode::<api_models::payments::Metadata>::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
