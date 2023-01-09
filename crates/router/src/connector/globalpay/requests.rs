@@ -482,8 +482,8 @@ pub struct StoredCredential {
 ///
 /// Describes the instruction a device can indicate to the clerk in the case of fraud.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthorizationMode {
-    #[serde(rename = "PARTIAL")]
     Partial,
 }
 
@@ -500,12 +500,10 @@ pub enum AuthorizationMode {
 /// One or many successful capture are permitted once the total amount captured is within a
 /// range of the original authorized amount.'
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaptureMode {
-    #[serde(rename = "AUTO")]
     Auto,
-    #[serde(rename = "LATER")]
     Later,
-    #[serde(rename = "MULTIPLE")]
     Multiple,
 }
 
@@ -518,97 +516,79 @@ pub enum CaptureMode {
 /// together when exchanging payment method information to fulfill a transaction. e.g. a
 /// transaction executed from a merchant's website or over the phone
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Channel {
     #[default]
-    #[serde(rename = "CNP")]
     Cnp,
-    #[serde(rename = "CP")]
     Cp,
 }
 
 /// Describes the data the device can handle when it receives a response for a card
 /// authorization.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EnabledResponse {
-    #[serde(rename = "AVS")]
     Avs,
-    #[serde(rename = "BRAND_REFERENCE")]
     BrandReference,
-    #[serde(rename = "CVV")]
     Cvv,
-    #[serde(rename = "MASKED_NUMBER_LAST4")]
     MaskedNumberLast4,
 }
 
 /// Describes the entry mode capabilities a device has.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CapabilitiesEntryMode {
-    #[serde(rename = "CHIP")]
     Chip,
-    #[serde(rename = "CONTACTLESS")]
     Contactless,
-    #[serde(rename = "CONTACTLESS_SWIPE")]
     ContactlessSwipe,
-    #[serde(rename = "MANUAL")]
     Manual,
-    #[serde(rename = "SWIPE")]
     Swipe,
 }
 
 /// Describes the mobile features a device has
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mobile {
-    #[serde(rename = "INTEGRATED_CARD_READER")]
     IntegratedCardReader,
-    #[serde(rename = "SEPARATE_CARD_READER")]
     SeparateCardReader,
 }
 
 /// Describes the capabilities a device has to verify a payer.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayerVerification {
-    #[serde(rename = "CONTACTLESS_SIGNATURE")]
     ContactlessSignature,
-    #[serde(rename = "PAYER_DEVICE")]
     PayerDevice,
-    #[serde(rename = "PINPAD")]
     Pinpad,
 }
 
 /// Describes the allowed entry modes to obtain payment method information from the payer as
 /// part of a transaction request.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeviceEntryMode {
-    #[serde(rename = "CHIP")]
     Chip,
-    #[serde(rename = "CONTACTLESS")]
     Contactless,
-    #[serde(rename = "MANUAL")]
     Manual,
-    #[serde(rename = "SWIPE")]
     Swipe,
 }
 
 /// Describes whether a device prompts a payer for a gratuity when the payer is entering
 /// their payment method details to the device.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GratuityPromptMode {
-    #[serde(rename = "NOT_REQUIRED")]
     NotRequired,
-    #[serde(rename = "PROMPT")]
     Prompt,
 }
 
 /// Describes the receipts a device prints when processing a transaction.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PrintReceiptMode {
-    #[serde(rename = "BOTH")]
     Both,
-    #[serde(rename = "MERCHANT")]
     Merchant,
-    #[serde(rename = "NONE")]
     None,
-    #[serde(rename = "PAYER")]
     Payer,
 }
 
@@ -619,10 +599,9 @@ pub enum PrintReceiptMode {
 /// * REFUND - indicates the movement, or the attempt to move, funds from merchant to the
 /// payer.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobalpayPaymentsRequestType {
-    #[serde(rename = "REFUND")]
     Refund,
-    #[serde(rename = "SALE")]
     Sale,
 }
 
@@ -631,10 +610,9 @@ pub enum GlobalpayPaymentsRequestType {
 /// * MERCHANT - The transaction was initated by the merchant, who is getting paid by the
 /// payer.'
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Initiator {
-    #[serde(rename = "MERCHANT")]
     Merchant,
-    #[serde(rename = "PAYER")]
     Payer,
 }
 
@@ -655,74 +633,56 @@ pub enum Language {
 /// Describes the payment method programs, typically run by card brands such as Amex, Visa
 /// and MC.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodProgramCode {
-    #[serde(rename = "ASSURED_RESERVATION")]
     AssuredReservation,
-    #[serde(rename = "CARD_DEPOSIT")]
     CardDeposit,
-    #[serde(rename = "OTHER")]
     Other,
-    #[serde(rename = "PURCHASE")]
     Purchase,
 }
 
 /// Describes the types of charges associated with a transaction. This can be one or more
 /// than more charge type.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TypeElement {
-    #[serde(rename = "GIFT_SHOP")]
     GiftShop,
-    #[serde(rename = "LAUNDRY")]
     Laundry,
-    #[serde(rename = "MINI_BAR")]
     MiniBar,
-    #[serde(rename = "NO_SHOW")]
     NoShow,
-    #[serde(rename = "OTHER")]
     Other,
-    #[serde(rename = "PHONE")]
     Phone,
-    #[serde(rename = "RESTAURANT")]
     Restaurant,
 }
 
 /// A string used to identify the payment method provider being used to execute this
 /// transaction.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApmProvider {
-    #[serde(rename = "GIROPAY")]
     Giropay,
-    #[serde(rename = "IDEAL")]
     Ideal,
-    #[serde(rename = "PAYPAL")]
     Paypal,
-    #[serde(rename = "SOFORT")]
     Sofort,
-    #[serde(rename = "TESTPAY")]
     Testpay,
 }
 
 /// Indicates if any exemptions apply to this transaction.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ExemptStatus {
-    #[serde(rename = "LOW_VALUE")]
     LowValue,
-    #[serde(rename = "SCA_DELEGATION")]
     ScaDelegation,
-    #[serde(rename = "SECURE_CORPORATE_PAYMENT")]
     SecureCorporatePayment,
-    #[serde(rename = "TRANSACTION_RISK_ANALYSIS")]
     TransactionRiskAnalysis,
-    #[serde(rename = "TRUSTED_MERCHANT")]
     TrustedMerchant,
 }
 
 /// The type of bank account associated with the payer's bank account.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NumberType {
-    #[serde(rename = "CHECKING")]
     Checking,
-    #[serde(rename = "SAVINGS")]
     Savings,
 }
 
@@ -741,16 +701,12 @@ pub enum NumberType {
 /// (either Single or Recurring Entry) to a consumer's account pursuant to a to an
 /// authorization that is obtained from the Receiver via the Internet.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SecCode {
-    #[serde(rename = "CCD")]
     Ccd,
-    #[serde(rename = "POP")]
     Pop,
-    #[serde(rename = "PPD")]
     Ppd,
-    #[serde(rename = "TEL")]
     Tel,
-    #[serde(rename = "WEB")]
     Web,
 }
 
@@ -759,10 +715,9 @@ pub enum SecCode {
 /// * PREV_SUCCESS - indicates the previous transaction with this card was a success.
 /// * PREV_FAILED - indicates the previous transaction with this card failed.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ChipCondition {
-    #[serde(rename = "PREV_FAILED")]
     PrevFailed,
-    #[serde(rename = "PREV_SUCCESS")]
     PrevSuccess,
 }
 
@@ -772,13 +727,11 @@ pub enum ChipCondition {
 /// * NOT_PRESENT - indicates the cvv is not present on the card.
 /// * PRESENT - indicates the cvv is present.
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CvvIndicator {
-    #[serde(rename = "ILLEGIBLE")]
     Illegible,
-    #[serde(rename = "NOT_PRESENT")]
     NotPresent,
     #[default]
-    #[serde(rename = "PRESENT")]
     Present,
 }
 
@@ -794,25 +747,20 @@ pub enum CvvIndicator {
 /// account to fulfill the transaction amount. Unlike a debit card, a prepaid is not linked
 /// to a bank account.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Funding {
-    #[serde(rename = "CASH_BENEFITS")]
     CashBenefits,
-    #[serde(rename = "CREDIT")]
     Credit,
-    #[serde(rename = "DEBIT")]
     Debit,
-    #[serde(rename = "FOOD_STAMP")]
     FoodStamp,
-    #[serde(rename = "PREPAID")]
     Prepaid,
 }
 
 /// Identifies who provides the digital wallet for the Payer.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DigitalWalletProvider {
-    #[serde(rename = "APPLEPAY")]
     Applepay,
-    #[serde(rename = "PAY_BY_GOOGLE")]
     PayByGoogle,
 }
 
@@ -823,19 +771,17 @@ pub enum DigitalWalletProvider {
 /// * CARD_TOKEN - The value in the digital wallet token field is a temporary token in the
 /// format of a card number (PAN) but is not a real card number.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TokenFormat {
-    #[serde(rename = "CARD_NUMBER")]
     CardNumber,
-    #[serde(rename = "CARD_TOKEN")]
     CardToken,
 }
 
 /// The encryption method used when sending encrypted card data to Global Payments.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Method {
-    #[serde(rename = "KSN")]
     Ksn,
-    #[serde(rename = "KTB")]
     Ktb,
 }
 
@@ -864,27 +810,18 @@ pub enum Method {
 /// phone.
 /// * MAIL - A CNP channel entry mode where the payment method was obtained via postal mail.
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodEntryMode {
-    #[serde(rename = "CHIP")]
     Chip,
-    #[serde(rename = "CONTACTLESS_CHIP")]
     ContactlessChip,
-    #[serde(rename = "CONTACTLESS_SWIPE")]
     ContactlessSwipe,
     #[default]
-    #[serde(rename = "ECOM")]
     Ecom,
-    #[serde(rename = "IN_APP")]
     InApp,
-    #[serde(rename = "MAIL")]
     Mail,
-    #[serde(rename = "MANUAL")]
     Manual,
-    #[serde(rename = "MOTO")]
     Moto,
-    #[serde(rename = "PHONE")]
     Phone,
-    #[serde(rename = "SWIPE")]
     Swipe,
 }
 
@@ -901,10 +838,9 @@ pub enum PaymentMethodEntryMode {
 /// * ON_SUCCESS - The card information is only storedif the payment method authorization was
 /// successful.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mode {
-    #[serde(rename = "ALWAYS")]
     Always,
-    #[serde(rename = "ON_SUCCESS")]
     OnSuccess,
 }
 
@@ -924,41 +860,32 @@ pub enum Mode {
 /// transactions and where the amount is known and agreed in advanced. For example the
 /// payment in full of a good in fixed installments over a defined period of time.'
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Model {
-    #[serde(rename = "INSTALLMENT")]
     Installment,
-    #[serde(rename = "RECURRING")]
     Recurring,
-    #[serde(rename = "SUBSCRIPTION")]
     Subscription,
-    #[serde(rename = "UNSCHEDULED")]
     Unscheduled,
 }
 
 /// The reason stored credentials are being used to to create a transaction.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Reason {
-    #[serde(rename = "DELAYED")]
     Delayed,
-    #[serde(rename = "INCREMENTAL")]
     Incremental,
-    #[serde(rename = "NO_SHOW")]
     NoShow,
-    #[serde(rename = "REAUTHORIZATION")]
     Reauthorization,
-    #[serde(rename = "RESUBMISSION")]
     Resubmission,
 }
 
 /// Indiciates the order of this transaction in the sequence of a planned repeating
 /// transaction processing model.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Sequence {
-    #[serde(rename = "FIRST")]
     First,
-    #[serde(rename = "LAST")]
     Last,
-    #[serde(rename = "SUBSEQUENT")]
     Subsequent,
 }
 
