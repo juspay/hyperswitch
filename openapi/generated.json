@@ -1,0 +1,855 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Juspay Router - API Documentation",
+    "description": "\n## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                                            |\n|---------------|------------------------------------------------------|\n| Sandbox       | <https://sandbox-router.juspay.io>                   |\n| Production    | <https://router.juspay.io>                           |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://orca-dahboard.netlify.app) and create a merchant\naccount, you are given a secret key (also referred as api-key).\nYou may authenticate all API requests with Juspay server by providing the appropriate key in the\nrequest Authorization header.\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "contact": {
+      "name": "Juspay Support",
+      "url": "https://juspay.io",
+      "email": "support@juspay.in"
+    },
+    "license": {
+      "name": "Apache-2.0"
+    },
+    "version": "0.2.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandbox-router.juspay.io",
+      "description": "Sandbox Environment"
+    },
+    {
+      "url": "https://router.juspay.io",
+      "description": "Production Environment"
+    }
+  ],
+  "paths": {
+    "/account": {
+      "post": {
+        "tags": [
+          "crate::routes::admin"
+        ],
+        "summary": "Merchant Account - Create",
+        "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
+        "operationId": "merchant_account_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMerchantAccount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/refunds": {
+      "post": {
+        "tags": [
+          "crate::routes::refunds"
+        ],
+        "summary": "Refunds - Create",
+        "description": "Refunds - Create\n\nTo create a refund against an already processed payment",
+        "operationId": "refunds_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Refund created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddressDetails": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "The address city",
+            "example": "New York",
+            "maxLength": 50
+          },
+          "country": {
+            "type": "string",
+            "description": "The two-letter ISO country code for the address",
+            "example": "US",
+            "maxLength": 2,
+            "minLength": 2
+          },
+          "line1": {
+            "type": "string",
+            "description": "The first line of the address",
+            "example": "123, King Street",
+            "maxLength": 200
+          },
+          "line2": {
+            "type": "string",
+            "description": "The second line of the address",
+            "example": "Powelson Avenue",
+            "maxLength": 50
+          },
+          "line3": {
+            "type": "string",
+            "description": "The third line of the address",
+            "example": "Bridgewater",
+            "maxLength": 50
+          },
+          "zip": {
+            "type": "string",
+            "description": "The zip/postal code for the address",
+            "example": "08807",
+            "maxLength": 50
+          },
+          "state": {
+            "type": "string",
+            "description": "The address state",
+            "example": "New York"
+          },
+          "first_name": {
+            "type": "string",
+            "description": "The first name for the address",
+            "example": "John",
+            "maxLength": 255
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The last name for the address",
+            "example": "Doe",
+            "maxLength": 255
+          }
+        }
+      },
+      "CreateMerchantAccount": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Name of the Merchant Account",
+            "example": "NewAge Retailer"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523"
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "www.example.com/success",
+            "maxLength": 255
+          },
+          "webhook_details": {
+            "$ref": "#/components/schemas/WebhookDetails"
+          },
+          "routing_algorithm": {
+            "$ref": "#/components/schemas/RoutingAlgorithm"
+          },
+          "custom_routing_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomRoutingRules"
+            }
+          },
+          "sub_merchants_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "parent_merchant_id": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for payment response"
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "AH3423bkjbkjdsfbkj"
+          }
+        }
+      },
+      "Currency": {
+        "type": "string",
+        "enum": [
+          "AED",
+          "ALL",
+          "AMD",
+          "ARS",
+          "AUD",
+          "AWG",
+          "AZN",
+          "BBD",
+          "BDT",
+          "BHD",
+          "BMD",
+          "BND",
+          "BOB",
+          "BRL",
+          "BSD",
+          "BWP",
+          "BZD",
+          "CAD",
+          "CHF",
+          "CNY",
+          "COP",
+          "CRC",
+          "CUP",
+          "CZK",
+          "DKK",
+          "DOP",
+          "DZD",
+          "EGP",
+          "ETB",
+          "EUR",
+          "FJD",
+          "GBP",
+          "GHS",
+          "GIP",
+          "GMD",
+          "GTQ",
+          "GYD",
+          "HKD",
+          "HNL",
+          "HRK",
+          "HTG",
+          "HUF",
+          "IDR",
+          "ILS",
+          "INR",
+          "JMD",
+          "JOD",
+          "JPY",
+          "KES",
+          "KGS",
+          "KHR",
+          "KRW",
+          "KWD",
+          "KYD",
+          "KZT",
+          "LAK",
+          "LBP",
+          "LKR",
+          "LRD",
+          "LSL",
+          "MAD",
+          "MDL",
+          "MKD",
+          "MMK",
+          "MNT",
+          "MOP",
+          "MUR",
+          "MVR",
+          "MWK",
+          "MXN",
+          "MYR",
+          "NAD",
+          "NGN",
+          "NIO",
+          "NOK",
+          "NPR",
+          "NZD",
+          "OMR",
+          "PEN",
+          "PGK",
+          "PHP",
+          "PKR",
+          "PLN",
+          "QAR",
+          "RUB",
+          "SAR",
+          "SCR",
+          "SEK",
+          "SGD",
+          "SLL",
+          "SOS",
+          "SSP",
+          "SVC",
+          "SZL",
+          "THB",
+          "TTD",
+          "TWD",
+          "TZS",
+          "USD",
+          "UYU",
+          "UZS",
+          "YER",
+          "ZAR"
+        ]
+      },
+      "CustomRoutingRules": {
+        "type": "object",
+        "properties": {
+          "payment_methods_incl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "example": [
+              "card",
+              "upi"
+            ]
+          },
+          "payment_methods_excl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "example": [
+              "card",
+              "upi"
+            ]
+          },
+          "payment_method_types_incl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodSubType"
+            },
+            "example": [
+              "credit_card",
+              "debit_card"
+            ]
+          },
+          "payment_method_types_excl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodSubType"
+            },
+            "example": [
+              "credit_card",
+              "debit_card"
+            ]
+          },
+          "payment_method_issuers_incl": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The List of payment method issuers to include for this routing rule"
+            },
+            "example": [
+              "Citibank",
+              "JPMorgan"
+            ]
+          },
+          "payment_method_issuers_excl": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The List of payment method issuers to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list."
+            },
+            "example": [
+              "Citibank",
+              "JPMorgan"
+            ]
+          },
+          "countries_incl": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The List of countries to include for this routing rule"
+            },
+            "example": [
+              "US",
+              "UK"
+            ]
+          },
+          "countries_excl": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The List of countries to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list."
+            },
+            "example": [
+              "US",
+              "UK"
+            ]
+          },
+          "currencies_incl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "example": [
+              "EUR",
+              "USD"
+            ]
+          },
+          "currencies_excl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "example": [
+              "EUR",
+              "USD"
+            ]
+          },
+          "metadata_filters_keys": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of Metadata Filter keys to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the keys."
+            },
+            "example": [
+              "platform",
+              "Category"
+            ]
+          },
+          "metadata_filters_values": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of Metadata Filters to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the values."
+            },
+            "example": [
+              "android",
+              "Category_Electronics"
+            ]
+          },
+          "connectors_pecking_order": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The pecking order of payment connectors (or processors) to be used for routing. The first connector in the array will be attempted for routing. If it fails, the second connector will be used till the list is exhausted."
+            },
+            "example": [
+              "stripe",
+              "adyen",
+              "brain_tree"
+            ]
+          },
+          "connectors_traffic_weightage_key": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "An Array of Connectors (as Keys) with the associated percentage of traffic to be routed through the given connector (Expressed as an array of values)"
+            },
+            "example": [
+              "stripe",
+              "adyen",
+              "brain_tree"
+            ]
+          },
+          "connectors_traffic_weightage_value": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "description": "An Array of Weightage (expressed in percentage) that needs to be associated with the respective connectors (Expressed as an array of keys)"
+            },
+            "example": [
+              50,
+              30,
+              20
+            ]
+          }
+        }
+      },
+      "MerchantAccountResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Name of the Merchant Account",
+            "example": "NewAge Retailer"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523"
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "www.example.com/success",
+            "maxLength": 255
+          },
+          "webhook_details": {
+            "$ref": "#/components/schemas/WebhookDetails"
+          },
+          "routing_algorithm": {
+            "$ref": "#/components/schemas/RoutingAlgorithm"
+          },
+          "custom_routing_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomRoutingRules"
+            }
+          },
+          "sub_merchants_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "parent_merchant_id": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for payment response"
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "AH3423bkjbkjdsfbkj"
+          }
+        }
+      },
+      "MerchantConnectorId": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "merchant_connector_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "merchant_connector_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "MerchantDetails": {
+        "type": "object",
+        "properties": {
+          "primary_contact_person": {
+            "type": "string",
+            "description": "The merchant's primary contact name",
+            "example": "John Doe",
+            "maxLength": 255
+          },
+          "primary_phone": {
+            "type": "string",
+            "description": "The merchant's primary phone number",
+            "example": "999999999",
+            "maxLength": 255
+          },
+          "primary_email": {
+            "type": "string",
+            "description": "The merchant's primary email address",
+            "example": "johndoe@test.com",
+            "maxLength": 255
+          },
+          "secondary_contact_person": {
+            "type": "string",
+            "description": "The merchant's secondary contact name",
+            "example": "John Doe2",
+            "maxLength": 255
+          },
+          "secondary_phone": {
+            "type": "string",
+            "description": "The merchant's secondary phone number",
+            "example": "999999988",
+            "maxLength": 255
+          },
+          "secondary_email": {
+            "type": "string",
+            "description": "The merchant's secondary email address",
+            "example": "johndoe2@test.com",
+            "maxLength": 255
+          },
+          "website": {
+            "type": "string",
+            "description": "The business website of the merchant",
+            "example": "www.example.com",
+            "maxLength": 255
+          },
+          "about_business": {
+            "type": "string",
+            "description": "A brief description about merchant's business",
+            "example": "Online Retail with a wide selection of organic products for North America",
+            "maxLength": 255
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressDetails"
+          }
+        }
+      },
+      "PaymentMethodSubType": {
+        "type": "string",
+        "enum": [
+          "credit",
+          "debit",
+          "upi_intent",
+          "upi_collect",
+          "credit_card_installments",
+          "pay_later_installments"
+        ]
+      },
+      "PaymentMethodType": {
+        "type": "string",
+        "enum": [
+          "card",
+          "payment_container",
+          "bank_transfer",
+          "bank_debit",
+          "pay_later",
+          "netbanking",
+          "upi",
+          "open_banking",
+          "consumer_finance",
+          "wallet",
+          "klarna",
+          "paypal"
+        ]
+      },
+      "RefundRequest": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "refund_id": {
+            "type": "string",
+            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.",
+            "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "payment_id": {
+            "type": "string",
+            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc. If not provided, this will default to the full payment amount",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
+            "example": 6540,
+            "minimum": 100.0
+          },
+          "reason": {
+            "type": "string",
+            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
+            "example": "Customer returned the product",
+            "maxLength": 255
+          },
+          "refund_type": {
+            "$ref": "#/components/schemas/RefundType"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "RefundResponse": {
+        "type": "object",
+        "required": [
+          "refund_id",
+          "payment_id",
+          "amount",
+          "currency",
+          "status"
+        ],
+        "properties": {
+          "refund_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RefundStatus"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "error_message": {
+            "type": "string"
+          }
+        }
+      },
+      "RefundStatus": {
+        "type": "string",
+        "enum": [
+          "succeeded",
+          "failed",
+          "pending",
+          "review"
+        ]
+      },
+      "RefundType": {
+        "type": "string",
+        "enum": [
+          "scheduled",
+          "instant"
+        ]
+      },
+      "RoutingAlgorithm": {
+        "type": "string",
+        "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
+        "enum": [
+          "round_robin",
+          "max_conversion",
+          "min_cost",
+          "custom"
+        ],
+        "example": "custom"
+      },
+      "WebhookDetails": {
+        "type": "object",
+        "properties": {
+          "webhook_version": {
+            "type": "string",
+            "description": "The version for Webhook",
+            "example": "1.0.2",
+            "maxLength": 255
+          },
+          "webhook_username": {
+            "type": "string",
+            "description": "The user name for Webhook login",
+            "example": "ekart_retail",
+            "maxLength": 255
+          },
+          "webhook_password": {
+            "type": "string",
+            "description": "The password for Webhook login",
+            "example": "ekart@123",
+            "maxLength": 255
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "The url for the webhook endpoint",
+            "example": "www.ekart.com/webhooks"
+          },
+          "payment_created_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a new payment is created",
+            "example": true
+          },
+          "payment_succeeded_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment is successful",
+            "example": true
+          },
+          "payment_failed_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment fails",
+            "example": true
+          }
+        }
+      }
+    }
+  }
+}

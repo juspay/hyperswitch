@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -143,7 +143,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     request,
                     shipping_address.clone().map(|x| x.address_id),
                     billing_address.clone().map(|x| x.address_id),
-                ),
+                )?,
                 storage_scheme,
             )
             .await
@@ -414,16 +414,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
         let mandate_type = helpers::validate_mandate(request)?;
 
-        if request.confirm.unwrap_or(false)
-            && !matches!(
-                request.payment_method,
-                Some(api_models::enums::PaymentMethodType::Paypal)
-            )
-            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-        {
+        if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_token,
+                &request.payment_method,
                 &request.payment_method_data,
+                &mandate_type,
+                &request.payment_token,
             )?;
         }
 
@@ -481,14 +477,21 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
-    ) -> storage::PaymentIntentNew {
+    ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
-        storage::PaymentIntentNew {
+        let metadata = request
+            .metadata
+            .as_ref()
+            .map(|a| Encode::<api_models::payments::Metadata>::encode_to_value(&a))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Encoding Metadata to value failed")?;
+        Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
             status,
@@ -506,9 +509,9 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata: request.metadata.clone(),
+            metadata,
             ..storage::PaymentIntentNew::default()
-        }
+        })
     }
 
     #[instrument(skip_all)]
