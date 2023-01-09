@@ -80,8 +80,8 @@ pub fn mk_add_card_request(
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
         email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("juspay".to_string().into()), // [#256]
-        nickname: Some("router".to_string()), //
+        name_on_card: Some("juspay".to_string().into()),           // [#256]
+        nickname: Some("router".to_string()),                      //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
         .change_context(errors::CardVaultError::RequestEncodingFailed)?;
