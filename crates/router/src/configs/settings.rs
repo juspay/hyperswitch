@@ -47,6 +47,8 @@ pub struct Keys {
     #[cfg(feature = "kms")]
     pub aws_region: String,
     pub temp_card_key: String,
+    pub jwt_secret: String,
+    pub admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
