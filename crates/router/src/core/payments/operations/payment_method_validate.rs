@@ -66,16 +66,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
         let db = &state.store;
+
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
+
         let (payment_intent, payment_attempt, connector_response);
 
         let payment_id = payment_id

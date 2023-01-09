@@ -38,7 +38,7 @@ locker_decryption_key2 = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "aci", "shift4", "cybersource"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "aci", "shift4", "cybersource", "worldpay"]
 
 [eph_key]
 validity = 1
@@ -72,6 +72,9 @@ base_url = "https://apitest.cybersource.com/"
 
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
+
+[connectors.worldpay]
+base_url = "http://localhost:9090/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

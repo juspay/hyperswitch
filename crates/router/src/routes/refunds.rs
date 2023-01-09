@@ -4,6 +4,18 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{core::refunds::*, services::api, types::api::refunds};
 
+/// Refunds - Create
+///
+/// To create a refund against an already processed payment
+#[utoipa::path(
+    post,
+    path = "/refunds",
+    request_body=RefundRequest,
+    responses(
+        (status = 200, description = "Refund created", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
 pub async fn refunds_create(

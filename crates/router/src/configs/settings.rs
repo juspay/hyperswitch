@@ -18,6 +18,15 @@ pub struct CmdLineConf {
     /// Application will look for "config/config.toml" if this option isn't specified.
     #[structopt(short = "f", long, parse(from_os_str))]
     pub config_path: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    pub subcommand: Option<Subcommand>,
+}
+
+#[derive(StructOpt)]
+pub enum Subcommand {
+    /// Generate the OpenAPI specification file from code.
+    GenerateOpenapiSpec,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -47,6 +56,8 @@ pub struct Keys {
     #[cfg(feature = "kms")]
     pub aws_region: String,
     pub temp_card_key: String,
+    pub jwt_secret: String,
+    pub admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -117,6 +128,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
+    pub worldpay: ConnectorParams,
     pub applepay: ConnectorParams,
 }
 
