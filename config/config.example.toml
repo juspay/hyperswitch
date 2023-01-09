@@ -69,6 +69,8 @@ level = "DEBUG"
 aws_key_id = ""  # AWS Account Key ID
 aws_region = ""  # AWS Account region
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # AWS KMS Key
+admin_api_key = "test_admin" #admin api key for merchant authentication
+jwt_secret= "secret"  #secret jwt for merchant
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -129,6 +131,9 @@ base_url = "https://apitest.cybersource.com/"
 
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
+
+[connectors.worldpay]
+base_url = "https://try.access.worldpay.com/"
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
