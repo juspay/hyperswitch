@@ -1,6 +1,5 @@
 use std::{collections::HashMap, str::FromStr};
 
-use api_models::payments;
 use error_stack::{IntoReport, ResultExt};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -328,19 +327,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 api_enums::WalletIssuer::GooglePay => {
                     let gpay_data = AdyenGPay {
                         payment_type,
-                        google_pay_token: match wallet_data
+                        google_pay_token: wallet_data
                             .get_required_value("wallet_data")
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?
                             .token
                             .to_owned()
-                        {
-                            payments::TokenCheck::TokenExists(token) => Ok(token),
-                            payments::TokenCheck::NoToken => {
-                                Err(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "token".to_string(),
-                                })
-                            }
-                        }?,
+                            .get_required_value("token")
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)
+                            .attach_printable("No token passed")?,
                     };
                     Ok(AdyenPaymentMethod::Gpay(gpay_data))
                 }
@@ -348,33 +342,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 api_enums::WalletIssuer::ApplePay => {
                     let apple_pay_data = AdyenApplePay {
                         payment_type,
-                        apple_pay_token: match wallet_data
+                        apple_pay_token: wallet_data
                             .get_required_value("wallet_data")
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?
                             .token
                             .to_owned()
-                        {
-                            payments::TokenCheck::TokenExists(token) => Ok(token),
-                            payments::TokenCheck::NoToken => {
-                                Err(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "token".to_string(),
-                                })
-                            }
-                        }?,
+                            .get_required_value("token")
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)
+                            .attach_printable("No token passed")?,
                     };
                     Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
                 }
                 api_enums::WalletIssuer::Paypal => {
-                    match wallet_data
-                        .get_required_value("wallet_data")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?
-                        .token
-                    {
-                        payments::TokenCheck::TokenExists(_) => Err(
-                            errors::ConnectorError::NotImplemented("Paypal wallet".to_string()),
-                        ),
-                        payments::TokenCheck::NoToken => Ok(()),
-                    }?;
                     let wallet = AdyenPaypal { payment_type };
                     Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
                 }
