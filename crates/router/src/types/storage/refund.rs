@@ -32,7 +32,7 @@ impl RefundDbExt for Refund {
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order_by(dsl::id)
+            .order(dsl::modified_at.desc())
             .into_boxed();
 
         match &refund_list_details.payment_id {
