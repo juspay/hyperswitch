@@ -13,7 +13,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, logger, routes, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -503,22 +503,25 @@ impl api::RefundSync for Braintree {}
 
 #[async_trait::async_trait]
 impl api::RefundCommon for Braintree {
-    async fn refund_execute_update_tracker<'a>(
-        &'a self,
-        _state: &'a crate::routes::AppState,
-        _connector: &'a types::api::ConnectorData,
+    async fn update_refund_router_data(
+        &self,
+        _state: &routes::AppState,
+        _connector: &types::api::ConnectorData,
         router_data: types::RefundsRouterData<api::Execute>,
-        payment_attempt: &'a storage_models::payment_attempt::PaymentAttempt,
+        payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     ) -> errors::RouterResult<types::RefundsRouterData<api::Execute>> {
         // Validation for unsupported refunds
-        match payment_attempt.payment_method {
-            Some(storage_models::enums::PaymentMethodType::Paypal) | None => {
+        utils::when(
+            matches!(
+                payment_attempt.payment_method,
+                Some(storage_models::enums::PaymentMethodType::Paypal) | None
+            ),
+            || {
                 Err(errors::ApiErrorResponse::RefundNotPossible {
                     connector: "braintree",
-                })?
-            }
-            _ => {}
-        }
+                })
+            },
+        )?;
 
         Ok(router_data)
     }
