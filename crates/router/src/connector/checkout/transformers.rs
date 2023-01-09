@@ -94,11 +94,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
 
         let return_url = ReturnUrl {
             success_url: item
-                .orca_return_url
+                .router_return_url
                 .as_ref()
                 .map(|return_url| format!("{return_url}?status=success")),
             failure_url: item
-                .orca_return_url
+                .router_return_url
                 .as_ref()
                 .map(|return_url| format!("{return_url}?status=failure")),
         };

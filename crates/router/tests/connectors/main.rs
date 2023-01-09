@@ -6,3 +6,4 @@ mod checkout;
 mod connector_auth;
 mod shift4;
 mod utils;
+mod worldpay;

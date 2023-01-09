@@ -45,35 +45,28 @@ Below is a step-by-step tutorial for integrating a new connector.
 
 ### **Generate the template**
 
-Install cargo generate.
-
 ```bash
-cargo install cargo-generate
-```
-
-Under `crates/router/src/connector/` run the following commands
-
-```bash
-cargo gen-pg <connector-name>
+cd scripts
+sh add_connector.sh <connector-name>
 ```
 
 For this tutorial `<connector-name>` would be `checkout`.
 
-The folder structure will be modified this way
+The folder structure will be modified as below
+```
+crates/router/src/connector
+├── checkout
+│   └── transformers.rs
+└── checkout.rs
+crates/router/tests/connectors
+└── checkout.rs
+```
 
-![directory image](/docs/imgs/connector-layout.png)
-
-`transformers.rs` will contain connectors API Request and Response types, and conversion between the router and connector API types.
-`mod.rs` will contain the trait implementations for the connector.
+`crates/router/src/connector/checkout/transformers.rs` will contain connectors API Request and Response types, and conversion between the router and connector API types.
+`crates/router/src/connector/checkout.rs` will contain the trait implementations for the connector.
+`crates/router/tests/connectors/checkout.rs` will contain the basic tests for the payments flows.
 
 There is boiler plate code with `todo!()` in the above mentioned files. Go through the rest of the guide and fill in code wherever necessary.
-
-Add the below lines in `src/connector/mod.rs`
-
-```rust
-pub mod checkout;
-pub use checkout::Checkout;
-```
 
 ### **Implementing Request and Response types**
 
@@ -287,13 +280,64 @@ Don’t forget to add logs lines in appropriate places.
 Refer to other conector code for trait implementations. mostly tThe rust compiler will guide you to do it easily.
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
 
-Feel free to connect with us in case of queries and also if you want to confirm the status mapping.
+### **Test the connector**
+Try running the tests in `crates/router/tests/connectors/{{connector-name}}.rs`.
+All tests should pass and add appropiate tests for connector specific payment flows.
 
-### After implementing the above
+### **Build payment request and response from json schema**
+Some connectors will provide [json schema](https://developer.worldpay.com/docs/access-worldpay/api/references/payments) for each request and response supported. We can directly convert that schema to rust code by using below script. On running the script a `temp.rs` file will be created in `src/connector/<connector-name>` folder
 
-Add connector name in :
+*Note: The code generated may not be production ready and might fail for some case, we have to clean up the code as per our standards.*
 
-- `crates/api_models/src/enums.rs` in Connector enum (in alphabetical order)
-- `crates/router/src/types/api/mod.rs` convert_connector function
+```bash
+brew install openapi-generator
+export CONNECTOR_NAME="<CONNECTOR-NAME>" #Change it to appropriate connector name
+export SCHEMA_PATH="<PATH-TO-JSON-SCHEMA-FILE>" #it can be json or yaml, Refer samples below
+openapi-generator generate -g rust  -i ${SCHEMA_PATH} -o temp &&  cat temp/src/models/* > crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && rm -rf temp && sed -i'' -r "s/^pub use.*//;s/^pub mod.*//;s/^\/.*//;s/^.\*.*//;s/crate::models:://g;" crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && cargo +nightly fmt
+```
 
-Configure the Connectors API credentials using the PaymentConnectors API.
+JSON example
+```json
+{
+    "openapi": "3.0.1",
+    "paths": {},
+    "info": {
+        "title": "",
+        "version": ""
+    },
+    "components": {
+        "schemas": {
+            "PaymentsResponse": {
+                "type": "object",
+                "properties": {
+                    "outcome": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "outcome"
+                ]
+            }
+        }
+    }
+}
+```
+
+YAML example
+```yaml
+---
+openapi: 3.0.1
+paths: {}
+info:
+  title: ""
+  version: ""
+components:
+  schemas:
+    PaymentsResponse:
+        type: object
+        properties:
+            outcome:
+              type: string
+        required:
+            - outcome
+```

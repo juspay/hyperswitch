@@ -7,7 +7,10 @@ use serde_json::Value;
 use crate::{
     core::errors,
     pii::{self, PeekInterface},
-    types::api::enums as api_enums,
+    types::{
+        api::enums as api_enums,
+        transformers::{Foreign, ForeignInto},
+    },
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -110,7 +113,7 @@ impl From<Shipping> for payments::Address {
         }
     }
 }
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub amount: Option<i64>, //amount in cents, hence passed as integer
     pub connector: Option<api_enums::Connector>,
@@ -131,6 +134,7 @@ pub struct StripePaymentIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<Value>,
     pub client_secret: Option<pii::Secret<String>>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -180,7 +184,14 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
-            ..Default::default()
+            authentication_type: item.payment_method_options.map(|pmo| {
+                let StripePaymentMethodOptions::Card {
+                    request_three_d_secure,
+                } = pmo;
+
+                request_three_d_secure.foreign_into()
+            }),
+            ..Self::default()
         })
     }
 }
@@ -359,5 +370,30 @@ impl From<payments::PaymentListResponse> for StripePaymentIntentListResponse {
             has_more: false,
             data: it.data.into_iter().map(Into::into).collect(),
         }
+    }
+}
+
+#[derive(PartialEq, Eq, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum StripePaymentMethodOptions {
+    Card {
+        request_three_d_secure: Option<Request3DS>,
+    },
+}
+
+#[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum Request3DS {
+    #[default]
+    Automatic,
+    Any,
+}
+
+impl From<Foreign<Option<Request3DS>>> for Foreign<api_models::enums::AuthenticationType> {
+    fn from(item: Foreign<Option<Request3DS>>) -> Self {
+        Self(match item.0.unwrap_or_default() {
+            Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
+            Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
+        })
     }
 }

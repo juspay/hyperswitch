@@ -157,7 +157,7 @@ pub enum StripeErrorCode {
     },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
-    // [#216]: https://github.com/juspay/orca/issues/216
+    // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
     /*

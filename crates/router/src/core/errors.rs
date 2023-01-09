@@ -241,8 +241,8 @@ pub enum ApiClientError {
 
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
-    #[error("Failed to send request to connector")]
-    RequestNotSent,
+    #[error("Failed to send request to connector {0}")]
+    RequestNotSent(String),
     #[error("Failed to decode response")]
     ResponseDecodingFailed,
 

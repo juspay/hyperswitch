@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -120,5 +120,21 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
                 Ok(None)
             }
         }
+    }
+}
+
+pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
+    match limit {
+        Some(limit_val) => {
+            if !(1..=100).contains(&limit_val) {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "limit should be in between 1 and 100".to_string(),
+                }
+                .into())
+            } else {
+                Ok(limit_val)
+            }
+        }
+        None => Ok(10),
     }
 }
