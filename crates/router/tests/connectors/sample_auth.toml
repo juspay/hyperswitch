@@ -20,4 +20,4 @@ api_key = "Bearer MyApiKey"
 api_key = "Bearer MyApiKey"
 
 [globalpay]
-api_key = "Bearer PaJHPO7g43DLOG6FFlFoxAiyVAgW"
+api_key = "Bearer MyApiKey"
