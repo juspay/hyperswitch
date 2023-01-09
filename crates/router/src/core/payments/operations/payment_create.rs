@@ -91,7 +91,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        payment_attempt = match db
+        payment_attempt = db
             .insert_payment_attempt(
                 Self::make_payment_attempt(
                     &payment_id,
@@ -104,21 +104,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-        {
-            Ok(payment_attempt) => Ok(payment_attempt),
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
 
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Err(err).change_context(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: payment_id.clone(),
-                    })
-                } else {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            }
-        }?;
-
-        payment_intent = match db
+        payment_intent = db
             .insert_payment_intent(
                 Self::make_payment_intent(
                     &payment_id,
@@ -131,40 +123,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-        {
-            Ok(payment_intent) => Ok(payment_intent),
-
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Err(err).change_context(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: payment_id.clone(),
-                    })
-                } else {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            }
-        }?;
-
-        connector_response = match db
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
+        connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
-        {
-            Ok(connector_resp) => Ok(connector_resp),
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Err(err).change_context(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: payment_id.clone(),
-                    })
-                } else {
-                    Err(err)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error occured when inserting connector response")
-                }
-            }
-        }?;
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
 
         let mandate_id = request
             .mandate_id
