@@ -35,4 +35,5 @@ pub struct LockerMockUpNew {
     pub card_exp_month: String,
     pub card_cvc: Option<String>,
     pub payment_method_id: Option<String>,
+    pub customer_id: Option<String>,
 }

@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
-use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -34,10 +33,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -48,11 +46,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
 
         let db = &*state.store;
         let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
-                .await?;
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type.clone(),
+                merchant_account,
+            )
+            .await?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(
@@ -107,6 +112,31 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
+
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_customer_id_mandatory_cases_storage(
+                &shipping_address,
+                &billing_address,
+                &payment_intent
+                    .setup_future_usage
+                    .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
+                &payment_intent
+                    .customer_id
+                    .clone()
+                    .or_else(|| request.customer_id.clone()),
+            )?;
+        }
+
+        let token = token.or_else(|| payment_attempt.payment_token.clone());
+
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_pm_or_token_given(
+                &request.payment_method,
+                &request.payment_method_data,
+                &mandate_type,
+                &token,
+            )?;
+        }
 
         let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
@@ -218,29 +248,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await
+        helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 
     #[instrument(skip_all)]
@@ -310,10 +324,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = customer.map(|c| c.customer_id);
 
         let get_status = || {
+            let current_intent_status = payment_data.payment_intent.status;
             if is_payment_method_unavailable {
                 return enums::IntentStatus::RequiresPaymentMethod;
             }
-            if !payment_data.confirm.unwrap_or(true) {
+            if !payment_data.confirm.unwrap_or(true)
+                || current_intent_status == enums::IntentStatus::RequiresCustomerAction
+            {
                 enums::IntentStatus::RequiresConfirmation
             } else {
                 payment_data.payment_intent.status
@@ -370,13 +387,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             ),
             None => None,
         };
-
-        if let Some(true) = request.confirm {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
-            )?;
-        }
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)

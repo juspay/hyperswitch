@@ -36,8 +36,8 @@ pub struct PaymentAttempt {
     pub amount_to_capture: Option<i64>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
-    pub payment_token: Option<String>,
     pub error_code: Option<String>,
+    pub payment_token: Option<String>,
 }
 
 #[derive(

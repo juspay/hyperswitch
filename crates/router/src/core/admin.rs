@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use uuid::Uuid;
 
 use crate::{
@@ -70,6 +70,7 @@ pub async fn create_merchant_account(
         payment_response_hash_key: req.payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         publishable_key: Some(publishable_key.to_owned()),
+        locker_id: req.locker_id,
     };
 
     db.insert_merchant(merchant_account)
@@ -125,6 +126,7 @@ pub async fn get_merchant_account(
         ),
         metadata: None,
         publishable_key: merchant_account.publishable_key,
+        locker_id: merchant_account.locker_id,
     };
     Ok(service_api::BachResponse::Json(response))
 }
@@ -154,7 +156,9 @@ pub async fn merchant_account_update(
     let mut response = req.clone();
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_id: merchant_id.to_string(),
-        merchant_name: merchant_account.merchant_name.to_owned(),
+        merchant_name: req
+            .merchant_name
+            .or_else(|| merchant_account.merchant_name.to_owned()),
         api_key: merchant_account.api_key.clone(),
         merchant_details: if req.merchant_details.is_some() {
             Some(
@@ -200,12 +204,21 @@ pub async fn merchant_account_update(
                 .or_else(|| merchant_account.parent_merchant_id.clone()),
         )
         .await?,
-        enable_payment_response_hash: Some(merchant_account.enable_payment_response_hash),
-        payment_response_hash_key: merchant_account.payment_response_hash_key.to_owned(),
-        redirect_to_merchant_with_http_post: Some(
-            merchant_account.redirect_to_merchant_with_http_post,
-        ),
-        publishable_key: merchant_account.publishable_key.clone(),
+        enable_payment_response_hash: req
+            .enable_payment_response_hash
+            .or(Some(merchant_account.enable_payment_response_hash)),
+        payment_response_hash_key: req
+            .payment_response_hash_key
+            .or_else(|| merchant_account.payment_response_hash_key.to_owned()),
+        redirect_to_merchant_with_http_post: req
+            .redirect_to_merchant_with_http_post
+            .or(Some(merchant_account.redirect_to_merchant_with_http_post)),
+        publishable_key: req
+            .publishable_key
+            .or_else(|| merchant_account.publishable_key.clone()),
+        locker_id: req
+            .locker_id
+            .or_else(|| merchant_account.locker_id.to_owned()),
     };
     response.merchant_id = merchant_id.to_string();
     response.api_key = merchant_account.api_key.to_owned();
@@ -245,18 +258,13 @@ async fn get_parent_merchant(
                     report!(errors::ValidationError::MissingRequiredField {
                         field_name: "parent_merchant_id".to_string()
                     })
-                    .attach_printable(
-                        "If `sub_merchants_enabled` is true, then `parent_merchant_id` is mandatory",
-                    )
-                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "parent_merchant_id".to_string(),
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "If `sub_merchants_enabled` is `true`, then `parent_merchant_id` is mandatory".to_string(),
                     })
                 })
-                // TODO: Update the API validation error structs to provide more info about which field caused an error
-                // In this case we have multiple fields which use merchant_id (perchant_id & parent_merchant_id)
-                // making it hard to figure out what went wrong
-                // https://juspay.atlassian.net/browse/ORCA-358
-                .map(|id| validate_merchant_id(db, id))?.await?.merchant_id
+                .map(|id| validate_merchant_id(db, id).change_context(
+                    errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
+                ))?.await?.merchant_id
             )
         }
         _ => None,

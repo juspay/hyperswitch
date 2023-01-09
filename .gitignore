@@ -238,7 +238,7 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,visualstudiocode,clion,dotenv,direnv,linux,macos,windows
 
-# Orca Project specific excludes
+# hyperswitch Project specific excludes
 # code coverage report
 *.profraw
 html/
