@@ -133,6 +133,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
+        payment_intent.return_url = request.return_url.clone();
 
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
@@ -303,6 +304,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         );
 
         let customer_id = customer.map(|c| c.customer_id);
+        let return_url = payment_data.payment_intent.return_url.clone();
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -314,6 +316,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     customer_id,
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
+                    return_url,
                 },
                 storage_scheme,
             )
