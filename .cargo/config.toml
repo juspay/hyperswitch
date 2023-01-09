@@ -17,9 +17,6 @@ rustflags = [
     # "-Wmissing_docs",
     "-Wrust_2018_idioms",
     "-Wunused_qualifications",
-
-    # # FATAL: This is required because traits created with async_trait aren't object safe
-    # "-Awhere_clauses_object_safety",
 ]
 
 [alias]

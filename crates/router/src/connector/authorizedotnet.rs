@@ -4,7 +4,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use bytes::Bytes;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as authorizedotnet;
 
@@ -369,16 +369,15 @@ impl
 impl api::Refund for Authorizedotnet {}
 impl api::RefundExecute for Authorizedotnet {}
 impl api::RefundSync for Authorizedotnet {}
-// impl api::RefundCommon for Authorizedotnet {}
 
 #[async_trait::async_trait]
 impl api::RefundCommon for Authorizedotnet {
-    async fn refund_execute_update_tracker<'a>(
-        &'a self,
-        state: &'a routes::AppState,
-        connector: &'a api::ConnectorData,
+    async fn update_refund_router_data(
+        &self,
+        state: &routes::AppState,
+        connector: &api::ConnectorData,
         router_data: types::RefundsRouterData<api::Execute>,
-        payment_attempt: &'a storage_models::payment_attempt::PaymentAttempt,
+        payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     ) -> errors::RouterResult<types::RefundsRouterData<api::Execute>> {
         let request = types::PaymentsSyncData {
             connector_transaction_id: types::ResponseId::ConnectorTransactionId(
@@ -390,7 +389,7 @@ impl api::RefundCommon for Authorizedotnet {
             ),
             encoded_data: None,
         };
-        // let response = types::PaymentsResponseData::TransactionResponse { resource_id: (), redirection_data: (), redirect: (), mandate_reference: (), connector_specific_metadata: () }
+
         let response = Err(types::ErrorResponse::default());
         let (router_data_inner, request, response) =
             services::router_data_conversion::<_, api::PSync, _, _, _, _>(
@@ -422,12 +421,11 @@ impl api::RefundCommon for Authorizedotnet {
                 let payment_details: transformers::PaymentDetails = val
                     .parse_value("payment_details")
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
                 Some(
-                    serde_json::to_value(payment_details)
-                        .into_report()
-                        .change_context(errors::ParsingError)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    Encode::<'_, transformers::PaymentDetails>::encode_to_value(&payment_details)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_details",
+                    })?,
                 )
             }
         };

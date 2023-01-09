@@ -245,6 +245,7 @@ impl
 impl api::Refund for {{project-name | downcase | pascal_case}} {}
 impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
 impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
+impl api::RefundCommon for {{project-name | downcase | pascal_case}} {}
 
 impl
     services::ConnectorIntegration<

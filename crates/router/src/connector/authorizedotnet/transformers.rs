@@ -38,7 +38,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardDetails {
     pub card_number: String,
@@ -47,13 +47,13 @@ pub struct CreditCardDetails {
     pub card_code: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BankAccountDetails {
     pub account_number: String,
 }
 
-#[derive(Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum PaymentDetails {
     #[serde(rename = "creditCard")]
     CreditCard(CreditCardDetails),
@@ -342,11 +342,9 @@ pub struct CreateRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let (merchant_authentication, transaction_request);
+        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
-
-        transaction_request = RefundTransactionRequest {
+        let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.request.refund_amount,
             payment: item.request.connector_specific_data.clone().ok_or(
@@ -454,22 +452,6 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
-        // let transaction_id = item
-        //     .response
-        //     .as_ref()
-        //     .ok()
-        //     .map(|payment_response_data| match payment_response_data {
-        //         types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
-        //             resource_id.get_connector_transaction_id()
-        //         }
-        //         _ => Err(error_stack::report!(
-        //             errors::ValidationError::MissingRequiredField {
-        //                 field_name: "transaction_id".to_string()
-        //             }
-        //         )),
-        //     })
-        //     .transpose()
-        //     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let transaction_id = match &item.request.connector_transaction_id {
             types::ResponseId::ConnectorTransactionId(connector_txn_id) => {
                 Ok(Some(connector_txn_id.clone()))
