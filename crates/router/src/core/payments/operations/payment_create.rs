@@ -56,8 +56,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
-        let mut is_update = false;
-
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -100,7 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        payment_attempt = match db
+        payment_attempt = db
             .insert_payment_attempt(
                 Self::make_payment_attempt(
                     &payment_id,
@@ -113,28 +111,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-        {
-            Ok(payment_attempt) => Ok(payment_attempt),
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
 
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    is_update = true;
-                    db.find_payment_attempt_by_payment_id_merchant_id(
-                        &payment_id,
-                        merchant_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                    })
-                } else {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            }
-        }?;
-
-        payment_intent = match db
+        payment_intent = db
             .insert_payment_intent(
                 Self::make_payment_intent(
                     &payment_id,
@@ -147,47 +130,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-        {
-            Ok(payment_intent) => Ok(payment_intent),
-
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    is_update = true;
-                    db.find_payment_intent_by_payment_id_merchant_id(
-                        &payment_id,
-                        merchant_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                    })
-                } else {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            }
-        }?;
-
-        connector_response = match db
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
+        connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
-        {
-            Ok(connector_resp) => Ok(connector_resp),
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Err(err)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Duplicate connector response in the database")
-                } else {
-                    Err(err)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error occured when inserting connector response")
-                }
-            }
-        }?;
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
 
         let mandate_id = request
             .mandate_id
@@ -206,7 +164,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .transpose()?;
 
         let operation = payments::if_not_create_change_operation::<_, F>(
-            is_update,
             payment_intent.status,
             request.confirm,
             self,
