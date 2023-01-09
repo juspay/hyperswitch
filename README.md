@@ -1,16 +1,16 @@
-# ORCA
+# hyperswitch
 
 [![Build Status][actions-badge]][actions-url]
 [![Apache 2.0 license][license-badge]][license-url]
 
-[actions-badge]: https://github.com/juspay/orca/workflows/CI/badge.svg
-[actions-url]: https://github.com/juspay/orca/actions?query=workflow%3ACI+branch%3Amain
-[license-badge]: https://img.shields.io/github/license/juspay/orca
-[license-url]: https://github.com/juspay/orca/blob/main/LICENSE
+[actions-badge]: https://github.com/juspay/hyperswitch/workflows/CI/badge.svg
+[actions-url]: https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain
+[license-badge]: https://img.shields.io/github/license/juspay/hyperswitch
+[license-url]: https://github.com/juspay/hyperswitch/blob/main/LICENSE
 
-Orca is a **_Payment Switch_** that lets you connect with **multiple payment processors with a single API integration**.
+hyperswitch is a **_Payment Switch_** that lets you connect with **multiple payment processors with a single API integration**.
 Once integrated, you can add new payment processors and route traffic effortlessly.
-Using Orca, you can:
+Using hyperswitch, you can:
 
 - Reduce dependency on a single processor like Stripe
 - Control & customize your payment flow with 100% visibility
@@ -19,10 +19,10 @@ Using Orca, you can:
 - Expand your business reach with new payment methods
 - Reduce development & testing efforts of adding new processors
 
-_Orca is wire-compatible with top processors like Stripe making it easy to integrate._
+_hyperswitch is wire-compatible with top processors like Stripe making it easy to integrate._
 
 <p align="center">
-<img src= "./docs/imgs/orca-product.png" alt="orca-product" width="40%" />
+<img src= "./docs/imgs/hyperswitch-product.png" alt="hyperswitch-product" width="40%" />
 </p>
 
 ## Table of Contents
@@ -30,7 +30,8 @@ _Orca is wire-compatible with top processors like Stripe making it easy to integ
 - [Quick Start Guide](#quick-start-guide)
 - [Supported Features](#supported-features)
 - [What's Included](#whats-included)
-- [Join us in building ORCA](#join-us-in-building-orca)
+- [Join us in building hyperswitch](#join-us-in-building-hyperswitch)
+- [Community](#community)
 - [Bugs and feature requests](#bugs-and-feature-requests)
 - [Versioning](#versioning)
 - [Copyright and License](#copyright-and-license)
@@ -39,17 +40,17 @@ _Orca is wire-compatible with top processors like Stripe making it easy to integ
 
 ### Try It Out
 
-You have two options to try out Orca:
+You have two options to try out hyperswitch:
 
 1. [Try out our sandbox environment](/docs/try_sandbox.md): Requires the least
    effort and does not involve setting up anything on your system.
-2. [Try out Orca on your local system](/docs/try_local_system.md): Requires
-   comparatively more effort as it involves setting up dependencies on your
-   system.
+2. [Try out hyperswitch on your local system](/docs/try_local_system.md):
+   Requires comparatively more effort as it involves setting up dependencies on
+   your system.
 
 ### Fast Integration for Stripe Users
 
-If you are already using Stripe, integrating with Orca is fun, fast & easy.
+If you are already using Stripe, integrating with hyperswitch is fun, fast & easy.
 Try the steps below to get a feel for how quick the setup is:
 
 1. Get API keys from our [dashboard](https://orca-dahboard.netlify.app).
@@ -135,15 +136,15 @@ The current setup contains a single repo, which contains the core payment router
 └── target                       : generated files
 ```
 
-## Join us in building ORCA
+## Join us in building hyperswitch
 
 ### Our Belief
 
 **We believe payments should be open, fast and cheap.**
 
-Orca would allow everyone to quickly customize and set up an open payment switch, while giving a unified experience to your users, abstracting away the ever shifting payments landscape.
+hyperswitch would allow everyone to quickly customize and set up an open payment switch, while giving a unified experience to your users, abstracting away the ever shifting payments landscape.
 
-The Orca journey starts with a payment orchestrator.
+The hyperswitch journey starts with a payment orchestrator.
 It was born from our struggle to understand and integrate various payment options/payment processors/networks and banks, with varying degrees of documentation and inconsistent API semantics.
 
 ### Contributing
@@ -158,22 +159,19 @@ Important note for Rust developers: We aim for contributions from the community 
 Hence, we have prioritized simplicity and code readability over purely idiomatic code.
 For example, some of the code in core functions (e.g. `payments_core`) is written to be more readable rather than being pure-idiomatic.
 
-<!--
 ## Community
 
-Get updates on ORCA development and chat with the community:
+Get updates on hyperswitch development and chat with the community:
 
-- Join our Slack channel [Link]
-- Join our Discord channel [Link]
-- Follow @orca_juspay on Twitter [Link]
-- Read and subscribe to The Official Orca Blog [Link]
-- Ask and explore our GitHub Discussion [Link]
--->
+- Read and subscribe to [the official hyperswitch blog](https://blog.hyperswitch.io)
+- Join our [Discord server](https://discord.gg/XbHNKqeAjE)
+- Join our [Slack workspace](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg)
+- Ask and explore our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
 ## Bugs and feature requests
 
-Please read the issue guidelines and search for [existing and closed issues](https://github.com/juspay/orca/issues).
-If your problem or idea is not addressed yet, please [open a new issue](https://github.com/juspay/orca/issues/new/choose).
+Please read the issue guidelines and search for [existing and closed issues](https://github.com/juspay/hyperswitch/issues).
+If your problem or idea is not addressed yet, please [open a new issue](https://github.com/juspay/hyperswitch/issues/new/choose).
 
 ## Versioning
 

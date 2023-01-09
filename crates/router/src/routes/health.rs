@@ -1,7 +1,4 @@
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{instrument, logger, tracing};
 
 use crate::routes::metrics;
 

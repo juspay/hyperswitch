@@ -77,7 +77,7 @@ pub fn mk_add_card_request(
         merchant_id: "m0010", // [#253]: Need mapping for application mid to lockeId
         email_address: Some("dummy@gmail.com".to_string().into()), //
         name_on_card: Some("juspay".to_string().into()), // [#256]
-        nickname: Some("orca".to_string()), //
+        nickname: Some("router".to_string()), //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
         .change_context(errors::CardVaultError::RequestEncodingFailed)?;

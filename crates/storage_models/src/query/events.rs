@@ -1,4 +1,4 @@
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
