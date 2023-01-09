@@ -70,6 +70,7 @@ pub async fn create_merchant_account(
         payment_response_hash_key: req.payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         publishable_key: Some(publishable_key.to_owned()),
+        locker_id: req.locker_id,
     };
 
     db.insert_merchant(merchant_account)
@@ -125,6 +126,7 @@ pub async fn get_merchant_account(
         ),
         metadata: None,
         publishable_key: merchant_account.publishable_key,
+        locker_id: merchant_account.locker_id,
     };
     Ok(service_api::BachResponse::Json(response))
 }
@@ -214,6 +216,9 @@ pub async fn merchant_account_update(
         publishable_key: req
             .publishable_key
             .or_else(|| merchant_account.publishable_key.clone()),
+        locker_id: req
+            .locker_id
+            .or_else(|| merchant_account.locker_id.to_owned()),
     };
     response.merchant_id = merchant_id.to_string();
     response.api_key = merchant_account.api_key.to_owned();

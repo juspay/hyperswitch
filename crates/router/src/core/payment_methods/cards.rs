@@ -50,13 +50,13 @@ pub async fn create_payment_method(
 pub async fn add_payment_method(
     state: &routes::AppState,
     req: api::CreatePaymentMethod,
-    merchant_id: String,
+    merchant_account: &storage::MerchantAccount,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
-
+    let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     match req.card.clone() {
-        Some(card) => add_card(state, req, card, customer_id, &merchant_id)
+        Some(card) => add_card(state, req, card, customer_id, merchant_account)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
@@ -67,14 +67,14 @@ pub async fn add_payment_method(
                 &req,
                 &customer_id,
                 &payment_method_id,
-                &merchant_id,
+                merchant_id,
             )
             .await
             .map_err(|error| {
                 error.to_duplicate_response(errors::ApiErrorResponse::DuplicatePaymentMethod)
             })?;
             Ok(api::PaymentMethodResponse {
-                merchant_id,
+                merchant_id: merchant_id.to_string(),
                 customer_id: Some(customer_id),
                 payment_method_id: payment_method_id.to_string(),
                 payment_method: req.payment_method,
@@ -124,7 +124,7 @@ pub async fn update_customer_payment_method(
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
     };
-    add_payment_method(state, new_pm, merchant_account.merchant_id).await
+    add_payment_method(state, new_pm, &merchant_account).await
 }
 
 #[instrument(skip_all)]
@@ -133,11 +133,25 @@ pub async fn add_card(
     req: api::CreatePaymentMethod,
     card: api::CardDetail,
     customer_id: String,
-    merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::CardVaultError> {
     let locker = &state.conf.locker;
     let db = &*state.store;
-    let request = payment_methods::mk_add_card_request(locker, &card, &customer_id, &req)?;
+    let merchant_id = &merchant_account.merchant_id;
+    let locker_id = merchant_account
+        .locker_id
+        .to_owned()
+        .get_required_value("locker_id")
+        .change_context(errors::CardVaultError::SaveCardFailed)?;
+
+    let request = payment_methods::mk_add_card_request(
+        locker,
+        &card,
+        &customer_id,
+        &req,
+        &locker_id,
+        merchant_id,
+    )?;
     let response = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
@@ -278,11 +292,11 @@ pub async fn mock_delete_card<'a>(
 #[instrument(skip_all)]
 pub async fn get_card_from_legacy_locker<'a>(
     state: &'a routes::AppState,
-    merchant_id: &'a str,
+    locker_id: &'a str,
     card_id: &'a str,
 ) -> errors::RouterResult<payment_methods::GetCardResponse> {
     let locker = &state.conf.locker;
-    let request = payment_methods::mk_get_card_request(locker, merchant_id, card_id)
+    let request = payment_methods::mk_get_card_request(locker, locker_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making get card request failed")?;
     let get_card_result = if !locker.mock_locker {
@@ -519,7 +533,11 @@ pub async fn list_customer_payment_method(
     for pm in resp.into_iter() {
         let payment_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethodType::Card {
-            Some(get_lookup_key_from_locker(state, &payment_token, &pm).await?)
+            let locker_id = merchant_account
+                .locker_id
+                .to_owned()
+                .get_required_value("locker_id")?;
+            Some(get_lookup_key_from_locker(state, &payment_token, &pm, &locker_id).await?)
         } else {
             None
         };
@@ -557,13 +575,10 @@ pub async fn get_lookup_key_from_locker(
     state: &routes::AppState,
     payment_token: &str,
     pm: &storage::PaymentMethod,
+    locker_id: &str,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let get_card_resp = get_card_from_legacy_locker(
-        state,
-        pm.merchant_id.as_str(),
-        pm.payment_method_id.as_str(),
-    )
-    .await?;
+    let get_card_resp =
+        get_card_from_legacy_locker(state, locker_id, pm.payment_method_id.as_str()).await?;
     let card_detail = payment_methods::get_card_detail(pm, get_card_resp.card)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Get Card Details Failed")?;
@@ -717,6 +732,7 @@ pub async fn get_card_info_from_value(
 pub async fn retrieve_payment_method(
     state: &routes::AppState,
     pm: api::PaymentMethodId,
+    merchant_account: storage::MerchantAccount,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let pm = db
@@ -726,8 +742,9 @@ pub async fn retrieve_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
     let card = if pm.payment_method == enums::PaymentMethodType::Card {
+        let locker_id = merchant_account.locker_id.get_required_value("locker_id")?;
         let get_card_resp =
-            get_card_from_legacy_locker(state, &pm.merchant_id, &pm.payment_method_id).await?;
+            get_card_from_legacy_locker(state, &locker_id, &pm.payment_method_id).await?;
         let card_detail = payment_methods::get_card_detail(&pm, get_card_resp.card)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Some(card_detail)
