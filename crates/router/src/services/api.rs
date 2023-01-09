@@ -7,10 +7,7 @@ use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
-use router_env::{
-    tracing::{self, instrument},
-    Tag,
-};
+use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
@@ -248,7 +245,7 @@ async fn send_request(
     }
     .map_err(|error| match error {
         error if error.is_timeout() => errors::ApiClientError::RequestTimeoutReceived,
-        _ => errors::ApiClientError::RequestNotSent,
+        _ => errors::ApiClientError::RequestNotSent(error.to_string()),
     })
     .into_report()
     .attach_printable("Unable to send request to connector")
@@ -344,12 +341,13 @@ pub fn router_data_conversion<F1, F2, Req1, Req2, Res1, Res2>(
             connector_auth_type: router_data.connector_auth_type,
             connector_meta_data: router_data.connector_meta_data,
             description: router_data.description,
-            orca_return_url: router_data.orca_return_url,
+            router_return_url: router_data.router_return_url,
             payment_id: router_data.payment_id,
             payment_method: router_data.payment_method,
             payment_method_id: router_data.payment_method_id,
             return_url: router_data.return_url,
             status: router_data.status,
+            attempt_id: router_data.attempt_id,
         },
         router_data.request,
         router_data.response,
@@ -361,13 +359,7 @@ pub enum BachResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
-    /*
-    redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    RedirectResponse(BachRedirectResponse),
-    Form(BachRedirectForm),
-    */
     JsonForRedirection(api::RedirectionResponse),
-    // RedirectResponse(BachRedirectResponse),
     Form(RedirectForm),
 }
 
@@ -475,7 +467,7 @@ where
 {
     let merchant_account = match api_authentication {
         ApiAuthentication::Merchant(merchant_auth) => {
-            authenticate_merchant(request, &*state.store, merchant_auth).await?
+            authenticate_merchant(request, state, merchant_auth).await?
         }
         ApiAuthentication::Connector(connector_auth) => {
             authenticate_connector(request, &*state.store, connector_auth).await?
@@ -564,17 +556,17 @@ where
 
 pub async fn authenticate_merchant<'a>(
     request: &HttpRequest,
-    store: &dyn StorageInterface,
+    state: &AppState,
     merchant_authentication: MerchantAuthentication<'a>,
 ) -> RouterResult<storage::MerchantAccount> {
     match merchant_authentication {
         MerchantAuthentication::ApiKey => {
             let api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            authenticate_by_api_key(store, api_key).await
+            authenticate_by_api_key(&*state.store, api_key).await
         }
 
-        MerchantAuthentication::MerchantId(merchant_id) => store
+        MerchantAuthentication::MerchantId(merchant_id) => (*state.store)
             .find_merchant_account_by_merchant_id(&merchant_id)
             .await
             .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized)),
@@ -582,10 +574,11 @@ pub async fn authenticate_merchant<'a>(
         MerchantAuthentication::AdminApiKey => {
             let admin_api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            if admin_api_key != "test_admin" {
-                Err(report!(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Admin Authentication Failure"))?;
-            }
+            utils::when(admin_api_key != state.conf.keys.admin_api_key, || {
+                Err(errors::ApiErrorResponse::Unauthorized)
+                    .into_report()
+                    .attach_printable("Admin Authentication Failure")
+            })?;
 
             Ok(storage::MerchantAccount {
                 id: -1,
@@ -610,7 +603,7 @@ pub async fn authenticate_merchant<'a>(
         MerchantAuthentication::PublishableKey => {
             let api_key =
                 get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            authenticate_by_publishable_key(store, api_key).await
+            authenticate_by_publishable_key(&*state.store, api_key).await
         }
     }
 }

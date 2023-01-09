@@ -1,7 +1,7 @@
 pub mod validator;
 
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use crate::{
@@ -455,6 +455,40 @@ pub async fn validate_and_create_refund(
     };
 
     Ok(refund.foreign_into())
+}
+
+// ********************************************** Refund list **********************************************
+
+///   If payment-id is provided, lists all the refunds associated with that particular payment-id
+///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
+
+#[instrument(skip_all)]
+pub async fn refund_list(
+    db: &dyn db::StorageInterface,
+    merchant_account: storage::merchant_account::MerchantAccount,
+    req: api_models::refunds::RefundListRequest,
+) -> RouterResponse<api_models::refunds::RefundListResponse> {
+    let limit = validator::validate_refund_list(req.limit)?;
+    let refund_list = db
+        .filter_refund_by_constraints(
+            &merchant_account.merchant_id,
+            &req,
+            merchant_account.storage_scheme,
+            limit,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let data: Vec<refunds::RefundResponse> = refund_list
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect();
+    utils::when(data.is_empty(), || {
+        Err(errors::ApiErrorResponse::RefundNotFound)
+    })?;
+    Ok(services::BachResponse::Json(
+        api_models::refunds::RefundListResponse { data },
+    ))
 }
 
 // ********************************************** UTILS **********************************************

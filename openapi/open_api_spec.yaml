@@ -30,7 +30,7 @@ info:
 
     # Authentication
 
-    When you sign up on our [dashboard](https://orca-test-app.netlify.app) and create a merchant account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.
+    When you sign up on our [dashboard](https://orca-dahboard.netlify.app) and create a merchant account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.
 
     Never share your secret api keys. Keep them guarded and secure.
 

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
 use crate::{

@@ -113,12 +113,12 @@ impl Refunds {
         web::scope("/refunds")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(refunds_create)))
+            .service(web::resource("/list").route(web::get().to(refunds_list)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(refunds_retrieve))
                     .route(web::post().to(refunds_update)),
             )
-            .service(web::resource("/list").route(web::get().to(refunds_list)))
     }
 }
 

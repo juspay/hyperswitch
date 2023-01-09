@@ -386,9 +386,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             merchant_account: auth_type.merchant_account,
             payment_method,
             reference,
-            return_url: item.orca_return_url.clone().ok_or(
+            return_url: item.router_return_url.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "orca_return_url".into(),
+                    field_name: "router_return_url".into(),
                 },
             )?,
             shopper_interaction,
