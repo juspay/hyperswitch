@@ -321,6 +321,7 @@ name = "api_models"
 version = "0.1.0"
 dependencies = [
  "common_utils",
+ "error-stack",
  "frunk",
  "frunk_core",
  "masking",

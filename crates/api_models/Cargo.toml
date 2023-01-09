@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+error-stack = "0.2.4"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 serde = { version = "1.0.145", features = ["derive"] }
