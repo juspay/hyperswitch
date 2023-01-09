@@ -55,6 +55,14 @@ pub trait RefundInterface {
         new: storage_types::RefundNew,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
+
+    async fn filter_refund_by_constraints(
+        &self,
+        merchant_id: &str,
+        refund_details: &api_models::refunds::RefundListRequest,
+        storage_scheme: enums::MerchantStorageScheme,
+        limit: i64,
+    ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -162,6 +170,25 @@ mod storage {
                 .await
                 .map_err(Into::into)
                 .into_report()
+        }
+
+        async fn filter_refund_by_constraints(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            _storage_scheme: enums::MerchantStorageScheme,
+            limit: i64,
+        ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
+            let conn = pg_connection(&self.master_pool).await;
+            <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+                limit,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
     }
 }
@@ -546,6 +573,26 @@ mod storage {
                 }
             }
         }
+
+        async fn filter_refund_by_constraints(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            storage_scheme: enums::MerchantStorageScheme,
+            limit: i64,
+        ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = pg_connection(&self.master_pool).await;
+                    <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
     }
 }
 
@@ -648,6 +695,17 @@ impl RefundInterface for MockDb {
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn filter_refund_by_constraints(
+        &self,
+        _merchant_id: &str,
+        _refund_details: &api_models::refunds::RefundListRequest,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _limit: i64,
+    ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

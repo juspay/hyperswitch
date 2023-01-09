@@ -15,3 +15,6 @@ key1 = "MyProcessingChannelId"
 
 [shift4]
 api_key = "Bearer MyApiKey"
+
+[worldpay]
+api_key = "Bearer MyApiKey"

@@ -17,7 +17,7 @@ where
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
 
-        if val_str.len() < 15 && val_str.len() > 19 {
+        if val_str.len() < 15 || val_str.len() > 19 {
             return WithType::fmt(val, f);
         }
 

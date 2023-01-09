@@ -87,6 +87,8 @@ rand = "0.8.5"
 time = { version = "0.3.17", features = ["macros"] }
 tokio = "1.23.0"
 toml = "0.5.9"
+serial_test = "0.10.0"
+wiremock = "0.5"
 
 [[bin]]
 name = "router"

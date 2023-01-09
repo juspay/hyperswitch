@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Discord server
+    url: https://discord.gg/XbHNKqeAjE
+    about: Please ask any questions you may have here.
+  - name: Slack workspace
+    url: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
+    about: Please ask any questions you may have here.
   - name: GitHub Discussions
-    url: https://github.com/juspay/orca/discussions
+    url: https://github.com/juspay/hyperswitch/discussions
     about: Please ask and answer questions here.

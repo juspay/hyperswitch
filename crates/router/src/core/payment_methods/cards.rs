@@ -2,7 +2,7 @@ use std::collections;
 
 use common_utils::{consts, generate_id};
 use error_stack::{report, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     configs::settings,
