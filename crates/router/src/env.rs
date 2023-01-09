@@ -8,7 +8,7 @@ pub mod logger {
     /// Setup logging sub-system.
     ///
     // TODO (prom-monitoring): Ideally tracing/opentelementry structs shouldn't be pushed out.
-    // Return a custom error type instead of `opentelemetry::metrics::MetricsError`. 
+    // Return a custom error type instead of `opentelemetry::metrics::MetricsError`.
     pub fn setup(
         conf: &config::Log,
     ) -> Result<TelemetryGuard, router_env::opentelemetry::metrics::MetricsError> {
