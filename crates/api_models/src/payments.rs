@@ -537,7 +537,8 @@ impl TryFrom<PaymentsRequest> for PaymentsResponse {
         };
         let metadata = item
             .metadata
-            .map(|a| Encode::<Metadata>::encode_to_value(&a))
+            .as_ref()
+            .map(Encode::<Metadata>::encode_to_value)
             .transpose()?;
         Ok(Self {
             payment_id,
