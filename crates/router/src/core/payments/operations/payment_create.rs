@@ -155,9 +155,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             Ok(connector_resp) => Ok(connector_resp),
             Err(err) => {
                 if err.current_context().is_db_unique_violation() {
-                    Err(err)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Duplicate connector response in the database")
+                    Err(err).change_context(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })
                 } else {
                     Err(err)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
