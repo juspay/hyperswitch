@@ -126,6 +126,7 @@ impl From<PaymentsRequest> for VerifyRequest {
     }
 }
 
+#[derive(Clone)]
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,

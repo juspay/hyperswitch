@@ -55,7 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
-                mandate_type,
+                mandate_type.clone(),
                 merchant_account,
             )
             .await?;
@@ -91,6 +91,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
+
+        let token = token.or_else(|| payment_attempt.payment_token.clone());
+
+        helpers::validate_pm_or_token_given(
+            &request.payment_method,
+            &request.payment_method_data,
+            &mandate_type,
+            &token,
+        )?;
+
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         currency = payment_attempt.currency.get_required_value("currency")?;
@@ -360,17 +370,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
 
         let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
-
-        if !matches!(
-            request.payment_method,
-            Some(api_models::enums::PaymentMethodType::Paypal)
-        ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-        {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
-            )?;
-        }
 
         Ok((
             Box::new(self),

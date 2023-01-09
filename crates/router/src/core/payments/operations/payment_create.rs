@@ -414,16 +414,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
         let mandate_type = helpers::validate_mandate(request)?;
 
-        if request.confirm.unwrap_or(false)
-            && !matches!(
-                request.payment_method,
-                Some(api_models::enums::PaymentMethodType::Paypal)
-            )
-            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-        {
+        if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_token,
+                &request.payment_method,
                 &request.payment_method_data,
+                &mandate_type,
+                &request.payment_token,
             )?;
         }
 
