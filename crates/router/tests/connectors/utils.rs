@@ -117,6 +117,7 @@ pub trait ConnectorActions: Connector {
                 payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
+                reason: None,
             }),
         );
         call_connector(request, integration).await
