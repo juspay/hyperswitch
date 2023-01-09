@@ -91,8 +91,8 @@ locker_decryption_key2 = "" # private key 2 in pem format, corresponding public 
 
 # Refund configuration
 [refund]
-max_attempts = 10
-max_age = 365
+max_attempts = 10 # Number of refund attempts allowed
+max_age = 365 # Max age of a refund in days.
 
 # Validity of an Ephemeral Key in Hours
 [eph_key]
