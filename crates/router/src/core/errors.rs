@@ -287,8 +287,6 @@ pub enum ConnectorError {
     MissingRequiredField { field_name: String },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
-    #[error("Failed to obtain session token")]
-    FailedToObtainSessionToken,
     #[error("Failed to obtain certificate")]
     FailedToObtainCertificate,
     #[error("Connector meta data not found")]

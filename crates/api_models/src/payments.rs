@@ -257,7 +257,6 @@ pub enum PaymentMethod {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
 pub struct WalletData {
     pub issuer_name: api_enums::WalletIssuer,
     pub token: TokenCheck,

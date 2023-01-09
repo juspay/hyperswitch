@@ -7,10 +7,7 @@ use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
-use router_env::{
-    tracing::{self, instrument},
-    Tag,
-};
+use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
@@ -327,13 +324,7 @@ pub enum BachResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
-    /*
-    redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    RedirectResponse(BachRedirectResponse),
-    Form(BachRedirectForm),
-    */
     JsonForRedirection(api::RedirectionResponse),
-    // RedirectResponse(BachRedirectResponse),
     Form(RedirectForm),
 }
 

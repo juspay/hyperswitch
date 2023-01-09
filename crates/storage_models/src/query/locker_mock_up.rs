@@ -1,5 +1,5 @@
 use diesel::{associations::HasTable, ExpressionMethods};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{

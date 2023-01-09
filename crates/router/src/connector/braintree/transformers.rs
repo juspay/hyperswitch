@@ -110,7 +110,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     payment_method_nonce: match wallet_data.token.to_owned() {
                         payments::TokenCheck::TokenExists(token) => Ok(token),
                         payments::TokenCheck::NoToken => {
-                            Err(errors::ConnectorError::FailedToObtainSessionToken)
+                            Err(errors::ConnectorError::MissingRequiredField {
+                                field_name: "token".to_string(),
+                            })
                         }
                     }?,
                 }))

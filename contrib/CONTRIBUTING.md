@@ -1,9 +1,9 @@
-# Contributing to Orca
+# Contributing to hyperswitch
 
 :tada: First off, thanks for taking the time to contribute!
 We are so happy to have you! :tada:
 
-There are opportunities to contribute to Orca at any level.
+There are opportunities to contribute to hyperswitch at any level.
 It doesn't matter if you are just getting started with Rust or are the most
 weathered expert, we can use your help.
 
@@ -13,10 +13,13 @@ This guide will help you get started.
 **Do not let this guide intimidate you.**
 It should be considered a map to help you navigate the process.
 
-You can also get help with contributing on our [Discussions][discussions] space.
+You can also get help with contributing on our [Discord server][discord],
+[Slack workspace][slack], or [Discussions][discussions] space.
 Please join us!
 
-[discussions]: https://github.com/juspay/orca/discussions
+[discord]: https://discord.gg/XbHNKqeAjE
+[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
+[discussions]: https://github.com/juspay/hyperswitch/discussions
 
 ## Table of Contents
 
@@ -46,7 +49,7 @@ Please join us!
 
 ## Code of Conduct
 
-The Orca project adheres to the [Rust Code of Conduct][coc].
+The hyperswitch project adheres to the [Rust Code of Conduct][coc].
 This describes the _minimum_ behavior expected from all contributors.
 
 [coc]: https://www.rust-lang.org/policies/code-of-conduct
@@ -56,8 +59,8 @@ This describes the _minimum_ behavior expected from all contributors.
 For any issue, there are fundamentally three ways an individual can contribute:
 
 1. By opening the issue for discussion: For instance, if you believe that you
-   have discovered a bug in Orca, creating a new issue in [the juspay/orca issue
-   tracker][issue] is the way to report it.
+   have discovered a bug in hyperswitch, creating a new issue in [the
+   juspay/hyperswitch issue tracker][issue] is the way to report it.
 
 2. By helping to triage the issue: This can be done by providing supporting
    details (a test case that demonstrates a bug), providing suggestions on how
@@ -65,10 +68,10 @@ For any issue, there are fundamentally three ways an individual can contribute:
 
 3. By helping to resolve the issue: Typically this is done either in the form of
    demonstrating that the issue reported is not a problem after all, or more
-   often, by opening a Pull Request that changes some bit of something in Orca
-   in a concrete and reviewable manner.
+   often, by opening a Pull Request that changes some bit of something in
+   hyperswitch in a concrete and reviewable manner.
 
-[issue]: https://github.com/juspay/orca/issues
+[issue]: https://github.com/juspay/hyperswitch/issues
 
 **Anybody can participate in any stage of contribution**.
 We urge you to participate in the discussion around bugs and participate in
@@ -82,12 +85,12 @@ having problems, you can [open a discussion] asking for help.
 In exchange for receiving help, we ask that you contribute back a documentation
 PR that helps others avoid the problems that you encountered.
 
-[open a discussion]: https://github.com/juspay/orca/discussions/new
+[open a discussion]: https://github.com/juspay/hyperswitch/discussions/new
 
 ### Submitting a Bug Report
 
-When opening a new issue in the Orca issue tracker, you will be presented with a
-basic template that should be filled in.
+When opening a new issue in the hyperswitch issue tracker, you will be presented
+with a basic template that should be filled in.
 If you believe that you have uncovered a bug, please fill out this form,
 following the template to the best of your ability.
 Do not worry if you cannot answer every detail, just fill in what you can.
@@ -128,12 +131,12 @@ In the majority of cases, issues are resolved by opening a Pull Request.
 The process for opening and reviewing a Pull Request is similar to that of
 opening and triaging issues, but carries with it a necessary review and approval
 workflow that ensures that the proposed changes meet the minimal quality and
-functional guidelines of the Orca project.
+functional guidelines of the hyperswitch project.
 
 ## Pull Requests
 
 Pull Requests are the way concrete changes are made to the code, documentation,
-and dependencies in the Orca repository.
+and dependencies in the hyperswitch repository.
 
 Even tiny pull requests (e.g., one character pull request fixing a typo in API
 documentation) are greatly appreciated.
@@ -143,8 +146,8 @@ This will increase the likelihood of the PR getting merged.
 
 ### Cargo Commands
 
-Due to the extensive use of features in Orca, you will often need to add extra
-arguments to many common cargo commands.
+Due to the extensive use of features in hyperswitch, you will often need to add
+extra arguments to many common cargo commands.
 This section lists some commonly needed commands.
 
 Some commands just need the `--all-features` argument:
@@ -327,7 +330,7 @@ Sample commit messages:
    Implement Redirection flow support. This can be used by any flow that
    requires redirection.
 
-   Fixes ORCA-123
+   Fixes #123
    ```
 
 2. ```text
@@ -379,10 +382,10 @@ Request page.
 
 ## Reviewing Pull Requests
 
-**Any Orca community member is welcome to review any pull request**.
+**Any hyperswitch community member is welcome to review any pull request**.
 
-All Orca contributors who choose to review and provide feedback on Pull Requests
-have a responsibility to both the project and the individual making the
+All hyperswitch contributors who choose to review and provide feedback on Pull
+Requests have a responsibility to both the project and the individual making the
 contribution.
 Reviews and feedback must be helpful, insightful, and geared towards improving
 the contribution as opposed to simply blocking it.
@@ -412,8 +415,8 @@ Do not succumb to that temptation.
 
 Focus first on the most significant aspects of the change:
 
-1. Does this change make sense for Orca?
-2. Does this change make Orca better, even if only incrementally?
+1. Does this change make sense for hyperswitch?
+2. Does this change make hyperswitch better, even if only incrementally?
 3. Are there clear bugs or larger scale issues that need attending to?
 4. Is the commit message readable and correct?
    If it contains a breaking change is it clear enough?
@@ -432,9 +435,9 @@ The first impression you give to a new contributor never does.
 
 Nits (requests for small changes that are not essential) are fine, but try to
 avoid stalling the Pull Request.
-Most nits can typically be fixed by the Orca Collaborator landing the Pull
-Request but they can also be an opportunity for the contributor to learn a bit
-more about the project.
+Most nits can typically be fixed by the hyperswitch collaborator landing the
+Pull Request but they can also be an opportunity for the contributor to learn a
+bit more about the project.
 
 It is always good to clearly indicate nits when you comment: e.g.
 `Nit: change foo() to bar(). But this is not blocking.`
@@ -447,8 +450,9 @@ with the appropriate reason to keep the conversation flow concise and relevant.
 
 Be aware that _how_ you communicate requests and reviews in your feedback can
 have a significant impact on the success of the Pull Request.
-Yes, we may land a particular change that makes Orca better, but the individual
-might just not want to have anything to do with Orca ever again.
+Yes, we may land a particular change that makes hyperswitch better, but the
+individual might just not want to have anything to do with hyperswitch ever
+again.
 The goal is not just having good code.
 
 ### Abandoned or Stalled Pull Requests
@@ -468,7 +472,7 @@ _Adapted from the [Node.js contributing guide][node]_.
 
 ## Keeping track of issues and PRs
 
-The Orca GitHub repository has a lot of issues and PRs to keep track of.
+The hyperswitch GitHub repository has a lot of issues and PRs to keep track of.
 This section explains the meaning of various labels, as well as our [GitHub
 project][project].
 The section is primarily targeted at maintainers.

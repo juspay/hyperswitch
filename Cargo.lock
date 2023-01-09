@@ -2817,6 +2817,8 @@ dependencies = [
  "tracing",
  "tracing-actix-web",
  "tracing-appender",
+ "tracing-attributes",
+ "tracing-opentelemetry",
  "tracing-subscriber",
  "vergen",
 ]

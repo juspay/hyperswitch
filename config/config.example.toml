@@ -17,21 +17,21 @@ request_body_limit = 16_384
 
 # Main SQL data store credentials
 [master_database]
-username = "db_user" # DB Username
-password = "db_pass" # DB Password
-host = "localhost"   # DB Host
-port = 5432          # DB Port
-dbname = "orca_db"   # Name of Database
+username = "db_user"        # DB Username
+password = "db_pass"        # DB Password
+host = "localhost"          # DB Host
+port = 5432                 # DB Port
+dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5        # Number of connections to keep open
 
 # Replica SQL data store credentials
 [replica_database]
-username = "db_user" # DB Username
-password = "db_pass" # DB Password
-host = "localhost"   # DB Host
-port = 5432          # DB Port
-dbname = "orca_db"   # Name of Database
-pool_size = 5        # Number of connections to keep open
+username = "db_user"        # DB Username
+password = "db_pass"        # DB Password
+host = "localhost"          # DB Host
+port = 5432                 # DB Port
+dbname = "hyperswitch_db"   # Name of Database
+pool_size = 5               # Number of connections to keep open
 
 # Redis credentials
 [redis]
@@ -94,7 +94,7 @@ validity = 1
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.
-# Note: These are not optional attributes. ORCA request can fail due to invalid/empty values.
+# Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
 
@@ -127,8 +127,8 @@ base_url = "https://api.shift4.com/"
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "cybersource"]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
 # It defines the the streams/queues name and configuration as well as event selection variables
@@ -137,15 +137,15 @@ stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"
 
 [scheduler.producer]
-upper_fetch_limit = 0 # Upper limit for fetching entries from the redis queue (in seconds)
-lower_fetch_limit = 1800 # Lower limit for fetching entries from redis queue (in seconds)
-lock_key = "PRODUCER_LOCKING_KEY" # The following keys defines the producer lock that is created in redis with
-lock_ttl = 160                    # the ttl being the expiry (in seconds)
+upper_fetch_limit = 0               # Upper limit for fetching entries from the redis queue (in seconds)
+lower_fetch_limit = 1800            # Lower limit for fetching entries from redis queue (in seconds)
+lock_key = "PRODUCER_LOCKING_KEY"   # The following keys defines the producer lock that is created in redis with
+lock_ttl = 160                      # the ttl being the expiry (in seconds)
 
 batch_size = 200 # Specifies the batch size the producer will push under a single entry in the redis queue
 
 # Drainer configuration, which handles draining raw SQL queries from Redis streams to the SQL database
 [drainer]
-stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
-num_partitions = 64            # Specifies the number of partitions the stream will be divided into
-max_read_count = 100           # Specifies the maximum number of entries that would be read from redis stream in one call
+stream_name = "DRAINER_STREAM"  # Specifies the stream name to be used by the drainer
+num_partitions = 64             # Specifies the number of partitions the stream will be divided into
+max_read_count = 100            # Specifies the maximum number of entries that would be read from redis stream in one call
