@@ -4,6 +4,7 @@ use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
+use utoipa::ToSchema;
 
 use crate::{enums as api_enums, refunds};
 
@@ -331,18 +332,45 @@ pub struct Address {
     serde::Deserialize,
     serde::Serialize,
     PartialEq,
+    ToSchema,
     frunk::LabelledGeneric,
 )]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
+    /// The address city
+    #[schema(max_length = 50, example = "New York")]
     pub city: Option<String>,
+
+    /// The two-letter ISO country code for the address
+    #[schema(max_length = 2, min_length = 2, example = "US")]
     pub country: Option<String>,
+
+    /// The first line of the address
+    #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
     pub line1: Option<Secret<String>>,
+
+    /// The second line of the address
+    #[schema(value_type = Option<String>, max_length = 50, example = "Powelson Avenue")]
     pub line2: Option<Secret<String>>,
+
+    /// The third line of the address
+    #[schema(value_type = Option<String>, max_length = 50, example = "Bridgewater")]
     pub line3: Option<Secret<String>>,
+
+    /// The zip/postal code for the address
+    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
     pub zip: Option<Secret<String>>,
+
+    /// The address state
+    #[schema(value_type = Option<String>, example = "New York")]
     pub state: Option<Secret<String>>,
+
+    /// The first name for the address
+    #[schema(value_type = Option<String>, max_length = 255, example = "John")]
     pub first_name: Option<Secret<String>>,
+
+    /// The last name for the address
+    #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
 }
 
