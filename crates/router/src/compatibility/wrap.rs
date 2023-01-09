@@ -2,7 +2,7 @@ use std::future::Future;
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use error_stack::report;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 use serde::Serialize;
 
 use crate::{

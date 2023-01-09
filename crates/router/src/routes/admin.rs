@@ -1,8 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{core::admin::*, services::api, types::api::admin};

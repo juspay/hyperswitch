@@ -1,5 +1,5 @@
 use error_stack::{report, ResultExt};
-use router_env::{logger, tracing, tracing::instrument};
+use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
 
 use super::payments::helpers;
@@ -129,7 +129,7 @@ where
             resp.payment_method_id = Some(mandate.payment_method_id);
         }
         None => {
-            if resp.request.get_setup_future_usage().is_some() {
+            if resp.request.get_setup_mandate_details().is_some() {
                 let payment_method_id = helpers::call_payment_method(
                     state,
                     &resp.merchant_id,

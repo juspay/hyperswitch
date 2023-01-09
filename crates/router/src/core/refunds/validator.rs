@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{

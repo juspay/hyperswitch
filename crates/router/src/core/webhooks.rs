@@ -3,7 +3,7 @@ pub mod utils;
 
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     consts,
