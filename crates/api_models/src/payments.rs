@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::{ext_traits::Encode, pii};
+use common_utils::{errors, ext_traits::Encode, pii};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -528,23 +528,25 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
-impl From<PaymentsRequest> for PaymentsResponse {
-    fn from(item: PaymentsRequest) -> Self {
+impl TryFrom<PaymentsRequest> for PaymentsResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: PaymentsRequest) -> Result<Self, Self::Error> {
         let payment_id = match item.payment_id {
             Some(PaymentIdType::PaymentIntentId(id)) => Some(id),
             _ => None,
         };
-
-        Self {
+        let metadata = item
+            .metadata
+            .map(|a| Encode::<Metadata>::encode_to_value(&a))
+            .transpose()?;
+        Ok(Self {
             payment_id,
             merchant_id: item.merchant_id,
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
             shipping: item.shipping,
             billing: item.billing,
-            metadata: item
-                .metadata
-                .map(|a| Encode::<Metadata>::encode_to_value(&a).unwrap()),
+            metadata,
             capture_method: item.capture_method,
             payment_method: item.payment_method,
             capture_on: item.capture_on,
@@ -561,7 +563,7 @@ impl From<PaymentsRequest> for PaymentsResponse {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             mandate_data: item.mandate_data,
             ..Default::default()
-        }
+        })
     }
 }
 
