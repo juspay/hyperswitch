@@ -33,10 +33,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -47,11 +46,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
 
         let db = &*state.store;
         let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
-                .await?;
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type,
+                merchant_account,
+            )
+            .await?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(
@@ -307,10 +313,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = customer.map(|c| c.customer_id);
 
         let get_status = || {
+            let current_intent_status = payment_data.payment_intent.status;
             if is_payment_method_unavailable {
                 return enums::IntentStatus::RequiresPaymentMethod;
             }
-            if !payment_data.confirm.unwrap_or(true) {
+            if !payment_data.confirm.unwrap_or(true)
+                || current_intent_status == enums::IntentStatus::RequiresCustomerAction
+            {
                 enums::IntentStatus::RequiresConfirmation
             } else {
                 payment_data.payment_intent.status

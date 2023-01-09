@@ -4,6 +4,18 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{core::admin::*, services::api, types::api::admin};
 
+/// Merchant Account - Create
+///
+/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
+#[utoipa::path(
+    post,
+    path = "/account",
+    request_body= CreateMerchantAccount,
+    responses(
+        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 400, description = "Invalid data")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 // #[post("")]
 pub async fn merchant_account_create(

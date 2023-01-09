@@ -77,7 +77,6 @@ pub struct PaymentIntentRequest {
     pub metadata_txn_uuid: String,
     pub return_url: String,
     pub confirm: bool,
-    pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub mandate: Option<String>,
     pub description: Option<String>,
@@ -247,7 +246,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
             description: item.description.clone(),
             off_session: item.request.off_session,
-            setup_future_usage: item.request.setup_future_usage,
             shipping: shipping_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,

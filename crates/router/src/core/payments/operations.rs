@@ -88,10 +88,9 @@ pub trait GetTracker<F, D, R>: Send {
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
