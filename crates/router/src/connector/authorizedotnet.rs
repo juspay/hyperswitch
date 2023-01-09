@@ -372,7 +372,7 @@ impl api::RefundSync for Authorizedotnet {}
 
 #[async_trait::async_trait]
 impl api::RefundCommon for Authorizedotnet {
-    async fn refund_execute_update_tracker(
+    async fn update_refund_router_data(
         &self,
         state: &routes::AppState,
         connector: &api::ConnectorData,

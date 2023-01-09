@@ -126,7 +126,7 @@ pub async fn trigger_refund_to_gateway(
 
     let router_data = connector
         .connector
-        .refund_execute_update_tracker(state, &connector, router_data, payment_attempt)
+        .update_refund_router_data(state, &connector, router_data, payment_attempt)
         .await?;
 
     let connector_integration: services::BoxedConnectorIntegration<

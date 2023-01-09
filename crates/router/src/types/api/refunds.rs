@@ -37,7 +37,7 @@ pub trait RefundSync:
 
 #[async_trait::async_trait]
 pub trait RefundCommon: Sync {
-    async fn refund_execute_update_tracker(
+    async fn update_refund_router_data(
         &self,
         _state: &routes::AppState,
         _connector: &types::api::ConnectorData,
