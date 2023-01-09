@@ -346,31 +346,31 @@ pub struct AddressDetails {
     pub country: Option<String>,
 
     /// The first line of the address
-    #[schema(value_type = String, max_length = 200, example = "123, King Street")]
+    #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
     pub line1: Option<Secret<String>>,
 
     /// The second line of the address
-    #[schema(value_type = String, max_length = 50, example = "Powelson Avenue")]
+    #[schema(value_type = Option<String>, max_length = 50, example = "Powelson Avenue")]
     pub line2: Option<Secret<String>>,
 
     /// The third line of the address
-    #[schema(value_type = String, max_length = 50, example = "Bridgewater")]
+    #[schema(value_type = Option<String>, max_length = 50, example = "Bridgewater")]
     pub line3: Option<Secret<String>>,
 
     /// The zip/postal code for the address
-    #[schema(value_type = String, max_length = 50, example = "08807")]
+    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
     pub zip: Option<Secret<String>>,
 
     /// The address state
-    #[schema(value_type = String, example = "New York")]
+    #[schema(value_type = Option<String>, example = "New York")]
     pub state: Option<Secret<String>>,
 
     /// The first name for the address
-    #[schema(value_type = String, max_length = 255, example = "John")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "John")]
     pub first_name: Option<Secret<String>>,
 
     /// The last name for the address
-    #[schema(value_type = String, max_length = 255, example = "Doe")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
 }
 

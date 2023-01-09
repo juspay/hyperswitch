@@ -18,7 +18,7 @@ pub struct CreateMerchantAccount {
     pub merchant_name: Option<String>,
 
     /// API key that will be used for server side API access
-    #[schema(value_type = String, example = "Ah2354543543523")]
+    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
     pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
@@ -32,7 +32,7 @@ pub struct CreateMerchantAccount {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-    #[schema(value_type = RoutingAlgorithm, max_length = 255, example = "custom")]
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
     pub routing_algorithm: Option<api_enums::RoutingAlgorithm>,
 
     /// The custom routing rules to be used for various payment methods and conditions
@@ -70,27 +70,27 @@ pub struct CreateMerchantAccount {
 #[serde(deny_unknown_fields)]
 pub struct MerchantDetails {
     /// The merchant's primary contact name
-    #[schema(value_type = String, max_length = 255, example = "John Doe")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Doe")]
     pub primary_contact_person: Option<Secret<String>>,
 
     /// The merchant's primary phone number
-    #[schema(value_type = String, max_length = 255, example = "999999999")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "999999999")]
     pub primary_phone: Option<Secret<String>>,
 
     /// The merchant's primary email address
-    #[schema(value_type = String, max_length = 255, example = "johndoe@test.com")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "johndoe@test.com")]
     pub primary_email: Option<Secret<String, pii::Email>>,
 
     /// The merchant's secondary contact name
-    #[schema(value_type = String, max_length= 255, example = "John Doe2")]
+    #[schema(value_type = Option<String>, max_length= 255, example = "John Doe2")]
     pub secondary_contact_person: Option<Secret<String>>,
 
     /// The merchant's secondary phone number
-    #[schema(value_type = String, max_length = 255, example = "999999988")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "999999988")]
     pub secondary_phone: Option<Secret<String>>,
 
     /// The merchant's secondary email address
-    #[schema(value_type = String, max_length = 255, example = "johndoe2@test.com")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "johndoe2@test.com")]
     pub secondary_email: Option<Secret<String, pii::Email>>,
 
     /// The business website of the merchant
@@ -120,7 +120,7 @@ pub struct WebhookDetails {
     pub webhook_username: Option<String>,
 
     ///The password for Webhook login
-    #[schema(value_type = String, max_length = 255, example = "ekart@123")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
     pub webhook_password: Option<Secret<String>>,
 
     ///The url for the webhook endpoint

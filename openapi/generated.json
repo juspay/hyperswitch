@@ -101,15 +101,6 @@
     "schemas": {
       "AddressDetails": {
         "type": "object",
-        "required": [
-          "line1",
-          "line2",
-          "line3",
-          "zip",
-          "state",
-          "first_name",
-          "last_name"
-        ],
         "properties": {
           "city": {
             "type": "string",
@@ -170,9 +161,7 @@
       "CreateMerchantAccount": {
         "type": "object",
         "required": [
-          "merchant_id",
-          "api_key",
-          "routing_algorithm"
+          "merchant_id"
         ],
         "properties": {
           "merchant_id": {
@@ -529,9 +518,7 @@
       "MerchantAccountResponse": {
         "type": "object",
         "required": [
-          "merchant_id",
-          "api_key",
-          "routing_algorithm"
+          "merchant_id"
         ],
         "properties": {
           "merchant_id": {
@@ -627,14 +614,6 @@
       },
       "MerchantDetails": {
         "type": "object",
-        "required": [
-          "primary_contact_person",
-          "primary_phone",
-          "primary_email",
-          "secondary_contact_person",
-          "secondary_phone",
-          "secondary_email"
-        ],
         "properties": {
           "primary_contact_person": {
             "type": "string",
@@ -830,9 +809,6 @@
       },
       "WebhookDetails": {
         "type": "object",
-        "required": [
-          "webhook_password"
-        ],
         "properties": {
           "webhook_version": {
             "type": "string",
