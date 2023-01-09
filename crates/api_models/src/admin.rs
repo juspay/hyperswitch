@@ -64,6 +64,7 @@ pub struct CreateMerchantAccount {
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
+    pub locker_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

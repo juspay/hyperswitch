@@ -21,9 +21,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| async move {
-            let merchant_id = merchant_account.merchant_id.clone();
-
-            cards::add_payment_method(state, req, merchant_id).await
+            cards::add_payment_method(state, req, &merchant_account).await
         },
         api::MerchantAuthentication::ApiKey,
     )
@@ -101,7 +99,7 @@ pub async fn payment_method_retrieve_api(
         &state,
         &req,
         payload,
-        |state, _, pm| cards::retrieve_payment_method(state, pm),
+        |state, merchant_account, pm| cards::retrieve_payment_method(state, pm, merchant_account),
         api::MerchantAuthentication::ApiKey,
     )
     .await

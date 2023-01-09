@@ -15,6 +15,7 @@ use crate::{
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
+    utils::OptionExt,
 };
 
 newtype!(
@@ -24,12 +25,20 @@ newtype!(
 
 #[async_trait::async_trait]
 pub(crate) trait MandateResponseExt: Sized {
-    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self>;
+    async fn from_db_mandate(
+        state: &AppState,
+        mandate: storage::Mandate,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<Self>;
 }
 
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
-    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self> {
+    async fn from_db_mandate(
+        state: &AppState,
+        mandate: storage::Mandate,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
@@ -39,9 +48,13 @@ impl MandateResponseExt for MandateResponse {
             })?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethodType::Card {
+            let locker_id = merchant_account
+                .locker_id
+                .to_owned()
+                .get_required_value("locker_id")?;
             let get_card_resp = payment_methods::cards::get_card_from_legacy_locker(
                 state,
-                &payment_method.merchant_id,
+                &locker_id,
                 &payment_method.payment_method_id,
             )
             .await?;
