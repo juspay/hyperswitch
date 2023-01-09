@@ -68,16 +68,20 @@ pub fn mk_add_card_request(
     card: &api::CardDetail,
     customer_id: &str,
     _req: &api::CreatePaymentMethod,
+    locker_id: &str,
+    _merchant_id: &str,
 ) -> CustomResult<services::Request, errors::CardVaultError> {
+    #[cfg(feature = "sandbox")]
+    let customer_id = format!("{}::{}", customer_id, _merchant_id);
     let add_card_req = AddCardRequest {
         card_number: card.card_number.clone(),
-        customer_id,
+        customer_id: &customer_id,
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
-        merchant_id: "m0010", // [#253]: Need mapping for application mid to lockeId
+        merchant_id: locker_id,
         email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("juspay".to_string().into()), // [#256]
-        nickname: Some("router".to_string()), //
+        name_on_card: Some("juspay".to_string().into()),           // [#256]
+        nickname: Some("router".to_string()),                      //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
         .change_context(errors::CardVaultError::RequestEncodingFailed)?;
@@ -128,11 +132,11 @@ pub fn mk_add_card_response(
 
 pub fn mk_get_card_request<'a>(
     locker: &Locker,
-    _mid: &'a str,
+    locker_id: &'a str,
     card_id: &'a str,
 ) -> CustomResult<services::Request, errors::CardVaultError> {
     let get_card_req = GetCard {
-        merchant_id: "m0010", // [#253]: need to assign locker id to every merchant
+        merchant_id: locker_id,
         card_id,
     };
 
