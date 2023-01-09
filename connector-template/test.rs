@@ -8,7 +8,7 @@ use crate::{
 };
 
 struct {{project-name | downcase | pascal_case}};
-impl utils::ConnectorActions for {{project-name | downcase | pascal_case}} {}
+impl ConnectorActions for {{project-name | downcase | pascal_case}} {}
 impl utils::Connector for {{project-name | downcase | pascal_case}} {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::{{project-name | downcase | pascal_case}};

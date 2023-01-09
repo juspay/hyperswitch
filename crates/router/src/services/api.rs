@@ -245,7 +245,7 @@ async fn send_request(
     }
     .map_err(|error| match error {
         error if error.is_timeout() => errors::ApiClientError::RequestTimeoutReceived,
-        _ => errors::ApiClientError::RequestNotSent,
+        _ => errors::ApiClientError::RequestNotSent(error.to_string()),
     })
     .into_report()
     .attach_printable("Unable to send request to connector")

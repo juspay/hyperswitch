@@ -125,6 +125,9 @@ base_url = "https://apitest.cybersource.com/"
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
 
+[connectors.worldpay]
+base_url = "https://try.access.worldpay.com/"
+
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
