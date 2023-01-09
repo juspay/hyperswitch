@@ -21,10 +21,12 @@ serde_path_to_error = "0.1.8"
 strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.17", default-features = false, features = ["formatting"] }
 tokio = { version = "1.23.0" }
-tracing = "0.1.36"
+tracing = { version = "0.1.36" }
 tracing-actix-web = { version = "0.6.1", features = ["opentelemetry_0_18"], optional = true }
-tracing-appender = "0.2.2"
+tracing-appender = { version = "0.2.2" }
+tracing-attributes = "=0.1.22"
 tracing-subscriber = { version = "0.3.15", default-features = true, features = ["json", "env-filter", "registry"] }
+tracing-opentelemetry = { version = "0.18.0" }
 vergen = { version = "7.4.3", optional = true }
 
 [dev-dependencies]

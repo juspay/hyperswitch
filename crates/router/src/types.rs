@@ -40,6 +40,8 @@ pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsCaptureResponseRouterData<R> =
+    ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
@@ -67,12 +69,13 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
+    pub attempt_id: Option<String>,
     pub status: storage_enums::AttemptStatus,
     pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub orca_return_url: Option<String>,
+    pub router_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<serde_json::Value>,
@@ -96,8 +99,6 @@ pub struct PaymentsAuthorizeData {
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    // redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    // pub redirection: Option<Redirection>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -112,6 +113,8 @@ pub struct PaymentsAuthorizeData {
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
     pub connector_transaction_id: String,
+    pub currency: storage_enums::Currency,
+    pub amount: i64,
 }
 
 #[derive(Debug, Clone)]

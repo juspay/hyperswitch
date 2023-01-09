@@ -68,7 +68,7 @@ where
             mandate_reference: None,
         });
 
-    let orca_return_url = Some(helpers::create_redirect_url(
+    let router_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
         &merchant_connector_account.connector_name,
@@ -79,12 +79,13 @@ where
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),
+        attempt_id: Some(payment_data.payment_attempt.attempt_id.clone()),
         status: payment_data.payment_attempt.status,
         payment_method,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        orca_return_url,
+        router_return_url,
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data.address.clone(),
         auth_type: payment_data
@@ -140,7 +141,6 @@ where
             payment_data.address,
             server,
             payment_data.connector_response.authentication_data,
-            payment_data.token,
             operation,
         )
     }
@@ -230,7 +230,6 @@ pub fn payments_to_payments_response<R, Op>(
     address: PaymentAddress,
     server: &Server,
     redirection_data: Option<serde_json::Value>,
-    payment_token: Option<String>,
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
@@ -311,7 +310,7 @@ where
                             payment_method_data.map(api::PaymentMethodDataResponse::from),
                             auth_flow == services::AuthFlow::Merchant,
                         )
-                        .set_payment_token(payment_token)
+                        .set_payment_token(payment_attempt.payment_token)
                         .set_error_message(payment_attempt.error_message)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
@@ -374,6 +373,7 @@ where
             shipping: address.shipping,
             billing: address.billing,
             cancellation_reason: payment_attempt.cancellation_reason,
+            payment_token: payment_attempt.payment_token,
             ..Default::default()
         }),
     })
@@ -464,6 +464,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
                 .payment_attempt
                 .connector_transaction_id
                 .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?,
+            currency: payment_data.currency,
+            amount: payment_data.amount.into(),
         })
     }
 }

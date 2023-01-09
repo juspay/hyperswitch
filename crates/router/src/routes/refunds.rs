@@ -1,8 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{core::refunds::*, services::api, types::api::refunds};
@@ -68,6 +65,17 @@ pub async fn refunds_update(
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 // #[get("/list")]
-pub async fn refunds_list() -> HttpResponse {
-    api::http_response_json("list")
+pub async fn refunds_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<api_models::refunds::RefundListRequest>,
+) -> HttpResponse {
+    api::server_wrap(
+        &state,
+        &req,
+        payload.into_inner(),
+        |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
+        api::MerchantAuthentication::ApiKey,
+    )
+    .await
 }
