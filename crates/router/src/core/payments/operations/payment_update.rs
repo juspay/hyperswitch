@@ -128,14 +128,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
-        if request.confirm.unwrap_or(false)
-            && !matches!(
-                request.payment_method,
-                Some(api_enums::PaymentMethodType::Paypal)
-            )
-            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-        {
-            helpers::validate_pm_or_token_given(&token, &request.payment_method_data)?;
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_pm_or_token_given(
+                &request.payment_method,
+                &request.payment_method_data,
+                &mandate_type,
+                &token,
+            )?;
         }
 
         let connector_response = db

@@ -1358,14 +1358,22 @@ pub(crate) fn authenticate_client_secret(
 }
 
 pub(crate) fn validate_pm_or_token_given(
+    payment_method: &Option<api_enums::PaymentMethodType>,
+    payment_method_data: &Option<api::PaymentMethod>,
+    mandate_type: &Option<api::MandateTxnType>,
     token: &Option<String>,
-    pm_data: &Option<api::PaymentMethod>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    utils::when(token.is_none() && pm_data.is_none(), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "A payment token or payment method data is required".to_string(),
-        })
-    })
+    utils::when(
+        !matches!(payment_method, Some(api_enums::PaymentMethodType::Paypal))
+            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
+            && token.is_none()
+            && payment_method_data.is_none(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "A payment token or payment method data is required".to_string(),
+            })
+        },
+    )
 }
 
 // A function to perform database lookup and then verify the client secret

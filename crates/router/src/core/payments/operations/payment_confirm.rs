@@ -93,13 +93,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
-        if !matches!(
-            request.payment_method,
-            Some(api_models::enums::PaymentMethodType::Paypal)
-        ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-        {
-            helpers::validate_pm_or_token_given(&token, &request.payment_method_data)?;
-        }
+        helpers::validate_pm_or_token_given(
+            &request.payment_method,
+            &request.payment_method_data,
+            &mandate_type,
+            &token,
+        )?;
 
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
