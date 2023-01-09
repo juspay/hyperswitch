@@ -1,7 +1,7 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::{IntoReport, ResultExt};
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 pub use storage_models::{
     errors,
     payment_intent::{
@@ -40,7 +40,7 @@ impl PaymentIntentDbExt for PaymentIntent {
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order_by(dsl::id)
+            .order(dsl::modified_at.desc())
             .into_boxed();
 
         if let Some(customer_id) = customer_id {

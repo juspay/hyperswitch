@@ -1,7 +1,7 @@
 pub mod validator;
 
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use crate::{

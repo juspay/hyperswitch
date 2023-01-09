@@ -47,6 +47,8 @@ pub struct Keys {
     #[cfg(feature = "kms")]
     pub aws_region: String,
     pub temp_card_key: String,
+    pub jwt_secret: String,
+    pub admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -117,6 +119,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
+    pub worldpay: ConnectorParams,
     pub applepay: ConnectorParams,
 }
 

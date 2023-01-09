@@ -1,6 +1,6 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     core::{

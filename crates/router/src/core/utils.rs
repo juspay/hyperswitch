@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use error_stack::ResultExt;
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{
@@ -65,6 +65,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: Some(payment_attempt.attempt_id.clone()),
         status,
         payment_method: payment_method_type,
         connector_auth_type: auth_type,

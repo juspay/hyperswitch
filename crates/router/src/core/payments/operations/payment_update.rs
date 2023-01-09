@@ -307,10 +307,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = customer.map(|c| c.customer_id);
 
         let get_status = || {
+            let current_intent_status = payment_data.payment_intent.status;
             if is_payment_method_unavailable {
                 return enums::IntentStatus::RequiresPaymentMethod;
             }
-            if !payment_data.confirm.unwrap_or(true) {
+            if !payment_data.confirm.unwrap_or(true)
+                || current_intent_status == enums::IntentStatus::RequiresCustomerAction
+            {
                 enums::IntentStatus::RequiresConfirmation
             } else {
                 payment_data.payment_intent.status
