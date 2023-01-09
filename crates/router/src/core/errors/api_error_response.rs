@@ -113,6 +113,8 @@ pub enum ApiErrorResponse {
     DuplicateMerchantConnectorAccount,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The payment method with the specified details already exists in our records.")]
     DuplicatePaymentMethod,
+    #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
+    DuplicatePayment { payment_id: String },
     #[error(error_type= ErrorType::InvalidRequestError, code = "RE_05", message = "The payment has not succeeded yet")]
     PaymentNotSucceeded,
     #[error(error_type= ErrorType::ObjectNotFound, code = "RE_05", message = "Successful payment not found for the given payment id")]
@@ -166,7 +168,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
-            Self::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
+            Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
             Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::MandateActive
@@ -186,9 +188,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
             | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
-            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,  // 503
-            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,           // 400
-            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,            // 501
+            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
+            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
+            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,           // 501
         }
     }
 

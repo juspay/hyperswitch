@@ -40,7 +40,7 @@ impl PaymentIntentDbExt for PaymentIntent {
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order_by(dsl::id)
+            .order(dsl::modified_at.desc())
             .into_boxed();
 
         if let Some(customer_id) = customer_id {

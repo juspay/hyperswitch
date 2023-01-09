@@ -66,7 +66,7 @@ async fn should_authorize_gpay_payment() {
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
                     issuer_name: api_enums::WalletIssuer::GooglePay,
-                    token: "someToken".to_string(),
+                    token: Some("someToken".to_string()),
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -90,7 +90,7 @@ async fn should_authorize_applepay_payment() {
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
                     issuer_name: api_enums::WalletIssuer::ApplePay,
-                    token: "someToken".to_string(),
+                    token: Some("someToken".to_string()),
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),

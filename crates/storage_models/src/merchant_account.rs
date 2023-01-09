@@ -22,6 +22,7 @@ pub struct MerchantAccount {
     pub parent_merchant_id: Option<String>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
+    pub locker_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,6 +42,7 @@ pub struct MerchantAccountNew {
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub publishable_key: Option<String>,
+    pub locker_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -60,6 +62,7 @@ pub enum MerchantAccountUpdate {
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
         publishable_key: Option<String>,
+        locker_id: Option<String>,
     },
 }
 
@@ -80,6 +83,7 @@ pub struct MerchantAccountUpdateInternal {
     payment_response_hash_key: Option<String>,
     redirect_to_merchant_with_http_post: Option<bool>,
     publishable_key: Option<String>,
+    locker_id: Option<String>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -100,6 +104,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payment_response_hash_key,
                 redirect_to_merchant_with_http_post,
                 publishable_key,
+                locker_id,
             } => Self {
                 merchant_id: Some(merchant_id),
                 merchant_name,
@@ -115,6 +120,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payment_response_hash_key,
                 redirect_to_merchant_with_http_post,
                 publishable_key,
+                locker_id,
             },
         }
     }

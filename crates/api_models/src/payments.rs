@@ -1,9 +1,10 @@
 use std::num::NonZeroI64;
 
-use common_utils::pii;
+use common_utils::{errors, ext_traits::Encode, pii};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
+use utoipa::ToSchema;
 
 use crate::{enums as api_enums, refunds};
 
@@ -12,11 +13,6 @@ pub enum PaymentOp {
     Create,
     Update,
     Confirm,
-}
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct Metadata {
-    pub order_details: OrderDetails,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -52,7 +48,7 @@ pub struct PaymentsRequest {
     pub billing: Option<Address>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<Metadata>,
     pub client_secret: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub mandate_id: Option<String>,
@@ -130,6 +126,7 @@ impl From<PaymentsRequest> for VerifyRequest {
     }
 }
 
+#[derive(Clone)]
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,
@@ -256,10 +253,10 @@ pub enum PaymentMethod {
     Paypal,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WalletData {
     pub issuer_name: api_enums::WalletIssuer,
-    pub token: String,
+    pub token: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
@@ -331,18 +328,45 @@ pub struct Address {
     serde::Deserialize,
     serde::Serialize,
     PartialEq,
+    ToSchema,
     frunk::LabelledGeneric,
 )]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
+    /// The address city
+    #[schema(max_length = 50, example = "New York")]
     pub city: Option<String>,
+
+    /// The two-letter ISO country code for the address
+    #[schema(max_length = 2, min_length = 2, example = "US")]
     pub country: Option<String>,
+
+    /// The first line of the address
+    #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
     pub line1: Option<Secret<String>>,
+
+    /// The second line of the address
+    #[schema(value_type = Option<String>, max_length = 50, example = "Powelson Avenue")]
     pub line2: Option<Secret<String>>,
+
+    /// The third line of the address
+    #[schema(value_type = Option<String>, max_length = 50, example = "Bridgewater")]
     pub line3: Option<Secret<String>>,
+
+    /// The zip/postal code for the address
+    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
     pub zip: Option<Secret<String>>,
+
+    /// The address state
+    #[schema(value_type = Option<String>, example = "New York")]
     pub state: Option<Secret<String>>,
+
+    /// The first name for the address
+    #[schema(value_type = Option<String>, max_length = 255, example = "John")]
     pub first_name: Option<Secret<String>>,
+
+    /// The last name for the address
+    #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
 }
 
@@ -533,21 +557,26 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
-impl From<PaymentsRequest> for PaymentsResponse {
-    fn from(item: PaymentsRequest) -> Self {
+impl TryFrom<PaymentsRequest> for PaymentsResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: PaymentsRequest) -> Result<Self, Self::Error> {
         let payment_id = match item.payment_id {
             Some(PaymentIdType::PaymentIntentId(id)) => Some(id),
             _ => None,
         };
-
-        Self {
+        let metadata = item
+            .metadata
+            .as_ref()
+            .map(Encode::<Metadata>::encode_to_value)
+            .transpose()?;
+        Ok(Self {
             payment_id,
             merchant_id: item.merchant_id,
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
             shipping: item.shipping,
             billing: item.billing,
-            metadata: item.metadata,
+            metadata,
             capture_method: item.capture_method,
             payment_method: item.payment_method,
             capture_on: item.capture_on,
@@ -564,7 +593,7 @@ impl From<PaymentsRequest> for PaymentsResponse {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             mandate_data: item.mandate_data,
             ..Default::default()
-        }
+        })
     }
 }
 
@@ -731,10 +760,17 @@ pub enum SupportedWallets {
     Gpay,
 }
 
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetails {
     pub product_name: String,
     pub quantity: u16,
+}
+
+#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Metadata {
+    pub order_details: Option<OrderDetails>,
+    #[serde(flatten)]
+    pub data: serde_json::Value,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -744,18 +780,21 @@ pub struct PaymentsSessionRequest {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     pub allowed_card_networks: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayTokenParameters {
     pub gateway: String,
     pub gateway_merchant_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayTokenizationSpecification {
     #[serde(rename = "type")]
     pub token_specification_type: String,
@@ -763,6 +802,7 @@ pub struct GpayTokenizationSpecification {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayAllowedPaymentMethods {
     #[serde(rename = "type")]
     pub payment_method_type: String,
@@ -771,6 +811,7 @@ pub struct GpayAllowedPaymentMethods {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayTransactionInfo {
     pub country_code: String,
     pub currency_code: String,
@@ -779,11 +820,13 @@ pub struct GpayTransactionInfo {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayMerchantInfo {
     pub merchant_name: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayMetadata {
     pub merchant_info: GpayMerchantInfo,
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
@@ -799,7 +842,9 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
-        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+        #[serde(flatten)]
+        gpay_token: GpayMetadata,
+        #[serde(rename(serialize = "transactionInfo"))]
         transaction_info: GpayTransactionInfo,
     },
     Klarna {

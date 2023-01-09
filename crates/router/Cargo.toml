@@ -65,6 +65,7 @@ thiserror = "1.0.37"
 time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
+utoipa = { git = "https://github.com/SanchithHegde/utoipa", branch = "retain-property-order" }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 
 # First party crates
@@ -84,10 +85,10 @@ actix-http = "3.2.2"
 awc = { version = "3.0.1", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
+serial_test = "0.10.0"
 time = { version = "0.3.17", features = ["macros"] }
 tokio = "1.23.0"
 toml = "0.5.9"
-serial_test = "0.10.0"
 wiremock = "0.5"
 
 [[bin]]
