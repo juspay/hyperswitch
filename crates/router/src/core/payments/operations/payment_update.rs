@@ -55,7 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 state,
                 request,
                 mandate_type.clone(),
-                merchant_id,
+                merchant_account,
             )
             .await?;
 
