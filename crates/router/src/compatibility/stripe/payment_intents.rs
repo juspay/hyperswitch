@@ -9,7 +9,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::payments,
     routes,
-    services::api,
+    services::{api, authentication as auth},
     types::api::{self as api_types},
 };
 
@@ -56,7 +56,7 @@ pub async fn payment_intents_create(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -76,11 +76,10 @@ pub async fn payment_intents_retrieve(
         param: None,
     };
 
-    let auth_type = match api::get_auth_type(&req) {
-        Ok(auth_type) => auth_type,
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
 
     wrap::compatibility_api_wrap::<
         _,
@@ -104,7 +103,7 @@ pub async fn payment_intents_retrieve(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -135,12 +134,11 @@ pub async fn payment_intents_update(
 
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -163,7 +161,7 @@ pub async fn payment_intents_update(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -195,12 +193,12 @@ pub async fn payment_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-    let auth_flow = api::get_auth_flow(&auth_type);
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -223,7 +221,7 @@ pub async fn payment_intents_confirm(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -272,7 +270,7 @@ pub async fn payment_intents_capture(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -299,11 +297,11 @@ pub async fn payment_intents_cancel(
     let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;
 
-    let auth_type = match api::get_auth_type(&req) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -326,7 +324,7 @@ pub async fn payment_intents_cancel(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -357,7 +355,7 @@ pub async fn payment_intent_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
