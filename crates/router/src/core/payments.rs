@@ -469,7 +469,6 @@ pub struct CustomerDetails {
 }
 
 pub fn if_not_create_change_operation<'a, Op, F>(
-    is_update: bool,
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
@@ -485,13 +484,7 @@ where
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
             | storage_enums::IntentStatus::RequiresCustomerAction
-            | storage_enums::IntentStatus::RequiresPaymentMethod => {
-                if is_update {
-                    Box::new(&PaymentUpdate)
-                } else {
-                    Box::new(current)
-                }
-            }
+            | storage_enums::IntentStatus::RequiresPaymentMethod => Box::new(current),
             _ => Box::new(&PaymentStatus),
         }
     }

@@ -2,7 +2,10 @@ use actix_web::{web, HttpRequest, Responder};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-use crate::{core::webhooks, services::api};
+use crate::{
+    core::webhooks,
+    services::{api, authentication as auth},
+};
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
 pub async fn receive_incoming_webhook(
@@ -20,7 +23,7 @@ pub async fn receive_incoming_webhook(
         |state, merchant_account, body| {
             webhooks::webhooks_core(state, &req, merchant_account, &connector_name, body)
         },
-        api::ConnectorAuthentication::MerchantId(&merchant_id),
+        &auth::MerchantIdAuth(merchant_id),
     )
     .await
 }
