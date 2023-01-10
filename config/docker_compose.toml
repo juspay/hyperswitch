@@ -30,6 +30,8 @@ pool_size = 5
 
 [keys]
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+admin_api_key = "test_admin"
+jwt_secret="secret" 
 
 [locker]
 host = ""
@@ -49,6 +51,10 @@ host = "redis-queue"
 port = 6379
 cluster_enabled = true
 cluster_urls = ["redis-queue:6379"]
+
+[refund]
+max_attempts = 10
+max_age = 365
 
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"

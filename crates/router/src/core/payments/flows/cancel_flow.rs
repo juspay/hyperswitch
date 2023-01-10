@@ -8,10 +8,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{
-        self, api,
-        storage::{self, enums},
-    },
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -44,7 +41,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,

@@ -159,6 +159,7 @@ diesel::table! {
         parent_merchant_id -> Nullable<Varchar>,
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
+        locker_id -> Nullable<Varchar>,
     }
 }
 
@@ -216,6 +217,7 @@ diesel::table! {
         browser_info -> Nullable<Jsonb>,
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
+        connector_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -326,6 +328,7 @@ diesel::table! {
         modified_at -> Timestamp,
         description -> Nullable<Varchar>,
         attempt_id -> Varchar,
+        refund_reason -> Nullable<Varchar>,
     }
 }
 

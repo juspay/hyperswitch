@@ -243,6 +243,7 @@ impl PaymentAttemptInterface for MockDb {
             browser_info: None,
             payment_token: None,
             error_code: payment_attempt.error_code,
+            connector_metadata: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -381,6 +382,7 @@ mod storage {
                         browser_info: payment_attempt.browser_info.clone(),
                         payment_token: payment_attempt.payment_token.clone(),
                         error_code: payment_attempt.error_code.clone(),
+                        connector_metadata: payment_attempt.connector_metadata.clone(),
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);
