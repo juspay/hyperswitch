@@ -414,6 +414,15 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     }
 }
 
+impl From<CancelStatus> for storage_enums::AttemptStatus {
+    fn from(status: CancelStatus) -> Self {
+        match status {
+            CancelStatus::Received => Self::Voided,
+            CancelStatus::Processing => Self::Pending,
+        }
+    }
+}
+
 impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     for types::PaymentsCancelRouterData
 {
@@ -421,12 +430,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     fn try_from(
         item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
-        let status = match item.response.status {
-            CancelStatus::Received => storage_enums::AttemptStatus::Voided,
-            CancelStatus::Processing => storage_enums::AttemptStatus::Pending,
-        };
         Ok(Self {
-            status,
+            status: item.response.status.into(),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
