@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use error_stack::{FutureExt, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -50,14 +50,14 @@ where
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let auth_type = if let types::ConnectorAuthType::AccessToken { api_key, id, .. } = &auth_type {
+    let auth_type = if let types::ConnectorAuthType::AccessToken { .. } = &auth_type {
         let db = &*state.store;
         let access_token = db
             .get_access_token(&merchant_account.merchant_id, connector_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let token = match access_token {
+        let _token = match access_token {
             Some(token) => token,
             None => refresh_connector_access_token(state, connector_id.to_string())
                 .await

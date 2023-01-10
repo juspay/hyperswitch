@@ -28,17 +28,17 @@ pub trait ConnectorAccessToken {
 impl ConnectorAccessToken for Store {
     async fn get_access_token(
         &self,
-        merchant_id: &str,
-        connector: &str,
+        _merchant_id: &str,
+        _connector: &str,
     ) -> CustomResult<Option<String>, errors::StorageError> {
-        Ok(Some("TODO".to_string()))
+        Ok(None)
     }
 
     async fn set_access_token_with_expiry(
         &self,
-        merchant_id: &str,
-        connector: &str,
-        expiry: u64,
+        _merchant_id: &str,
+        _connector: &str,
+        _expiry: u64,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())
     }
@@ -48,17 +48,17 @@ impl ConnectorAccessToken for Store {
 impl ConnectorAccessToken for MockDb {
     async fn get_access_token(
         &self,
-        merchant_id: &str,
-        connector: &str,
+        _merchant_id: &str,
+        _connector: &str,
     ) -> CustomResult<Option<String>, errors::StorageError> {
-        Ok(Some("TODO".to_string()))
+        Ok(None)
     }
 
     async fn set_access_token_with_expiry(
         &self,
-        merchant_id: &str,
-        connector: &str,
-        expiry: u64,
+        _merchant_id: &str,
+        _connector: &str,
+        _expiry: u64,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())
     }

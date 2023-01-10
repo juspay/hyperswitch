@@ -22,9 +22,8 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, logger,
+    logger,
     routes::AppState,
-    services,
     types::{
         self, api,
         storage::{self, enums},
@@ -766,29 +765,10 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
 }
 
 pub async fn refresh_connector_access_token<'a>(
-    state: &'a AppState,
-    connector_name: String,
+    _state: &'a AppState,
+    _connector_name: String,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let headers = vec![(
-        headers::CONTENT_TYPE.to_string(),
-        "application/json".to_string(),
-    )];
-
-    let body = "{}".to_string();
-
-    let request = services::RequestBuilder::new()
-        .method(services::Method::Post)
-        .url("https://apis.sandbox.globalpay.com/ucp/accesstoken")
-        .headers(headers)
-        .body(Some(body))
-        .build();
-
-    // Acquire a lock on the resource ( merchant_account+connector ) to prevent the accesstoken to
-    // be refreshed by another request.
-    let response = send_request(state, request).await;
-
-    // release lock, all others waiting should get the value -> how to do this?
-    Ok("access_token".to_string())
+    todo!()
 }
 
 #[cfg(test)]
