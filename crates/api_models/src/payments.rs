@@ -293,6 +293,12 @@ impl Default for PaymentIdType {
     }
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct AccessToken {
+    pub token: String,
+    pub expires: i64, // expiration time in seconds
+}
+
 //#[derive(Debug, serde::Deserialize, serde::Serialize)]
 //#[serde(untagged)]
 //pub enum enums::CaptureMethod {

@@ -45,6 +45,8 @@ impl ConnectorCommon for Adyen {
     }
 }
 
+impl services::AccessTokenRefresh for Adyen {}
+
 impl api::Payment for Adyen {}
 impl api::PaymentAuthorize for Adyen {}
 impl api::PaymentSync for Adyen {}

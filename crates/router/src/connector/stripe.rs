@@ -51,6 +51,8 @@ impl ConnectorCommon for Stripe {
     }
 }
 
+impl services::AccessTokenRefresh for Stripe {}
+
 impl api::Payment for Stripe {}
 
 impl api::PaymentAuthorize for Stripe {}

@@ -45,6 +45,8 @@ impl ConnectorCommon for Klarna {
     }
 }
 
+impl services::AccessTokenRefresh for Klarna {}
+
 impl api::Payment for Klarna {}
 
 impl api::PaymentAuthorize for Klarna {}

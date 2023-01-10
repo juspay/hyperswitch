@@ -27,7 +27,7 @@ impl
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
-        connector_id: &str,
+        connector: api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<
         types::RouterData<
@@ -39,7 +39,7 @@ impl
         transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
             state,
             self.clone(),
-            connector_id,
+            connector,
             merchant_account,
         )
         .await

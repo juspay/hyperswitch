@@ -50,6 +50,8 @@ impl ConnectorCommon for Checkout {
     }
 }
 
+impl services::AccessTokenRefresh for Checkout {}
+
 impl api::Payment for Checkout {}
 
 impl api::PaymentAuthorize for Checkout {}

@@ -22,7 +22,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
-        connector_id: &str,
+        connector: api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }

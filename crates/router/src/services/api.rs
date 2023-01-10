@@ -48,6 +48,24 @@ where
     }
 }
 
+pub trait AccessTokenRefresh {
+    fn build_refresh_token_request(&self) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(None)
+    }
+    fn handle_response_token(
+        &self,
+        _response: types::Response,
+    ) -> CustomResult<api_models::payments::AccessToken, errors::ConnectorError> {
+        Ok(api_models::payments::AccessToken::default())
+    }
+    fn get_refresh_access_token_error(
+        &self,
+        _res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        Ok(ErrorResponse::get_not_implemented())
+    }
+}
+
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
     fn get_headers(
         &self,
@@ -752,6 +770,38 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
                 (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 500); </script>"#))
             }
         }
+    }
+}
+
+pub async fn refresh_connector_access_token<'a>(
+    state: &'a AppState,
+    connector: api::ConnectorData,
+) -> CustomResult<api_models::payments::AccessToken, errors::ConnectorError> {
+    let boxed_connector = connector.connector;
+    let request = boxed_connector
+        .build_refresh_token_request()
+        .map_err(|_error| errors::ConnectorError::AccessTokenRefreshRequestBuildFailed)?;
+
+    match request {
+        Some(request) => {
+            let response = call_connector_api(state, request)
+                .await
+                .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
+
+            match response {
+                Ok(body) => {
+                    logger::debug!(access_token_refresh_raw_response=?body);
+                    Ok(boxed_connector.handle_response_token(body)?)
+                }
+                Err(error) => {
+                    let connector_error =
+                        boxed_connector.get_refresh_access_token_error(error.response);
+                    logger::error!(access_token_refresh_error=?connector_error);
+                    Err(errors::ConnectorError::AccessTokenRefreshFailed).into_report()
+                }
+            }
+        }
+        None => Err(errors::ConnectorError::AccessTokenRefreshRequestBuildFailed).into_report(),
     }
 }
 

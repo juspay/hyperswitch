@@ -10,6 +10,7 @@ use crate::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, helpers},
     },
+    logger,
     routes::AppState,
     services::{self, RedirectForm},
     types::{
@@ -24,7 +25,7 @@ use crate::{
 pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
-    connector_id: &str,
+    connector: api::ConnectorData,
     merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
@@ -34,6 +35,9 @@ where
     error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
+    let connector_id = connector.connector.id();
+    let connector_name = connector.connector_name.to_string();
+
     let db = &*state.store;
     merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
@@ -49,6 +53,42 @@ where
         .connector_account_details
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let auth_type = if let types::ConnectorAuthType::AccessToken { api_key, id, .. } = auth_type {
+        let db = &*state.store;
+        let access_token = db
+            .get_access_token(&merchant_account.merchant_id, connector_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let token = match access_token {
+            Some(token) => token,
+            None => {
+                let new_access_token = refresh_connector_access_token(state, connector)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to refresh access token")?;
+                let db = &*state.store;
+                let merchant_id = &merchant_account.merchant_id;
+
+                db.set_access_token(merchant_id, &connector_name, new_access_token.clone())
+                    .await
+                    .map_err(|error| {
+                        logger::error!(set_access_token_error=?error);
+                        errors::ApiErrorResponse::InternalServerError
+                    })?;
+                new_access_token.token
+            }
+        };
+
+        types::ConnectorAuthType::AccessToken {
+            api_key,
+            id,
+            access_token: Some(token),
+        }
+    } else {
+        auth_type
+    };
 
     payment_method = payment_data
         .payment_attempt

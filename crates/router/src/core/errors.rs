@@ -313,6 +313,10 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Failed to refresh access token")]
+    AccessTokenRefreshFailed,
+    #[error("Failed to build access token refresh request")]
+    AccessTokenRefreshRequestBuildFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

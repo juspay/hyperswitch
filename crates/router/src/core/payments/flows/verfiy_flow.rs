@@ -22,13 +22,13 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
-        connector_id: &str,
+        connector: api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
             self.clone(),
-            connector_id,
+            connector,
             merchant_account,
         )
         .await

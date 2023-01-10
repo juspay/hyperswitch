@@ -5,8 +5,84 @@ use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
+    services::logger,
     types::storage,
 };
+
+#[async_trait::async_trait]
+pub trait ConnectorAccessToken {
+    async fn get_access_token(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+    ) -> CustomResult<Option<String>, errors::StorageError>;
+
+    async fn set_access_token(
+        &self,
+        merchant_id: &str,
+        connector_name: &str,
+        access_token: api_models::payments::AccessToken,
+    ) -> CustomResult<(), errors::StorageError>;
+}
+
+#[async_trait::async_trait]
+impl ConnectorAccessToken for Store {
+    async fn get_access_token(
+        &self,
+        merchant_id: &str,
+        connector: &str,
+    ) -> CustomResult<Option<String>, errors::StorageError> {
+        //TODO: Handle race condition
+        // This function should acquire a global lock on some resource, if access token is already
+        // being refreshed by other request then wait till it finishes and use the same access token
+        let key = format!("{}{}", merchant_id, connector);
+        let token = self.redis_conn.get_key::<String>(&key).await;
+        match token {
+            Ok(token) => Ok(Some(token)),
+            Err(error) => {
+                logger::error!(access_token_kv_error=?error);
+                Err(errors::StorageError::KVError).into_report()
+            }
+        }
+    }
+
+    async fn set_access_token(
+        &self,
+        merchant_id: &str,
+        connector_name: &str,
+        access_token: api_models::payments::AccessToken,
+    ) -> CustomResult<(), errors::StorageError> {
+        let conn = self.redis_conn.clone();
+        let access_token_key = format!("{}{}", merchant_id, connector_name);
+        conn.set_key_with_expiry(&access_token_key, access_token.token, access_token.expires)
+            .await
+            .map_err(|error| {
+                logger::error!(access_token_kv_error=?error);
+                errors::StorageError::KVError
+            })
+            .into_report()
+    }
+}
+
+#[async_trait::async_trait]
+impl ConnectorAccessToken for MockDb {
+    async fn get_access_token(
+        &self,
+        _merchant_id: &str,
+        _connector: &str,
+    ) -> CustomResult<Option<String>, errors::StorageError> {
+        Ok(None)
+    }
+
+    async fn set_access_token(
+        &self,
+        _merchant_id: &str,
+        _connector_name: &str,
+        _access_token: api_models::payments::AccessToken,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+}
 
 #[async_trait::async_trait]
 pub trait MerchantConnectorAccountInterface {

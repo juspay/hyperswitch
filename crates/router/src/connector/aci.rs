@@ -45,6 +45,7 @@ impl ConnectorCommon for Aci {
     }
 }
 
+impl services::AccessTokenRefresh for Aci {}
 impl api::Payment for Aci {}
 
 impl api::PaymentAuthorize for Aci {}

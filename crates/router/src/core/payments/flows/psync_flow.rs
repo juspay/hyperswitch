@@ -21,7 +21,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
-        connector_id: &str,
+        connector: api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -29,7 +29,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         transformers::construct_payment_router_data::<api::PSync, types::PaymentsSyncData>(
             state,
             self.clone(),
-            connector_id,
+            connector,
             merchant_account,
         )
         .await

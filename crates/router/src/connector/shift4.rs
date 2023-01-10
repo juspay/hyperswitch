@@ -93,6 +93,7 @@ impl ConnectorCommon for Shift4 {
     }
 }
 
+impl services::AccessTokenRefresh for Shift4 {}
 impl api::Payment for Shift4 {}
 
 impl api::PreVerify for Shift4 {}

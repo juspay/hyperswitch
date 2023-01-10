@@ -37,6 +37,8 @@ impl ConnectorCommon for Authorizedotnet {
     }
 }
 
+impl services::AccessTokenRefresh for Authorizedotnet {}
+
 impl api::Payment for Authorizedotnet {}
 impl api::PaymentAuthorize for Authorizedotnet {}
 impl api::PaymentSync for Authorizedotnet {}

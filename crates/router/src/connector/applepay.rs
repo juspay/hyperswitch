@@ -31,6 +31,8 @@ impl ConnectorCommon for Applepay {
     }
 }
 
+impl services::AccessTokenRefresh for Applepay {}
+
 impl api::Payment for Applepay {}
 impl api::PaymentAuthorize for Applepay {}
 impl api::PaymentSync for Applepay {}

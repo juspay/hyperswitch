@@ -79,6 +79,8 @@ impl api::ConnectorCommon for Cybersource {
     }
 }
 
+impl services::AccessTokenRefresh for Cybersource {}
+
 impl api::Payment for Cybersource {}
 impl api::PaymentAuthorize for Cybersource {}
 impl api::PaymentSync for Cybersource {}

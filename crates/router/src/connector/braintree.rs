@@ -44,6 +44,8 @@ impl ConnectorCommon for Braintree {
     }
 }
 
+impl services::AccessTokenRefresh for Braintree {}
+
 impl api::Payment for Braintree {}
 
 impl api::PaymentAuthorize for Braintree {}

@@ -314,7 +314,7 @@ where
     let stime_connector = Instant::now();
 
     let router_data = payment_data
-        .construct_router_data(state, connector.connector.id(), merchant_account)
+        .construct_router_data(state, connector.clone(), merchant_account)
         .await?;
 
     let res = router_data
@@ -377,9 +377,8 @@ where
     let mut join_handlers = Vec::with_capacity(connectors.len());
 
     for connector in connectors.iter() {
-        let connector_id = connector.connector.id();
         let router_data = payment_data
-            .construct_router_data(state, connector_id, merchant_account)
+            .construct_router_data(state, connector.clone(), merchant_account)
             .await?;
 
         let res = router_data.decide_flows(

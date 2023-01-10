@@ -18,7 +18,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
-    services::{ConnectorIntegration, ConnectorRedirectResponse},
+    services::{AccessTokenRefresh, ConnectorIntegration, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
 
@@ -76,7 +76,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook
+    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + AccessTokenRefresh
 {
 }
 
@@ -84,8 +84,15 @@ pub struct Re;
 
 pub struct Pe;
 
-impl<T: Refund + Payment + Debug + ConnectorRedirectResponse + Send + IncomingWebhook> Connector
-    for T
+impl<
+        T: Refund
+            + Payment
+            + Debug
+            + ConnectorRedirectResponse
+            + Send
+            + IncomingWebhook
+            + AccessTokenRefresh,
+    > Connector for T
 {
 }
 
@@ -93,11 +100,13 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
+#[derive(Clone)]
 pub enum GetToken {
     Metadata,
     Connector,
 }
 
+#[derive(Clone)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
