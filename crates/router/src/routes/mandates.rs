@@ -2,7 +2,11 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-use crate::{core::mandate, services::api, types::api::mandates};
+use crate::{
+    core::mandate,
+    services::{api, authentication as auth},
+    types::api::mandates,
+};
 
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
@@ -19,7 +23,7 @@ pub async fn get_mandate(
         &req,
         mandate_id,
         mandate::get_mandate,
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -41,7 +45,7 @@ pub async fn revoke_mandate(
         |state, merchant_account, req| {
             mandate::revoke_mandate(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
