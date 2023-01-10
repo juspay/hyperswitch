@@ -9,7 +9,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::payments,
     routes,
-    services::{api, authentication::*},
+    services::{api, authentication as auth},
     types::api::{self as api_types},
 };
 
@@ -58,7 +58,7 @@ pub async fn payment_intents_create(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -78,7 +78,7 @@ pub async fn payment_intents_retrieve(
         param: None,
     };
 
-    let (auth_type, auth_flow) = match get_auth_type_and_flow(req.headers()) {
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -137,7 +137,7 @@ pub async fn payment_intents_update(
 
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
 
-    let (auth_type, auth_flow) = match get_auth_type_and_flow(req.headers()) {
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -198,7 +198,7 @@ pub async fn payment_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
-    let (auth_type, auth_flow) = match check_client_secret_and_get_auth(req.headers(), &payload) {
+    let (auth_type, auth_flow) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -277,7 +277,7 @@ pub async fn payment_intents_capture(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -304,7 +304,7 @@ pub async fn payment_intents_cancel(
     let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;
 
-    let (auth_type, auth_flow) = match get_auth_type_and_flow(req.headers()) {
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -363,7 +363,7 @@ pub async fn payment_intent_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }

@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::payment_methods::cards,
-    services::{api, authentication::*},
+    services::{api, authentication as auth},
     types::api::payment_methods::{self, PaymentMethodId},
 };
 
@@ -22,7 +22,7 @@ pub async fn create_payment_method_api(
         |state, merchant_account, req| async move {
             cards::add_payment_method(state, req, &merchant_account).await
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -37,7 +37,7 @@ pub async fn list_payment_method_api(
 ) -> HttpResponse {
     let payload = json_payload.into_inner();
 
-    let (auth, _) = match check_client_secret_and_get_auth(req.headers(), &payload) {
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -64,7 +64,7 @@ pub async fn list_customer_payment_method_api(
 ) -> HttpResponse {
     let customer_id = customer_id.into_inner().0;
 
-    let auth_type = match is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
+    let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
         Ok(auth_type) => auth_type,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -98,7 +98,7 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, merchant_account, pm| cards::retrieve_payment_method(state, pm, merchant_account),
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -124,7 +124,7 @@ pub async fn payment_method_update_api(
                 &payment_method_id,
             )
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -139,7 +139,7 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
-    api::server_wrap(&state, &req, pm, cards::delete_payment_method, &ApiKeyAuth).await
+    api::server_wrap(&state, &req, pm, cards::delete_payment_method, &auth::ApiKeyAuth).await
 }
 
 #[cfg(test)]

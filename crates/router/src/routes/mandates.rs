@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::mandate,
-    services::{api, authentication::*},
+    services::{api, authentication as auth},
     types::api::mandates,
 };
 
@@ -18,7 +18,7 @@ pub async fn get_mandate(
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
-    api::server_wrap(&state, &req, mandate_id, mandate::get_mandate, &ApiKeyAuth).await
+    api::server_wrap(&state, &req, mandate_id, mandate::get_mandate, &auth::ApiKeyAuth).await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
@@ -38,7 +38,7 @@ pub async fn revoke_mandate(
         |state, merchant_account, req| {
             mandate::revoke_mandate(&*state.store, merchant_account, req)
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }

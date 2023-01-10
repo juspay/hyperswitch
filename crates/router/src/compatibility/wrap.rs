@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::{
     core::errors::{self, RouterResult},
     routes,
-    services::{api, authentication::*, logger},
+    services::{api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
@@ -17,7 +17,7 @@ pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: &dyn AuthenticateAndFetch<U>,
+    api_authentication: &dyn auth::AuthenticateAndFetch<U>,
 ) -> HttpResponse
 where
     F: Fn(&'b routes::AppState, U, T) -> Fut,

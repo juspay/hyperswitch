@@ -21,7 +21,7 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::AppState,
-    services::authentication::*,
+    services::authentication as auth,
     types::{
         self, api,
         storage::{self},
@@ -370,12 +370,12 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth))]
-pub(crate) async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut>(
+pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut>(
     state: &'b AppState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U>,
+    api_auth: &dyn auth::AuthenticateAndFetch<U>,
 ) -> RouterResult<BachResponse<Q>>
 where
     F: Fn(&'b AppState, U, T) -> Fut,
@@ -393,12 +393,12 @@ where
     skip(request, payload, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
-pub(crate) async fn server_wrap<'a, 'b, T, U, Q, F, Fut>(
+pub async fn server_wrap<'a, 'b, T, U, Q, F, Fut>(
     state: &'b AppState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U>,
+    api_auth: &dyn auth::AuthenticateAndFetch<U>,
 ) -> HttpResponse
 where
     F: Fn(&'b AppState, U, T) -> Fut,

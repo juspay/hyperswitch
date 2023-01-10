@@ -5,7 +5,7 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     self as app,
     core::{errors::http_not_implemented, payments},
-    services::{api, authentication::*},
+    services::{api, authentication as auth},
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
@@ -35,7 +35,7 @@ pub async fn payments_create(
                 api::AuthFlow::Merchant,
             )
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -67,7 +67,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &MerchantIdAuth(merchant_id),
+        &auth::MerchantIdAuth(merchant_id),
     )
     .await
 }
@@ -87,7 +87,7 @@ pub async fn payments_retrieve(
         param: None,
         connector: None,
     };
-    let (auth_type, _auth_flow) = match get_auth_type_and_flow(req.headers()) {
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -130,7 +130,7 @@ pub async fn payments_update(
 
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
 
-    let (auth_type, auth_flow) = match get_auth_type_and_flow(req.headers()) {
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -171,7 +171,7 @@ pub async fn payments_confirm(
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
-    let (auth_type, auth_flow) = match check_client_secret_and_get_auth(req.headers(), &payload) {
+    let (auth_type, auth_flow) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok(auth) => auth,
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -222,7 +222,7 @@ pub async fn payments_capture(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -256,7 +256,7 @@ pub async fn payments_connector_session(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &PublishableKeyAuth,
+        &auth::PublishableKeyAuth,
     )
     .await
 }
@@ -288,7 +288,7 @@ pub async fn payments_response(
                 req,
             )
         },
-        &MerchantIdAuth(merchant_id),
+        &auth::MerchantIdAuth(merchant_id),
     )
     .await
 }
@@ -320,7 +320,7 @@ pub async fn payments_cancel(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -340,7 +340,7 @@ pub async fn payments_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }

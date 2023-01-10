@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::refunds::*,
-    services::{api, authentication::*},
+    services::{api, authentication as auth},
     types::api::refunds,
 };
 
@@ -32,7 +32,7 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         refund_create_core,
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -53,7 +53,7 @@ pub async fn refunds_retrieve(
         |state, merchant_account, refund_id| {
             refund_response_wrapper(state, merchant_account, refund_id, refund_retrieve_core)
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -74,7 +74,7 @@ pub async fn refunds_update(
         |state, merchant_account, req| {
             refund_update_core(&*state.store, merchant_account, &refund_id, req)
         },
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -91,7 +91,7 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
-        &ApiKeyAuth,
+        &auth::ApiKeyAuth,
     )
     .await
 }

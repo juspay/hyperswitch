@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::admin::*,
-    services::{api, authentication::*},
+    services::{api, authentication as auth},
     types::api::admin,
 };
 
@@ -32,7 +32,7 @@ pub async fn merchant_account_create(
         &req,
         json_payload.into_inner(),
         |state, _, req| create_merchant_account(&*state.store, req),
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -53,7 +53,7 @@ pub async fn retrieve_merchant_account(
         &req,
         payload,
         |state, _, req| get_merchant_account(&*state.store, req),
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -72,7 +72,7 @@ pub async fn update_merchant_account(
         &req,
         json_payload.into_inner(),
         |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -93,7 +93,7 @@ pub async fn delete_merchant_account(
         &req,
         payload,
         |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -113,7 +113,7 @@ pub async fn payment_connector_create(
         &req,
         json_payload.into_inner(),
         |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -138,7 +138,7 @@ pub async fn payment_connector_retrieve(
         |state, _, req| {
             retrieve_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -156,7 +156,7 @@ pub async fn payment_connector_list(
         &req,
         merchant_id,
         |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -177,7 +177,7 @@ pub async fn payment_connector_update(
         |state, _, req| {
             update_payment_connector(&*state.store, &merchant_id, merchant_connector_id, req)
         },
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -202,7 +202,7 @@ pub async fn payment_connector_delete(
         |state, _, req| {
             delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
-        &AdminApiAuth,
+        &auth::AdminApiAuth,
     )
     .await
 }
