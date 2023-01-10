@@ -247,7 +247,7 @@ where
 
     let payments_response =
         match response.change_context(errors::ApiErrorResponse::NotImplemented)? {
-            services::BachResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::Json(response) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Failed to get the response in json"),
@@ -261,7 +261,7 @@ where
     )
     .attach_printable("No redirection response")?;
 
-    Ok(services::BachResponse::JsonForRedirection(result))
+    Ok(services::ApplicationResponse::JsonForRedirection(result))
 }
 
 pub async fn payments_response_for_redirection_flows<'a>(
@@ -562,10 +562,12 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    Ok(services::BachResponse::Json(api::PaymentListResponse {
-        size: data.len(),
-        data,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
 }
 
 pub async fn add_process_sync_task(

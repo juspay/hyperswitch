@@ -32,7 +32,7 @@ use routes::AppState;
 pub use self::env::logger;
 use crate::{
     configs::settings::Settings,
-    core::errors::{self, BachResult},
+    core::errors::{self, ApplicationResult},
 };
 
 #[cfg(feature = "mimalloc")]
@@ -110,7 +110,7 @@ pub fn mk_app(
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
-pub async fn start_server(conf: Settings) -> BachResult<(Server, AppState)> {
+pub async fn start_server(conf: Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let state = routes::AppState::new(conf).await;

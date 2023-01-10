@@ -89,6 +89,11 @@ locker_decryption_key1 = "" # private key 1 in pem format, corresponding public 
 locker_decryption_key2 = "" # private key 2 in pem format, corresponding public key in basilisk
 
 
+# Refund configuration
+[refund]
+max_attempts = 10 # Number of refund attempts allowed
+max_age = 365 # Max age of a refund in days.
+
 # Validity of an Ephemeral Key in Hours
 [eph_key]
 validity = 1

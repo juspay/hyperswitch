@@ -66,6 +66,7 @@ where
             redirection_data: None,
             redirect: false,
             mandate_reference: None,
+            connector_metadata: None,
         });
 
     let router_return_url = Some(helpers::create_redirect_url(
@@ -160,7 +161,7 @@ where
         _server: &Server,
         _operation: Op,
     ) -> RouterResponse<Self> {
-        Ok(services::BachResponse::Json(Self {
+        Ok(services::ApplicationResponse::Json(Self {
             session_token: payment_data.sessions_token,
             payment_id: payment_data.payment_attempt.payment_id,
             client_secret: payment_data
@@ -186,7 +187,7 @@ where
         _server: &Server,
         _operation: Op,
     ) -> RouterResponse<Self> {
-        Ok(services::BachResponse::Json(Self {
+        Ok(services::ApplicationResponse::Json(Self {
             verify_id: Some(data.payment_intent.payment_id),
             merchant_id: Some(data.payment_intent.merchant_id),
             client_secret: data.payment_intent.client_secret.map(masking::Secret::new),
@@ -254,7 +255,7 @@ where
                 let redirection_data = redirection_data.get_required_value("redirection_data")?;
                 let form: RedirectForm = serde_json::from_value(redirection_data)
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-                services::BachResponse::Form(form)
+                services::ApplicationResponse::Form(form)
             } else {
                 let mut response: api::PaymentsResponse = request
                     .try_into()
@@ -271,7 +272,7 @@ where
                     })
                 }
 
-                services::BachResponse::Json(
+                services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
@@ -319,6 +320,7 @@ where
                         .to_owned()
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
+                        .set_cancellation_reason(payment_attempt.cancellation_reason)
                         .set_authentication_type(
                             payment_attempt
                                 .authentication_type
@@ -340,7 +342,7 @@ where
                 )
             }
         }
-        None => services::BachResponse::Json(api::PaymentsResponse {
+        None => services::ApplicationResponse::Json(api::PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
             status: payment_intent.status.foreign_into(),
