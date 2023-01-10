@@ -77,10 +77,9 @@ where
         .get_trackers(
             state,
             &validate_result.payment_id,
-            validate_result.merchant_id,
             &req,
             validate_result.mandate_type,
-            validate_result.storage_scheme,
+            &merchant_account,
         )
         .await?;
 
@@ -175,7 +174,7 @@ where
     FData: Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -326,7 +325,7 @@ where
             &connector,
             customer,
             call_connector_action,
-            merchant_account.storage_scheme,
+            merchant_account,
         )
         .await;
 
@@ -390,7 +389,7 @@ where
             connector,
             customer,
             CallConnectorAction::Trigger,
-            merchant_account.storage_scheme,
+            merchant_account,
         );
 
         join_handlers.push(res);
@@ -473,7 +472,6 @@ pub struct CustomerDetails {
 }
 
 pub fn if_not_create_change_operation<'a, Op, F>(
-    is_update: bool,
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
@@ -489,13 +487,7 @@ where
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
             | storage_enums::IntentStatus::RequiresCustomerAction
-            | storage_enums::IntentStatus::RequiresPaymentMethod => {
-                if is_update {
-                    Box::new(&PaymentUpdate)
-                } else {
-                    Box::new(current)
-                }
-            }
+            | storage_enums::IntentStatus::RequiresPaymentMethod => Box::new(current),
             _ => Box::new(&PaymentStatus),
         }
     }

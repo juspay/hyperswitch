@@ -31,7 +31,7 @@ pub async fn get_mandate(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
     Ok(services::BachResponse::Json(
-        mandates::MandateResponse::from_db_mandate(state, mandate).await?,
+        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
     ))
 }
 
@@ -77,7 +77,10 @@ pub async fn get_customer_mandates(
     } else {
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
-            response_vec.push(mandates::MandateResponse::from_db_mandate(state, mandate).await?);
+            response_vec.push(
+                mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
+                    .await?,
+            );
         }
         Ok(services::BachResponse::Json(response_vec))
     }
@@ -87,6 +90,7 @@ pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<storage::Customer>,
+    merchant_account: &storage::MerchantAccount,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
@@ -132,7 +136,7 @@ where
             if resp.request.get_setup_mandate_details().is_some() {
                 let payment_method_id = helpers::call_payment_method(
                     state,
-                    &resp.merchant_id,
+                    merchant_account,
                     Some(&resp.request.get_payment_method_data()),
                     Some(resp.payment_method),
                     maybe_customer,

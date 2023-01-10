@@ -100,7 +100,7 @@ pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTxnType>,
-    merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethodType>,
@@ -120,7 +120,7 @@ pub async fn get_token_pm_type_mandate_details(
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
             let (token_, payment_method_type_) =
-                get_token_for_recurring_mandate(state, request, merchant_id).await?;
+                get_token_for_recurring_mandate(state, request, merchant_account).await?;
             Ok((token_, payment_method_type_, None))
         }
         None => Ok((
@@ -134,13 +134,13 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
-    merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethodType>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
     let mandate = db
-        .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id.as_str())
+        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
@@ -175,8 +175,11 @@ pub async fn get_token_for_recurring_mandate(
         })?;
 
     let token = Uuid::new_v4().to_string();
-
-    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
+    let locker_id = merchant_account
+        .locker_id
+        .to_owned()
+        .get_required_value("locker_id")?;
+    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
         let pm: storage_enums::PaymentMethodType = payment_method_from_request.foreign_into();
@@ -508,7 +511,7 @@ where
 #[instrument(skip_all)]
 pub(crate) async fn call_payment_method(
     state: &AppState,
-    merchant_id: &str,
+    merchant_account: &storage::MerchantAccount,
     payment_method: Option<&api::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     maybe_customer: &Option<storage::Customer>,
@@ -538,7 +541,7 @@ pub(crate) async fn call_payment_method(
                             let resp = cards::add_payment_method(
                                 state,
                                 payment_method_request,
-                                merchant_id.to_string(),
+                                merchant_account,
                             )
                             .await
                             .attach_printable("Error on adding payment method")?;
@@ -566,13 +569,10 @@ pub(crate) async fn call_payment_method(
                         metadata: None,
                         customer_id: None,
                     };
-                    let resp = cards::add_payment_method(
-                        state,
-                        payment_method_request,
-                        merchant_id.to_string(),
-                    )
-                    .await
-                    .attach_printable("Error on adding payment method")?;
+                    let resp =
+                        cards::add_payment_method(state, payment_method_request, merchant_account)
+                            .await
+                            .attach_printable("Error on adding payment method")?;
                     match resp {
                         crate::services::BachResponse::Json(payment_method) => Ok(payment_method),
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -589,37 +589,6 @@ pub(crate) async fn call_payment_method(
             field_name: "payment_method_data".to_string()
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
-    }
-}
-
-pub(crate) fn client_secret_auth<P>(
-    payload: P,
-    auth_type: &services::api::MerchantAuthentication<'_>,
-) -> RouterResult<P>
-where
-    P: services::Authenticate,
-{
-    match auth_type {
-        services::MerchantAuthentication::PublishableKey => {
-            payload
-                .get_client_secret()
-                .check_value_present("client_secret")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret".to_owned(),
-                })?;
-            Ok(payload)
-        }
-        services::api::MerchantAuthentication::ApiKey => {
-            if payload.get_client_secret().is_some() {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "client_secret is not a valid parameter".to_owned(),
-                }))
-            } else {
-                Ok(payload)
-            }
-        }
-        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unexpected Auth type")),
     }
 }
 
@@ -1198,14 +1167,22 @@ pub(crate) fn authenticate_client_secret(
 }
 
 pub(crate) fn validate_pm_or_token_given(
+    payment_method: &Option<api_enums::PaymentMethodType>,
+    payment_method_data: &Option<api::PaymentMethod>,
+    mandate_type: &Option<api::MandateTxnType>,
     token: &Option<String>,
-    pm_data: &Option<api::PaymentMethod>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    utils::when(token.is_none() && pm_data.is_none(), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "A payment token or payment method data is required".to_string(),
-        })
-    })
+    utils::when(
+        !matches!(payment_method, Some(api_enums::PaymentMethodType::Paypal))
+            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
+            && token.is_none()
+            && payment_method_data.is_none(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "A payment token or payment method data is required".to_string(),
+            })
+        },
+    )
 }
 
 // A function to perform database lookup and then verify the client secret

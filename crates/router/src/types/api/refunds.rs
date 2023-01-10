@@ -1,4 +1,4 @@
-pub use api_models::refunds::{RefundRequest, RefundResponse, RefundStatus};
+pub use api_models::refunds::{RefundRequest, RefundResponse, RefundStatus, RefundType};
 
 use super::ConnectorCommon;
 use crate::{

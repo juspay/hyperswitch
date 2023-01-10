@@ -291,7 +291,7 @@ pub struct TokenizedCardValue2 {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue1 {
     pub issuer: String,
-    pub token: String,
+    pub token: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

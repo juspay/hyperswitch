@@ -18,6 +18,15 @@ pub struct CmdLineConf {
     /// Application will look for "config/config.toml" if this option isn't specified.
     #[structopt(short = "f", long, parse(from_os_str))]
     pub config_path: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    pub subcommand: Option<Subcommand>,
+}
+
+#[derive(StructOpt)]
+pub enum Subcommand {
+    /// Generate the OpenAPI specification file from code.
+    GenerateOpenapiSpec,
 }
 
 #[derive(Debug, Deserialize, Clone)]

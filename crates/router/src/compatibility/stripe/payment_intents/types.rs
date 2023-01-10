@@ -132,7 +132,7 @@ pub struct StripePaymentIntentRequest {
     pub billing_details: Option<StripeBillingDetails>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<Value>,
+    pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
@@ -277,6 +277,7 @@ pub struct StripePaymentIntentResponse {
     pub customer: Option<String>,
     pub refunds: Option<Vec<refunds::RefundResponse>>,
     pub mandate_id: Option<String>,
+    pub metadata: Option<Value>,
 }
 
 impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
@@ -294,6 +295,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             id: resp.payment_id,
             refunds: resp.refunds,
             mandate_id: resp.mandate_id,
+            metadata: resp.metadata,
         }
     }
 }
