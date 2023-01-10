@@ -596,7 +596,7 @@ pub enum SecCode {
     /// Point of Sale Entry - Point of sale debit applications non-shared (POS)
     /// environment. These transactions are most often initiated by the consumer via a plastic
     /// access card. This is only support for normal ACH transactions
-    #[serde(rename = "CCD")]
+    #[serde(rename = "POP")]
     PointOfSaleEntry,
     /// Prearranged Payment and Deposits - used to credit or debit a consumer account.
     /// Popularity used for payroll direct deposits and pre-authorized bill payments.
