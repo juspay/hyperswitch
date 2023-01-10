@@ -9,7 +9,7 @@ use transformers as klarna;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers,
+    headers, routes,
     services::{self, logger},
     types::{
         self,
@@ -310,7 +310,32 @@ impl
 impl api::Refund for Klarna {}
 impl api::RefundExecute for Klarna {}
 impl api::RefundSync for Klarna {}
-impl api::RefundCommon for Klarna {}
+
+#[async_trait::async_trait]
+impl api::RefundCommon for Klarna {
+    async fn update_refund_router_data(
+        &self,
+        _state: &routes::AppState,
+        _connector: &types::api::ConnectorData,
+        router_data: types::RefundsRouterData<api::Execute>,
+        payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    ) -> errors::RouterResult<types::RefundsRouterData<api::Execute>> {
+        // match validation for unsupported payment methods
+        utils::when(
+            matches!(
+                payment_attempt.payment_method,
+                Some(storage_models::enums::PaymentMethodType::Klarna) | None
+            ),
+            || {
+                Err(errors::ApiErrorResponse::RefundNotPossible {
+                    connector: "klarna",
+                })
+            },
+        )?;
+
+        Ok(router_data)
+    }
+}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Klarna

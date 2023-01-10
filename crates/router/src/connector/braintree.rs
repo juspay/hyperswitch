@@ -13,7 +13,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, logger, routes, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -500,7 +500,32 @@ impl
 impl api::Refund for Braintree {}
 impl api::RefundExecute for Braintree {}
 impl api::RefundSync for Braintree {}
-impl api::RefundCommon for Braintree {}
+
+#[async_trait::async_trait]
+impl api::RefundCommon for Braintree {
+    async fn update_refund_router_data(
+        &self,
+        _state: &routes::AppState,
+        _connector: &types::api::ConnectorData,
+        router_data: types::RefundsRouterData<api::Execute>,
+        payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    ) -> errors::RouterResult<types::RefundsRouterData<api::Execute>> {
+        // Validation for unsupported refunds
+        utils::when(
+            matches!(
+                payment_attempt.payment_method,
+                Some(storage_models::enums::PaymentMethodType::Paypal) | None
+            ),
+            || {
+                Err(errors::ApiErrorResponse::RefundNotPossible {
+                    connector: "braintree",
+                })
+            },
+        )?;
+
+        Ok(router_data)
+    }
+}
 
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Braintree

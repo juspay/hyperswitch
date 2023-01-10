@@ -125,6 +125,8 @@ pub enum ApiErrorResponse {
     MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
     NotImplemented,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Refunds not possible through hyperswitch. Please raise Refunds through {connector} dashboard")]
+    RefundNotPossible { connector: &'static str },
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -161,6 +163,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::InvalidCardData { .. }
             | Self::CardExpired { .. }
             | Self::RefundFailed { .. }
+            | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
