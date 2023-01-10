@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.
     pub account_name: String,
