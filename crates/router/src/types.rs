@@ -200,6 +200,7 @@ pub struct RefundsData {
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
+    pub reason: Option<String>,
     /// Amount to be refunded
     pub refund_amount: i64,
 }
