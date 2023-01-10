@@ -474,7 +474,6 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        crate::logger::error!("{:?}", res);
         let response: adyen::AdyenCancelResponse = res
             .response
             .parse_struct("AdyenCancelResponse")
@@ -491,7 +490,6 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        crate::logger::error!("{:?}", res);
         let response: adyen::ErrorResponse = res
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
