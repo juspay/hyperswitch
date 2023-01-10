@@ -323,10 +323,10 @@ pub enum Brand {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FingerprintPresenceIndicator {
-    /// * EXISTS -  Indicates that the payment method was seen on the platform before by this
+    ///  Indicates that the payment method was seen on the platform before by this
     /// merchant.
     Exists,
-    /// * NEW - Indicates that the payment method was not seen on the platform before by this
+    /// Indicates that the payment method was not seen on the platform before by this
     /// merchant.
     New,
 }
@@ -335,29 +335,29 @@ pub enum FingerprintPresenceIndicator {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobalpayPaymentStatus {
-    /// * CAPTURED - A Transaction has been successfully authorized and captured. The funding
+    /// A Transaction has been successfully authorized and captured. The funding
     /// process will commence once the transaction remains in this status.
     Captured,
-    /// * DECLINED - A Transaction where the payment method provider declined the transfer of
+    /// A Transaction where the payment method provider declined the transfer of
     /// funds between the payer and the merchant.
     Declined,
-    /// * FUNDED - A Transaction where the funds have transferred between payer and merchant as
+    /// A Transaction where the funds have transferred between payer and merchant as
     /// expected.
     Funded,
-    /// * INITIATED - A Transaction has been successfully initiated. An update on its status is
+    /// A Transaction has been successfully initiated. An update on its status is
     /// expected via a separate asynchronous notification to a webhook.
     Initiated,
-    /// * PENDING - A Transaction has been sent to the payment method provider and are waiting
+    /// A Transaction has been sent to the payment method provider and are waiting
     /// for a result.
     Pending,
-    /// * PREAUTHORIZED - A Transaction has been approved but a capture request is required to
+    /// A Transaction has been approved but a capture request is required to
     /// commence the movement of funds.
     Preauthorized,
-    /// * REJECTED - A Transaction where the funds were expected to transfer between payer and
+    /// A Transaction where the funds were expected to transfer between payer and
     /// merchant but the transfer was rejected during the funding process. This rarely happens
     /// but when it does it is usually addressed by Global Payments operations.
     Rejected,
-    /// * REVERSED - A Transaction that had a status of PENDING, PREAUTHORIZED or CAPTURED has
+    /// A Transaction that had a status of PENDING, PREAUTHORIZED or CAPTURED has
     /// subsequently been reversed which voids/cancels a transaction before it is funded.
     Reversed,
 }

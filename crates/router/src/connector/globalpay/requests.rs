@@ -174,7 +174,7 @@ pub struct PaymentMethod {
     /// transaction.
     pub entry_mode: PaymentMethodEntryMode,
     /// Indicates whether to execute the fingerprint signature functionality.
-    pub fingerprint_mode: Option<Mode>,
+    pub fingerprint_mode: Option<FingerprintMode>,
     /// Specify the first name of the owner of the payment method.
     pub first_name: Option<String>,
     /// Unique Global Payments generated id used to reference a stored payment method on the
@@ -189,9 +189,7 @@ pub struct PaymentMethod {
     /// for this transaction
     pub narrative: Option<String>,
     /// Indicates whether to store the card as part of a transaction.
-    ///  The card information is always stored irrespective of whether the payment
-    /// method authorization was successful or not.
-    pub storage_mode: Option<Mode>,
+    pub storage_mode: Option<CardStorageMode>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -592,22 +590,28 @@ pub enum NumberType {
 pub enum SecCode {
     /// Cash Concentration or Disbursement - Can be either a credit or debit application
     /// where funds are wither distributed or consolidated between corporate entities.
-    Ccd,
+    #[serde(rename = "CCD")]
+    CashConcentrationOrDisbursement,
+
     /// Point of Sale Entry - Point of sale debit applications non-shared (POS)
     /// environment. These transactions are most often initiated by the consumer via a plastic
     /// access card. This is only support for normal ACH transactions
-    Pop,
+    #[serde(rename = "CCD")]
+    PointOfSaleEntry,
     /// Prearranged Payment and Deposits - used to credit or debit a consumer account.
     /// Popularity used for payroll direct deposits and pre-authorized bill payments.
-    Ppd,
+    #[serde(rename = "PPD")]
+    PrearrangedPaymentAndDeposits,
     /// Telephone-Initiated Entry - Used for the origination of a single entry debit
     /// transaction to a consumer's account pursuant to a verbal authorization obtained from the
     /// consumer via the telephone.
-    Tel,
+    #[serde(rename = "TEL")]
+    TelephoneInitiatedEntry,
     /// Internet (Web)-Initiated Entry - Used for the origination of debit entries
     /// (either Single or Recurring Entry) to a consumer's account pursuant to a to an
     /// authorization that is obtained from the Receiver via the Internet.
-    Web,
+    #[serde(rename = "WEB")]
+    WebInitiatedEntry,
 }
 
 /// Indicates if a fallback mechanism was used to obtain the card information when EMV/chip
@@ -726,20 +730,25 @@ pub enum PaymentMethodEntryMode {
 }
 
 /// Indicates whether to execute the fingerprint signature functionality.
-///
-/// Indicates whether to store the card as part of a transaction.
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Mode {
+pub enum FingerprintMode {
     /// Always check and create the fingerprint value regardless of the result of the
     /// card authorization.
-    /// ///  The card information is always stored irrespective of whether the payment
-    /// method authorization was successful or not.
     Always,
     /// Always check and create the fingerprint value when the card authorization
     /// is successful.
-    /// The card information is only storedif the payment method authorization was
+    OnSuccess,
+}
+
+/// Indicates whether to store the card as part of a transaction.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CardStorageMode {
+    /// ///  The card information is always stored irrespective of whether the payment
+    /// method authorization was successful or not.
+    Always,
+    /// The card information is only stored if the payment method authorization was
     /// successful.
     OnSuccess,
 }
