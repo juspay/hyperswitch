@@ -27,7 +27,6 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
-    //TODO: everytime parsing the json may have impact?
     let merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,
@@ -74,6 +73,7 @@ pub async fn construct_refund_router_data<'a, F>(
             currency,
             amount,
             connector_specific_data: None,
+            reason: refund.refund_reason.clone(),
         },
 
         response: Ok(types::RefundsResponseData {
