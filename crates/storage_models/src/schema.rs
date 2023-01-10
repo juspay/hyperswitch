@@ -217,6 +217,7 @@ diesel::table! {
         browser_info -> Nullable<Jsonb>,
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
+        connector_metadata -> Nullable<Jsonb>,
     }
 }
 

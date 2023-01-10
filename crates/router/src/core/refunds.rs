@@ -113,12 +113,13 @@ pub async fn trigger_refund_to_gateway(
         .attach_printable("Transaction in invalid")
     })?;
 
+    validator::validate_for_valid_refunds(payment_attempt)?;
+
     let router_data = core_utils::construct_refund_router_data(
         state,
         &connector_id,
         merchant_account,
         (payment_attempt.amount, currency),
-        None,
         payment_intent,
         payment_attempt,
         refund,
@@ -261,7 +262,6 @@ pub async fn sync_refund_with_gateway(
         &connector_id,
         merchant_account,
         (payment_attempt.amount, currency),
-        None,
         payment_intent,
         payment_attempt,
         refund,

@@ -89,6 +89,8 @@ pub enum ApiErrorResponse {
     DuplicateRefundRequest,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Refund does not exist in our records.")]
     RefundNotFound,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Refunds not possible through hyperswitch. Please raise Refunds through {connector} dashboard")]
+    RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Customer does not exist in our records.")]
     CustomerNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Payment does not exist in our records.")]
@@ -163,6 +165,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::InvalidCardData { .. }
             | Self::CardExpired { .. }
             | Self::RefundFailed { .. }
+            | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
