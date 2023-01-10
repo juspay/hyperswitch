@@ -384,7 +384,7 @@ where
     T: Debug,
 {
     let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), &*state.store)
+        .authenticate_and_fetch(request.headers(), state)
         .await?;
     func(state, auth_out, payload).await
 }

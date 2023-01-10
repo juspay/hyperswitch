@@ -6,6 +6,7 @@ use error_stack::{report, IntoReport, ResultExt};
 use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
+    routes::AppState,
     services::api,
     types::storage,
     utils::OptionExt,
@@ -16,12 +17,9 @@ pub trait AuthenticateAndFetch<T> {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        store: &dyn StorageInterface,
+        state: &AppState,
     ) -> RouterResult<T>;
 }
-
-pub type BoxedFetchMerchantAccountAuth<'a> =
-    Box<&'a dyn AuthenticateAndFetch<storage::MerchantAccount>>;
 
 #[derive(Debug)]
 pub struct ApiKeyAuth;
@@ -31,11 +29,12 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for ApiKeyAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        store: &dyn StorageInterface,
+        state: &AppState,
     ) -> RouterResult<storage::MerchantAccount> {
         let api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        store
+        state
+            .store
             .find_merchant_account_by_api_key(api_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
@@ -51,11 +50,11 @@ impl AuthenticateAndFetch<()> for AdminApiAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        _store: &dyn StorageInterface,
+        state: &AppState,
     ) -> RouterResult<()> {
         let admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        if admin_api_key != "test_admin" {
+        if admin_api_key != state.conf.keys.admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -71,9 +70,10 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for MerchantIdAuth {
     async fn authenticate_and_fetch(
         &self,
         _request_headers: &HeaderMap,
-        store: &dyn StorageInterface,
+        state: &AppState,
     ) -> RouterResult<storage::MerchantAccount> {
-        store
+        state
+            .store
             .find_merchant_account_by_merchant_id(self.0.as_ref())
             .await
             .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized))
@@ -88,11 +88,12 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for PublishableKeyAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        store: &dyn StorageInterface,
+        state: &AppState,
     ) -> RouterResult<storage::MerchantAccount> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        store
+        state
+            .store
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
