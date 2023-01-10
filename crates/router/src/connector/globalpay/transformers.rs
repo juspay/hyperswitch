@@ -57,7 +57,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for GlobalpayPaymentsRequest {
         Ok(Self {
             amount: match value.request.amount_to_capture {
                 Some(amount) => amount.to_string(),
-                _ => "".to_string(),// takes the original amount of the transaction to capture
+                _ => "".to_string(), // takes the original amount of the transaction to capture
             },
             ..Default::default()
         })
@@ -130,6 +130,7 @@ impl<F, T>
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             ..item.data
         })
