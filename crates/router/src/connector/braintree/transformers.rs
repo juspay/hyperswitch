@@ -1,9 +1,11 @@
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -106,7 +108,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             })),
             api::PaymentMethod::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
-                    payment_method_nonce: wallet_data.token.to_string(),
+                    payment_method_nonce: wallet_data
+                        .token
+                        .to_owned()
+                        .get_required_value("token")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)
+                        .attach_printable("No token passed")?,
                 }))
             }
             _ => Err(errors::ConnectorError::NotImplemented(format!(

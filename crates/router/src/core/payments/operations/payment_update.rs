@@ -112,6 +112,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
+        payment_intent.return_url = request.return_url.clone();
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases_storage(
@@ -323,12 +324,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_id = customer.map(|c| c.customer_id);
 
-        let get_status = || {
+        let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;
             if is_payment_method_unavailable {
-                return enums::IntentStatus::RequiresPaymentMethod;
-            }
-            if !payment_data.confirm.unwrap_or(true)
+                enums::IntentStatus::RequiresPaymentMethod
+            } else if !payment_data.confirm.unwrap_or(true)
                 || current_intent_status == enums::IntentStatus::RequiresCustomerAction
             {
                 enums::IntentStatus::RequiresConfirmation
@@ -342,16 +342,19 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payment_data.payment_intent.billing_address_id.clone(),
         );
 
+        let return_url = payment_data.payment_intent.return_url.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
-                payment_data.payment_intent.clone(),
+                payment_data.payment_intent,
                 storage::PaymentIntentUpdate::Update {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
-                    status: get_status(),
+                    status: intent_status,
                     customer_id,
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
+                    return_url,
                 },
                 storage_scheme,
             )
