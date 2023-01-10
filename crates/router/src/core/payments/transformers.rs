@@ -11,7 +11,7 @@ use crate::{
         payments::{self, helpers},
     },
     routes::AppState,
-    services::{self, refresh_connector_access_token, RedirectForm},
+    services::{self, RedirectForm},
     types::{
         self, api,
         storage::{self, enums},
@@ -59,7 +59,7 @@ where
 
         let _token = match access_token {
             Some(token) => token,
-            None => refresh_connector_access_token(state, connector_id.to_string())
+            None => services::refresh_connector_access_token(state, connector_id.to_string())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
         };
