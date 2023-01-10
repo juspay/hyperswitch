@@ -614,19 +614,14 @@ pub async fn get_connector_default(
     request_connector: Option<api_enums::Connector>,
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
     let connectors = &state.conf.connectors;
-    if matches!(
+    let connector_name = if matches!(
         payment_method,
         Some(api::PaymentMethod::Wallet(api::WalletData {
             issuer_name: api_enums::WalletIssuer::Paypal,
             token: Some(_)
         }))
     ) {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            "braintree",
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
+        String::from("braintree")
     } else if matches!(
         payment_method,
         Some(api::PaymentMethod::Wallet(api::WalletData {
@@ -634,19 +629,9 @@ pub async fn get_connector_default(
             token: None
         }))
     ) {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            "adyen",
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
+        String::from("adyen")
     } else if let Some(connector) = request_connector {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            &connector.to_string(),
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
+        connector.to_string()
     } else {
         let vec_val: Vec<serde_json::Value> = merchant_account
             .custom_routing_rules
@@ -669,21 +654,22 @@ pub async fn get_connector_default(
             connectors: connector_names,
         };
 
-        let connector_name = connector_list
+        connector_list
             .connectors
-            .first()
+            .into_iter()
+            .next()
             .get_required_value("connectors")
             .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
             .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .as_str();
+    };
 
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
-    }
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        connectors,
+        &connector_name,
+        api::GetToken::Connector,
+    )?;
+
+    Ok(api::ConnectorCallType::Single(connector_data))
 }
 
 #[instrument(skip_all)]
