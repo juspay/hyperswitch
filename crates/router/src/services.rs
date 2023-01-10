@@ -1,4 +1,5 @@
 pub mod api;
+pub mod authentication;
 pub mod encryption;
 pub mod logger;
 
