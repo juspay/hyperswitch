@@ -12,7 +12,7 @@ use crate::{
     },
     logger,
     routes::AppState,
-    services::{self, RedirectForm},
+    services::{self, refresh_connector_access_token, RedirectForm},
     types::{
         self, api,
         storage::{self, enums},

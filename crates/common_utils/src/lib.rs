@@ -27,6 +27,11 @@ pub mod date_time {
     pub fn convert_to_pdt(offset_time: OffsetDateTime) -> PrimitiveDateTime {
         PrimitiveDateTime::new(offset_time.date(), offset_time.time())
     }
+
+    /// Get the current time in unix timestamp format
+    pub fn now_unix_timestamp() -> i64 {
+        OffsetDateTime::now_utc().unix_timestamp()
+    }
 }
 
 /// Generate a nanoid with the given prefix and length
