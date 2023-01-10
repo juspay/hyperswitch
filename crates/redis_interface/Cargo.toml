@@ -11,12 +11,12 @@ license = "Apache-2.0"
 error-stack = "0.2.4"
 fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
 futures = "0.3"
-serde = { version = "1.0.149", features = ["derive"] }
-thiserror = "1.0.37"
+serde = { version = "1.0.152", features = ["derive"] }
+thiserror = "1.0.38"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [dev-dependencies]
-tokio = { version = "1.23.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
