@@ -198,10 +198,11 @@ pub async fn payment_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
-    let (auth_type, auth_flow) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
 
     wrap::compatibility_api_wrap::<
         _,

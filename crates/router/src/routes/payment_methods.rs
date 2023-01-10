@@ -64,7 +64,8 @@ pub async fn list_customer_payment_method_api(
 ) -> HttpResponse {
     let customer_id = customer_id.into_inner().0;
 
-    let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
+    let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await
+    {
         Ok(auth_type) => auth_type,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -139,7 +140,14 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
-    api::server_wrap(&state, &req, pm, cards::delete_payment_method, &auth::ApiKeyAuth).await
+    api::server_wrap(
+        &state,
+        &req,
+        pm,
+        cards::delete_payment_method,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[cfg(test)]

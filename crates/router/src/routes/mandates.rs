@@ -18,7 +18,14 @@ pub async fn get_mandate(
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
-    api::server_wrap(&state, &req, mandate_id, mandate::get_mandate, &auth::ApiKeyAuth).await
+    api::server_wrap(
+        &state,
+        &req,
+        mandate_id,
+        mandate::get_mandate,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]

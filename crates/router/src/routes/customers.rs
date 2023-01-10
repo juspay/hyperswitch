@@ -37,10 +37,11 @@ pub async fn customers_retrieve(
     })
     .into_inner();
 
-    let auth = match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
+    let auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
 
     api::server_wrap(
         &state,
