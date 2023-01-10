@@ -21,7 +21,10 @@ use self::{
 };
 use super::errors::StorageErrorExt;
 use crate::{
-    core::errors::{self, RouterResponse, RouterResult},
+    core::{
+        errors::{self, RouterResponse, RouterResult},
+        payment_methods::vault,
+    },
     db::StorageInterface,
     logger, pii,
     routes::AppState,
@@ -152,7 +155,7 @@ where
                 .await?
             }
         };
-        helpers::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
+        vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
     }
     Ok((payment_data, req, customer))
 }

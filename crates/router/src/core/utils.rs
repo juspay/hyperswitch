@@ -3,10 +3,13 @@ use std::marker::PhantomData;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::PaymentAddress;
 use crate::{
     consts,
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        payment_methods::vault,
+    },
     routes::AppState,
     types::{
         self, api,
@@ -52,7 +55,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let payment_method_data = match payment_method_data.cloned() {
         Some(v) => v,
         None => {
-            let (pm, _) = helpers::Vault::get_payment_method_data_from_locker(
+            let (pm, _) = vault::Vault::get_payment_method_data_from_locker(
                 state,
                 &payment_attempt.attempt_id,
             )

@@ -68,7 +68,7 @@ pub fn mk_add_card_request(
     card: &api::CardDetail,
     customer_id: &str,
     _req: &api::CreatePaymentMethod,
-) -> CustomResult<services::Request, errors::CardVaultError> {
+) -> CustomResult<services::Request, errors::VaultError> {
     let add_card_req = AddCardRequest {
         card_number: card.card_number.clone(),
         customer_id,
@@ -80,7 +80,7 @@ pub fn mk_add_card_request(
         nickname: Some("router".to_string()), //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
-        .change_context(errors::CardVaultError::RequestEncodingFailed)?;
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/addCard");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -130,14 +130,14 @@ pub fn mk_get_card_request<'a>(
     locker: &Locker,
     _mid: &'a str,
     card_id: &'a str,
-) -> CustomResult<services::Request, errors::CardVaultError> {
+) -> CustomResult<services::Request, errors::VaultError> {
     let get_card_req = GetCard {
         merchant_id: "m0010", // [#253]: need to assign locker id to every merchant
         card_id,
     };
 
     let body = utils::Encode::<GetCard<'_>>::encode(&get_card_req)
-        .change_context(errors::CardVaultError::RequestEncodingFailed)?;
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -150,13 +150,13 @@ pub fn mk_delete_card_request<'a>(
     locker: &Locker,
     merchant_id: &'a str,
     card_id: &'a str,
-) -> CustomResult<services::Request, errors::CardVaultError> {
+) -> CustomResult<services::Request, errors::VaultError> {
     let delete_card_req = GetCard {
         merchant_id,
         card_id,
     };
     let body = utils::Encode::<GetCard<'_>>::encode(&delete_card_req)
-        .change_context(errors::CardVaultError::RequestEncodingFailed)?;
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -170,11 +170,11 @@ pub fn mk_delete_card_request<'a>(
 pub fn get_card_detail(
     pm: &storage::PaymentMethod,
     response: AddCardResponse,
-) -> CustomResult<api::CardDetailFromLocker, errors::CardVaultError> {
+) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response
         .card_number
         .get_required_value("card_number")
-        .change_context(errors::CardVaultError::FetchCardFailed)?;
+        .change_context(errors::VaultError::FetchCardFailed)?;
     let mut last4_digits = card_number.peek().to_owned();
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.clone(),
@@ -195,9 +195,9 @@ pub fn mk_crud_locker_request(
     locker: &Locker,
     path: &str,
     req: api::TokenizePayloadEncrypted,
-) -> CustomResult<services::Request, errors::CardVaultError> {
+) -> CustomResult<services::Request, errors::VaultError> {
     let body = utils::Encode::<api::TokenizePayloadEncrypted>::encode_to_value(&req)
-        .change_context(errors::CardVaultError::RequestEncodingFailed)?;
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -215,7 +215,7 @@ pub fn mk_card_value1(
     nickname: Option<String>,
     card_last_four: Option<String>,
     card_token: Option<String>,
-) -> CustomResult<String, errors::CardVaultError> {
+) -> CustomResult<String, errors::VaultError> {
     let value1 = api::TokenizedCardValue1 {
         card_number,
         exp_year,
@@ -226,7 +226,7 @@ pub fn mk_card_value1(
         card_token,
     };
     let value1_req = utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
-        .change_context(errors::CardVaultError::FetchCardFailed)?;
+        .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value1_req)
 }
 
@@ -236,7 +236,7 @@ pub fn mk_card_value2(
     external_id: Option<String>,
     customer_id: Option<String>,
     payment_method_id: Option<String>,
-) -> CustomResult<String, errors::CardVaultError> {
+) -> CustomResult<String, errors::VaultError> {
     let value2 = api::TokenizedCardValue2 {
         card_security_code,
         card_fingerprint,
@@ -245,6 +245,6 @@ pub fn mk_card_value2(
         payment_method_id,
     };
     let value2_req = utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
-        .change_context(errors::CardVaultError::FetchCardFailed)?;
+        .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value2_req)
 }
