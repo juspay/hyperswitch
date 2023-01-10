@@ -12,12 +12,6 @@ on:
     #   - "Cargo.toml"
 
   pull_request:
-    types:
-      - "labeled"
-      - "opened"
-      - "ready_for_review"
-      - "reopened"
-      - "synchronize"
     # paths:
     #   - ".github/workflows/**"
     #   - "crates/**"
@@ -53,7 +47,6 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -71,7 +64,6 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -113,7 +105,6 @@ jobs:
 
   # cargo-deny:
   #   name: Run cargo-deny
-  #   if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
   #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
@@ -135,7 +126,6 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

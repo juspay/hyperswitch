@@ -16,11 +16,10 @@ pub use self::api_error_response::ApiErrorResponse;
 pub(crate) use self::utils::{ConnectorErrorExt, StorageErrorExt};
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
-pub type RouterResponse<T> = CustomResult<services::BachResponse<T>, ApiErrorResponse>;
+pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
 
-// FIXME: Phase out BachResult and BachResponse
-pub type BachResult<T> = Result<T, BachError>;
-pub type BachResponse<T> = BachResult<services::BachResponse<T>>;
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
@@ -50,7 +49,7 @@ macro_rules! impl_error_type {
 // FIXME: Make this a derive macro instead
 macro_rules! router_error_error_stack_specific {
     ($($path: ident)::+ < $st: ident >, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl From<$($path)::+ <$st>> for BachError {
+        impl From<$($path)::+ <$st>> for ApplicationError {
             fn from(err: $($path)::+ <$st> ) -> Self {
                 $($path2)::*(err)
             }
@@ -58,7 +57,7 @@ macro_rules! router_error_error_stack_specific {
     };
 
     ($($path: ident)::+  <$($inner_path:ident)::+>, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl<'a> From< $($path)::+ <$($inner_path)::+> > for BachError {
+        impl<'a> From< $($path)::+ <$($inner_path)::+> > for ApplicationError {
             fn from(err: $($path)::+ <$($inner_path)::+> ) -> Self {
                 $($path2)::*(err)
             }
@@ -114,7 +113,7 @@ impl_error_type!(EncryptionError, "Encryption error");
 impl_error_type!(UnexpectedError, "Unexpected error");
 
 #[derive(Debug, thiserror::Error)]
-pub enum BachError {
+pub enum ApplicationError {
     // Display's impl can be overridden by the attribute error marco.
     // Don't use Debug here, Debug gives error stack in response.
     #[error("{{ error_description: Error while Authenticating, error_message: {0} }}")]
@@ -150,32 +149,32 @@ pub enum BachError {
 
 router_error_error_stack_specific!(
     error_stack::Report<storage_errors::DatabaseError>,
-    BachError::EDatabaseError(error_stack::Report<DatabaseError>)
+    ApplicationError::EDatabaseError(error_stack::Report<DatabaseError>)
 );
 router_error_error_stack_specific!(
     error_stack::Report<AuthenticationError>,
-    BachError::EAuthenticationError(error_stack::Report<AuthenticationError>)
+    ApplicationError::EAuthenticationError(error_stack::Report<AuthenticationError>)
 );
 router_error_error_stack_specific!(
     error_stack::Report<UnexpectedError>,
-    BachError::EUnexpectedError(error_stack::Report<UnexpectedError>)
+    ApplicationError::EUnexpectedError(error_stack::Report<UnexpectedError>)
 );
 router_error_error_stack_specific!(
     error_stack::Report<ParsingError>,
-    BachError::EParsingError(error_stack::Report<ParsingError>)
+    ApplicationError::EParsingError(error_stack::Report<ParsingError>)
 );
 router_error_error_stack_specific!(
     error_stack::Report<EncryptionError>,
-    BachError::EEncryptionError(error_stack::Report<EncryptionError>)
+    ApplicationError::EEncryptionError(error_stack::Report<EncryptionError>)
 );
 
-impl From<MetricsError> for BachError {
+impl From<MetricsError> for ApplicationError {
     fn from(err: MetricsError) -> Self {
         Self::EMetrics(err)
     }
 }
 
-impl From<std::io::Error> for BachError {
+impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
         Self::EIo(err)
     }
@@ -187,7 +186,7 @@ impl From<ring::error::Unspecified> for EncryptionError {
     }
 }
 
-impl From<ConfigError> for BachError {
+impl From<ConfigError> for ApplicationError {
     fn from(err: ConfigError) -> Self {
         Self::ConfigurationError(err)
     }
@@ -202,7 +201,7 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
         ))
 }
 
-impl ResponseError for BachError {
+impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::EParsingError(_)
