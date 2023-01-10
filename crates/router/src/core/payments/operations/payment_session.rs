@@ -268,6 +268,7 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        _payment_method: Option<api::PaymentMethod>,
         _request_connector: Option<api_enums::Connector>,
     ) -> RouterResult<api::ConnectorCallType> {
         let connectors = &state.conf.connectors;

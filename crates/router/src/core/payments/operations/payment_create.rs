@@ -256,9 +256,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        payment_method: Option<api::PaymentMethod>,
         request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, payment_method, request_connector)
+            .await
     }
 }
 

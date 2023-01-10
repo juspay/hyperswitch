@@ -125,6 +125,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        payment_method: Option<api::PaymentMethod>,
         request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
 }
@@ -192,9 +193,11 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        payment_method: Option<api::PaymentMethod>,
         request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, payment_method, request_connector)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -258,9 +261,11 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        payment_method: Option<api::PaymentMethod>,
         request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, payment_method, request_connector)
+            .await
     }
 }
 
@@ -312,8 +317,10 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
+        payment_method: Option<api::PaymentMethod>,
         request_connector: Option<api_enums::Connector>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, payment_method, request_connector)
+            .await
     }
 }

@@ -100,7 +100,12 @@ where
 
     let connector_details = operation
         .to_domain()?
-        .get_connector(&merchant_account, state, use_connector)
+        .get_connector(
+            &merchant_account,
+            state,
+            payment_data.payment_method_data.clone(),
+            use_connector,
+        )
         .await?;
 
     if let api::ConnectorCallType::Single(ref connector) = connector_details {
