@@ -5,11 +5,12 @@ mod transformers;
 use std::fmt::Debug;
 
 use bytes::Bytes;
-// use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
-use transformers as globalpay;
 
-use self::{requests::GlobalpayPaymentsRequest, response::GlobalpayPaymentsResponse};
+use self::{
+    requests::GlobalpayPaymentsRequest, response::GlobalpayPaymentsResponse,
+    transformers as globalpay,
+};
 use crate::{
     configs::settings,
     core::{
@@ -155,12 +156,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         data: &types::PaymentsCancelRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError>
-    where
-        api::Void: Clone,
-        types::PaymentsCancelData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")

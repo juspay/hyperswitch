@@ -54,18 +54,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            ..Default::default()
-        })
+        Ok(Self::default())
     }
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_value: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            ..Default::default()
-        })
+        Ok(Self::default())
     }
 }
 

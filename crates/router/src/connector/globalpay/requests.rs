@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// A geographical coordinate
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.
@@ -11,34 +10,15 @@ pub struct GlobalpayPaymentsRequest {
     /// Indicates if the merchant would accept an authorization for an amount less than the
     /// requested amount. This is available for CP channel
     /// only where the balance not authorized can be processed again using a different card.
-    /// * PARTIAL - Indicates merchant would accept an authorization for an amount less than the
-    /// requested amount.
-    /// example: PARTIAL
     pub authorization_mode: Option<AuthorizationMode>,
     /// Indicates whether the transaction is to be captured automatically, later or later using
     /// more than 1 partial capture.
-    /// * AUTO - If a transaction is authorized, funds will exchange between the payer and
-    /// merchant automatically and as soon as possible.
-    /// * LATER - If a transaction is authorized, funds will not exchange between the payer and
-    /// merchant automatically and will require a subsequent separate action to capture that
-    /// transaction and start the funding process. Only one successful capture is permitted.
-    /// * MULTIPLE - If a transaction is authorized, funds will not exchange between the payer
-    /// and merchant automatically. One or more subsequent separate capture actions are required
-    /// to capture that transaction in parts and start the funding process for the part captured.
-    /// One or many successful capture are permitted once the total amount captured is within a
-    /// range of the original authorized amount.'
     pub capture_mode: Option<CaptureMode>,
     /// The amount of the transaction that relates to cashback.It is always represented in the
     /// lowest denomiation of the related currency.
     pub cashback_amount: Option<String>,
     /// Describes whether the transaction was processed in a face to face(CP) scenario or a
     /// Customer Not Present (CNP) scenario.
-    /// * CP - A Customer Present transaction is when the payer and the merchant are in direct
-    /// face to face contact when exchanging payment method information to fulfill a transaction.
-    /// e.g. in a store and paying at the counter that is attended by a clerk.
-    /// * CNP - A Customer NOT Present transaction is when the payer and the merchant are not
-    /// together when exchanging payment method information to fulfill a transaction. e.g. a
-    /// transaction executed from a merchant's website or over the phone
     pub channel: Channel,
     /// The amount that reflects the charge the merchant applied to the transaction for availing
     /// of a more convenient purchase.It is always represented in the lowest denomiation of the
@@ -56,9 +36,6 @@ pub struct GlobalpayPaymentsRequest {
     /// denomiation of the related currency.
     pub gratuity_amount: Option<String>,
     /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
-    /// * PAYER - The transaction was initated by the customer who is paying the merchant.
-    /// * MERCHANT - The transaction was initated by the merchant, who is getting paid by the
-    /// payer.'
     pub initiator: Option<Initiator>,
     /// Indicates the source IP Address of the system used to create the transaction.
     pub ip_address: Option<String>,
@@ -88,10 +65,6 @@ pub struct GlobalpayPaymentsRequest {
     pub total_capture_count: Option<i64>,
     /// Describes whether the transaction is a SALE, that moves funds from Payer to Merchant, or
     /// a REFUND where funds move from Merchant to Payer.
-    /// * SALE - indicates the movement, or the attempt to move, funds from payer to a
-    /// merchant.
-    /// * REFUND - indicates the movement, or the attempt to move, funds from merchant to the
-    /// payer.
     #[serde(rename = "type")]
     pub globalpay_payments_request_type: Option<GlobalpayPaymentsRequestType>,
     /// The merchant's user reference for the transaction. This represents the person who
@@ -199,34 +172,8 @@ pub struct PaymentMethod {
     pub encryption: Option<Encryption>,
     /// Indicates how the payment method information was obtained by the Merchant for this
     /// transaction.
-    /// * MOTO - A CNP channel entry mode where the payment method information was obtained over
-    /// the phone or via postal mail.
-    /// * ECOM - A CNP channel entry mode where the payment method was obtained via a browser.
-    /// * IN_APP - A CNP channel entry mode where the payment method was obtained via an
-    /// application and applies to digital wallets only.
-    /// * CHIP - A CP channel entry mode where the payment method information was obtained from a
-    /// chip. E.g. card is inserted into a device to read the chip.
-    /// * SWIPE - A CP channel entry mode where the payment method information was obtained from
-    /// swiping a magnetic strip. E.g. card's magnetic strip is swiped through a device to read
-    /// the card information.
-    /// * MANUAL - A CP channel entry mode where the payment method information was obtained by
-    /// manually keying the payment method information into the device.
-    /// * CONTACTLESS_CHIP -  A CP channel entry mode where the payment method information was
-    /// obtained by bringing the payment method to close proximity of a device. E.g. tap a cardon
-    /// or near a device to exchange card information.
-    /// * CONTACTLESS_SWIPE -  A CP channel entry mode where the payment method information was
-    /// obtained by bringing the payment method to close proximity of a device and also swiping
-    /// the card. E.g. tap a card on or near a device and swipe it through device to exchange
-    /// card information
-    /// * PHONE - A CNP channel entry mode where the payment method was obtained over the
-    /// phone.
-    /// * MAIL - A CNP channel entry mode where the payment method was obtained via postal mail.
     pub entry_mode: PaymentMethodEntryMode,
     /// Indicates whether to execute the fingerprint signature functionality.
-    /// * ALWAYS - Always check and create the fingerprint value regardless of the result of the
-    /// card authorization.
-    /// * ON_SUCCESS - Always check and create the fingerprint value when the card authorization
-    /// is successful.
     pub fingerprint_mode: Option<Mode>,
     /// Specify the first name of the owner of the payment method.
     pub first_name: Option<String>,
@@ -242,10 +189,8 @@ pub struct PaymentMethod {
     /// for this transaction
     pub narrative: Option<String>,
     /// Indicates whether to store the card as part of a transaction.
-    /// * ALWAYS -  The card information is always stored irrespective of whether the payment
+    ///  The card information is always stored irrespective of whether the payment
     /// method authorization was successful or not.
-    /// * ON_SUCCESS - The card information is only storedif the payment method authorization was
-    /// successful.
     pub storage_mode: Option<Mode>,
 }
 
@@ -299,19 +244,6 @@ pub struct BankTransfer {
     /// The type of bank account associated with the payer's bank account.
     pub number_type: Option<NumberType>,
     /// Indicates how the transaction was authorized by the merchant.
-    /// * CCD - Cash Concentration or Disbursement - Can be either a credit or debit application
-    /// where funds are wither distributed or consolidated between corporate entities.
-    /// * POP - Point of Sale Entry - Point of sale debit applications non-shared (POS)
-    /// environment. These transactions are most often initiated by the consumer via a plastic
-    /// access card. This is only support for normal ACH transactions
-    /// * PPD - Prearranged Payment and Deposits - used to credit or debit a consumer account.
-    /// Popularity used for payroll direct deposits and pre-authorized bill payments.
-    /// * TEL - Telephone-Initiated Entry - Used for the origination of a single entry debit
-    /// transaction to a consumer's account pursuant to a verbal authorization obtained from the
-    /// consumer via the telephone.
-    /// * WEB - Internet (Web)-Initiated Entry - Used for the origination of debit entries
-    /// (either Single or Recurring Entry) to a consumer's account pursuant to a to an
-    /// authorization that is obtained from the Receiver via the Internet.
     pub sec_code: Option<SecCode>,
 }
 
@@ -358,32 +290,17 @@ pub struct Card {
     pub brand_reference: Option<String>,
     /// Indicates if a fallback mechanism was used to obtain the card information when EMV/chip
     /// did not work as expected.
-    /// * PREV_SUCCESS - indicates the previous transaction with this card was a success.
-    /// * PREV_FAILED - indicates the previous transaction with this card failed.
     pub chip_condition: Option<ChipCondition>,
     /// The numeric value printed on the physical card.
     pub cvv: String,
     /// Card Verification Value Indicator sent by the Merchant indicating the CVV
     /// availability.
-    /// * ILLEGIBLE - indicates the cvv is present but cannot be read.
-    /// * NOT_PRESENT - indicates the cvv is not present on the card.
-    /// * PRESENT - indicates the cvv is present.
     pub cvv_indicator: CvvIndicator,
     /// The 2 digit expiry date month of the card.
     pub expiry_month: String,
     /// The 2 digit expiry date year of the card.
     pub expiry_year: String,
     /// Indicates whether the card is a debit or credit card.
-    /// * DEBIT - indicates the card is a debit card where the funds may be present in an account
-    /// to fulfill the transaction amount.
-    /// * CREDIT - indicates the card is a credit card where the funds may be available on credit
-    /// to the payer to fulfill the transaction amount.
-    /// * FOOD_STAMP - indicates the card is an, Electronic Benefits Transfer, for food stamps.
-    /// * CASH_BENEFITS - indicates the card is an, Electronic Benefits Transfer, for cash
-    /// benefits.
-    /// * PREPAID - indicates the card is a prepaid card where the funds are loaded to the card
-    /// account to fulfill the transaction amount. Unlike a debit card, a prepaid is not linked
-    /// to a bank account.
     pub funding: Option<Funding>,
     /// The the card account number used to authorize the transaction. Also known as PAN.
     pub number: String,
@@ -407,9 +324,6 @@ pub struct DigitalWallet {
     pub cvv: Option<String>,
     /// Card Verification Value Indicator sent by the Merchant indicating the CVV
     /// availability.
-    /// * ILLEGIBLE - indicates the cvv is present but cannot be read.
-    /// * NOT_PRESENT - indicates the cvv is not present on the card.
-    /// * PRESENT - indicates the cvv is present.
     pub cvv_indicator: Option<CvvIndicator>,
     /// An indication of the degree of the authentication and liability shift obtained for this
     /// transaction. It is determined during the 3D Secure process. 2 or 1  for Mastercard
@@ -427,10 +341,6 @@ pub struct DigitalWallet {
     pub token: Option<String>,
     /// Indicates if the actual card number or a token is being used to process the
     /// transaction.
-    /// * CARD_NUMBER - The value in the digital wallet token field is a real card number
-    /// (PAN)
-    /// * CARD_TOKEN - The value in the digital wallet token field is a temporary token in the
-    /// format of a card number (PAN) but is not a real card number.
     pub token_format: Option<TokenFormat>,
 }
 
@@ -449,19 +359,6 @@ pub struct Encryption {
 pub struct StoredCredential {
     /// Indicates the transaction processing model being executed when using stored
     /// credentials.
-    /// * UNSCHEDULED - the transaction is adhoc or unscheduled. For example a payer visiting a
-    /// merchant to make purchase using the payment method stored with the merchant.
-    /// * RECURRING - The transaction is a repeat transaction initiated my the merchant and taken
-    /// using the payment method stored with the merchant, as part of an agreed schedule of
-    /// transactions.
-    /// * SUBSCRIPTION - The transaction is a repeat transaction initiated my the merchant and
-    /// taken using the payment method stored with the merchant, as part of an agreed schedule of
-    /// transactions. The amount taken is based on the usage by the payer of the good or service.
-    /// for example a monthly mobile phone bill.
-    /// * INSTALLMENT - The transaction is a repeat transaction initiated my the merchant and
-    /// taken using the payment method stored with the merchant, as part of an agreed schedule of
-    /// transactions and where the amount is known and agreed in advanced. For example the
-    /// payment in full of a good in fixed installments over a defined period of time.'
     pub model: Option<Model>,
     /// The reason stored credentials are being used to to create a transaction.
     pub reason: Option<Reason>,
@@ -473,54 +370,56 @@ pub struct StoredCredential {
 /// Indicates if the merchant would accept an authorization for an amount less than the
 /// requested amount. This is available for CP channel
 /// only where the balance not authorized can be processed again using a different card.
-/// * PARTIAL - Indicates merchant would accept an authorization for an amount less than the
-/// requested amount.
-///  pub example: PARTIAL
-///
-///
-/// Describes whether the device can process partial authorizations.
 ///
 /// Describes the instruction a device can indicate to the clerk in the case of fraud.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthorizationMode {
+    /// Indicates merchant would accept an authorization for an amount less than the
+    /// requested amount.
+    ///  pub example: PARTIAL
+    ///
+    ///
+    /// Describes whether the device can process partial authorizations.
     Partial,
 }
 
 /// Indicates whether the transaction is to be captured automatically, later or later using
 /// more than 1 partial capture.
-/// * AUTO - If a transaction is authorized, funds will exchange between the payer and
-/// merchant automatically and as soon as possible.
-/// * LATER - If a transaction is authorized, funds will not exchange between the payer and
-/// merchant automatically and will require a subsequent separate action to capture that
-/// transaction and start the funding process. Only one successful capture is permitted.
-/// * MULTIPLE - If a transaction is authorized, funds will not exchange between the payer
-/// and merchant automatically. One or more subsequent separate capture actions are required
-/// to capture that transaction in parts and start the funding process for the part captured.
-/// One or many successful capture are permitted once the total amount captured is within a
-/// range of the original authorized amount.'
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaptureMode {
+    /// If a transaction is authorized, funds will exchange between the payer and
+    /// merchant automatically and as soon as possible.
     Auto,
+    /// If a transaction is authorized, funds will not exchange between the payer and
+    /// merchant automatically and will require a subsequent separate action to capture that
+    /// transaction and start the funding process. Only one successful capture is permitted.
     Later,
+    /// If a transaction is authorized, funds will not exchange between the payer
+    /// and merchant automatically. One or more subsequent separate capture actions are required
+    /// to capture that transaction in parts and start the funding process for the part captured.
+    /// One or many successful capture are permitted once the total amount captured is within a
+    /// range of the original authorized amount.'
     Multiple,
 }
 
 /// Describes whether the transaction was processed in a face to face(CP) scenario or a
 /// Customer Not Present (CNP) scenario.
-/// * CP - A Customer Present transaction is when the payer and the merchant are in direct
-/// face to face contact when exchanging payment method information to fulfill a transaction.
-/// e.g. in a store and paying at the counter that is attended by a clerk.
-/// * CNP - A Customer NOT Present transaction is when the payer and the merchant are not
-/// together when exchanging payment method information to fulfill a transaction. e.g. a
-/// transaction executed from a merchant's website or over the phone
+
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Channel {
     #[default]
-    Cnp,
-    Cp,
+    #[serde(rename = "CNP")]
+    /// A Customer NOT Present transaction is when the payer and the merchant are not
+    /// together when exchanging payment method information to fulfill a transaction. e.g. a
+    /// transaction executed from a merchant's website or over the phone
+    CustomerNotPresent,
+    #[serde(rename = "CP")]
+    /// A Customer Present transaction is when the payer and the merchant are in direct
+    /// face to face contact when exchanging payment method information to fulfill a transaction.
+    /// e.g. in a store and paying at the counter that is attended by a clerk.
+    CustomerPresent,
 }
 
 /// Describes the data the device can handle when it receives a response for a card
@@ -594,25 +493,25 @@ pub enum PrintReceiptMode {
 
 /// Describes whether the transaction is a SALE, that moves funds from Payer to Merchant, or
 /// a REFUND where funds move from Merchant to Payer.
-/// * SALE - indicates the movement, or the attempt to move, funds from payer to a
-/// merchant.
-/// * REFUND - indicates the movement, or the attempt to move, funds from merchant to the
-/// payer.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobalpayPaymentsRequestType {
+    /// indicates the movement, or the attempt to move, funds from merchant to the
+    /// payer.
     Refund,
+    /// indicates the movement, or the attempt to move, funds from payer to a
+    /// merchant.
     Sale,
 }
 
 /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
-/// * PAYER - The transaction was initated by the customer who is paying the merchant.
-/// * MERCHANT - The transaction was initated by the merchant, who is getting paid by the
-/// payer.'
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Initiator {
+    /// The transaction was initated by the merchant, who is getting paid by the
+    /// payer.'
     Merchant,
+    /// The transaction was initated by the customer who is paying the merchant.
     Payer,
 }
 
@@ -687,72 +586,73 @@ pub enum NumberType {
 }
 
 /// Indicates how the transaction was authorized by the merchant.
-/// * CCD - Cash Concentration or Disbursement - Can be either a credit or debit application
-/// where funds are wither distributed or consolidated between corporate entities.
-/// * POP - Point of Sale Entry - Point of sale debit applications non-shared (POS)
-/// environment. These transactions are most often initiated by the consumer via a plastic
-/// access card. This is only support for normal ACH transactions
-/// * PPD - Prearranged Payment and Deposits - used to credit or debit a consumer account.
-/// Popularity used for payroll direct deposits and pre-authorized bill payments.
-/// * TEL - Telephone-Initiated Entry - Used for the origination of a single entry debit
-/// transaction to a consumer's account pursuant to a verbal authorization obtained from the
-/// consumer via the telephone.
-/// * WEB - Internet (Web)-Initiated Entry - Used for the origination of debit entries
-/// (either Single or Recurring Entry) to a consumer's account pursuant to a to an
-/// authorization that is obtained from the Receiver via the Internet.
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SecCode {
+    /// Cash Concentration or Disbursement - Can be either a credit or debit application
+    /// where funds are wither distributed or consolidated between corporate entities.
     Ccd,
+    /// Point of Sale Entry - Point of sale debit applications non-shared (POS)
+    /// environment. These transactions are most often initiated by the consumer via a plastic
+    /// access card. This is only support for normal ACH transactions
     Pop,
+    /// Prearranged Payment and Deposits - used to credit or debit a consumer account.
+    /// Popularity used for payroll direct deposits and pre-authorized bill payments.
     Ppd,
+    /// Telephone-Initiated Entry - Used for the origination of a single entry debit
+    /// transaction to a consumer's account pursuant to a verbal authorization obtained from the
+    /// consumer via the telephone.
     Tel,
+    /// Internet (Web)-Initiated Entry - Used for the origination of debit entries
+    /// (either Single or Recurring Entry) to a consumer's account pursuant to a to an
+    /// authorization that is obtained from the Receiver via the Internet.
     Web,
 }
 
 /// Indicates if a fallback mechanism was used to obtain the card information when EMV/chip
 /// did not work as expected.
-/// * PREV_SUCCESS - indicates the previous transaction with this card was a success.
-/// * PREV_FAILED - indicates the previous transaction with this card failed.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ChipCondition {
+    /// indicates the previous transaction with this card failed.
     PrevFailed,
+    /// indicates the previous transaction with this card was a success.
     PrevSuccess,
 }
 
 /// Card Verification Value Indicator sent by the Merchant indicating the CVV
 /// availability.
-/// * ILLEGIBLE - indicates the cvv is present but cannot be read.
-/// * NOT_PRESENT - indicates the cvv is not present on the card.
-/// * PRESENT - indicates the cvv is present.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CvvIndicator {
+    /// indicates the cvv is present but cannot be read.
     Illegible,
+    /// indicates the cvv is not present on the card.
     NotPresent,
     #[default]
+    /// indicates the cvv is present.
     Present,
 }
 
 /// Indicates whether the card is a debit or credit card.
-/// * DEBIT - indicates the card is a debit card where the funds may be present in an account
-/// to fulfill the transaction amount.
-/// * CREDIT - indicates the card is a credit card where the funds may be available on credit
-/// to the payer to fulfill the transaction amount.
-/// * FOOD_STAMP - indicates the card is an, Electronic Benefits Transfer, for food stamps.
-/// * CASH_BENEFITS - indicates the card is an, Electronic Benefits Transfer, for cash
-/// benefits.
-/// * PREPAID - indicates the card is a prepaid card where the funds are loaded to the card
-/// account to fulfill the transaction amount. Unlike a debit card, a prepaid is not linked
-/// to a bank account.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Funding {
+    /// indicates the card is an, Electronic Benefits Transfer, for cash
+    /// benefits.
     CashBenefits,
+    /// indicates the card is a credit card where the funds may be available on credit
+    /// to the payer to fulfill the transaction amount.
     Credit,
+    /// indicates the card is a debit card where the funds may be present in an account
+    /// to fulfill the transaction amount.
     Debit,
+    /// indicates the card is an, Electronic Benefits Transfer, for food stamps.
     FoodStamp,
+    /// indicates the card is a prepaid card where the funds are loaded to the card
+    /// account to fulfill the transaction amount. Unlike a debit card, a prepaid is not linked
+    /// to a bank account.
     Prepaid,
 }
 
@@ -766,14 +666,14 @@ pub enum DigitalWalletProvider {
 
 /// Indicates if the actual card number or a token is being used to process the
 /// transaction.
-/// * CARD_NUMBER - The value in the digital wallet token field is a real card number
-/// (PAN)
-/// * CARD_TOKEN - The value in the digital wallet token field is a temporary token in the
-/// format of a card number (PAN) but is not a real card number.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TokenFormat {
+    /// The value in the digital wallet token field is a real card number
+    /// (PAN)
     CardNumber,
+    /// The value in the digital wallet token field is a temporary token in the
+    /// format of a card number (PAN) but is not a real card number.
     CardToken,
 }
 
@@ -787,84 +687,85 @@ pub enum Method {
 
 /// Indicates how the payment method information was obtained by the Merchant for this
 /// transaction.
-/// * MOTO - A CNP channel entry mode where the payment method information was obtained over
-/// the phone or via postal mail.
-/// * ECOM - A CNP channel entry mode where the payment method was obtained via a browser.
-/// * IN_APP - A CNP channel entry mode where the payment method was obtained via an
-/// application and applies to digital wallets only.
-/// * CHIP - A CP channel entry mode where the payment method information was obtained from a
-/// chip. E.g. card is inserted into a device to read the chip.
-/// * SWIPE - A CP channel entry mode where the payment method information was obtained from
-/// swiping a magnetic strip. E.g. card's magnetic strip is swiped through a device to read
-/// the card information.
-/// * MANUAL - A CP channel entry mode where the payment method information was obtained by
-/// manually keying the payment method information into the device.
-/// * CONTACTLESS_CHIP -  A CP channel entry mode where the payment method information was
-/// obtained by bringing the payment method to close proximity of a device. E.g. tap a cardon
-/// or near a device to exchange card information.
-/// * CONTACTLESS_SWIPE -  A CP channel entry mode where the payment method information was
-/// obtained by bringing the payment method to close proximity of a device and also swiping
-/// the card. E.g. tap a card on or near a device and swipe it through device to exchange
-/// card information
-/// * PHONE - A CNP channel entry mode where the payment method was obtained over the
-/// phone.
-/// * MAIL - A CNP channel entry mode where the payment method was obtained via postal mail.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodEntryMode {
+    /// A CP channel entry mode where the payment method information was obtained from a
+    /// chip. E.g. card is inserted into a device to read the chip.
     Chip,
+    ///  A CP channel entry mode where the payment method information was
+    /// obtained by bringing the payment method to close proximity of a device. E.g. tap a cardon
+    /// or near a device to exchange card information.
     ContactlessChip,
+    ///  A CP channel entry mode where the payment method information was
+    /// obtained by bringing the payment method to close proximity of a device and also swiping
+    /// the card. E.g. tap a card on or near a device and swipe it through device to exchange
+    /// card information
     ContactlessSwipe,
     #[default]
+    /// A CNP channel entry mode where the payment method was obtained via a browser.
     Ecom,
+    /// A CNP channel entry mode where the payment method was obtained via an
+    /// application and applies to digital wallets only.
     InApp,
+    /// A CNP channel entry mode where the payment method was obtained via postal mail.
     Mail,
+    /// A CP channel entry mode where the payment method information was obtained by
+    /// manually keying the payment method information into the device.
     Manual,
+    /// A CNP channel entry mode where the payment method information was obtained over
+    /// the phone or via postal mail.
     Moto,
+    /// A CNP channel entry mode where the payment method was obtained over the
+    /// phone.
     Phone,
+    /// A CP channel entry mode where the payment method information was obtained from
+    /// swiping a magnetic strip. E.g. card's magnetic strip is swiped through a device to read
+    /// the card information.
     Swipe,
 }
 
 /// Indicates whether to execute the fingerprint signature functionality.
-/// * ALWAYS - Always check and create the fingerprint value regardless of the result of the
-/// card authorization.
-/// * ON_SUCCESS - Always check and create the fingerprint value when the card authorization
-/// is successful.
-///
 ///
 /// Indicates whether to store the card as part of a transaction.
-/// * ALWAYS -  The card information is always stored irrespective of whether the payment
-/// method authorization was successful or not.
-/// * ON_SUCCESS - The card information is only storedif the payment method authorization was
-/// successful.
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mode {
+    /// Always check and create the fingerprint value regardless of the result of the
+    /// card authorization.
+    /// ///  The card information is always stored irrespective of whether the payment
+    /// method authorization was successful or not.
     Always,
+    /// Always check and create the fingerprint value when the card authorization
+    /// is successful.
+    /// The card information is only storedif the payment method authorization was
+    /// successful.
     OnSuccess,
 }
 
 /// Indicates the transaction processing model being executed when using stored
 /// credentials.
-/// * UNSCHEDULED - the transaction is adhoc or unscheduled. For example a payer visiting a
-/// merchant to make purchase using the payment method stored with the merchant.
-/// * RECURRING - The transaction is a repeat transaction initiated my the merchant and taken
-/// using the payment method stored with the merchant, as part of an agreed schedule of
-/// transactions.
-/// * SUBSCRIPTION - The transaction is a repeat transaction initiated my the merchant and
-/// taken using the payment method stored with the merchant, as part of an agreed schedule of
-/// transactions. The amount taken is based on the usage by the payer of the good or service.
-/// for example a monthly mobile phone bill.
-/// * INSTALLMENT - The transaction is a repeat transaction initiated my the merchant and
-/// taken using the payment method stored with the merchant, as part of an agreed schedule of
-/// transactions and where the amount is known and agreed in advanced. For example the
-/// payment in full of a good in fixed installments over a defined period of time.'
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Model {
+    /// The transaction is a repeat transaction initiated by the merchant and
+    /// taken using the payment method stored with the merchant, as part of an agreed schedule of
+    /// transactions and where the amount is known and agreed in advanced. For example the
+    /// payment in full of a good in fixed installments over a defined period of time.'
     Installment,
+    /// The transaction is a repeat transaction initiated by the merchant and taken
+    /// using the payment method stored with the merchant, as part of an agreed schedule of
+    /// transactions.
     Recurring,
+    /// The transaction is a repeat transaction initiated by the merchant and
+    /// taken using the payment method stored with the merchant, as part of an agreed schedule of
+    /// transactions. The amount taken is based on the usage by the payer of the good or service.
+    /// for example a monthly mobile phone bill.
     Subscription,
+    /// the transaction is adhoc or unscheduled. For example a payer visiting a
+    /// merchant to make purchase using the payment method stored with the merchant.
     Unscheduled,
 }
 

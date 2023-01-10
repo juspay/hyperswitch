@@ -40,7 +40,8 @@ impl CardData for api::CCard {
         self.card_exp_year.peek().clone()
     }
     fn get_card_expiry_year_2_digit(&self) -> String {
-        self.card_exp_year.peek().clone().chars().skip(2).collect()
+        let year = self.card_exp_year.peek().clone();
+        year[year.len() - 2..].to_string()
     }
     fn get_card_cvc(&self) -> String {
         self.card_cvc.peek().clone()
