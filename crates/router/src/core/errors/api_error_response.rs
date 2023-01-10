@@ -89,8 +89,6 @@ pub enum ApiErrorResponse {
     DuplicateRefundRequest,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Refund does not exist in our records.")]
     RefundNotFound,
-    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Refunds not possible through hyperswitch. Please raise Refunds through {connector} dashboard")]
-    RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Customer does not exist in our records.")]
     CustomerNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Payment does not exist in our records.")]
@@ -109,6 +107,8 @@ pub enum ApiErrorResponse {
     MandateNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Return URL is not configured and not passed in payments request.")]
     ReturnUrlUnavailable,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Refunds not possible through hyperswitch. Please raise Refunds through {connector} dashboard")]
+    RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The merchant account with the specified details already exists in our records.")]
     DuplicateMerchantAccount,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The merchant connector account with the specified details already exists in our records.")]

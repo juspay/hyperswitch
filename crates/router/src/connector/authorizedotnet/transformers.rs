@@ -43,16 +43,16 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: String,
-    expiration_date: String,
+    card_number: masking::Secret<String, common_utils::pii::CardNumber>,
+    expiration_date: masking::Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    card_code: Option<String>,
+    card_code: Option<masking::Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct BankAccountDetails {
-    account_number: String,
+    account_number: masking::Secret<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -74,13 +74,13 @@ impl From<api_models::payments::PaymentMethod> for PaymentDetails {
                 let expiry_year = ccard.card_exp_year.peek().clone();
 
                 Self::CreditCard(CreditCardDetails {
-                    card_number: ccard.card_number.peek().clone(),
-                    expiration_date: format!("{expiry_year}-{expiry_month}"),
-                    card_code: Some(ccard.card_cvc.peek().clone()),
+                    card_number: ccard.card_number.clone(),
+                    expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                    card_code: Some(ccard.card_cvc.clone()),
                 })
             }
             api::PaymentMethod::BankTransfer => Self::BankAccount(BankAccountDetails {
-                account_number: "XXXXX".to_string(),
+                account_number: "XXXXX".to_string().into(),
             }),
             api::PaymentMethod::PayLater(_) => Self::Klarna,
             api::PaymentMethod::Wallet(_) => Self::Wallet,
@@ -365,7 +365,6 @@ pub struct CreateRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let (merchant_authentication, transaction_request);
         let payment_details = item
             .request
             .connector_metadata
@@ -376,9 +375,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             })?
             .clone();
 
-        merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        transaction_request = RefundTransactionRequest {
+        let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.request.refund_amount,
             payment: payment_details
@@ -634,8 +633,8 @@ pub struct AuthorizedotnetErrorResponse {
 
 fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
     PaymentDetails::CreditCard(CreditCardDetails {
-        card_number: masked_number,
-        expiration_date: "XXXX".to_string(),
+        card_number: masked_number.into(),
+        expiration_date: "XXXX".to_string().into(),
         card_code: None,
     })
 }
