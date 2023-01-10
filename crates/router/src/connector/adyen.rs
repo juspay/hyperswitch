@@ -474,7 +474,7 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        crate::logger::error!("{:?}",res);
+        crate::logger::error!("{:?}", res);
         let response: adyen::AdyenCancelResponse = res
             .response
             .parse_struct("AdyenCancelResponse")
