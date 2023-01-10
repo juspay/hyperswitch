@@ -42,6 +42,10 @@ jwt_secret="secret"
 [eph_key]
 validity = 1
 
+[refund]
+max_attempts = 10
+max_age = 365
+
 [scheduler]
 stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"
