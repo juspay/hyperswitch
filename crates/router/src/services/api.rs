@@ -768,7 +768,7 @@ pub async fn refresh_connector_access_token<'a>(
     _state: &'a AppState,
     _connector_name: String,
 ) -> CustomResult<String, errors::ConnectorError> {
-    todo!()
+    Ok(String::new())
 }
 
 #[cfg(test)]
