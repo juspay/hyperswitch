@@ -107,6 +107,8 @@ pub enum ApiErrorResponse {
     MandateNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Return URL is not configured and not passed in payments request.")]
     ReturnUrlUnavailable,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Refunds not possible through hyperswitch. Please raise Refunds through {connector} dashboard")]
+    RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The merchant account with the specified details already exists in our records.")]
     DuplicateMerchantAccount,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The merchant connector account with the specified details already exists in our records.")]
@@ -163,6 +165,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::InvalidCardData { .. }
             | Self::CardExpired { .. }
             | Self::RefundFailed { .. }
+            | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400

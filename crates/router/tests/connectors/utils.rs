@@ -114,9 +114,9 @@ pub trait ConnectorActions: Connector {
                 amount: 100,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
-                payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
+                connector_metadata: None,
                 reason: None,
             }),
         );
@@ -137,9 +137,9 @@ pub trait ConnectorActions: Connector {
                 amount: 100,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
-                payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
+                connector_metadata: None,
                 reason: None,
             }),
         );
@@ -248,9 +248,9 @@ impl Default for PaymentRefundType {
             amount: 1000,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
-            payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            connector_metadata: None,
             reason: None,
         };
         Self(data)
