@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use common_utils::ext_traits::AsyncExt;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -1375,9 +1376,8 @@ pub(crate) async fn verify_client_secret(
     client_secret: Option<String>,
     merchant_id: &str,
 ) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
-    match client_secret {
-        None => Ok(None),
-        Some(cs) => {
+    client_secret
+        .async_map(|cs| async move {
             let payment_id = get_payment_id_from_client_secret(&cs);
 
             let payment_intent = db
@@ -1391,9 +1391,10 @@ pub(crate) async fn verify_client_secret(
 
             authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
                 .map_err(errors::ApiErrorResponse::from)?;
-            Ok(Some(payment_intent))
-        }
-    }
+            Ok(payment_intent)
+        })
+        .await
+        .transpose()
 }
 
 #[inline]
