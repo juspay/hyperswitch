@@ -157,6 +157,8 @@ pub enum StripeErrorCode {
     },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
+    DuplicatePayment { payment_id: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -409,6 +411,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 current_value,
                 states,
             },
+            errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
+                Self::DuplicatePayment { payment_id }
+            }
         }
     }
 }
@@ -451,7 +456,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::AddressNotFound
             | Self::ResourceIdNotFound
             | Self::PaymentIntentMandateInvalid { .. }
-            | Self::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
+            | Self::PaymentIntentUnexpectedState { .. }
+            | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

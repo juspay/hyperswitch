@@ -9,10 +9,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{
-        self, api,
-        storage::{self, enums},
-    },
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -43,7 +40,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -51,7 +48,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             customer,
             Some(true),
             call_connector_action,
-            storage_scheme,
+            merchant_account,
         )
         .await
     }
@@ -65,7 +62,7 @@ impl types::VerifyRouterData {
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        _storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -83,7 +80,10 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
+                Ok(
+                    mandate::mandate_procedure(state, resp, maybe_customer, merchant_account)
+                        .await?,
+                )
             }
             _ => Ok(self.clone()),
         }

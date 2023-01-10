@@ -2,7 +2,11 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
-use crate::{core::payments::helpers, services::api, types::api::customers};
+use crate::{
+    core::payments::helpers,
+    services::{api, authentication as auth},
+    types::api::customers,
+};
 
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]
 pub async fn ephemeral_key_create(
@@ -18,7 +22,7 @@ pub async fn ephemeral_key_create(
         |state, merchant_account, req| {
             helpers::make_ephemeral_key(state, req.customer_id, merchant_account.merchant_id)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -35,7 +39,7 @@ pub async fn ephemeral_key_delete(
         &req,
         payload,
         |state, _, req| helpers::delete_ephemeral_key(&*state.store, req),
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }

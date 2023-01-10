@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use common_utils::errors::CustomResult;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use storage_models::enums;
 
@@ -8,6 +9,7 @@ use super::{requests::*, response::*};
 use crate::{
     core::errors,
     types::{self, api},
+    utils::OptionExt,
 };
 
 fn parse_int<T: FromStr>(
@@ -40,14 +42,22 @@ fn fetch_payment_instrument(
             api_models::enums::WalletIssuer::ApplePay => {
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
-                    wallet_token: wallet.token,
+                    wallet_token: wallet
+                        .token
+                        .get_required_value("token")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)
+                        .attach_printable("No token passed")?,
                     ..WalletPayment::default()
                 }))
             }
             api_models::enums::WalletIssuer::GooglePay => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
-                    wallet_token: wallet.token,
+                    wallet_token: wallet
+                        .token
+                        .get_required_value("token")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)
+                        .attach_printable("No token passed")?,
                     ..WalletPayment::default()
                 }))
             }

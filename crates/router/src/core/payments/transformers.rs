@@ -104,7 +104,7 @@ where
 
 pub trait ToResponse<Req, D, Op>
 where
-    Self: From<Req>,
+    Self: TryFrom<Req>,
     Op: Debug,
 {
     fn generate_response(
@@ -119,7 +119,7 @@ where
 
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
 where
-    Self: From<Req>,
+    Self: TryFrom<Req>,
     F: Clone,
     Op: Debug,
 {
@@ -234,7 +234,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
-    api::PaymentsResponse: From<R>,
+    api::PaymentsResponse: TryFrom<R>,
     Op: Debug,
 {
     let currency = payment_attempt
@@ -257,7 +257,9 @@ where
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
                 services::BachResponse::Form(form)
             } else {
-                let mut response: api::PaymentsResponse = request.into();
+                let mut response: api::PaymentsResponse = request
+                    .try_into()
+                    .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
                 let mut next_action_response = None;
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
                     next_action_response = Some(api::NextAction {
@@ -318,6 +320,7 @@ where
                         .to_owned()
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
+                        .set_cancellation_reason(payment_attempt.cancellation_reason)
                         .set_authentication_type(
                             payment_attempt
                                 .authentication_type
@@ -407,22 +410,12 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             .transpose()
             .unwrap_or_default();
 
-        let order_details = parsed_metadata.map(|data| data.order_details);
+        let order_details = parsed_metadata.and_then(|data| data.order_details);
 
         Ok(Self {
-            payment_method_data: {
-                let payment_method_type = payment_data
-                    .payment_attempt
-                    .payment_method
-                    .get_required_value("payment_method_type")?;
-
-                match payment_method_type {
-                    enums::PaymentMethodType::Paypal => api::PaymentMethod::Paypal,
-                    _ => payment_data
-                        .payment_method_data
-                        .get_required_value("payment_method_data")?,
-                }
-            },
+            payment_method_data: payment_data
+                .payment_method_data
+                .get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -505,7 +498,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
             .transpose()
             .unwrap_or_default();
 
-        let order_details = parsed_metadata.map(|data| data.order_details);
+        let order_details = parsed_metadata.and_then(|data| data.order_details);
 
         Ok(Self {
             amount: payment_data.amount.into(),
@@ -526,19 +519,9 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             confirm: true,
-            payment_method_data: {
-                let payment_method_type = payment_data
-                    .payment_attempt
-                    .payment_method
-                    .get_required_value("payment_method_type")?;
-
-                match payment_method_type {
-                    enums::PaymentMethodType::Paypal => api::PaymentMethod::Paypal,
-                    _ => payment_data
-                        .payment_method_data
-                        .get_required_value("payment_method_data")?,
-                }
-            },
+            payment_method_data: payment_data
+                .payment_method_data
+                .get_required_value("payment_method_data")?,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
