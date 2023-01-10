@@ -1,12 +1,12 @@
 use router::{
     configs::settings::{CmdLineConf, Settings, Subcommand},
-    core::errors::{BachError, BachResult},
+    core::errors::{ApplicationError, ApplicationResult},
     logger,
 };
 use structopt::StructOpt;
 
 #[actix_web::main]
-async fn main() -> BachResult<()> {
+async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = CmdLineConf::from_args();
 
@@ -41,7 +41,7 @@ async fn main() -> BachResult<()> {
 
     state.store.close().await;
 
-    Err(BachError::from(std::io::Error::new(
+    Err(ApplicationError::from(std::io::Error::new(
         std::io::ErrorKind::Other,
         "Server shut down",
     )))

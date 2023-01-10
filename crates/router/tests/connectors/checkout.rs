@@ -88,6 +88,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             }),
             connector_transaction_id: String::new(),
             refund_amount: 10,
+            reason: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,

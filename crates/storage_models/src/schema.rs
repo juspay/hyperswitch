@@ -327,6 +327,7 @@ diesel::table! {
         modified_at -> Timestamp,
         description -> Nullable<Varchar>,
         attempt_id -> Varchar,
+        refund_reason -> Nullable<Varchar>,
     }
 }
 
