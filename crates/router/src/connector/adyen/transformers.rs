@@ -176,14 +176,20 @@ pub struct AdyenCancelRequest {
     reference: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelResponse {
-    merchant_account: String,
     psp_reference: String,
-    status: String,
+    status: CancelStatus,
 }
 
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CancelStatus {
+    Received,
+    #[default]
+    Processing,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaypal {
@@ -415,10 +421,9 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     fn try_from(
         item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
-        let status = match item.response.status.as_str() {
-            "received" => storage_enums::AttemptStatus::Voided,
-            "processing" => storage_enums::AttemptStatus::Pending,
-            _ => storage_enums::AttemptStatus::VoidFailed,
+        let status = match item.response.status {
+            CancelStatus::Received => storage_enums::AttemptStatus::Voided,
+            CancelStatus::Processing => storage_enums::AttemptStatus::Pending,
         };
         Ok(Self {
             status,
