@@ -4,8 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::payment_methods::cards,
-    services,
-    services::api,
+    services::{api, authentication as auth},
     types::api::payment_methods::{self, PaymentMethodId},
 };
 
@@ -23,7 +22,7 @@ pub async fn create_payment_method_api(
         |state, merchant_account, req| async move {
             cards::add_payment_method(state, req, &merchant_account).await
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -36,12 +35,12 @@ pub async fn list_payment_method_api(
     _merchant_id: web::Path<String>,
     json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
 ) -> HttpResponse {
-    //let merchant_id = merchant_id.into_inner();
-    let (payload, auth_type) =
-        match api::get_auth_type_and_check_client_secret(&req, json_payload.into_inner()) {
-            Ok(values) => values,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let payload = json_payload.into_inner();
+
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     api::server_wrap(
         &state,
@@ -50,7 +49,7 @@ pub async fn list_payment_method_api(
         |state, merchant_account, req| {
             cards::list_payment_methods(&*state.store, merchant_account, req)
         },
-        auth_type,
+        &*auth,
     )
     .await
 }
@@ -65,11 +64,11 @@ pub async fn list_customer_payment_method_api(
 ) -> HttpResponse {
     let customer_id = customer_id.into_inner().0;
 
-    let auth_type =
-        match services::authenticate_eph_key(&req, &*state.store, customer_id.clone()).await {
-            Ok(auth_type) => auth_type,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await
+    {
+        Ok(auth_type) => auth_type,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
 
     api::server_wrap(
         &state,
@@ -78,7 +77,7 @@ pub async fn list_customer_payment_method_api(
         |state, merchant_account, _| {
             cards::list_customer_payment_method(state, merchant_account, &customer_id)
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -100,7 +99,7 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, merchant_account, pm| cards::retrieve_payment_method(state, pm, merchant_account),
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -126,7 +125,7 @@ pub async fn payment_method_update_api(
                 &payment_method_id,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -146,7 +145,7 @@ pub async fn payment_method_delete_api(
         &req,
         pm,
         cards::delete_payment_method,
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }

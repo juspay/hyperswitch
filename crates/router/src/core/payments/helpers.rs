@@ -547,7 +547,7 @@ pub(crate) async fn call_payment_method(
                             .await
                             .attach_printable("Error on adding payment method")?;
                             match resp {
-                                crate::services::BachResponse::Json(payment_method) => {
+                                crate::services::ApplicationResponse::Json(payment_method) => {
                                     Ok(payment_method)
                                 }
                                 _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -575,7 +575,9 @@ pub(crate) async fn call_payment_method(
                             .await
                             .attach_printable("Error on adding payment method")?;
                     match resp {
-                        crate::services::BachResponse::Json(payment_method) => Ok(payment_method),
+                        crate::services::ApplicationResponse::Json(payment_method) => {
+                            Ok(payment_method)
+                        }
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Error on adding payment method")),
                     }
@@ -590,37 +592,6 @@ pub(crate) async fn call_payment_method(
             field_name: "payment_method_data".to_string()
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
-    }
-}
-
-pub(crate) fn client_secret_auth<P>(
-    payload: P,
-    auth_type: &services::api::MerchantAuthentication<'_>,
-) -> RouterResult<P>
-where
-    P: services::Authenticate,
-{
-    match auth_type {
-        services::MerchantAuthentication::PublishableKey => {
-            payload
-                .get_client_secret()
-                .check_value_present("client_secret")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret".to_owned(),
-                })?;
-            Ok(payload)
-        }
-        services::api::MerchantAuthentication::ApiKey => {
-            if payload.get_client_secret().is_some() {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "client_secret is not a valid parameter".to_owned(),
-                }))
-            } else {
-                Ok(payload)
-            }
-        }
-        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unexpected Auth type")),
     }
 }
 
@@ -1187,7 +1158,7 @@ pub async fn make_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub async fn delete_ephemeral_key(
@@ -1199,7 +1170,7 @@ pub async fn delete_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub fn make_pg_redirect_response(
