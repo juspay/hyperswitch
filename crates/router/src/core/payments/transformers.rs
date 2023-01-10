@@ -319,6 +319,7 @@ where
                         .to_owned()
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
+                        .set_cancellation_reason(payment_attempt.cancellation_reason)
                         .set_authentication_type(
                             payment_attempt
                                 .authentication_type
