@@ -1,4 +1,5 @@
-use error_stack::report;
+use common_utils::ext_traits::StringExt;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -7,7 +8,7 @@ use crate::{
     db::StorageInterface,
     logger,
     types::storage::{self, enums},
-    utils,
+    utils::{self, OptionExt},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -134,4 +135,36 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
         }
         None => Ok(10),
     }
+}
+
+pub fn validate_for_valid_refunds(
+    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+) -> RouterResult<()> {
+    let connector: api_models::enums::Connector = payment_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")?
+        .parse_enum("connector")
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+    let payment_method = payment_attempt
+        .payment_method
+        .get_required_value("payment_method")?;
+    utils::when(
+        matches!(
+            (connector, payment_method),
+            (
+                api_models::enums::Connector::Braintree,
+                storage_models::enums::PaymentMethodType::Paypal
+            ) | (
+                api_models::enums::Connector::Klarna,
+                storage_models::enums::PaymentMethodType::Klarna
+            )
+        ),
+        || {
+            Err(errors::ApiErrorResponse::RefundNotPossible {
+                connector: connector.to_string(),
+            })
+        },
+    )?;
+    Ok(())
 }
