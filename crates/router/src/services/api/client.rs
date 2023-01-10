@@ -1,9 +1,11 @@
 use core::time::Duration;
 
+use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{
     configs::settings::{Locker, Proxy},
+    consts,
     core::errors::{self, CustomResult},
 };
 
@@ -62,11 +64,13 @@ pub(super) fn create_client(
 
     client_builder = match (client_certificate, client_certificate_key) {
         (Some(encoded_cert), Some(encoded_cert_key)) => {
-            let decoded_cert = base64::decode(encoded_cert)
+            let decoded_cert = consts::BASE64_ENGINE
+                .decode(encoded_cert)
                 .into_report()
                 .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
-            let decoded_cert_key = base64::decode(encoded_cert_key)
+            let decoded_cert_key = consts::BASE64_ENGINE
+                .decode(encoded_cert_key)
                 .into_report()
                 .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 

@@ -1,5 +1,6 @@
 use std::{num::Wrapping, str};
 
+use base64::Engine;
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use rand;
@@ -7,6 +8,7 @@ use ring::{aead::*, error::Unspecified};
 
 use crate::{
     configs::settings::{Jwekey, Keys},
+    consts,
     core::errors::{self, CustomResult},
     utils,
 };
@@ -70,7 +72,8 @@ impl KeyHandler {
         let region_provider = RegionProviderChain::first_try(Region::new(region));
         let shared_config = aws_config::from_env().region(region_provider).load().await;
         let client = Client::new(&shared_config);
-        let data = base64::decode(kms_enc_key)
+        let data = consts::BASE64_ENGINE
+            .decode(kms_enc_key)
             .into_report()
             .change_context(errors::EncryptionError)
             .attach_printable("Error decoding from base64")?;
@@ -107,7 +110,8 @@ impl KeyHandler {
         let region_provider = RegionProviderChain::first_try(Region::new(region));
         let shared_config = aws_config::from_env().region(region_provider).load().await;
         let client = Client::new(&shared_config);
-        let data = base64::decode(kms_enc_key)
+        let data = consts::BASE64_ENGINE
+            .decode(kms_enc_key)
             .into_report()
             .change_context(errors::EncryptionError)
             .attach_printable("Error decoding from base64")?;
@@ -158,7 +162,7 @@ impl KeyHandler {
         match resp.ciphertext_blob {
             Some(blob) => {
                 let bytes = blob.as_ref();
-                let encoded_res = base64::encode(bytes);
+                let encoded_res = consts::BASE64_ENGINE.encode(bytes);
                 Ok(encoded_res)
             }
             None => {
