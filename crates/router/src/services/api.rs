@@ -773,8 +773,8 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
     }
 }
 
-pub async fn refresh_connector_access_token<'a>(
-    state: &'a AppState,
+pub async fn refresh_connector_access_token(
+    state: &AppState,
     connector: api::ConnectorData,
 ) -> CustomResult<api_models::payments::AccessToken, errors::ConnectorError> {
     let boxed_connector = connector.connector;
