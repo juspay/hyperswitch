@@ -90,7 +90,7 @@ pub struct LogConsole {
 pub struct LogTelemetry {
     /// Whether tracing/telemetry is enabled.
     pub enabled: bool,
-    /// Whether tracing/telemetry is enabled.
+    /// Sampling rate for traces
     pub sampling_rate: Option<f64>,
 }
 
