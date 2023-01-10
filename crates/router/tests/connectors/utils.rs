@@ -117,6 +117,7 @@ pub trait ConnectorActions: Connector {
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
                 connector_metadata: None,
+                reason: None,
             }),
         );
         call_connector(request, integration).await
@@ -139,6 +140,7 @@ pub trait ConnectorActions: Connector {
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
                 connector_metadata: None,
+                reason: None,
             }),
         );
         call_connector(request, integration).await
@@ -249,6 +251,7 @@ impl Default for PaymentRefundType {
             connector_transaction_id: String::new(),
             refund_amount: 100,
             connector_metadata: None,
+            reason: None,
         };
         Self(data)
     }
