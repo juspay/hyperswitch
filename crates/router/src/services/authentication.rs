@@ -168,7 +168,7 @@ pub fn get_auth_type_and_flow(
     if api_key.starts_with("pk_") {
         return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
     }
-    Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Merchant))
+    Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
 pub fn check_client_secret_and_get_auth(
