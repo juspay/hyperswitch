@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use config::{Environment, File, FileFormat};
+use config::{Environment, File};
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
@@ -18,7 +18,8 @@ pub struct CmdLineConf {
     pub config_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Settings {
     pub master_database: Database,
     pub redis: redis::RedisSettings,
@@ -43,29 +44,52 @@ pub struct DrainerSettings {
     pub max_read_count: u64,
 }
 
+impl Default for Database {
+    fn default() -> Self {
+        Self {
+            username: String::new(),
+            password: String::new(),
+            host: "localhost".into(),
+            port: 5432,
+            dbname: String::new(),
+            pool_size: 5,
+        }
+    }
+}
+
+impl Default for DrainerSettings {
+    fn default() -> Self {
+        Self {
+            stream_name: "DRAINER_STREAM".into(),
+            num_partitions: 64,
+            max_read_count: 100,
+        }
+    }
+}
+
 impl Settings {
     pub fn new() -> Result<Self, errors::DrainerError> {
         Self::with_config_path(None)
     }
 
     pub fn with_config_path(config_path: Option<PathBuf>) -> Result<Self, errors::DrainerError> {
+        // Configuration values are picked up in the following priority order (1 being least
+        // priority):
+        // 1. Defaults from the implementation of the `Default` trait.
+        // 2. Values from config file. The config file accessed depends on the environment
+        //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
+        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/Development.toml` file is read.
+        // 3. Environment variables prefixed with `DRAINER` and each level separated by double
+        //    underscores.
+        //
+        // Values in config file override the defaults in `Default` trait, and the values set using
+        // environment variables override both the defaults and the config file values.
+
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
-        // println!("config_path : {:?}", config_path);
-        // println!("current_dir : {:?}", std::env::current_dir());
-
         let config = router_env::Config::builder(&environment.to_string())?
-            // FIXME: consider embedding of textual file into bin files has several disadvantages
-            // 1. larger bin file
-            // 2. slower initialization of program
-            // 3. too late ( run-time ) information about broken toml file
-            // Consider embedding all defaults into code.
-            // Example: https://github.com/instrumentisto/medea/blob/medea-0.2.0/src/conf/mod.rs#L60-L102
-            .add_source(File::from_str(
-                include_str!("defaults.toml"),
-                FileFormat::Toml,
-            ))
             .add_source(File::from(config_path).required(true))
             .add_source(
                 Environment::with_prefix("DRAINER")
