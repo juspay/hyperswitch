@@ -80,7 +80,7 @@ pub async fn create_customer(
     let mut customer_response: customers::CustomerResponse = customer.into();
     customer_response.address = customer_data.address;
 
-    Ok(services::BachResponse::Json(customer_response))
+    Ok(services::ApplicationResponse::Json(customer_response))
 }
 
 #[instrument(skip(db))]
@@ -94,7 +94,7 @@ pub async fn retrieve_customer(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
-    Ok(services::BachResponse::Json(response.into()))
+    Ok(services::ApplicationResponse::Json(response.into()))
 }
 
 #[instrument(skip_all)]
@@ -190,7 +190,7 @@ pub async fn delete_customer(
         address_deleted: true,
         payment_methods_deleted: true,
     };
-    Ok(services::BachResponse::Json(response))
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[instrument(skip(db))]
@@ -247,5 +247,7 @@ pub async fn update_customer(
 
     let mut customer_update_response: customers::CustomerResponse = response.into();
     customer_update_response.address = update_customer.address;
-    Ok(services::BachResponse::Json(customer_update_response))
+    Ok(services::ApplicationResponse::Json(
+        customer_update_response,
+    ))
 }

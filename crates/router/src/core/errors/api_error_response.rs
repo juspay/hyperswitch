@@ -107,12 +107,16 @@ pub enum ApiErrorResponse {
     MandateNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Return URL is not configured and not passed in payments request.")]
     ReturnUrlUnavailable,
+    #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Refunds not possible through hyperswitch. Please raise Refunds through {connector} dashboard")]
+    RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The merchant account with the specified details already exists in our records.")]
     DuplicateMerchantAccount,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The merchant connector account with the specified details already exists in our records.")]
     DuplicateMerchantConnectorAccount,
     #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The payment method with the specified details already exists in our records.")]
     DuplicatePaymentMethod,
+    #[error(error_type = ErrorType::DuplicateRequest, code = "RE_04", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
+    DuplicatePayment { payment_id: String },
     #[error(error_type= ErrorType::InvalidRequestError, code = "RE_05", message = "The payment has not succeeded yet")]
     PaymentNotSucceeded,
     #[error(error_type= ErrorType::ObjectNotFound, code = "RE_05", message = "Successful payment not found for the given payment id")]
@@ -161,12 +165,13 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::InvalidCardData { .. }
             | Self::CardExpired { .. }
             | Self::RefundFailed { .. }
+            | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
-            Self::DuplicateRefundRequest => StatusCode::BAD_REQUEST,        // 400
+            Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
             Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::MandateActive
@@ -186,9 +191,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
             | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
-            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,  // 503
-            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,           // 400
-            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,            // 501
+            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
+            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
+            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,           // 501
         }
     }
 

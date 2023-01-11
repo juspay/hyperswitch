@@ -9,7 +9,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::payments,
     routes,
-    services::api,
+    services::{api, authentication as auth},
     types::api as api_types,
 };
 
@@ -44,18 +44,16 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -75,11 +73,10 @@ pub async fn setup_intents_retrieve(
         param: None,
     };
 
-    let auth_type = match api::get_auth_type(&req) {
-        Ok(auth_type) => auth_type,
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
 
     wrap::compatibility_api_wrap::<
         _,
@@ -100,11 +97,10 @@ pub async fn setup_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -131,12 +127,12 @@ pub async fn setup_intents_update(
     let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-    let auth_flow = api::get_auth_flow(&auth_type);
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -150,18 +146,16 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -189,12 +183,12 @@ pub async fn setup_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-    let auth_flow = api::get_auth_flow(&auth_type);
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -208,18 +202,16 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }

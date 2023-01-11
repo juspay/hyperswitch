@@ -99,6 +99,7 @@ pub enum PaymentIntentUpdate {
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        return_url: Option<String>,
     },
 }
 
@@ -161,6 +162,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                return_url,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -170,6 +172,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
+                return_url,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
