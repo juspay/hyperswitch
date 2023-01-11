@@ -31,6 +31,7 @@ pub struct Refund {
     pub updated_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
+    pub refund_reason: Option<String>,
 }
 
 #[derive(
@@ -43,6 +44,7 @@ pub struct Refund {
     router_derive::DebugAsDisplay,
     serde::Serialize,
     serde::Deserialize,
+    router_derive::Setter,
 )]
 #[diesel(table_name = refund)]
 pub struct RefundNew {
@@ -67,6 +69,7 @@ pub struct RefundNew {
     pub modified_at: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub attempt_id: String,
+    pub refund_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

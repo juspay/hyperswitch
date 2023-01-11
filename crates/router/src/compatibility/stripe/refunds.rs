@@ -7,7 +7,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::refunds,
     routes,
-    services::api,
+    services::authentication as auth,
     types::api::refunds as refund_types,
 };
 
@@ -34,7 +34,7 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         refunds::refund_create_core,
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -67,7 +67,7 @@ pub async fn refund_retrieve(
                 refunds::refund_retrieve_core,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -99,7 +99,7 @@ pub async fn refund_update(
         |state, merchant_account, req| {
             refunds::refund_update_core(&*state.store, merchant_account, &refund_id, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }

@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::customers::*,
-    services::{self, api},
+    services::{api, authentication as auth},
     types::api::customers,
 };
 
@@ -20,7 +20,7 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| create_customer(&*state.store, merchant_account, req),
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -36,22 +36,19 @@ pub async fn customers_retrieve(
         customer_id: path.into_inner(),
     })
     .into_inner();
-    let auth_type = match services::authenticate_eph_key(
-        &req,
-        &*state.store,
-        payload.customer_id.clone(),
-    )
-    .await
-    {
-        Ok(auth_type) => auth_type,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
+
+    let auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     api::server_wrap(
         &state,
         &req,
         payload,
         |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
-        auth_type,
+        &*auth,
     )
     .await
 }
@@ -71,7 +68,7 @@ pub async fn customers_update(
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| update_customer(&*state.store, merchant_account, req),
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -87,14 +84,7 @@ pub async fn customers_delete(
         customer_id: path.into_inner(),
     })
     .into_inner();
-    api::server_wrap(
-        &state,
-        &req,
-        payload,
-        delete_customer,
-        api::MerchantAuthentication::ApiKey,
-    )
-    .await
+    api::server_wrap(&state, &req, payload, delete_customer, &auth::ApiKeyAuth).await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
@@ -115,7 +105,7 @@ pub async fn get_customer_mandates(
         |state, merchant_account, req| {
             crate::core::mandate::get_customer_mandates(state, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
