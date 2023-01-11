@@ -124,7 +124,7 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for JWTAuth {
             .store
             .find_merchant_account_by_merchant_id(&payload.merchant_id)
             .await
-            .map_err(|_| errors::ApiErrorResponse::InvalidJwtToken.into())
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
     }
 }
 
@@ -235,7 +235,8 @@ where
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
-        .map_err(|_| errors::ApiErrorResponse::InvalidJwtToken.into())
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
 fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
