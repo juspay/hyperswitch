@@ -815,7 +815,7 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     payment_method_types: StripePaymentMethodType::Klarna,
                     payment_method_data_type: StripePaymentMethodType::Klarna,
                     billing_email,
-                    billing_country: Some(billing_country.to_string()),
+                    billing_country: Some(billing_country),
                 })),
                 _ => Err(
                     error_stack::report!(errors::ApiErrorResponse::NotImplemented)
