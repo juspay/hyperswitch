@@ -314,7 +314,7 @@ pub async fn refund_update_core(
     db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     refund_id: &str,
-    req: refunds::RefundRequest,
+    req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
     let refund = db
         .find_refund_by_merchant_id_refund_id(
