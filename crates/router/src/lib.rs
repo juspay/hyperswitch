@@ -25,6 +25,7 @@ use actix_web::{
     body::MessageBody,
     dev::{Server, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
+    web::JsonConfig,
 };
 use http::StatusCode;
 use routes::AppState;
@@ -76,19 +77,9 @@ pub fn mk_olap_app(
         .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
         .error_handler(utils::error_parser::custom_json_error_handler);
 
-    let mut server_app = actix_web::App::new()
-        .app_data(json_cfg)
-        .wrap(middleware::RequestId)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
-        .wrap(ErrorHandlers::new().handler(
-            StatusCode::NOT_FOUND,
-            errors::error_handlers::custom_error_handlers,
-        ))
-        .wrap(ErrorHandlers::new().handler(
-            StatusCode::METHOD_NOT_ALLOWED,
-            errors::error_handlers::custom_error_handlers,
-        ))
-        .wrap(cors::cors())
+    let application_builder = get_application_builder(json_cfg);
+
+    let mut server_app = application_builder
         .service(routes::Payments::olap_server(state.clone()))
         .service(routes::Customers::olap_server(state.clone()))
         .service(routes::Refunds::olap_server(state.clone()))
@@ -124,6 +115,32 @@ pub async fn start_olap_server(conf: settings::Settings) -> ApplicationResult<(S
     Ok((server, app_state))
 }
 
+pub fn get_application_builder(
+    json_cfg: JsonConfig,
+) -> actix_web::App<
+    impl ServiceFactory<
+        ServiceRequest,
+        Config = (),
+        Response = actix_web::dev::ServiceResponse<impl MessageBody>,
+        Error = actix_web::Error,
+        InitError = (),
+    >,
+> {
+    actix_web::App::new()
+        .app_data(json_cfg)
+        .wrap(middleware::RequestId)
+        .wrap(router_env::tracing_actix_web::TracingLogger::default())
+        .wrap(ErrorHandlers::new().handler(
+            StatusCode::NOT_FOUND,
+            errors::error_handlers::custom_error_handlers,
+        ))
+        .wrap(ErrorHandlers::new().handler(
+            StatusCode::METHOD_NOT_ALLOWED,
+            errors::error_handlers::custom_error_handlers,
+        ))
+        .wrap(cors::cors())
+}
+
 pub fn mk_oltp_app(
     state: AppState,
     request_body_limit: usize,
@@ -142,19 +159,9 @@ pub fn mk_oltp_app(
         .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
         .error_handler(utils::error_parser::custom_json_error_handler);
 
-    let mut server_app = actix_web::App::new()
-        .app_data(json_cfg)
-        .wrap(middleware::RequestId)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
-        .wrap(ErrorHandlers::new().handler(
-            StatusCode::NOT_FOUND,
-            errors::error_handlers::custom_error_handlers,
-        ))
-        .wrap(ErrorHandlers::new().handler(
-            StatusCode::METHOD_NOT_ALLOWED,
-            errors::error_handlers::custom_error_handlers,
-        ))
-        .wrap(cors::cors())
+    let application_builder = get_application_builder(json_cfg);
+
+    let mut server_app = application_builder
         .service(routes::Payments::oltp_server(state.clone()))
         .service(routes::Customers::oltp_server(state.clone()))
         .service(routes::Refunds::oltp_server(state.clone()))

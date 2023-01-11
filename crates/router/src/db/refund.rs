@@ -181,7 +181,6 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
         ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
-            #[cfg(feature = "olap")]
             let conn = pg_connection(&self.replica_pool).await;
             <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
                 &conn,

@@ -307,7 +307,6 @@ mod storage {
             pc: &crate::types::api::PaymentListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            #[cfg(feature = "olap")]
             let conn = pg_connection(&self.replica_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
                 .await
