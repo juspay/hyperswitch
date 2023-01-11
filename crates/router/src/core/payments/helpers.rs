@@ -98,6 +98,46 @@ pub async fn get_address_by_id(
     }
 }
 
+pub fn validate_address_for_given_pm(
+    payment_method_data: &Option<api_models::payments::PaymentMethod>,
+    shipping_address: &Option<storage_models::address::Address>,
+    billing_address: &Option<storage_models::address::Address>,
+) -> RouterResult<()> {
+    let should_validate_address = matches!(
+        payment_method_data,
+        Some(api_models::payments::PaymentMethod::PayLater(
+            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. },
+        ))
+    );
+
+    let is_valid_address = should_validate_address
+        && matches!(
+            (&shipping_address, &billing_address),
+            (
+                Some(storage_models::address::Address {
+                    first_name: Some(_),
+                    last_name: Some(_),
+                    line1: Some(_),
+                    country: Some(_),
+                    zip: Some(_),
+                    ..
+                }),
+                None,
+            )
+        );
+
+    utils::when(!is_valid_address, || {
+        Err(
+            error_stack::report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "shipping address".to_string()
+            })
+            .attach_printable("Address field missing"),
+        )
+    })?;
+
+    Ok(())
+}
+
 pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,

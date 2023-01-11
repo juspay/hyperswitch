@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
-use error_stack::ResultExt;
+use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -26,6 +26,7 @@ use crate::{
         },
         transformers::ForeignInto,
     },
+    utils,
     utils::OptionExt,
 };
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -86,6 +87,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &request.customer_id,
         )
         .await?;
+
+        helpers::validate_address_for_given_pm(
+            &request.payment_method_data,
+            &shipping_address,
+            &billing_address,
+        )?;
 
         let browser_info = request
             .browser_info

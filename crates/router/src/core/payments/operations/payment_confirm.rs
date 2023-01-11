@@ -123,6 +123,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
+        let is_address_mandatory = matches!(
+            request.payment_method_data,
+            Some(api_models::payments::PaymentMethod::PayLater(
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. },
+            ))
+        );
+
+        utils::when(
+            is_address_mandatory && shipping_address.is_none() && billing_address.is_none(),
+            || {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing and shipping address".to_string()
+                })
+                .attach_printable("Address field missing"))
+            },
+        )?;
+
         helpers::validate_customer_id_mandatory_cases_storage(
             &shipping_address,
             &billing_address,

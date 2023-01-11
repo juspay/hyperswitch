@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use api_models;
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
@@ -129,6 +130,8 @@ pub struct StripePayLaterData {
     pub billing_email: String,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
     pub billing_country: Option<String>,
+    #[serde(rename = "payment_method_data[billing_details][name]")]
+    pub billing_name: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -148,6 +151,7 @@ pub enum StripePaymentMethodType {
     Card,
     Klarna,
     Affirm,
+    AfterpayClearpay,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
@@ -158,6 +162,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         let metadata_txn_uuid = Uuid::new_v4().to_string(); //Fetch autogenrated txn_uuid from Database.
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
                                                             // let api::PaymentMethod::Card(a) = item.payment_method_data;
+        let shipping_address = match item.address.shipping.clone() {
+            Some(mut shipping) => Address {
+                city: shipping.address.as_mut().and_then(|a| a.city.take()),
+                country: shipping.address.as_mut().and_then(|a| a.country.take()),
+                line1: shipping.address.as_mut().and_then(|a| a.line1.take()),
+                line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
+                postal_code: shipping.address.as_mut().and_then(|a| a.zip.take()),
+                state: shipping.address.as_mut().and_then(|a| a.state.take()),
+                name: shipping.address.as_mut().map(|a| {
+                    format!(
+                        "{} {}",
+                        a.first_name.clone().expose_option().unwrap_or_default(),
+                        a.last_name.clone().expose_option().unwrap_or_default()
+                    )
+                    .into()
+                }),
+                phone: shipping.phone.map(|p| {
+                    format!(
+                        "{}{}",
+                        p.country_code.unwrap_or_default(),
+                        p.number.expose_option().unwrap_or_default()
+                    )
+                    .into()
+                }),
+            },
+            None => Address::default(),
+        };
 
         let (payment_data, mandate) = {
             match item
@@ -194,6 +225,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 payment_method_data_type: StripePaymentMethodType::Klarna,
                                 billing_email: billing_email.to_string(),
                                 billing_country: Some(billing_country.to_string()),
+                                billing_name: None,
                             }),
                             api_models::payments::PayLaterData::AffirmRedirect {
                                 billing_email,
@@ -202,6 +234,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 payment_method_data_type: StripePaymentMethodType::Affirm,
                                 billing_email: billing_email.to_string(),
                                 billing_country: None,
+                                billing_name: None,
+                            }),
+                            api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                                billing_email,
+                                billing_name,
+                            } => StripePaymentMethodData::Affirm(StripePayLaterData {
+                                payment_method_types: StripePaymentMethodType::AfterpayClearpay,
+                                payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
+                                billing_email: billing_email.to_string(),
+                                billing_country: None,
+                                billing_name: Some(billing_name.to_string()),
                             }),
                             _ => Err(error_stack::report!(
                                 errors::ApiErrorResponse::NotImplemented
@@ -219,34 +262,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 ),
                 Some(mandate_id) => (None, Some(mandate_id)),
             }
-        };
-
-        let shipping_address = match item.address.shipping.clone() {
-            Some(mut shipping) => Address {
-                city: shipping.address.as_mut().and_then(|a| a.city.take()),
-                country: shipping.address.as_mut().and_then(|a| a.country.take()),
-                line1: shipping.address.as_mut().and_then(|a| a.line1.take()),
-                line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
-                postal_code: shipping.address.as_mut().and_then(|a| a.zip.take()),
-                state: shipping.address.as_mut().and_then(|a| a.state.take()),
-                name: shipping.address.as_mut().map(|a| {
-                    format!(
-                        "{} {}",
-                        a.first_name.clone().expose_option().unwrap_or_default(),
-                        a.last_name.clone().expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-                phone: shipping.phone.map(|p| {
-                    format!(
-                        "{}{}",
-                        p.country_code.unwrap_or_default(),
-                        p.number.expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-            },
-            None => Address::default(),
         };
 
         Ok(Self {
@@ -402,6 +417,7 @@ impl<F, T>
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
                     StripePaymentMethodOptions::Klarna {} => None,
                     StripePaymentMethodOptions::Affirm {} => None,
+                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
                 });
 
         Ok(Self {
@@ -457,6 +473,7 @@ impl<F, T>
                     } => mandate_options.map(|mandate_option| mandate_option.reference),
                     StripePaymentMethodOptions::Klarna {} => None,
                     StripePaymentMethodOptions::Affirm {} => None,
+                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
                 });
 
         Ok(Self {
@@ -693,6 +710,7 @@ pub enum StripePaymentMethodOptions {
     },
     Klarna {},
     Affirm {},
+    AfterpayClearpay {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
@@ -815,7 +833,8 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     payment_method_types: StripePaymentMethodType::Klarna,
                     payment_method_data_type: StripePaymentMethodType::Klarna,
                     billing_email,
-                    billing_country: Some(billing_country),
+                    billing_country: Some(billing_country.to_string()),
+                    billing_name: None,
                 })),
                 _ => Err(
                     error_stack::report!(errors::ApiErrorResponse::NotImplemented)
