@@ -220,6 +220,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             ..item.data
         })
@@ -259,6 +260,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             ..item.data
         })
@@ -301,6 +303,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             status: response.into(),
             ..item.data
@@ -372,6 +375,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             status,
             amount_captured,

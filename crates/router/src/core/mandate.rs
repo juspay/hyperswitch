@@ -30,7 +30,7 @@ pub async fn get_mandate(
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
     ))
 }
@@ -52,7 +52,7 @@ pub async fn revoke_mandate(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         mandates::MandateRevokedResponse {
             mandate_id: mandate.mandate_id,
             status: mandate.mandate_status.foreign_into(),
@@ -82,7 +82,7 @@ pub async fn get_customer_mandates(
                     .await?,
             );
         }
-        Ok(services::BachResponse::Json(response_vec))
+        Ok(services::ApplicationResponse::Json(response_vec))
     }
 }
 

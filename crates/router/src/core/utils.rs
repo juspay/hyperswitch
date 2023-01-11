@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::PaymentAddress;
 use crate::{
     consts,
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self, api,
+        self,
         storage::{self, enums},
     },
     utils::{generate_id, OptionExt, ValueExt},
@@ -22,13 +22,11 @@ pub async fn construct_refund_router_data<'a, F>(
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
     money: (i64, enums::Currency),
-    payment_method_data: Option<&'a api::PaymentMethod>,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
-    //TODO: everytime parsing the json may have impact?
     let merchant_connector_account = db
         .find_merchant_connector_account_by_merchant_id_connector(
             &merchant_account.merchant_id,
@@ -49,17 +47,6 @@ pub async fn construct_refund_router_data<'a, F>(
     let payment_method_type = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let payment_method_data = match payment_method_data.cloned() {
-        Some(v) => v,
-        None => {
-            let (pm, _) = helpers::Vault::get_payment_method_data_from_locker(
-                state,
-                &payment_attempt.attempt_id,
-            )
-            .await?;
-            pm.get_required_value("payment_method_data")?
-        }
-    };
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -81,11 +68,12 @@ pub async fn construct_refund_router_data<'a, F>(
         amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
-            payment_method_data,
             connector_transaction_id: refund.connector_transaction_id.clone(),
             refund_amount: refund.refund_amount,
             currency,
             amount,
+            connector_metadata: payment_attempt.connector_metadata.clone(),
+            reason: refund.refund_reason.clone(),
         },
 
         response: Ok(types::RefundsResponseData {
