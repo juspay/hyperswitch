@@ -82,15 +82,9 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             currency: enums::Currency::USD,
 
             refund_id: uuid::Uuid::new_v4().to_string(),
-            payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
-                card_number: Secret::new("4200000000000000".to_string()),
-                card_exp_month: Secret::new("10".to_string()),
-                card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
-                card_cvc: Secret::new("999".to_string()),
-            }),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            connector_metadata: None,
             reason: None,
         },
         payment_method_id: None,
