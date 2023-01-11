@@ -239,9 +239,6 @@ pub enum PayLaterData {
     AffirmRedirect {
         billing_email: String,
     },
-    AfterpayClearpayRedirect {
-        billing_email: String,
-    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize)]

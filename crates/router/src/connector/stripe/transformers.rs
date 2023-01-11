@@ -147,7 +147,6 @@ pub enum StripePaymentMethodData {
 pub enum StripePaymentMethodType {
     Card,
     Klarna,
-    AfterpayClearpay,
     Affirm,
 }
 
