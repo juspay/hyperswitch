@@ -320,6 +320,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
     fn from(value: errors::ApiErrorResponse) -> Self {
         match value {
             errors::ApiErrorResponse::Unauthorized
+            | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::InvalidEphermeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
