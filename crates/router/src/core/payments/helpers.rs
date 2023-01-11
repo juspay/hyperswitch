@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use common_utils::ext_traits::AsyncExt;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -1353,11 +1354,10 @@ pub(crate) async fn verify_client_secret(
     storage_scheme: storage_enums::MerchantStorageScheme,
     client_secret: Option<String>,
     merchant_id: &str,
-) -> error_stack::Result<(), errors::ApiErrorResponse> {
-    match client_secret {
-        None => Ok(()),
-        Some(cs) => {
-            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
+    client_secret
+        .async_map(|cs| async move {
+            let payment_id = get_payment_id_from_client_secret(&cs);
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -1369,9 +1369,16 @@ pub(crate) async fn verify_client_secret(
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(|err| err.into())
-        }
-    }
+                .map_err(errors::ApiErrorResponse::from)?;
+            Ok(payment_intent)
+        })
+        .await
+        .transpose()
+}
+
+#[inline]
+pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> String {
+    cs.split('_').take(2).collect::<Vec<&str>>().join("_")
 }
 
 #[cfg(test)]
