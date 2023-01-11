@@ -65,6 +65,7 @@ pub async fn update_status_and_append(
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }, |count| {
                     logger::debug!("Updated status of {count} processes");
+                    println!("RAW PRINT: Updated status of {count} processes");
                     Ok(())
                 })
         }
@@ -80,6 +81,7 @@ pub async fn update_status_and_append(
                 }
                 Err(error) => {
                     logger::error!(error=%error.current_context(),"Error while reinitializing processes");
+                    println!("RAW PRINT: {:?}", error.current_context());
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }
             }
@@ -119,6 +121,7 @@ pub async fn update_status_and_append(
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }, |count| {
                     logger::debug!("Updated status of {count} processes");
+                    println!("RAW PRINT: Updated status of {count} processes");
                     Ok(())
                 }) {
                     Ok(_) => (),
@@ -258,6 +261,10 @@ pub async fn consumer_operation_handler<E>(
     let end_time = std_time::Instant::now();
     let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
     logger::debug!("Time taken to execute consumer_operation: {}s", duration);
+    println!(
+        "RAW PRINT: Time taken to execute consumer_operation: {}s",
+        duration
+    );
 
     consumer_operation_counter.fetch_sub(1, atomic::Ordering::Relaxed);
 }

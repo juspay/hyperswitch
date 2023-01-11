@@ -49,6 +49,7 @@ pub async fn start_consumer(
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     loop {
+        println!("RAW PRINT: {:?}", "Looping over consumer");
         interval.tick().await;
 
         let is_ready = options.readiness.is_ready;

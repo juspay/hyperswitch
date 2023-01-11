@@ -31,6 +31,7 @@ pub async fn start_producer(
     ));
 
     loop {
+        println!("RAW PRINT: {:?}", "Looping over producer");
         interval.tick().await;
 
         let is_ready = options.readiness.is_ready;
@@ -68,6 +69,7 @@ pub async fn run_producer_flow(
         move || async {
             let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
             debug!("Producer count of tasks {}", tasks.len());
+            println!("RAW PRINT: TASK COUNT : {:?}", tasks.len());
 
             // [#268]: Allow task based segregation of tasks
 

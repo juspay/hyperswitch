@@ -25,8 +25,10 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
         logger::setup(&state.conf.log).map_err(|_| errors::ProcessTrackerError::UnexpectedFlow)?;
 
     logger::debug!(startup_config=?state.conf);
+    println!("RAW PRINT: {:?}", state.conf);
 
     start_scheduler(&state).await?;
+    println!("RAW PRINT: {:?}", "Execution ended");
 
     state.store.close().await;
 
