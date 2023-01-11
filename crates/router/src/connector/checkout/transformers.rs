@@ -144,9 +144,7 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, i32)>>
     for transformers::Foreign<enums::AttemptStatus>
 {
     fn from(item: transformers::Foreign<(CheckoutPaymentStatus, i32)>) -> Self {
-        let item = item.0;
-        let status = item.0;
-        let available_to_capture = item.1;
+        let (status, available_to_capture) = item.0;
         match status {
             CheckoutPaymentStatus::Authorized => {
                 if available_to_capture == 0 {
