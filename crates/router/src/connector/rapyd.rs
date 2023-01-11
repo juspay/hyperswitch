@@ -82,7 +82,7 @@ impl
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -136,6 +136,7 @@ impl
             .headers(headers)
             .body(Some(rapyd_req))
             .build();
+        print!("myrequest {:?}", request);
         Ok(Some(request))
     }
 
@@ -341,15 +342,18 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 
     fn get_content_type(&self) -> &'static str {
-        todo!()
+        api::ConnectorCommon::common_get_content_type(self)
     }
 
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Ok(format!(
+            "{}/v1/refunds",
+            api::ConnectorCommon::base_url(self, connectors)
+        ))
     }
 
     fn get_request_body(
@@ -366,13 +370,30 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
+        let salt = generate_id(12, "");
+
+        let rapyd_req = utils::Encode::<rapyd::RapydRefundRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let signature =
+            self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
+        let headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            ("access_key".to_string(), auth.access_key),
+            ("salt".to_string(), salt),
+            ("timestamp".to_string(), timestamp.to_string()),
+            ("signature".to_string(), signature),
+        ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .headers(headers)
+            .body(Some(rapyd_req))
             .build();
         Ok(Some(request))
     }
@@ -398,9 +419,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
+        let response: rapyd::RapydPaymentsResponse = res
+            .parse_struct("Rapyd ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response.status.error_code,
+            message: response.status.status,
+            reason: response.status.message,
+        })
     }
 }
 

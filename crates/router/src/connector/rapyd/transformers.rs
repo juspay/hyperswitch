@@ -153,7 +153,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 Some(data) => (
                     data.status.into(),
                     Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(data.transaction_id),
+                        resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
                         redirection_data: None,
                         redirect: false,
                         mandate_reference: None,
@@ -198,49 +198,85 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct RapydRefundRequest {}
+pub struct RapydRefundRequest {
+    pub payment: String,
+    pub amount: Option<i64>,
+    pub currency: Option<enums::Currency>,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        todo!()
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment: item.request.connector_transaction_id.to_string(),
+            amount: Some(item.request.amount),
+            currency: Some(item.request.currency),
+        })
     }
 }
 
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
+    Completed,
+    Error,
+    Rejected,
     #[default]
-    Processing,
+    Pending,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Completed => Self::Success,
+            RefundStatus::Error | RefundStatus::Rejected => Self::Failure,
+            RefundStatus::Pending => Self::Pending,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {}
+pub struct RefundResponse {
+    pub status: Status,
+    pub data: Option<RefundResponseData>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RefundResponseData {
+    //Some field related to forign exchange and split payment can be added as and when implemented
+    pub id: String,
+    pub payment: String,
+    pub amount: i64,
+    pub currency: enums::Currency,
+    pub status: RefundStatus,
+    pub created_at: Option<i64>,
+    pub failure_reason: Option<String>,
+}
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        let (connector_refund_id, refund_status) = match item.response.data {
+            Some(data) => (data.id, enums::RefundStatus::from(data.status)),
+            None => (
+                item.response.status.error_code,
+                enums::RefundStatus::Failure,
+            ),
+        };
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -249,9 +285,22 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        let (connector_refund_id, refund_status) = match item.response.data {
+            Some(data) => (data.id, enums::RefundStatus::from(data.status)),
+            None => (
+                item.response.status.error_code,
+                enums::RefundStatus::Failure,
+            ),
+        };
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
 
