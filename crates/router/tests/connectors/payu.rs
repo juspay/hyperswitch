@@ -1,7 +1,4 @@
-use futures::future::OptionFuture;
-use masking::Secret;
 use router::types::{self, api, storage::enums};
-use storage_models::schema::temp_card::txn_id;
 
 use crate::{
     connector_auth,
@@ -9,7 +6,7 @@ use crate::{
 };
 
 struct Payu;
-impl utils::ConnectorActions for Payu {}
+impl ConnectorActions for Payu {}
 impl utils::Connector for Payu {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payu;
