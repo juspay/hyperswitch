@@ -55,7 +55,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: value.request.amount_to_capture.map(|amount| amount.to_string()),
+            amount: value
+                .request
+                .amount_to_capture
+                .map(|amount| amount.to_string()),
             ..Default::default()
         })
     }
