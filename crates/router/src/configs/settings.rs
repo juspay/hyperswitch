@@ -129,6 +129,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
     pub worldpay: ConnectorParams,
+    pub payu: ConnectorParams,
     pub applepay: ConnectorParams,
 }
 

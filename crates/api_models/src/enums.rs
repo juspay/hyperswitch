@@ -507,6 +507,7 @@ pub enum Connector {
     Shift4,
     Stripe,
     Worldpay,
+    Payu,
 }
 
 impl From<AttemptStatus> for IntentStatus {

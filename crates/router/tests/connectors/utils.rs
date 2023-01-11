@@ -133,8 +133,8 @@ pub trait ConnectorActions: Connector {
             self.get_auth_token(),
             enums::AuthenticationType::NoThreeDs,
             payment_data.unwrap_or_else(|| types::RefundsData {
-                amount: 100,
-                currency: enums::Currency::USD,
+                amount: 1000,
+                currency: enums::Currency::PLN,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
                 connector_transaction_id: transaction_id,
@@ -212,7 +212,7 @@ impl Default for PaymentAuthorizeType {
         let data = types::PaymentsAuthorizeData {
             payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
             amount: 100,
-            currency: enums::Currency::USD,
+            currency: enums::Currency::PLN,
             confirm: true,
             statement_descriptor_suffix: None,
             capture_method: None,
