@@ -751,15 +751,6 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum SupportedWallets {
-    Paypal,
-    ApplePay,
-    Klarna,
-    Gpay,
-}
-
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetails {
     pub product_name: String,
@@ -777,6 +768,7 @@ pub struct Metadata {
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
+    pub wallets: Vec<api_enums::SupportedWallets>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -218,6 +218,7 @@ impl<F, T>
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             ..item.data
         })
