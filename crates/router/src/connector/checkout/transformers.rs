@@ -140,14 +140,15 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, i32)>>
+impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
     for transformers::Foreign<enums::AttemptStatus>
 {
-    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, i32)>) -> Self {
-        let (status, available_to_capture) = item.0;
+    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Balances)>) -> Self {
+        let (status, balances) = item.0;
+
         match status {
             CheckoutPaymentStatus::Authorized => {
-                if available_to_capture == 0 {
+                if balances.available_to_capture == 0 {
                     enums::AttemptStatus::Charged
                 } else {
                     enums::AttemptStatus::Authorized
@@ -214,7 +215,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
-                item.response.balances.available_to_capture,
+                item.response.balances,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
@@ -256,7 +257,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
-                item.response.balances.available_to_capture,
+                item.response.balances,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
