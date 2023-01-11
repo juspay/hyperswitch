@@ -6,7 +6,7 @@ pub struct GlobalpayPaymentsRequest {
     pub account_name: String,
     /// The amount to transfer between Payer and Merchant for a SALE or a REFUND. It is always
     /// represented in the lowest denomiation of the related currency.
-    pub amount: String,
+    pub amount: Option<String>,
     /// Indicates if the merchant would accept an authorization for an amount less than the
     /// requested amount. This is available for CP channel
     /// only where the balance not authorized can be processed again using a different card.

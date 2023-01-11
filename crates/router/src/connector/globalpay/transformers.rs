@@ -28,7 +28,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
         let card = item.get_card()?;
         Ok(Self {
             account_name,
-            amount: item.request.amount.to_string(),
+            amount: Some(item.request.amount.to_string()),
             currency: item.request.currency.to_string(),
             reference: item.get_attempt_id()?,
             country: item.get_billing_country()?,
@@ -55,10 +55,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: match value.request.amount_to_capture {
-                Some(amount) => amount.to_string(),
-                _ => "".to_string(), // takes the original amount of the transaction to capture
-            },
+            amount: value.request.amount_to_capture.map(|amount| amount.to_string()),
             ..Default::default()
         })
     }
