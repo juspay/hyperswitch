@@ -1,8 +1,8 @@
 use actix_web::{web, Scope};
 
 use super::{
-    admin::*, customers::*, ephemeral_key::*, health::*, mandates::*, payment_methods::*,
-    payments::*, payouts::*, refunds::*, webhooks::*,
+    customers::*, ephemeral_key::*, health::*, mandates::*, payment_methods::*, payments::*,
+    payouts::*, refunds::*, webhooks::*,
 };
 use crate::{
     configs::settings::Settings,
@@ -184,6 +184,7 @@ pub struct MerchantAccount;
 impl MerchantAccount {
     #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
+        use super::admin::*;
         web::scope("/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
@@ -201,6 +202,7 @@ pub struct MerchantConnectorAccount;
 impl MerchantConnectorAccount {
     #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
+        use super::admin::*;
         web::scope("/account")
             .app_data(web::Data::new(state))
             .service(

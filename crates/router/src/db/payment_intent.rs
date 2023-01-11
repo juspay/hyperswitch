@@ -1,10 +1,7 @@
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
-    types::{
-        api,
-        storage::{self as types, enums},
-    },
+    types::storage::{self as types, enums},
 };
 
 #[async_trait::async_trait]
@@ -33,7 +30,7 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
-        pc: &api::PaymentListConstraints,
+        pc: &crate::types::api::PaymentListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
@@ -49,10 +46,7 @@ mod storage {
         connection::pg_connection,
         core::errors::{self, CustomResult},
         services::Store,
-        types::{
-            api,
-            storage::{enums, kv, payment_intent::*},
-        },
+        types::storage::{enums, kv, payment_intent::*},
         utils::storage_partitioning::KvStorePartition,
     };
 
@@ -239,7 +233,7 @@ mod storage {
         async fn filter_payment_intent_by_constraints(
             &self,
             merchant_id: &str,
-            pc: &api::PaymentListConstraints,
+            pc: &crate::types::api::PaymentListConstraints,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             match storage_scheme {
@@ -266,10 +260,7 @@ mod storage {
         connection::pg_connection,
         core::errors::{self, CustomResult},
         services::Store,
-        types::{
-            api,
-            storage::{enums, payment_intent::*},
-        },
+        types::storage::{enums, payment_intent::*},
     };
 
     #[async_trait::async_trait]
@@ -313,7 +304,7 @@ mod storage {
         async fn filter_payment_intent_by_constraints(
             &self,
             merchant_id: &str,
-            pc: &api::PaymentListConstraints,
+            pc: &crate::types::api::PaymentListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             #[cfg(feature = "olap")]
@@ -332,7 +323,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intent_by_constraints(
         &self,
         _merchant_id: &str,
-        _pc: &api::PaymentListConstraints,
+        _pc: &crate::types::api::PaymentListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
