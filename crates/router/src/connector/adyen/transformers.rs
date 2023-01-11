@@ -173,18 +173,23 @@ pub struct AdyenCard {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelRequest {
     merchant_account: String,
-    original_reference: String,
     reference: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelResponse {
-    merchant_account: String,
     psp_reference: String,
-    response: String,
+    status: CancelStatus,
 }
 
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CancelStatus {
+    Received,
+    #[default]
+    Processing,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaypal {
@@ -404,9 +409,17 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            original_reference: item.request.connector_transaction_id.to_string(),
             reference: item.payment_id.to_string(),
         })
+    }
+}
+
+impl From<CancelStatus> for storage_enums::AttemptStatus {
+    fn from(status: CancelStatus) -> Self {
+        match status {
+            CancelStatus::Received => Self::Voided,
+            CancelStatus::Processing => Self::Pending,
+        }
     }
 }
 
@@ -417,13 +430,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     fn try_from(
         item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
-        let status = match item.response.response.as_str() {
-            "received" => storage_enums::AttemptStatus::Voided,
-            "processing" => storage_enums::AttemptStatus::Pending,
-            _ => storage_enums::AttemptStatus::VoidFailed,
-        };
         Ok(Self {
-            status,
+            status: item.response.status.into(),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,

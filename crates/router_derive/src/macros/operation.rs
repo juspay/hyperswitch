@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{self, parse_macro_input, DeriveInput, Lit, Meta, MetaNameValue, NestedMeta};
+use syn::{self, spanned::Spanned, DeriveInput, Lit, Meta, MetaNameValue, NestedMeta};
+
+use crate::macros::helpers;
 
 #[derive(Debug, Clone, Copy)]
 enum Derives {
@@ -80,6 +82,7 @@ enum Conversion {
     UpdateTracker,
     PostUpdateTracker,
     All,
+    Invalid(String),
 }
 
 impl From<String> for Conversion {
@@ -91,8 +94,7 @@ impl From<String> for Conversion {
             "update_tracker" => Self::UpdateTracker,
             "post_tracker" => Self::PostUpdateTracker,
             "all" => Self::All,
-            #[allow(clippy::panic)] // FIXME: Use `compile_error!()` instead
-            _ => panic!("Invalid conversion identifier {}", s),
+            s => Self::Invalid(s.to_string()),
         }
     }
 }
@@ -144,6 +146,10 @@ impl Conversion {
                     Ok(self)
                 }
             },
+            Self::Invalid(s) => {
+                helpers::syn_error(Span::call_site(), &format!("Invalid identifier {s}"))
+                    .to_compile_error()
+            }
             Self::All => {
                 let validate_request = Self::ValidateRequest.to_function(ident);
                 let get_tracker = Self::GetTracker.to_function(ident);
@@ -188,6 +194,10 @@ impl Conversion {
                     Ok(*self)
                 }
             },
+            Self::Invalid(s) => {
+                helpers::syn_error(Span::call_site(), &format!("Invalid identifier {s}"))
+                    .to_compile_error()
+            }
             Self::All => {
                 let validate_request = Self::ValidateRequest.to_ref_function(ident);
                 let get_tracker = Self::GetTracker.to_ref_function(ident);
@@ -205,8 +215,7 @@ impl Conversion {
     }
 }
 
-fn find_operation_attr(a: &[syn::Attribute]) -> syn::Attribute {
-    #[allow(clippy::expect_used)] // FIXME: Use `compile_error!()` instead
+fn find_operation_attr(a: &[syn::Attribute]) -> syn::Result<syn::Attribute> {
     a.iter()
         .find(|a| {
             a.path
@@ -214,11 +223,16 @@ fn find_operation_attr(a: &[syn::Attribute]) -> syn::Attribute {
                 .map(|ident| *ident == "operation")
                 .unwrap_or(false)
         })
-        .expect("Missing 'operation' attribute with conversions")
-        .clone()
+        .cloned()
+        .ok_or_else(|| {
+            helpers::syn_error(
+                Span::call_site(),
+                "Cannot find attribute 'operation' in the macro",
+            )
+        })
 }
 
-fn find_value(v: NestedMeta) -> Option<(String, Vec<String>)> {
+fn find_value(v: &NestedMeta) -> Option<(String, Vec<String>)> {
     match v {
         NestedMeta::Meta(Meta::NameValue(MetaNameValue {
             ref path,
@@ -235,9 +249,7 @@ fn find_value(v: NestedMeta) -> Option<(String, Vec<String>)> {
     }
 }
 
-// FIXME: Propagate errors in a better manner instead of `expect()`, maybe use `compile_error!()`
-#[allow(clippy::unwrap_used, clippy::expect_used)]
-fn find_properties(attr: &syn::Attribute) -> Option<HashMap<String, Vec<String>>> {
+fn find_properties(attr: &syn::Attribute) -> syn::Result<HashMap<String, Vec<String>>> {
     let meta = attr.parse_meta();
     match meta {
         Ok(syn::Meta::List(syn::MetaList {
@@ -245,26 +257,64 @@ fn find_properties(attr: &syn::Attribute) -> Option<HashMap<String, Vec<String>>
             paren_token: _,
             mut nested,
         })) => {
-            path.get_ident().map(|i| i == "operation")?;
-            let tracker = nested.pop().unwrap().into_value();
-            let operation = nested.pop().unwrap().into_value();
-            let o = find_value(tracker).expect("Invalid format of attributes");
-            let t = find_value(operation).expect("Invalid format of attributes");
-            Some(HashMap::from_iter([t, o]))
+            path.get_ident().map(|i| i == "operation").ok_or_else(|| {
+                helpers::syn_error(path.span(), "Attribute 'operation' was not found")
+            })?;
+            let tracker = nested
+                .pop()
+                .ok_or_else(|| {
+                    helpers::syn_error(
+                        nested.span(),
+                        "Invalid format of attributes. Expected format is ops=...,flow=...",
+                    )
+                })?
+                .into_value();
+            let operation = nested
+                .pop()
+                .ok_or_else(|| {
+                    helpers::syn_error(
+                        nested.span(),
+                        "Invalid format of attributes. Expected format is ops=...,flow=...",
+                    )
+                })?
+                .into_value();
+            let o = find_value(&tracker).ok_or_else(|| {
+                helpers::syn_error(
+                    tracker.span(),
+                    "Invalid format of attributes. Expected format is ops=...,flow=...",
+                )
+            })?;
+            let t = find_value(&operation).ok_or_else(|| {
+                helpers::syn_error(
+                    operation.span(),
+                    "Invalid format of attributes. Expected format is ops=...,flow=...",
+                )
+            })?;
+            Ok(HashMap::from_iter([t, o]))
         }
-        _ => None,
+        _ => Err(helpers::syn_error(
+            attr.span(),
+            "No attributes were found. Expected format is ops=..,flow=..",
+        )),
     }
 }
 
-// FIXME: Propagate errors in a better manner instead of `expect()`, maybe use `compile_error!()`
-#[allow(clippy::expect_used)]
-pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(token as DeriveInput);
+pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::TokenStream> {
     let struct_name = &input.ident;
-    let op = find_operation_attr(&input.attrs);
-    let prop = find_properties(&op);
-    let ops = prop.as_ref().expect("Invalid Properties")["ops"].clone();
-    let flow = prop.as_ref().expect("Invalid Properties")["flow"].clone();
+    let op = find_operation_attr(&input.attrs)?;
+    let prop = find_properties(&op)?;
+    let ops = prop.get("ops").ok_or_else(|| {
+        helpers::syn_error(
+            op.span(),
+            "Invalid properties. Property 'ops' was not found",
+        )
+    })?;
+    let flow = prop.get("flow").ok_or_else(|| {
+        helpers::syn_error(
+            op.span(),
+            "Invalid properties. Property 'flow' was not found",
+        )
+    })?;
     let trait_derive = flow.iter().map(|derive| {
         let derive: Derives = derive.to_owned().into();
         let fns = ops.iter().map(|t| {
@@ -315,5 +365,5 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                 #trait_derive
             };
     };
-    proc_macro::TokenStream::from(output)
+    Ok(proc_macro::TokenStream::from(output))
 }
