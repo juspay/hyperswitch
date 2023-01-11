@@ -4,6 +4,7 @@ mod aci;
 mod authorizedotnet;
 mod checkout;
 mod connector_auth;
+mod globalpay;
 mod shift4;
 mod utils;
 mod worldpay;

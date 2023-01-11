@@ -14,6 +14,15 @@ pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
     fn get_auth_token(&self) -> types::ConnectorAuthType;
     fn get_name(&self) -> String;
+    fn get_connector_meta(&self) -> Option<serde_json::Value> {
+        None
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentInfo {
+    pub address: Option<PaymentAddress>,
+    pub auth_type: Option<enums::AuthenticationType>,
 }
 
 #[async_trait]
@@ -21,29 +30,27 @@ pub trait ConnectorActions: Connector {
     async fn authorize_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsAuthorizeRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::PaymentsAuthorizeData {
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..PaymentAuthorizeType::default().0
             }),
+            payment_info,
         );
         call_connector(request, integration).await
     }
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsAuthorizeRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
+            payment_info,
         );
         call_connector(request, integration).await
     }
@@ -51,13 +58,12 @@ pub trait ConnectorActions: Connector {
     async fn sync_payment(
         &self,
         payment_data: Option<types::PaymentsSyncData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsSyncRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| PaymentSyncType::default().0),
+            payment_info,
         );
         call_connector(request, integration).await
     }
@@ -66,18 +72,17 @@ pub trait ConnectorActions: Connector {
         &self,
         transaction_id: String,
         payment_data: Option<types::PaymentsCaptureData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsCaptureRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or(types::PaymentsCaptureData {
                 amount_to_capture: Some(100),
                 connector_transaction_id: transaction_id,
                 currency: enums::Currency::USD,
                 amount: 100,
             }),
+            payment_info,
         );
         call_connector(request, integration).await
     }
@@ -86,16 +91,15 @@ pub trait ConnectorActions: Connector {
         &self,
         transaction_id: String,
         payment_data: Option<types::PaymentsCancelData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsCancelRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or(types::PaymentsCancelData {
                 connector_transaction_id: transaction_id,
                 cancellation_reason: Some("Test cancellation".to_string()),
             }),
+            payment_info,
         );
         call_connector(request, integration).await
     }
@@ -104,12 +108,10 @@ pub trait ConnectorActions: Connector {
         &self,
         transaction_id: String,
         payment_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::RefundExecuteRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
                 amount: 100,
                 currency: enums::Currency::USD,
@@ -119,6 +121,7 @@ pub trait ConnectorActions: Connector {
                 connector_metadata: None,
                 reason: None,
             }),
+            payment_info,
         );
         call_connector(request, integration).await
     }
@@ -127,12 +130,10 @@ pub trait ConnectorActions: Connector {
         &self,
         transaction_id: String,
         payment_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::RefundSyncRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
-            enums::AuthenticationType::NoThreeDs,
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
                 amount: 100,
                 currency: enums::Currency::USD,
@@ -142,8 +143,41 @@ pub trait ConnectorActions: Connector {
                 connector_metadata: None,
                 reason: None,
             }),
+            payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    fn generate_data<Flow, Req: From<Req>, Res>(
+        &self,
+        req: Req,
+        info: Option<PaymentInfo>,
+    ) -> types::RouterData<Flow, Req, Res> {
+        types::RouterData {
+            flow: PhantomData,
+            merchant_id: self.get_name(),
+            connector: self.get_name(),
+            payment_id: uuid::Uuid::new_v4().to_string(),
+            attempt_id: Some(uuid::Uuid::new_v4().to_string()),
+            status: enums::AttemptStatus::default(),
+            router_return_url: None,
+            auth_type: info
+                .clone()
+                .map_or(enums::AuthenticationType::NoThreeDs, |a| {
+                    a.auth_type
+                        .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
+                }),
+            payment_method: enums::PaymentMethodType::Card,
+            connector_auth_type: self.get_auth_token(),
+            description: Some("This is a test".to_string()),
+            return_url: None,
+            request: req,
+            response: Err(types::ErrorResponse::default()),
+            payment_method_id: None,
+            address: info.map_or(PaymentAddress::default(), |a| a.address.unwrap()),
+            connector_meta_data: self.get_connector_meta(),
+            amount_captured: None,
+        }
     }
 }
 
@@ -266,33 +300,5 @@ pub fn get_connector_transaction_id(
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
         Err(_) => None,
-    }
-}
-
-fn generate_data<Flow, Req: From<Req>, Res>(
-    connector: String,
-    connector_auth_type: types::ConnectorAuthType,
-    auth_type: enums::AuthenticationType,
-    req: Req,
-) -> types::RouterData<Flow, Req, Res> {
-    types::RouterData {
-        flow: PhantomData,
-        merchant_id: connector.clone(),
-        connector,
-        payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: Some(uuid::Uuid::new_v4().to_string()),
-        status: enums::AttemptStatus::default(),
-        router_return_url: None,
-        auth_type,
-        payment_method: enums::PaymentMethodType::Card,
-        connector_auth_type,
-        description: Some("This is a test".to_string()),
-        return_url: None,
-        request: req,
-        response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
-        address: PaymentAddress::default(),
-        connector_meta_data: None,
-        amount_captured: None,
     }
 }

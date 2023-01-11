@@ -64,6 +64,18 @@ base_url = "http://stripe-mock:12111/"
 [connectors.braintree]
 base_url = "https://api.sandbox.braintreegateway.com/"
 
+[connectors.cybersource]
+base_url = "https://apitest.cybersource.com/"
+
+[connectors.shift4]
+base_url = "https://api.shift4.com/"
+
+[connectors.worldpay]
+base_url = "https://try.access.worldpay.com/"
+
+[connectors.globalpay]
+base_url = "https://apis.sandbox.globalpay.com/ucp/"
+
 [connectors.applepay]
 base_url = "https://apple-pay-gateway.apple.com/"
 
@@ -71,5 +83,5 @@ base_url = "https://apple-pay-gateway.apple.com/"
 base_url = "https://api-na.playground.klarna.com/"
 
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "cybersource", "shift4", "worldpay", "globalpay"]

@@ -48,7 +48,7 @@ impl utils::Connector for Worldpay {
 async fn should_authorize_card_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
-    let response = conn.authorize_payment(None).await;
+    let response = conn.authorize_payment(None, None).await;
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
         utils::get_connector_transaction_id(response),
@@ -62,13 +62,16 @@ async fn should_authorize_gpay_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
     let response = conn
-        .authorize_payment(Some(types::PaymentsAuthorizeData {
-            payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
-                issuer_name: api_enums::WalletIssuer::GooglePay,
-                token: Some("someToken".to_string()),
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
+                    issuer_name: api_enums::WalletIssuer::GooglePay,
+                    token: Some("someToken".to_string()),
+                }),
+                ..utils::PaymentAuthorizeType::default().0
             }),
-            ..utils::PaymentAuthorizeType::default().0
-        }))
+            None,
+        )
         .await;
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
@@ -83,13 +86,16 @@ async fn should_authorize_applepay_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
     let response = conn
-        .authorize_payment(Some(types::PaymentsAuthorizeData {
-            payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
-                issuer_name: api_enums::WalletIssuer::ApplePay,
-                token: Some("someToken".to_string()),
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
+                    issuer_name: api_enums::WalletIssuer::ApplePay,
+                    token: Some("someToken".to_string()),
+                }),
+                ..utils::PaymentAuthorizeType::default().0
             }),
-            ..utils::PaymentAuthorizeType::default().0
-        }))
+            None,
+        )
         .await;
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
@@ -103,12 +109,15 @@ async fn should_authorize_applepay_payment() {
 async fn should_capture_already_authorized_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let authorize_response = connector.authorize_payment(None).await;
+    let authorize_response = connector.authorize_payment(None, None).await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
-            connector.capture_payment(transaction_id, None).await.status
+            connector
+                .capture_payment(transaction_id, None, None)
+                .await
+                .status
         })
         .into();
     assert_eq!(response.await, Some(enums::AttemptStatus::Charged));
@@ -120,12 +129,15 @@ async fn should_sync_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
     let response = connector
-        .sync_payment(Some(types::PaymentsSyncData {
-            connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                "112233".to_string(),
-            ),
-            encoded_data: None,
-        }))
+        .sync_payment(
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    "112233".to_string(),
+                ),
+                encoded_data: None,
+            }),
+            None,
+        )
         .await;
     assert_eq!(response.status, enums::AttemptStatus::Authorized,);
 }
@@ -135,15 +147,17 @@ async fn should_sync_payment() {
 async fn should_void_already_authorized_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let authorize_response = connector.authorize_payment(None).await;
+    let authorize_response = connector.authorize_payment(None, None).await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
-    let response: OptionFuture<_> =
-        txn_id
-            .map(|transaction_id| async move {
-                connector.void_payment(transaction_id, None).await.status
-            })
-            .into();
+    let response: OptionFuture<_> = txn_id
+        .map(|transaction_id| async move {
+            connector
+                .void_payment(transaction_id, None, None)
+                .await
+                .status
+        })
+        .into();
     assert_eq!(response.await, Some(enums::AttemptStatus::Voided));
 }
 
@@ -152,9 +166,11 @@ async fn should_void_already_authorized_payment() {
 async fn should_fail_capture_for_invalid_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let authorize_response = connector.authorize_payment(None).await;
+    let authorize_response = connector.authorize_payment(None, None).await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let response = connector.capture_payment("12345".to_string(), None).await;
+    let response = connector
+        .capture_payment("12345".to_string(), None, None)
+        .await;
     let err = response.response.unwrap_err();
     assert_eq!(
         err.message,
@@ -169,11 +185,11 @@ async fn should_refund_succeeded_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
     //make a successful payment
-    let response = connector.make_payment(None).await;
+    let response = connector.make_payment(None, None).await;
 
     //try refund for previous payment
     let transaction_id = utils::get_connector_transaction_id(response).unwrap();
-    let response = connector.refund_payment(transaction_id, None).await;
+    let response = connector.refund_payment(transaction_id, None, None).await;
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
@@ -185,7 +201,9 @@ async fn should_refund_succeeded_payment() {
 async fn should_sync_refund() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let response = connector.sync_refund("654321".to_string(), None).await;
+    let response = connector
+        .sync_refund("654321".to_string(), None, None)
+        .await;
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
