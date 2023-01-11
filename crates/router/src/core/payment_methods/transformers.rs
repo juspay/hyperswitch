@@ -75,7 +75,7 @@ pub fn mk_add_card_request(
     let customer_id = format!("{}::{}", customer_id, _merchant_id);
     let add_card_req = AddCardRequest {
         card_number: card.card_number.clone(),
-        customer_id,
+        customer_id: &customer_id,
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
