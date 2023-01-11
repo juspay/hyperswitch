@@ -1,4 +1,4 @@
-use error_stack::{ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -407,19 +407,14 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-
         let order = match item.response.orders.first() {
             Some(order) => order,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(
-               order.status.clone(),
-            ),
+            status: enums::AttemptStatus::from(order.status.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    order.order_id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(order.order_id.clone()),
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,

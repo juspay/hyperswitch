@@ -621,19 +621,22 @@ impl api::IncomingWebhook for Payu {
         &self,
         _body: &[u8],
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()    }
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+    }
 
     fn get_webhook_event_type(
         &self,
         _body: &[u8],
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()    }
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+    }
 
     fn get_webhook_resource_object(
         &self,
         _body: &[u8],
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()    }
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+    }
 }
 
 impl services::ConnectorRedirectResponse for Payu {
