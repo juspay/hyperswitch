@@ -1,6 +1,6 @@
 use std::collections;
 
-use common_utils::{consts, generate_id};
+use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -348,6 +348,28 @@ pub async fn list_payment_methods(
         &merchant_account.merchant_id,
     )
     .await?;
+    let address = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            helpers::get_address_by_id(db, pi.billing_address_id.clone()).await
+        })
+        .await
+        .transpose()?
+        .flatten();
+
+    let payment_attempt = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            db.find_payment_attempt_by_payment_id_merchant_id(
+                &pi.payment_id,
+                &pi.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        })
+        .await
+        .transpose()?;
 
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
@@ -365,12 +387,12 @@ pub async fn list_payment_methods(
         };
 
         filter_payment_methods(
-            db,
             payment_methods,
-            &merchant_account,
             &mut req,
             &mut response,
             payment_intent.as_ref(),
+            payment_attempt.as_ref(),
+            address.as_ref(),
         )
         .await?;
     }
@@ -382,12 +404,12 @@ pub async fn list_payment_methods(
 }
 
 async fn filter_payment_methods(
-    db: &dyn db::StorageInterface,
     payment_methods: Vec<serde_json::Value>,
-    merchant_account: &storage::MerchantAccount,
     req: &mut api::ListPaymentMethodRequest,
     resp: &mut Vec<api::ListPaymentMethodResponse>,
     payment_intent: Option<&storage::PaymentIntent>,
+    payment_attempt: Option<&storage::PaymentAttempt>,
+    address: Option<&storage::Address>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         if let Ok(payment_method_object) =
@@ -419,17 +441,11 @@ async fn filter_payment_methods(
                     &req.accepted_currencies,
                 );
                 let filter3 = if let Some(payment_intent) = payment_intent {
-                    filter_payment_country_based(db, payment_intent, &payment_method_object).await?
+                    filter_payment_country_based(&payment_method_object, address).await?
                         && filter_payment_currency_based(payment_intent, &payment_method_object)
                         && filter_payment_amount_based(payment_intent, &payment_method_object)
-                        && filter_payment_mandate_based(
-                            db,
-                            &payment_intent.payment_id,
-                            &merchant_account.merchant_id,
-                            merchant_account.storage_scheme,
-                            &payment_method_object,
-                        )
-                        .await?
+                        && filter_payment_mandate_based(payment_attempt, &payment_method_object)
+                            .await?
                 } else {
                     true
                 };
@@ -499,16 +515,14 @@ fn filter_installment_based(
 }
 
 async fn filter_payment_country_based(
-    db: &dyn db::StorageInterface,
-    payment_intent: &storage::PaymentIntent,
     pm: &api::ListPaymentMethodResponse,
+    address: Option<&storage::Address>,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
-    let address = helpers::get_address_by_id(db, payment_intent.billing_address_id.clone()).await?;
     Ok(address.map_or(true, |address| {
-        address.country.map_or(true, |country| {
+        address.country.as_ref().map_or(true, |country| {
             pm.accepted_countries
                 .clone()
-                .map_or(true, |ac| ac.contains(&country))
+                .map_or(true, |ac| ac.contains(country))
         })
     }))
 }
@@ -534,18 +548,11 @@ fn filter_payment_amount_based(
 }
 
 async fn filter_payment_mandate_based(
-    db: &dyn db::StorageInterface,
-    payment_id: &str,
-    merchant_id: &str,
-    storage_scheme: enums::MerchantStorageScheme,
+    payment_attempt: Option<&storage::PaymentAttempt>,
     pm: &api::ListPaymentMethodResponse,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
-    let payment_attempt = db
-        .find_payment_attempt_by_payment_id_merchant_id(payment_id, merchant_id, storage_scheme)
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
     let recurring_filter = if !pm.recurring_enabled {
-        payment_attempt.mandate_id.is_none()
+        payment_attempt.map_or(true, |pa| pa.mandate_id.is_none())
     } else {
         true
     };
