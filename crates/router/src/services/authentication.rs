@@ -224,7 +224,7 @@ pub async fn is_ephemeral_auth(
 }
 
 fn is_jwt_auth(headers: &HeaderMap) -> bool {
-    headers.get("Authorization").is_some()
+    headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
 pub fn decode_jwt<T>(token: &str, state: &AppState) -> RouterResult<T>
@@ -251,8 +251,8 @@ fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
 
 fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
     headers
-        .get("Authorization")
-        .get_required_value("Authorization")?
+        .get(crate::headers::AUTHORIZATION)
+        .get_required_value(crate::headers::AUTHORIZATION)?
         .to_str()
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
