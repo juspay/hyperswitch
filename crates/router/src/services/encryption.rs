@@ -49,124 +49,132 @@ impl NonceSequence for NonceGen {
     }
 }
 
-pub struct KeyHandler {}
+pub struct KeyHandler;
 
 #[cfg(feature = "kms")]
-use aws_config::meta::region::RegionProviderChain;
-#[cfg(feature = "kms")]
-use aws_sdk_kms::{types::Blob, Client, Region};
+mod kms {
+    use aws_config::meta::region::RegionProviderChain;
+    use aws_sdk_kms::{types::Blob, Client, Region};
+    use base64::Engine;
 
-#[cfg(feature = "kms")]
-impl KeyHandler {
-    // Fetching KMS decrypted key
-    // | Amazon KMS decryption
-    //This expect a base64 encoded input but we values are set via aws cli in env than cli already does that so we don't need to
-    pub async fn get_kms_decrypted_key(
-        aws_keys: &Jwekey,
-        kms_enc_key: String,
-    ) -> CustomResult<String, errors::EncryptionError> {
-        let region = aws_keys.aws_region.to_string();
-        let key_id = aws_keys.aws_key_id.clone();
-        let region_provider = RegionProviderChain::first_try(Region::new(region));
-        let shared_config = aws_config::from_env().region(region_provider).load().await;
-        let client = Client::new(&shared_config);
-        let data = base64::decode(kms_enc_key)
-            .into_report()
-            .change_context(errors::EncryptionError)
-            .attach_printable("Error decoding from base64")?;
-        let blob = Blob::new(data);
-        let resp = client
-            .decrypt()
-            .key_id(key_id)
-            .ciphertext_blob(blob)
-            .send()
-            .await
-            .into_report()
-            .change_context(errors::EncryptionError)
-            .attach_printable("Error decrypting kms encrypted data")?;
-        match resp.plaintext() {
-            Some(inner) => {
-                let bytes = inner.as_ref().to_vec();
-                let res = String::from_utf8(bytes)
-                    .into_report()
-                    .change_context(errors::EncryptionError)
-                    .attach_printable("Could not convert to UTF-8")?;
-                Ok(res)
-            }
-            None => {
-                Err(report!(errors::EncryptionError)
-                    .attach_printable("Missing plaintext in response"))
+    use super::*;
+    use crate::consts;
+
+    impl KeyHandler {
+        // Fetching KMS decrypted key
+        // | Amazon KMS decryption
+        // This expect a base64 encoded input but we values are set via aws cli in env than cli
+        // already does that so we don't need to
+        pub async fn get_kms_decrypted_key(
+            aws_keys: &Jwekey,
+            kms_enc_key: String,
+        ) -> CustomResult<String, errors::EncryptionError> {
+            let region = aws_keys.aws_region.to_string();
+            let key_id = aws_keys.aws_key_id.clone();
+            let region_provider = RegionProviderChain::first_try(Region::new(region));
+            let shared_config = aws_config::from_env().region(region_provider).load().await;
+            let client = Client::new(&shared_config);
+            let data = consts::BASE64_ENGINE
+                .decode(kms_enc_key)
+                .into_report()
+                .change_context(errors::EncryptionError)
+                .attach_printable("Error decoding from base64")?;
+            let blob = Blob::new(data);
+            let resp = client
+                .decrypt()
+                .key_id(key_id)
+                .ciphertext_blob(blob)
+                .send()
+                .await
+                .into_report()
+                .change_context(errors::EncryptionError)
+                .attach_printable("Error decrypting kms encrypted data")?;
+            match resp.plaintext() {
+                Some(inner) => {
+                    let bytes = inner.as_ref().to_vec();
+                    let res = String::from_utf8(bytes)
+                        .into_report()
+                        .change_context(errors::EncryptionError)
+                        .attach_printable("Could not convert to UTF-8")?;
+                    Ok(res)
+                }
+                None => Err(report!(errors::EncryptionError)
+                    .attach_printable("Missing plaintext in response")),
             }
         }
-    }
 
-    pub async fn get_encryption_key(keys: &Keys) -> CustomResult<String, errors::EncryptionError> {
-        let kms_enc_key = keys.temp_card_key.to_string();
-        let region = keys.aws_region.to_string();
-        let key_id = keys.aws_key_id.clone();
-        let region_provider = RegionProviderChain::first_try(Region::new(region));
-        let shared_config = aws_config::from_env().region(region_provider).load().await;
-        let client = Client::new(&shared_config);
-        let data = base64::decode(kms_enc_key)
-            .into_report()
-            .change_context(errors::EncryptionError)
-            .attach_printable("Error decoding from base64")?;
-        let blob = Blob::new(data);
-        let resp = client
-            .decrypt()
-            .key_id(key_id)
-            .ciphertext_blob(blob)
-            .send()
-            .await
-            .into_report()
-            .change_context(errors::EncryptionError)
-            .attach_printable("Error decrypting kms encrypted data")?;
-        match resp.plaintext() {
-            Some(inner) => {
-                let bytes = inner.as_ref().to_vec();
-                let res = String::from_utf8(bytes)
-                    .into_report()
-                    .change_context(errors::EncryptionError)
-                    .attach_printable("Could not convert to UTF-8")?;
-                Ok(res)
-            }
-            None => {
-                Err(report!(errors::EncryptionError)
-                    .attach_printable("Missing plaintext in response"))
+        pub async fn get_encryption_key(
+            keys: &Keys,
+        ) -> CustomResult<String, errors::EncryptionError> {
+            let kms_enc_key = keys.temp_card_key.to_string();
+            let region = keys.aws_region.to_string();
+            let key_id = keys.aws_key_id.clone();
+            let region_provider = RegionProviderChain::first_try(Region::new(region));
+            let shared_config = aws_config::from_env().region(region_provider).load().await;
+            let client = Client::new(&shared_config);
+            let data = consts::BASE64_ENGINE
+                .decode(kms_enc_key)
+                .into_report()
+                .change_context(errors::EncryptionError)
+                .attach_printable("Error decoding from base64")?;
+            let blob = Blob::new(data);
+            let resp = client
+                .decrypt()
+                .key_id(key_id)
+                .ciphertext_blob(blob)
+                .send()
+                .await
+                .into_report()
+                .change_context(errors::EncryptionError)
+                .attach_printable("Error decrypting kms encrypted data")?;
+            match resp.plaintext() {
+                Some(inner) => {
+                    let bytes = inner.as_ref().to_vec();
+                    let res = String::from_utf8(bytes)
+                        .into_report()
+                        .change_context(errors::EncryptionError)
+                        .attach_printable("Could not convert to UTF-8")?;
+                    Ok(res)
+                }
+                None => Err(report!(errors::EncryptionError)
+                    .attach_printable("Missing plaintext in response")),
             }
         }
-    }
-    pub async fn set_encryption_key(
-        input: &str,
-        keys: &Keys,
-    ) -> CustomResult<String, errors::EncryptionError> {
-        let region = keys.aws_region.to_string();
-        let key_id = keys.aws_key_id.clone();
-        let region_provider = RegionProviderChain::first_try(Region::new(region));
-        let shared_config = aws_config::from_env().region(region_provider).load().await;
-        let client = Client::new(&shared_config);
-        let blob = Blob::new(input.as_bytes());
-        let resp = client
-            .encrypt()
-            .key_id(key_id)
-            .plaintext(blob)
-            .send()
-            .await
-            .into_report()
-            .change_context(errors::EncryptionError)
-            .attach_printable("Error getting EncryptOutput")?;
-        match resp.ciphertext_blob {
-            Some(blob) => {
-                let bytes = blob.as_ref();
-                let encoded_res = base64::encode(bytes);
-                Ok(encoded_res)
-            }
-            None => {
-                Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
+
+        pub async fn set_encryption_key(
+            input: &str,
+            keys: &Keys,
+        ) -> CustomResult<String, errors::EncryptionError> {
+            let region = keys.aws_region.to_string();
+            let key_id = keys.aws_key_id.clone();
+            let region_provider = RegionProviderChain::first_try(Region::new(region));
+            let shared_config = aws_config::from_env().region(region_provider).load().await;
+            let client = Client::new(&shared_config);
+            let blob = Blob::new(input.as_bytes());
+            let resp = client
+                .encrypt()
+                .key_id(key_id)
+                .plaintext(blob)
+                .send()
+                .await
+                .into_report()
+                .change_context(errors::EncryptionError)
+                .attach_printable("Error getting EncryptOutput")?;
+            match resp.ciphertext_blob {
+                Some(blob) => {
+                    let bytes = blob.as_ref();
+                    let encoded_res = consts::BASE64_ENGINE.encode(bytes);
+                    Ok(encoded_res)
+                }
+                None => {
+                    Err(report!(errors::EncryptionError)
+                        .attach_printable("Missing ciphertext blob"))
+                }
             }
         }
     }
 }
+
 #[cfg(not(feature = "kms"))]
 impl KeyHandler {
     // Fetching KMS decrypted key
