@@ -751,15 +751,6 @@ pub struct PaymentsRetrieveRequest {
     pub connector: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum SupportedWallets {
-    Paypal,
-    ApplePay,
-    Klarna,
-    Gpay,
-}
-
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetails {
     pub product_name: String,
@@ -777,24 +768,22 @@ pub struct Metadata {
 pub struct PaymentsSessionRequest {
     pub payment_id: String,
     pub client_secret: String,
+    pub wallets: Vec<api_enums::SupportedWallets>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     pub allowed_card_networks: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayTokenParameters {
     pub gateway: String,
     pub gateway_merchant_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayTokenizationSpecification {
     #[serde(rename = "type")]
     pub token_specification_type: String,
@@ -802,7 +791,6 @@ pub struct GpayTokenizationSpecification {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayAllowedPaymentMethods {
     #[serde(rename = "type")]
     pub payment_method_type: String,
@@ -811,7 +799,6 @@ pub struct GpayAllowedPaymentMethods {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayTransactionInfo {
     pub country_code: String,
     pub currency_code: String,
@@ -820,13 +807,11 @@ pub struct GpayTransactionInfo {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayMerchantInfo {
     pub merchant_name: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
 pub struct GpayMetadata {
     pub merchant_info: GpayMerchantInfo,
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
@@ -842,9 +827,7 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
-        #[serde(flatten)]
-        gpay_token: GpayMetadata,
-        #[serde(rename(serialize = "transactionInfo"))]
+        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
         transaction_info: GpayTransactionInfo,
     },
     Klarna {

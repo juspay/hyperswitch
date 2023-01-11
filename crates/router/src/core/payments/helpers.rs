@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use common_utils::ext_traits::AsyncExt;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -547,7 +548,7 @@ pub(crate) async fn call_payment_method(
                             .await
                             .attach_printable("Error on adding payment method")?;
                             match resp {
-                                crate::services::BachResponse::Json(payment_method) => {
+                                crate::services::ApplicationResponse::Json(payment_method) => {
                                     Ok(payment_method)
                                 }
                                 _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -575,7 +576,9 @@ pub(crate) async fn call_payment_method(
                             .await
                             .attach_printable("Error on adding payment method")?;
                     match resp {
-                        crate::services::BachResponse::Json(payment_method) => Ok(payment_method),
+                        crate::services::ApplicationResponse::Json(payment_method) => {
+                            Ok(payment_method)
+                        }
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Error on adding payment method")),
                     }
@@ -1169,7 +1172,7 @@ pub async fn make_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub async fn delete_ephemeral_key(
@@ -1181,7 +1184,7 @@ pub async fn delete_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub fn make_pg_redirect_response(
@@ -1364,11 +1367,10 @@ pub(crate) async fn verify_client_secret(
     storage_scheme: storage_enums::MerchantStorageScheme,
     client_secret: Option<String>,
     merchant_id: &str,
-) -> error_stack::Result<(), errors::ApiErrorResponse> {
-    match client_secret {
-        None => Ok(()),
-        Some(cs) => {
-            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
+    client_secret
+        .async_map(|cs| async move {
+            let payment_id = get_payment_id_from_client_secret(&cs);
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -1380,9 +1382,16 @@ pub(crate) async fn verify_client_secret(
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(|err| err.into())
-        }
-    }
+                .map_err(errors::ApiErrorResponse::from)?;
+            Ok(payment_intent)
+        })
+        .await
+        .transpose()
+}
+
+#[inline]
+pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> String {
+    cs.split('_').take(2).collect::<Vec<&str>>().join("_")
 }
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api::{self, enums as api_enums},
+        api,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -101,10 +101,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         payment_method: Option<api::PaymentMethod>,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, payment_method, request_connector)
-            .await
+        helpers::get_connector_default(merchant_account, state, payment_method, None).await
     }
 }
 

@@ -16,7 +16,7 @@ use crate::{
     pii::Secret,
     routes::AppState,
     types::{
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -253,9 +253,8 @@ where
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         payment_method: Option<api::PaymentMethod>,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsStartRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, payment_method, request_connector)
-            .await
+        helpers::get_connector_default(merchant_account, state, payment_method, None).await
     }
 }

@@ -28,8 +28,7 @@ use crate::{
     scheduler::utils as pt_utils,
     services,
     types::{
-        self,
-        api::{self, enums as api_enums},
+        self, api,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -42,7 +41,6 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
-    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
@@ -104,7 +102,7 @@ where
             &merchant_account,
             state,
             payment_data.payment_method_data.clone(),
-            use_connector,
+            &req,
         )
         .await?;
 
@@ -168,7 +166,6 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
-    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
@@ -193,7 +190,6 @@ where
         merchant_account,
         operation.clone(),
         req,
-        use_connector,
         call_connector_action,
     )
     .await?;
@@ -252,7 +248,7 @@ where
 
     let payments_response =
         match response.change_context(errors::ApiErrorResponse::NotImplemented)? {
-            services::BachResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::Json(response) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Failed to get the response in json"),
@@ -266,7 +262,7 @@ where
     )
     .attach_printable("No redirection response")?;
 
-    Ok(services::BachResponse::JsonForRedirection(result))
+    Ok(services::ApplicationResponse::JsonForRedirection(result))
 }
 
 pub async fn payments_response_for_redirection_flows<'a>(
@@ -281,7 +277,6 @@ pub async fn payments_response_for_redirection_flows<'a>(
         PaymentStatus,
         req,
         services::api::AuthFlow::Merchant,
-        None,
         flow_type,
     )
     .await
@@ -567,10 +562,12 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    Ok(services::BachResponse::Json(api::PaymentListResponse {
-        size: data.len(),
-        data,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
 }
 
 pub async fn add_process_sync_task(
