@@ -354,6 +354,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
             errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
+            errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
             errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code

@@ -47,7 +47,7 @@ Or did you test this change manually (provide relevant screenshots)?
 ## Checklist
 <!-- Put an `x` in the boxes that apply -->
 
-- [ ] I formatted the code `cargo +nightly fmt`
+- [ ] I formatted the code `cargo +nightly fmt --all`
 - [ ] I addressed lints thrown by `cargo clippy`
 - [ ] I reviewed submitted code
 - [ ] I added unit tests for my changes where possible
