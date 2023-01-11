@@ -26,8 +26,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        self,
-        api::{self, enums as api_enums},
+        self, api,
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -125,7 +124,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        request: &R,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
 }
 
@@ -192,9 +191,9 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsRetrieveRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, None).await
     }
 
     #[instrument(skip_all)]
@@ -258,9 +257,9 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsCaptureRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, None).await
     }
 }
 
@@ -312,8 +311,8 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsCancelRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, None).await
     }
 }
