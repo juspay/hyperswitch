@@ -7,4 +7,5 @@ mod connector_auth;
 mod globalpay;
 mod shift4;
 mod utils;
+mod worldline;
 mod worldpay;

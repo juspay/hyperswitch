@@ -240,6 +240,8 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Invalid Date/time format")]
+    InvalidDateFormat,
 }
 
 #[derive(Debug, thiserror::Error)]

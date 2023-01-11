@@ -21,3 +21,8 @@ api_key = "Bearer MyApiKey"
 
 [globalpay]
 api_key = "Bearer MyApiKey"
+
+[worldline]
+key1 = "Merchant Id"
+api_key = "API Key"
+api_secret = "API Secret Key"

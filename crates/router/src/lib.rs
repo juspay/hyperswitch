@@ -47,6 +47,7 @@ pub mod headers {
     pub const AUTHORIZATION: &str = "Authorization";
     pub const ACCEPT: &str = "Accept";
     pub const X_API_VERSION: &str = "X-ApiVersion";
+    pub const DATE: &str = "Date";
 }
 
 pub mod pii {

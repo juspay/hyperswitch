@@ -133,6 +133,7 @@ pub struct Connectors {
     pub globalpay: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub applepay: ConnectorParams,
+    pub worldline: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]
