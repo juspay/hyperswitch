@@ -9,10 +9,10 @@ edition = "2021"
 error-stack = "0.2.4"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
-serde = { version = "1.0.145", features = ["derive"] }
-serde_json = "1.0.85"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
 strum = { version = "0.24.1", features = ["derive"] }
-time = { version = "0.3.14", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 utoipa = { git = "https://github.com/SanchithHegde/utoipa", branch = "retain-property-order" }
 
 # First party crates
