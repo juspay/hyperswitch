@@ -201,6 +201,7 @@ impl<F, T>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             amount_captured: None,
             ..item.data
@@ -251,6 +252,7 @@ impl<F, T>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             amount_captured: None,
             ..item.data
@@ -287,6 +289,7 @@ impl<F, T>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             amount_captured: None,
             ..item.data
@@ -418,6 +421,7 @@ impl<F, T>
                 redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             amount_captured: Some(order.total_amount.parse::<i64>().unwrap_or_default()),
             ..item.data
