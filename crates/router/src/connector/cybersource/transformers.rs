@@ -41,10 +41,10 @@ pub struct PaymentInformation {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: String,
-    expiration_month: String,
-    expiration_year: String,
-    security_code: String,
+    number: Secret<String, pii::CardNumber>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    security_code: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -131,10 +131,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
 
                 let payment_information = PaymentInformation {
                     card: Card {
-                        number: ccard.card_number.peek().clone(),
-                        expiration_month: ccard.card_exp_month.peek().clone(),
-                        expiration_year: ccard.card_exp_year.peek().clone(),
-                        security_code: ccard.card_cvc.peek().clone(),
+                        number: ccard.card_number,
+                        expiration_month: ccard.card_exp_month,
+                        expiration_year: ccard.card_exp_year,
+                        security_code: ccard.card_cvc,
                     },
                 };
 
