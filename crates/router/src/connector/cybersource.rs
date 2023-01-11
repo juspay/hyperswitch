@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use base64;
+use base64::Engine;
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use ring::{digest, hmac};
@@ -25,7 +25,7 @@ pub struct Cybersource;
 impl Cybersource {
     pub fn generate_digest(&self, payload: &[u8]) -> String {
         let payload_digest = digest::digest(&digest::SHA256, payload);
-        base64::encode(payload_digest)
+        consts::BASE64_ENGINE.encode(payload_digest)
     }
 
     pub fn generate_signature(
@@ -51,12 +51,13 @@ impl Cybersource {
              v-c-merchant-id: {merchant_account}",
             self.generate_digest(payload.as_bytes())
         );
-        let key_value = base64::decode(api_secret)
+        let key_value = consts::BASE64_ENGINE
+            .decode(api_secret)
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
-            base64::encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
+            consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
         let signature_header = format!(
             r#"keyid="{api_key}", algorithm="HmacSHA256", headers="{headers_for_post_method}", signature="{signature_value}""#
         );
