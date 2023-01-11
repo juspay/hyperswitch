@@ -37,8 +37,12 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "aci", "shift4", "cybersource", "worldpay"]
+wallets = ["klarna","braintree","applepay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay"]
+
+[refund]
+max_attempts = 10
+max_age = 365
 
 [eph_key]
 validity = 1
@@ -78,6 +82,8 @@ base_url = "http://localhost:9090/"
 
 [connectors.payu]
 base_url = "https://secure.snd.payu.com/api/"
+[connectors.globalpay]
+base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

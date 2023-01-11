@@ -503,11 +503,21 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Globalpay,
     Klarna,
     Shift4,
     Stripe,
     Worldpay,
     Payu,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportedWallets {
+    Paypal,
+    ApplePay,
+    Klarna,
+    Gpay,
 }
 
 impl From<AttemptStatus> for IntentStatus {

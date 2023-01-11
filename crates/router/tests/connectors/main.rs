@@ -5,6 +5,7 @@ mod authorizedotnet;
 mod checkout;
 mod connector_auth;
 mod payu;
+mod globalpay;
 mod shift4;
 mod utils;
 mod worldpay;
