@@ -63,6 +63,11 @@ log_format = "default"  # Log format. "default" or "json"
 # defaults to "WARN"
 level = "DEBUG"
 
+# Telemetry configuration for traces
+[log.telemetry]
+enabled = false # boolean [true or false]
+sampling_rate = 0.1 # decimal rate between 0.0 - 1.0
+
 # This section provides configuration details for using AWS KMS to encrypt
 # data like payment method details being sent over a network.
 [keys]
