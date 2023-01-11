@@ -436,10 +436,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v68/cancel"))
+        let id = req.request.connector_transaction_id.as_str();
+        Ok(format!(
+            "{}v68/payments/{}/cancels",
+            self.base_url(connectors),
+            id
+        ))
     }
 
     fn get_request_body(

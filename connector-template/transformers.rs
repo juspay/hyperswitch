@@ -36,9 +36,9 @@ pub enum {{project-name | downcase | pascal_case}}PaymentStatus {
 impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::AttemptStatus {
     fn from(item: {{project-name | downcase | pascal_case}}PaymentStatus) -> Self {
         match item {
-            {{project-name | downcase | pascal_case}}PaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-            {{project-name | downcase | pascal_case}}PaymentStatus::Failed => enums::AttemptStatus::Failure,
-            {{project-name | downcase | pascal_case}}PaymentStatus::Processing => enums::AttemptStatus::Authorizing,
+            {{project-name | downcase | pascal_case}}PaymentStatus::Succeeded => Self::Charged,
+            {{project-name | downcase | pascal_case}}PaymentStatus::Failed => Self::Failure,
+            {{project-name | downcase | pascal_case}}PaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
@@ -47,10 +47,19 @@ impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::Att
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {}
 
-impl TryFrom<types::PaymentsResponseRouterData<{{project-name | downcase | pascal_case}}PaymentsResponse>> for types::PaymentsAuthorizeRouterData {
+impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::PaymentsResponseRouterData<{{project-name | downcase | pascal_case}}PaymentsResponse>) -> Result<Self,Self::Error> {
-        todo!()
+    fn try_from(item: types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+            }),
+            ..item.data
+        })
     }
 }
 
