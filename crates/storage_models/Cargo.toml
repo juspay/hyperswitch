@@ -11,17 +11,17 @@ kv_store = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
-async-trait = "0.1.57"
+async-trait = "0.1.61"
 diesel = { version = "2.0.2", features = ["postgres", "serde_json", "time"] }
-error-stack = "0.2.1"
+error-stack = "0.2.4"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 hex = "0.4.3"
-serde = { version = "1.0.145", features = ["derive"] }
-serde_json = "1.0.85"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
 strum = { version = "0.24.1", features = ["derive"] }
-thiserror = "1.0.37"
-time = { version = "0.3.14", features = ["serde", "serde-well-known", "std"] }
+thiserror = "1.0.38"
+time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }

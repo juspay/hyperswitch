@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -9,6 +10,7 @@ use router_env::{instrument, tracing};
 use self::transformers as adyen;
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -635,7 +637,8 @@ impl api::IncomingWebhook for Adyen {
 
         let base64_signature = notif_item.additional_data.hmac_signature;
 
-        let signature = base64::decode(base64_signature.as_bytes())
+        let signature = consts::BASE64_ENGINE
+            .decode(base64_signature.as_bytes())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
