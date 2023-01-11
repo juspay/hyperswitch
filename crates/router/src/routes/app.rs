@@ -131,7 +131,6 @@ impl Refunds {
         web::scope("/refunds")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(refunds_create)))
-            .service(web::resource("/list").route(web::get().to(refunds_list)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(refunds_retrieve))
@@ -162,9 +161,6 @@ impl Payouts {
 pub struct PaymentMethods;
 
 impl PaymentMethods {
-    // pub fn olap_server(state: AppState) -> Scope {
-    //     web::scope("/payment_methods").app_data(web::Data::new(state))
-    // }
     pub fn oltp_server(state: AppState) -> Scope {
         web::scope("/payment_methods")
             .app_data(web::Data::new(state))
@@ -192,9 +188,6 @@ impl MerchantAccount {
                     .route(web::delete().to(delete_merchant_account)),
             )
     }
-    // pub fn oltp_server(config: AppState) -> Scope {
-    //     web::scope("/accounts").app_data(web::Data::new(config))
-    // }
 }
 
 pub struct MerchantConnectorAccount;
@@ -219,9 +212,6 @@ impl MerchantConnectorAccount {
                     .route(web::delete().to(payment_connector_delete)),
             )
     }
-    // pub fn oltp_server(config: AppState) -> Scope {
-    //     web::scope("/account").app_data(web::Data::new(config))
-    // }
 }
 
 pub struct EphemeralKey;

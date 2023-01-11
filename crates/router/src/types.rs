@@ -69,6 +69,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
+    pub attempt_id: Option<String>,
     pub status: storage_enums::AttemptStatus,
     pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
@@ -199,6 +200,7 @@ pub struct RefundsData {
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
+    pub reason: Option<String>,
     /// Amount to be refunded
     pub refund_amount: i64,
 }

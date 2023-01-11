@@ -2,9 +2,9 @@ pub mod validator;
 
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use crate::{
+    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments, utils as core_utils,
@@ -45,9 +45,9 @@ pub async fn refund_create_core(
         .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
     // Amount is not passed in request refer from payment attempt.
-    amount = req.amount.unwrap_or(payment_attempt.amount); // FIXME: Need to that capture amount
+    amount = req.amount.unwrap_or(payment_attempt.amount); // [#298]: Need to that capture amount
 
-    //TODO: Can we change the flow based on some workflow idea
+    //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
@@ -82,7 +82,7 @@ pub async fn refund_create_core(
         req,
     )
     .await
-    .map(services::BachResponse::Json)
+    .map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -180,7 +180,7 @@ where
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         f(state, merchant_account, refund_id).await?.foreign_into(),
     ))
 }
@@ -337,7 +337,7 @@ pub async fn refund_update_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok(services::BachResponse::Json(response.foreign_into()))
+    Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
 
 // ********************************************** VALIDATIONS **********************************************
@@ -402,37 +402,52 @@ pub async fn validate_and_create_refund(
                 .attach_printable("Failed to fetch refund")?;
             currency = payment_attempt.currency.get_required_value("currency")?;
 
-            // TODO: Add Connector Based Validation here.
-            validator::validate_payment_order_age(&payment_intent.created_at).change_context(
-                errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "created_at".to_string(),
-                    expected_format: format!(
-                        "created_at not older than {} days",
-                        validator::REFUND_MAX_AGE
-                    ),
-                },
-            )?;
+            //[#249]: Add Connector Based Validation here.
+            validator::validate_payment_order_age(
+                &payment_intent.created_at,
+                state.conf.refund.max_age,
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "created_at".to_string(),
+                expected_format: format!(
+                    "created_at not older than {} days",
+                    state.conf.refund.max_age,
+                ),
+            })?;
 
             validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
                 .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
-            validator::validate_maximum_refund_against_payment_attempt(&all_refunds)
-                .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
+            validator::validate_maximum_refund_against_payment_attempt(
+                &all_refunds,
+                state.conf.refund.max_attempts,
+            )
+            .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
             let connector = payment_attempt.connector.clone().ok_or_else(|| {
                 report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("connector not populated in payment attempt.")
             })?;
 
-            refund_create_req = mk_new_refund(
-                req,
-                connector,
-                payment_attempt,
-                currency,
-                &refund_id,
-                &merchant_account.merchant_id,
-                refund_amount,
-            );
+            refund_create_req = storage::RefundNew::default()
+                .set_refund_id(refund_id.to_string())
+                .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
+                .set_external_reference_id(Some(refund_id))
+                .set_payment_id(req.payment_id)
+                .set_merchant_id(merchant_account.merchant_id.clone())
+                .set_connector_transaction_id(connecter_transaction_id.to_string())
+                .set_connector(connector)
+                .set_refund_type(enums::RefundType::RegularRefund)
+                .set_total_amount(refund_amount)
+                .set_currency(currency)
+                .set_created_at(Some(common_utils::date_time::now()))
+                .set_modified_at(Some(common_utils::date_time::now()))
+                .set_refund_status(enums::RefundStatus::Pending)
+                .set_metadata(req.metadata)
+                .set_description(req.reason.clone())
+                .set_attempt_id(payment_attempt.attempt_id.clone())
+                .set_refund_reason(req.reason)
+                .to_owned();
 
             refund = db
                 .insert_refund(refund_create_req, merchant_account.storage_scheme)
@@ -484,51 +499,9 @@ pub async fn refund_list(
     utils::when(data.is_empty(), || {
         Err(errors::ApiErrorResponse::RefundNotFound)
     })?;
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         api_models::refunds::RefundListResponse { data },
     ))
-}
-
-// ********************************************** UTILS **********************************************
-
-// FIXME: function should not have more than 3 arguments.
-// Consider to use builder pattern.
-#[instrument]
-fn mk_new_refund(
-    request: refunds::RefundRequest,
-    connector: String,
-    payment_attempt: &storage::PaymentAttempt,
-    currency: enums::Currency,
-    refund_id: &str,
-    merchant_id: &str,
-    refund_amount: i64,
-) -> storage::RefundNew {
-    let current_time = common_utils::date_time::now();
-    let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
-        Some(id) => id,
-        None => "",
-    };
-    storage::RefundNew {
-        refund_id: refund_id.to_string(),
-        internal_reference_id: Uuid::new_v4().to_string(),
-        external_reference_id: Some(refund_id.to_string()),
-        payment_id: request.payment_id,
-        merchant_id: merchant_id.to_string(),
-        // FIXME: remove the default.
-        connector_transaction_id: connecter_transaction_id.to_string(),
-        connector,
-        refund_type: enums::RefundType::RegularRefund,
-        total_amount: refund_amount,
-        currency,
-        refund_amount,
-        created_at: Some(current_time),
-        modified_at: Some(current_time),
-        refund_status: enums::RefundStatus::Pending,
-        metadata: request.metadata,
-        description: request.reason,
-        attempt_id: payment_attempt.attempt_id.clone(),
-        ..storage::RefundNew::default()
-    }
 }
 
 impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
@@ -548,7 +521,7 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
             refund_id,
             amount: data.request.amount / 100,
             currency: data.request.currency.to_string(),
-            reason: Some("TODO: Not propagated".to_string()), // TODO: Not propagated
+            reason: data.request.reason,
             status,
             metadata: None,
             error_message,
@@ -622,7 +595,7 @@ pub async fn schedule_refund_execution(
                 }
                 _ => {
                     // Sync the refund for status check
-                    //TODO: return refund status response
+                    //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_sync_task(db, &refund, runner)
@@ -660,25 +633,6 @@ pub async fn sync_refund_with_gateway_workflow(
                     refund_tracker.tracking_data
                 )
             })?;
-
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id)
-        .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
-
-    // FIXME we actually don't use this?
-    let _refund = state
-        .store
-        .find_refund_by_internal_reference_id_merchant_id(
-            &refund_core.refund_internal_reference_id,
-            &refund_core.merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::RefundNotFound))?;
 
     let merchant_account = state
         .store
@@ -763,7 +717,6 @@ pub async fn trigger_refund_execute_workflow(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::RefundNotFound))?;
     match (&refund.sent_to_gateway, &refund.refund_status) {
-        //FIXME: Conversion should come from trait
         (false, enums::RefundStatus::Pending) => {
             let merchant_account = db
                 .find_merchant_account_by_merchant_id(&refund.merchant_id)

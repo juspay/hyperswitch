@@ -26,8 +26,8 @@ pool_size = 5        # Number of connections to keep open
 
 # Replica SQL data store credentials
 [replica_database]
-username = "db_user"        # DB Username
-password = "db_pass"        # DB Password
+username = "rep"        # DB Username
+password = "rep"        # DB Password
 host = "localhost"          # DB Host
 port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
@@ -69,6 +69,8 @@ level = "DEBUG"
 aws_key_id = ""  # AWS Account Key ID
 aws_region = ""  # AWS Account region
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # AWS KMS Key
+admin_api_key = "test_admin" #admin api key for merchant authentication
+jwt_secret= "secret"  #secret jwt for merchant
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -86,6 +88,11 @@ locker_encryption_key2 = "" # public key 2 in pem format, corresponding private 
 locker_decryption_key1 = "" # private key 1 in pem format, corresponding public key in basilisk
 locker_decryption_key2 = "" # private key 2 in pem format, corresponding public key in basilisk
 
+
+# Refund configuration
+[refund]
+max_attempts = 10 # Number of refund attempts allowed
+max_age = 365 # Max age of a refund in days.
 
 # Validity of an Ephemeral Key in Hours
 [eph_key]
@@ -124,6 +131,9 @@ base_url = "https://apitest.cybersource.com/"
 
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
+
+[connectors.worldpay]
+base_url = "https://try.access.worldpay.com/"
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]

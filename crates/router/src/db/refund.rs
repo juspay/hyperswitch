@@ -179,7 +179,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
         ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.replica_pool).await;
             <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
                 &conn,
                 merchant_id,
@@ -290,6 +290,7 @@ mod storage {
                         created_at: new.created_at.unwrap_or_else(date_time::now),
                         updated_at: new.created_at.unwrap_or_else(date_time::now),
                         description: new.description.clone(),
+                        refund_reason: new.refund_reason.clone(),
                     };
 
                     let field = format!(
@@ -583,7 +584,7 @@ mod storage {
         ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.replica_pool).await;
                     <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit)
                         .await
                         .map_err(Into::into)
@@ -640,6 +641,7 @@ impl RefundInterface for MockDb {
             created_at: new.created_at.unwrap_or(current_time),
             updated_at: current_time,
             description: new.description,
+            refund_reason: new.refund_reason.clone(),
         };
         refunds.push(refund.clone());
         Ok(refund)

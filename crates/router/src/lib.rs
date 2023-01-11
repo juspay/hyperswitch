@@ -16,14 +16,13 @@ pub mod routes;
 pub mod scheduler;
 
 mod middleware;
+pub mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;
 
 pub mod olap_lib;
 pub mod oltp_lib;
-
-
 
 pub use self::env::logger;
 

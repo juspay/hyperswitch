@@ -8,7 +8,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::customers,
     routes,
-    services::api,
+    services::{api, authentication as auth},
     types::api::customers as customer_types,
 };
 
@@ -44,7 +44,7 @@ pub async fn customer_create(
         |state, merchant_account, req| {
             customers::create_customer(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -75,7 +75,7 @@ pub async fn customer_retrieve(
         |state, merchant_account, req| {
             customers::retrieve_customer(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -115,7 +115,7 @@ pub async fn customer_update(
         |state, merchant_account, req| {
             customers::update_customer(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -144,7 +144,7 @@ pub async fn customer_delete(
         &req,
         payload,
         customers::delete_customer,
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }

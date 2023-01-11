@@ -242,7 +242,7 @@ mod storage {
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.replica_pool).await;
                     PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
                         .await
                         .map_err(Into::into)
@@ -313,7 +313,7 @@ mod storage {
             pc: &api::PaymentListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.replica_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
                 .await
                 .map_err(Into::into)

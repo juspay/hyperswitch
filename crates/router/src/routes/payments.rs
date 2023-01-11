@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use actix_web::{web, Responder};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
@@ -8,7 +6,7 @@ use crate::{
     self as app,
     core::{errors::http_not_implemented, payments},
     routes,
-    services::api,
+    services::{api, authentication as auth},
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
@@ -38,7 +36,7 @@ pub async fn payments_create(
                 api::AuthFlow::Merchant,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -70,7 +68,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
+        &auth::MerchantIdAuth(merchant_id),
     )
     .await
 }
@@ -90,11 +88,10 @@ pub async fn payments_retrieve(
         param: None,
         connector: None,
     };
-    let auth_type = match api::get_auth_type(&req) {
-        Ok(auth_type) => auth_type,
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let _auth_flow = api::get_auth_flow(&auth_type);
 
     api::server_wrap(
         &state,
@@ -111,7 +108,7 @@ pub async fn payments_retrieve(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -134,14 +131,11 @@ pub async fn payments_update(
 
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
     };
-    let auth_flow = api::get_auth_flow(&auth_type);
 
-    // return http_not_implemented();
     api::server_wrap(
         &state,
         &req,
@@ -155,7 +149,7 @@ pub async fn payments_update(
                 auth_flow,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -178,13 +172,12 @@ pub async fn payments_confirm(
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
-    let auth_type;
-    (payload, auth_type) = match api::get_auth_type_and_check_client_secret(&req, payload) {
-        Ok(values) => values,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        };
 
-    let auth_flow = api::get_auth_flow(&auth_type);
     api::server_wrap(
         &state,
         &req,
@@ -198,7 +191,7 @@ pub async fn payments_confirm(
                 auth_flow,
             )
         },
-        auth_type,
+        &*auth_type,
     )
     .await
 }
@@ -231,7 +224,7 @@ pub async fn payments_capture(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -265,7 +258,7 @@ pub async fn payments_connector_session(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::PublishableKey,
+        &auth::PublishableKeyAuth,
     )
     .await
 }
@@ -297,7 +290,7 @@ pub async fn payments_response(
                 req,
             )
         },
-        api::MerchantAuthentication::MerchantId(Cow::Borrowed(&merchant_id)),
+        &auth::MerchantIdAuth(merchant_id),
     )
     .await
 }
@@ -329,7 +322,7 @@ pub async fn payments_cancel(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -349,7 +342,7 @@ pub async fn payments_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
