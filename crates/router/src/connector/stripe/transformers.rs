@@ -396,6 +396,7 @@ impl<F, T>
                 redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference,
+                connector_metadata: None,
             }),
             amount_captured: Some(item.response.amount_received),
             ..item.data
@@ -445,6 +446,7 @@ impl<F, T>
                 redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference,
+                connector_metadata: None,
             }),
             ..item.data
         })

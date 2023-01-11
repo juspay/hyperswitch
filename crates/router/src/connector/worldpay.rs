@@ -161,6 +161,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                         redirection_data: None,
                         redirect: false,
                         mandate_reference: None,
+                        connector_metadata: None,
                     }),
                     ..data.clone()
                 })
@@ -249,6 +250,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             ..data.clone()
         })
@@ -306,6 +308,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                         redirection_data: None,
                         redirect: false,
                         mandate_reference: None,
+                        connector_metadata: None,
                     }),
                     ..data.clone()
                 })

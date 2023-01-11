@@ -17,6 +17,9 @@ use crate::{
     utils::{self, BytesExt, StringExt},
 };
 
+const VAULT_SERVICE_NAME: &str = "CARD";
+const VAULT_VERSION: &str = "0";
+
 pub struct SupplementaryVaultData {
     pub customer_id: Option<String>,
     pub payment_method_id: Option<String>,
@@ -147,52 +150,37 @@ impl Vaultable for api::WalletData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodValue1 {
-    pub method_type: String,
-    pub method_value1: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodValue2 {
-    pub method_type: String,
-    pub method_value2: String,
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum VaultPaymentMethod {
+    Card(String),
+    Wallet(String),
 }
 
 impl Vaultable for api::PaymentMethod {
     fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let (value1, method_type) = match self {
-            Self::Card(card) => (card.get_value1(customer_id)?, "card".to_string()),
-            Self::Wallet(wallet) => (wallet.get_value1(customer_id)?, "wallet".to_string()),
+        let value1 = match self {
+            Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
+            Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
                 .attach_printable("Payment method not supported")?,
         };
 
-        let pm_value1 = PaymentMethodValue1 {
-            method_type,
-            method_value1: value1,
-        };
-
-        utils::Encode::<PaymentMethodValue1>::encode_to_string_of_json(&pm_value1)
+        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value1)
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payment method value1")
     }
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let (value2, method_type) = match self {
-            Self::Card(card) => (card.get_value2(customer_id)?, "card".to_string()),
-            Self::Wallet(wallet) => (wallet.get_value2(customer_id)?, "wallet".to_string()),
+        let value2 = match self {
+            Self::Card(card) => VaultPaymentMethod::Card(card.get_value2(customer_id)?),
+            Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
                 .attach_printable("Payment method not supported")?,
         };
 
-        let pm_value2 = PaymentMethodValue2 {
-            method_type,
-            method_value2: value2,
-        };
-
-        utils::Encode::<PaymentMethodValue2>::encode_to_string_of_json(&pm_value2)
+        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value2)
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payment method value2")
     }
@@ -201,31 +189,23 @@ impl Vaultable for api::PaymentMethod {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: PaymentMethodValue1 = value1
+        let value1: VaultPaymentMethod = value1
             .parse_struct("PaymentMethodValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into payment method value 1")?;
 
-        let value2: PaymentMethodValue2 = value2
+        let value2: VaultPaymentMethod = value2
             .parse_struct("PaymentMethodValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into payment method value 2")?;
 
-        utils::when(value1.method_type != value2.method_type, || {
-            Err(errors::VaultError::ResponseDeserializationFailed)
-                .into_report()
-                .attach_printable("Payment method types in value1 and value2 are not the same")
-        })?;
-
-        match value1.method_type.as_str() {
-            "card" => {
-                let (card, supp_data) =
-                    api::CCard::from_values(value1.method_value1, value2.method_value2)?;
+        match (value1, value2) {
+            (VaultPaymentMethod::Card(mvalue1), VaultPaymentMethod::Card(mvalue2)) => {
+                let (card, supp_data) = api::CCard::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Card(card), supp_data))
             }
-            "wallet" => {
-                let (wallet, supp_data) =
-                    api::WalletData::from_values(value1.method_value1, value2.method_value2)?;
+            (VaultPaymentMethod::Wallet(mvalue1), VaultPaymentMethod::Wallet(mvalue2)) => {
+                let (wallet, supp_data) = api::WalletData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Wallet(wallet), supp_data))
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
@@ -397,10 +377,12 @@ pub async fn create_tokenize(
         value1,
         value2: value2.unwrap_or_default(),
         lookup_key,
-        service_name: "CARD".to_string(),
+        service_name: VAULT_SERVICE_NAME.to_string(),
     };
-    let payload = serde_json::to_string(&payload_to_be_encrypted)
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
+    let payload = utils::Encode::<api::TokenizePayloadRequest>::encode_to_string_of_json(
+        &payload_to_be_encrypted,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -409,7 +391,7 @@ pub async fn create_tokenize(
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
         key_id: services::get_key_id(&state.conf.jwekey).to_string(),
-        version: Some("0".to_string()),
+        version: Some(VAULT_VERSION.to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
         &state.conf.locker,
