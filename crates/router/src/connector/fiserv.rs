@@ -1,13 +1,11 @@
 mod transformers;
 
-use std::{
-    fmt::Debug,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::fmt::Debug;
 
 use bytes::Bytes;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use ring::hmac;
+use time;
 use transformers as fiserv;
 use uuid::Uuid;
 
@@ -35,14 +33,14 @@ impl Fiserv {
         auth: fiserv::FiservAuthType,
         request_id: &str,
         payload: &str,
-        timestamp: String,
+        timestamp: i64,
     ) -> CustomResult<String, errors::ConnectorError> {
         let fiserv::FiservAuthType {
             api_key,
             api_secret,
             ..
         } = auth;
-        let raw_signature = format!("{}{}{}{}", api_key, request_id, timestamp, payload);
+        let raw_signature = format!("{api_key}{request_id}{timestamp}{payload}");
 
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
         let signature_value = base64::encode(hmac::sign(&key, raw_signature.as_bytes()).as_ref());
@@ -112,26 +110,17 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?
-            .as_millis()
-            .to_string();
+        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let api_key = auth.api_key.clone();
 
-        let fiserv_req = utils::Encode::<fiserv::FiservCaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let fiserv_req = self
+            .get_request_body(req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self
-            .generate_authorization_signature(
-                auth,
-                &client_request_id,
-                &fiserv_req,
-                timestamp.clone(),
-            )
+            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let headers = vec![
             (
@@ -141,7 +130,7 @@ impl
             ("Client-Request-Id".to_string(), client_request_id),
             ("Auth-Token-Type".to_string(), "HMAC".to_string()),
             ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp),
+            ("Timestamp".to_string(), timestamp.to_string()),
             ("Authorization".to_string(), hmac),
         ];
         Ok(headers)
@@ -185,7 +174,7 @@ impl
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: fiserv::FiservPaymentsResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("Fiserv Payment Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
@@ -217,20 +206,18 @@ impl
 
         let fiserv::ErrorResponse { error, details } = response;
 
-        let message = match error {
-            Some(err) => err
+        let message = match (error, details) {
+            (Some(err), _) => err
                 .iter()
                 .map(|v| v.message.clone())
                 .collect::<Vec<String>>()
                 .join(""),
-            None => match details {
-                Some(err_details) => err_details
-                    .iter()
-                    .map(|v| v.message.clone())
-                    .collect::<Vec<String>>()
-                    .join(""),
-                None => consts::NO_ERROR_MESSAGE.to_string(),
-            },
+            (None, Some(err_details)) => err_details
+                .iter()
+                .map(|v| v.message.clone())
+                .collect::<Vec<String>>()
+                .join(""),
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
 
         Ok(types::ErrorResponse {
@@ -267,26 +254,17 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?
-            .as_millis()
-            .to_string();
+        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let api_key = auth.api_key.clone();
 
-        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let fiserv_req = self
+            .get_request_body(req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self
-            .generate_authorization_signature(
-                auth,
-                &client_request_id,
-                &fiserv_req,
-                timestamp.clone(),
-            )
+            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let headers = vec![
             (
@@ -296,7 +274,7 @@ impl
             ("Client-Request-Id".to_string(), client_request_id),
             ("Auth-Token-Type".to_string(), "HMAC".to_string()),
             ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp),
+            ("Timestamp".to_string(), timestamp.to_string()),
             ("Authorization".to_string(), hmac),
         ];
         Ok(headers)
@@ -375,22 +353,19 @@ impl
 
         let fiserv::ErrorResponse { error, details } = response;
 
-        let message = match error {
-            Some(err) => err
+        let message = match (error, details) {
+            (Some(err), _) => err
                 .iter()
                 .map(|v| v.message.clone())
                 .collect::<Vec<String>>()
                 .join(""),
-            None => match details {
-                Some(err_details) => err_details
-                    .iter()
-                    .map(|v| v.message.clone())
-                    .collect::<Vec<String>>()
-                    .join(""),
-                None => consts::NO_ERROR_MESSAGE.to_string(),
-            },
+            (None, Some(err_details)) => err_details
+                .iter()
+                .map(|v| v.message.clone())
+                .collect::<Vec<String>>()
+                .join(""),
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
-
         Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message,

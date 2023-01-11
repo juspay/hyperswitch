@@ -88,10 +88,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
                 };
+                let metadata = item
+                    .connector_meta_data
+                    .clone()
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let session: SessionObject = metadata
+                    .parse_value("SessionObject")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                 let merchant_details = MerchantDetails {
                     merchant_id: auth.merchant_account,
-                    terminal_id: "10000001".to_string(),
+                    terminal_id: session.terminal_id,
                 };
 
                 let transaction_interaction = TransactionInteraction {

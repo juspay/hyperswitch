@@ -139,17 +139,17 @@ impl ConnectorData {
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
-            "stripe" => Ok(Box::new(&connector::Stripe)),
-            "adyen" => Ok(Box::new(&connector::Adyen)),
             "aci" => Ok(Box::new(&connector::Aci)),
+            "adyen" => Ok(Box::new(&connector::Adyen)),
+            "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
+            "stripe" => Ok(Box::new(&connector::Stripe)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ConnectorError::InvalidConnectorName)
