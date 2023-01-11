@@ -2,6 +2,7 @@ use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::ListPaymentMethodRequest, payments::PaymentsRequest};
 use async_trait::async_trait;
 use error_stack::{report, IntoReport, ResultExt};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
 use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},
@@ -101,6 +102,32 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for PublishableKeyAuth {
     }
 }
 
+#[derive(Debug)]
+pub struct JWTAuth;
+
+#[derive(serde::Deserialize)]
+struct JwtAuthPayloadFetchMerchantAccount {
+    merchant_id: String,
+}
+
+#[async_trait]
+impl AuthenticateAndFetch<storage::MerchantAccount> for JWTAuth {
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &AppState,
+    ) -> RouterResult<storage::MerchantAccount> {
+        let mut token = get_jwt(request_headers)?;
+        token = strip_jwt_token(token)?;
+        let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state)?;
+        state
+            .store
+            .find_merchant_account_by_merchant_id(&payload.merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+    }
+}
+
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
@@ -115,6 +142,19 @@ impl ClientSecretFetch for ListPaymentMethodRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
+}
+
+pub fn jwt_auth_or<T>(
+    headers: &HeaderMap,
+    default_auth: Box<dyn AuthenticateAndFetch<T>>,
+) -> Box<dyn AuthenticateAndFetch<T>>
+where
+    JWTAuth: AuthenticateAndFetch<T>,
+{
+    if is_jwt_auth(headers) {
+        return Box::new(JWTAuth);
+    }
+    default_auth
 }
 
 pub fn get_auth_type_and_flow(
@@ -183,6 +223,22 @@ pub async fn is_ephemeral_auth(
     Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
 }
 
+fn is_jwt_auth(headers: &HeaderMap) -> bool {
+    headers.get(crate::headers::AUTHORIZATION).is_some()
+}
+
+pub fn decode_jwt<T>(token: &str, state: &AppState) -> RouterResult<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let secret = state.conf.keys.jwt_secret.as_bytes();
+    let key = DecodingKey::from_secret(secret);
+    decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
+        .map(|decoded| decoded.claims)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+}
+
 fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get("api-key")
@@ -191,4 +247,20 @@ fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert API key to string")
+}
+
+fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(crate::headers::AUTHORIZATION)
+        .get_required_value(crate::headers::AUTHORIZATION)?
+        .to_str()
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert JWT token to string")
+}
+
+fn strip_jwt_token(token: &str) -> RouterResult<&str> {
+    token
+        .strip_prefix("Bearer ")
+        .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
 }
