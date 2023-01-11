@@ -29,6 +29,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
@@ -234,6 +235,7 @@ mod storage {
             }
         }
 
+        #[cfg(feature = "olap")]
         async fn filter_payment_intent_by_constraints(
             &self,
             merchant_id: &str,
@@ -307,12 +309,14 @@ mod storage {
                 .into_report()
         }
 
+        #[cfg(feature = "olap")]
         async fn filter_payment_intent_by_constraints(
             &self,
             merchant_id: &str,
             pc: &api::PaymentListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            #[cfg(feature = "olap")]
             let conn = pg_connection(&self.replica_pool).await;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
                 .await
@@ -324,6 +328,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
+    #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
         _merchant_id: &str,

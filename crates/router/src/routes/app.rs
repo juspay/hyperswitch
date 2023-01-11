@@ -48,6 +48,7 @@ impl Health {
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
     }
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("")
             .app_data(web::Data::new(state))
@@ -58,6 +59,7 @@ impl Health {
 pub struct Payments;
 
 impl Payments {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/payments")
             .app_data(web::Data::new(state))
@@ -93,6 +95,7 @@ impl Payments {
 pub struct Customers;
 
 impl Customers {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/customers")
             .app_data(web::Data::new(state))
@@ -121,6 +124,7 @@ impl Customers {
 pub struct Refunds;
 
 impl Refunds {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/refunds")
             .app_data(web::Data::new(state))
@@ -142,6 +146,7 @@ impl Refunds {
 pub struct Payouts;
 
 impl Payouts {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/payouts")
             .app_data(web::Data::new(state))
@@ -177,6 +182,7 @@ impl PaymentMethods {
 pub struct MerchantAccount;
 
 impl MerchantAccount {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/accounts")
             .app_data(web::Data::new(state))
@@ -193,6 +199,7 @@ impl MerchantAccount {
 pub struct MerchantConnectorAccount;
 
 impl MerchantConnectorAccount {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/account")
             .app_data(web::Data::new(state))
@@ -217,9 +224,6 @@ impl MerchantConnectorAccount {
 pub struct EphemeralKey;
 
 impl EphemeralKey {
-    // pub fn olap_server(state: AppState) -> Scope {
-    //     web::scope("/ephemeral_keys").app_data(web::Data::new(state))
-    // }
     pub fn oltp_server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
             .app_data(web::Data::new(config))
@@ -246,9 +250,6 @@ impl Mandates {
 pub struct Webhooks;
 
 impl Webhooks {
-    // pub fn olap_server(state: AppState) -> Scope {
-    //     web::scope("/webhooks").app_data(web::Data::new(state))
-    // }
     pub fn oltp_server(config: AppState) -> Scope {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))

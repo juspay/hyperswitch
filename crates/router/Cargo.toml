@@ -93,7 +93,7 @@ wiremock = "0.5"
 
 [[bin]]
 name = "router"
-path = "src/bin/oltp.rs"
+path = "src/bin/router.rs"
 
 [[bin]]
 name = "scheduler"

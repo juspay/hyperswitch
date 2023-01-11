@@ -11,6 +11,7 @@ use crate::connection::{diesel_make_pg_pool, PgPool};
 #[derive(Clone)]
 pub struct Store {
     pub master_pool: PgPool,
+    #[cfg(feature = "olap")]
     pub replica_pool: PgPool,
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
     #[cfg(feature = "kv_store")]
@@ -28,6 +29,7 @@ impl Store {
     pub async fn new(config: &crate::configs::settings::Settings, test_transaction: bool) -> Self {
         Self {
             master_pool: diesel_make_pg_pool(&config.master_database, test_transaction).await,
+            #[cfg(feature = "olap")]
             replica_pool: diesel_make_pg_pool(&config.replica_database, test_transaction).await,
             redis_conn: Arc::new(crate::connection::redis_connection(config).await),
             #[cfg(feature = "kv_store")]

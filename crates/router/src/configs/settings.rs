@@ -35,6 +35,7 @@ pub struct Settings {
     pub proxy: Proxy,
     pub env: Env,
     pub master_database: Database,
+    #[cfg(feature = "olap")]
     pub replica_database: Database,
     pub redis: RedisSettings,
     pub log: Log,
