@@ -41,7 +41,6 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             merchant_account.clone(),
             operations::PaymentStatus,
             tracking_data.clone(),
-            None,
             payment_flows::CallConnectorAction::Trigger,
         )
         .await?;
