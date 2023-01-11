@@ -63,7 +63,7 @@ pub async fn refunds_retrieve(
 pub async fn refunds_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<refunds::RefundRequest>,
+    json_payload: web::Json<refunds::RefundUpdateRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();

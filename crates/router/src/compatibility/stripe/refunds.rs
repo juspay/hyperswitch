@@ -78,11 +78,11 @@ pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    form_payload: web::Form<types::StripeCreateRefundRequest>,
+    form_payload: web::Form<types::StripeUpdateRefundRequest>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();
     let payload = form_payload.into_inner();
-    let create_refund_update_req: refund_types::RefundRequest = payload.into();
+    let create_refund_update_req: refund_types::RefundUpdateRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
         _,

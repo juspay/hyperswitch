@@ -45,6 +45,14 @@ pub struct RefundRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundUpdateRequest {
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<serde_json::Value>,
+}
+
 #[derive(Default, Debug, Clone, ToSchema, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
