@@ -49,6 +49,10 @@ pub async fn create_merchant_account(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "custom routing rules",
             })?;
+    let metadata = utils::Encode::<api::MerchantDetails>::encode_to_value(&req.metadata)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "metadata",
+        })?;
 
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
@@ -71,6 +75,7 @@ pub async fn create_merchant_account(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         publishable_key: Some(publishable_key.to_owned()),
         locker_id: req.locker_id,
+        metadata: Some(metadata),
     };
 
     db.insert_merchant(merchant_account)
@@ -124,7 +129,7 @@ pub async fn get_merchant_account(
         redirect_to_merchant_with_http_post: Some(
             merchant_account.redirect_to_merchant_with_http_post,
         ),
-        metadata: None,
+        metadata: merchant_account.metadata,
         publishable_key: merchant_account.publishable_key,
         locker_id: merchant_account.locker_id,
     };
@@ -219,6 +224,14 @@ pub async fn merchant_account_update(
         locker_id: req
             .locker_id
             .or_else(|| merchant_account.locker_id.to_owned()),
+        metadata: if req.metadata.is_some() {
+            Some(
+                utils::Encode::<api::MerchantDetails>::encode_to_value(&req.metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            )
+        } else {
+            merchant_account.metadata.to_owned()
+        },
     };
     response.merchant_id = merchant_id.to_string();
     response.api_key = merchant_account.api_key.to_owned();
