@@ -113,7 +113,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(

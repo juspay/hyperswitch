@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::requests::{self};
+use super::requests;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalpayPaymentsResponse {
     /// A unique identifier for the merchant account set by Global Payments.
