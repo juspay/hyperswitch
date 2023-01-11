@@ -59,6 +59,28 @@ where
             masking_strategy: PhantomData,
         }
     }
+
+    /// Zip 2 secrets with the same masking strategy into one
+    pub fn zip<OtherSecretValue>(
+        self,
+        other: Secret<OtherSecretValue, MaskingStrategy>,
+    ) -> Secret<(SecretValue, OtherSecretValue), MaskingStrategy>
+    where
+        MaskingStrategy: Strategy<OtherSecretValue> + Strategy<(SecretValue, OtherSecretValue)>,
+    {
+        (self.inner_secret, other.inner_secret).into()
+    }
+
+    /// consume self and modify the inner value
+    pub fn map<OtherSecretValue>(
+        self,
+        f: impl FnOnce(SecretValue) -> OtherSecretValue,
+    ) -> Secret<OtherSecretValue, MaskingStrategy>
+    where
+        MaskingStrategy: Strategy<OtherSecretValue>,
+    {
+        f(self.inner_secret).into()
+    }
 }
 
 impl<SecretValue, MaskingStrategy> PeekInterface<SecretValue>
