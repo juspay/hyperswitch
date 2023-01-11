@@ -46,8 +46,7 @@ pub async fn refund_create_core(
 
     // Amount is not passed in request refer from payment attempt.
     amount = req.amount.unwrap_or(payment_attempt.amount); // [#298]: Need to that capture amount
-
-    //[#299]: Can we change the flow based on some workflow idea
+                                                           //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
@@ -438,7 +437,8 @@ pub async fn validate_and_create_refund(
                 .set_connector_transaction_id(connecter_transaction_id.to_string())
                 .set_connector(connector)
                 .set_refund_type(enums::RefundType::RegularRefund)
-                .set_total_amount(refund_amount)
+                .set_total_amount(payment_attempt.amount)
+                .set_refund_amount(refund_amount)
                 .set_currency(currency)
                 .set_created_at(Some(common_utils::date_time::now()))
                 .set_modified_at(Some(common_utils::date_time::now()))

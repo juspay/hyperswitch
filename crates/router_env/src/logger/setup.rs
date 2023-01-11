@@ -42,6 +42,9 @@ pub fn setup<Str: AsRef<str>>(
 
     let telemetry = if conf.telemetry.enabled {
         let trace_config = trace::config()
+            .with_sampler(trace::Sampler::TraceIdRatioBased(
+                conf.telemetry.sampling_rate.unwrap_or(1.0),
+            ))
             .with_resource(Resource::new(vec![KeyValue::new("service.name", "router")]));
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
