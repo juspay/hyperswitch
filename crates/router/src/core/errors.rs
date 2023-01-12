@@ -46,25 +46,6 @@ macro_rules! impl_error_type {
     };
 }
 
-// FIXME: Make this a derive macro instead
-macro_rules! router_error_error_stack_specific {
-    ($($path: ident)::+ < $st: ident >, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl From<$($path)::+ <$st>> for ApplicationError {
-            fn from(err: $($path)::+ <$st> ) -> Self {
-                $($path2)::*(err)
-            }
-        }
-    };
-
-    ($($path: ident)::+  <$($inner_path:ident)::+>, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl<'a> From< $($path)::+ <$($inner_path)::+> > for ApplicationError {
-            fn from(err: $($path)::+ <$($inner_path)::+> ) -> Self {
-                $($path2)::*(err)
-            }
-        }
-    };
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("DatabaseError: {0}")]
@@ -107,76 +88,31 @@ impl StorageError {
     }
 }
 
-impl_error_type!(AuthenticationError, "Authentication error");
-impl_error_type!(AuthorisationError, "Authorisation error");
 impl_error_type!(EncryptionError, "Encryption error");
-impl_error_type!(UnexpectedError, "Unexpected error");
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationError {
     // Display's impl can be overridden by the attribute error marco.
     // Don't use Debug here, Debug gives error stack in response.
-    #[error("{{ error_description: Error while Authenticating, error_message: {0} }}")]
-    EAuthenticationError(error_stack::Report<AuthenticationError>),
-
-    #[error("{{ error_description: Error while Authorizing, error_message: {0} }}")]
-    EAuthorisationError(error_stack::Report<AuthorisationError>),
-
-    #[error("{{ error_description: Connector implementation missing, error_message: {0} }}")]
-    NotImplementedByConnector(String), //Feature not implemented by chosen connector.
-
-    #[error("{{ error_description: Unexpected error, error_message: {0} }}")]
-    EUnexpectedError(error_stack::Report<UnexpectedError>),
-
-    #[error("{{ error_description: Error while parsing, error_message: {0} }}")]
-    EParsingError(error_stack::Report<ParsingError>),
-
     #[error("Application configuration error: {0}")]
     ConfigurationError(ConfigError),
 
-    #[error("{{ error_description: Database operation failed, error_message: {0} }}")]
-    EDatabaseError(error_stack::Report<storage_errors::DatabaseError>),
-
-    #[error("{{ error_description: Encryption module operation failed, error_message: {0} }}")]
-    EEncryptionError(error_stack::Report<EncryptionError>),
-
     #[error("Metrics error: {0}")]
-    EMetrics(MetricsError),
+    MetricsError(MetricsError),
 
     #[error("I/O: {0}")]
-    EIo(std::io::Error),
+    IoError(std::io::Error),
 }
-
-router_error_error_stack_specific!(
-    error_stack::Report<storage_errors::DatabaseError>,
-    ApplicationError::EDatabaseError(error_stack::Report<DatabaseError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<AuthenticationError>,
-    ApplicationError::EAuthenticationError(error_stack::Report<AuthenticationError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<UnexpectedError>,
-    ApplicationError::EUnexpectedError(error_stack::Report<UnexpectedError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<ParsingError>,
-    ApplicationError::EParsingError(error_stack::Report<ParsingError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<EncryptionError>,
-    ApplicationError::EEncryptionError(error_stack::Report<EncryptionError>)
-);
 
 impl From<MetricsError> for ApplicationError {
     fn from(err: MetricsError) -> Self {
-        Self::EMetrics(err)
+        Self::MetricsError(err)
     }
 }
 
 impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
-        Self::EIo(err)
+        Self::IoError(err)
     }
 }
 
@@ -196,25 +132,15 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
         .append_header(("Via", "Juspay_Router"))
         .content_type("application/json")
-        .body(format!(
-            "{{\n\"error\": {{\n\"message\": \"{err}\" \n}} \n}}\n"
-        ))
+        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
 impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::EParsingError(_)
-            | Self::EAuthenticationError(_)
-            | Self::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
-
-            Self::EDatabaseError(_)
-            | Self::NotImplementedByConnector(_)
-            | Self::EMetrics(_)
-            | Self::EIo(_)
-            | Self::ConfigurationError(_)
-            | Self::EEncryptionError(_)
-            | Self::EUnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::MetricsError(_) | Self::IoError(_) | Self::ConfigurationError(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 
