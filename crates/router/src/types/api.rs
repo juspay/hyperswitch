@@ -105,8 +105,9 @@ pub struct ConnectorData {
 }
 
 pub enum ConnectorCallType {
-    Single(ConnectorData),
+    Routing,
     Multiple(Vec<ConnectorData>),
+    Single(ConnectorData),
 }
 
 impl ConnectorCallType {
