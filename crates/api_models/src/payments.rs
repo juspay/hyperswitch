@@ -819,7 +819,7 @@ pub struct GpayMetadata {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    pub gpay: GpayMetadata,
+    pub data: GpayMetadata,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
