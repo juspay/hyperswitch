@@ -88,11 +88,11 @@ pub fn mk_olap_app(
     server_app
 }
 
-#[allow(clippy::expect_used, clippy::unwrap_used)]
+/// Starts the OLAP server with only OLAP services
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
-/// Starts the OLAP server with only OLAP services
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 #[cfg(feature = "olap")]
 pub async fn start_olap_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
@@ -172,11 +172,11 @@ pub fn mk_oltp_app(
     server_app
 }
 
-#[allow(clippy::expect_used, clippy::unwrap_used)]
+/// Starts the OLTP server with only OLTP services
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
-/// Starts the OLTP server with only OLTP services
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 pub async fn start_oltp_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
