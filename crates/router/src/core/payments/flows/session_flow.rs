@@ -84,7 +84,7 @@ fn create_gpay_session_token(
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Gpay {
-                allowed_payment_methods: gpay_data.gpay.allowed_payment_methods,
+                data: gpay_data.data,
                 transaction_info,
             },
         }),
