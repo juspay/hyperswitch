@@ -205,6 +205,100 @@ impl
         types::PaymentsResponseData,
     > for Rapyd
 {
+    fn get_headers(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        Ok(vec![])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let id = req.request.connector_transaction_id.to_string();
+        Ok(format!(
+            "{}/v1/payments/{}",
+            api::ConnectorCommon::base_url(self, connectors),
+            id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
+        let salt = generate_id(12, "");
+
+        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let url_path = format!("/v1/payments/{}", req.request.connector_transaction_id);
+        let signature =
+            self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
+
+        let headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            ("access_key".to_string(), auth.access_key),
+            ("salt".to_string(), salt),
+            ("timestamp".to_string(), timestamp.to_string()),
+            ("signature".to_string(), signature),
+        ];
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Delete)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(headers)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: rapyd::RapydPaymentsResponse = res
+            .response
+            .parse_struct("Rapyd PaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(rapydpayments_create_response=?response);
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: rapyd::RapydPaymentsResponse = res
+            .parse_struct("Rapyd ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response.status.error_code,
+            message: response.status.status,
+            reason: response.status.message,
+        })
+    }
 }
 
 impl api::PaymentSync for Rapyd {}

@@ -395,6 +395,59 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
     }
 }
 
+impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
+    for types::PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match item.response.status.status.as_str() {
+            "SUCCESS" => match item.response.data {
+                Some(data) => (
+                    enums::AttemptStatus::foreign_from((data.status, data.next_action)),
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
+                        redirection_data: None,
+                        redirect: false,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                    }),
+                ),
+                None => (
+                    enums::AttemptStatus::Failure,
+                    Err(types::ErrorResponse {
+                        code: item.response.status.error_code,
+                        message: item.response.status.status,
+                        reason: item.response.status.message,
+                    }),
+                ),
+            },
+            "ERROR" => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: item.response.status.error_code,
+                    message: item.response.status.status,
+                    reason: item.response.status.message,
+                }),
+            ),
+            _ => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: item.response.status.error_code,
+                    message: item.response.status.status,
+                    reason: item.response.status.message,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RapydErrorResponse {}
