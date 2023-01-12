@@ -51,7 +51,7 @@ mod storage {
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{enums, kv, payment_intent::*},
-        utils::storage_partitioning::{self, KvStorePartition},
+        utils::{self, storage_partitioning},
     };
 
     #[async_trait::async_trait]
@@ -110,7 +110,7 @@ mod storage {
                                 },
                             };
                             let stream_name =
-                                self.get_drainer_stream_name(&PaymentIntent::shard_key(
+                                self.get_drainer_stream_name(&<PaymentIntent as storage_partitioning::KvStorePartition>::shard_key(
                                     storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                         merchant_id: &created_intent.merchant_id,
                                         payment_id: &created_intent.payment_id,
@@ -155,9 +155,11 @@ mod storage {
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    let redis_value = serde_json::to_string(&updated_intent)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
+                    let redis_value =
+                        utils::Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
+                            .change_context(errors::StorageError::SerializationFailed)?;
+
                     let updated_intent = self
                         .redis_conn
                         .set_hash_fields(&key, ("pi", &redis_value))
@@ -176,13 +178,15 @@ mod storage {
                         },
                     };
 
-                    let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
-                        storage_partitioning::PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_intent.merchant_id,
-                            payment_id: &updated_intent.payment_id,
-                        },
-                        self.config.drainer_num_partitions,
-                    ));
+                    let stream_name = self.get_drainer_stream_name(
+                        &<PaymentIntent as storage_partitioning::KvStorePartition>::shard_key(
+                            storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                                merchant_id: &updated_intent.merchant_id,
+                                payment_id: &updated_intent.payment_id,
+                            },
+                            self.config.drainer_num_partitions,
+                        ),
+                    );
                     self.redis_conn
                         .stream_append_entry(
                             &stream_name,

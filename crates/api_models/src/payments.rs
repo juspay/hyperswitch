@@ -819,7 +819,7 @@ pub struct GpayMetadata {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    pub gpay: GpayMetadata,
+    pub data: GpayMetadata,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -827,7 +827,8 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
-        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+        #[serde(flatten)]
+        data: GpayMetadata,
         transaction_info: GpayTransactionInfo,
     },
     Klarna {
