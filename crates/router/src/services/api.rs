@@ -245,7 +245,7 @@ async fn send_request(
             client
                 .put(url)
                 .add_headers(headers)
-                .body(request.payload.expose_option().unwrap_or_default())  // If payload needs processing the body cannot have default
+                .body(request.payload.expose_option().unwrap_or_default()) // If payload needs processing the body cannot have default
                 .send()
                 .await
         }
