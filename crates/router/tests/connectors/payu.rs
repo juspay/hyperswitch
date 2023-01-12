@@ -1,4 +1,4 @@
-use router::types::{self, api, storage::enums, BrowserInformation};
+use router::types::{self, api, storage::enums};
 
 use crate::{
     connector_auth,
@@ -37,18 +37,6 @@ async fn should_authorize_card_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 currency: enums::Currency::PLN,
-                browser_info: Some(BrowserInformation {
-                    user_agent: "".to_string(),
-                    accept_header: "".to_string(),
-                    language: "nl-NL".to_string(),
-                    color_depth: 24,
-                    screen_height: 723,
-                    screen_width: 1536,
-                    time_zone: 0,
-                    java_enabled: true,
-                    java_script_enabled: true,
-                    ip_address: Some("127.0.0.1".parse().unwrap()),
-                }),
                 ..PaymentAuthorizeType::default().0
             }),
             None,
@@ -81,18 +69,6 @@ async fn should_authorize_gpay_payment() {
                     token: Some("eyJzaWduYXR1cmUiOiJNRVFDSUEwYWN1RGF3SkxYbDZXSEhKMU5oWWJJdHU2cElnaUcwYjlmNHY2Q1ZpMlpBaUJKbE9SR0Z0ME5kVlp0T0h4QTJQa3NDY3ZFSERhVGt4eHFsVnNiTVRnc1dRXHUwMDNkXHUwMDNkIiwicHJvdG9jb2xWZXJzaW9uIjoiRUN2MSIsInNpZ25lZE1lc3NhZ2UiOiJ7XCJlbmNyeXB0ZWRNZXNzYWdlXCI6XCJyRkoxT1haOXNzQjdKTkxvV0pLVklLWGQ2RnZzeWwrUW5naUY3UWU1RlEvZWJMVXdWOGNUdnZmSnM4T0ptcEVWNGt5M2t5MCttNjhlanVXTlhrYm1lWmRmTFdVeEtFREkxVG5MMjYwVWtvZ1NNRDc1VEUyaVYwbFdDY2xKSnl0RXdmR0JmTWZYUVNPSGpUempOYTlTZmtyT21LTk0rTDRsNGlqNFNXWFZaUnlEVmZnajZ6TnNaV0hhbUZjZUZTLzFmOGRheHFSQzRTT2d5SEVjQ0ZrVEZ0RUFONk1HRlFVd2NOY2hRZml1TTliL3lqYmJKVXE1aEtZbXFPMXg1K0hxWE9wVHhkeWFSUTFDeFJoQWJZdi9ZU2xMaU5Ja09PZ1hnRjBkKytkTnhIcHBDTVVnbkRITytSQzZiaXoyZnFiRXFQWUgvVlRNNTFuRmRkRlcwVk1CWUxlcC9hTkRBak9OSUc4WjlJZ1c0ajhnTldBTWlUVm5xM3NjcDVvTDhyMHh5M1VtQnFYMnlPUCtaVHZneGdxYys0ZHhrTWhzWVVBcWpnUmpMa1BzNk1zZnhLaGUyODFpL0pmRlcxY2VSUW9uQkFcXHUwMDNkXFx1MDAzZFwiLFwiZXBoZW1lcmFsUHVibGljS2V5XCI6XCJCTUt0VnozQ3ZZYWNKOWVBN0pwWkVSUVVHMkIvaDFKZU1UQkdVc09wbERjcG50dVEwM0hjRXd3K1ZrRlBXVUlKZlJ3WnZyVjFOaVlGNm9iaWxobTBZNjhcXHUwMDNkXCIsXCJ0YWdcIjpcIlI3MWFVVGVrbzRGZVBibXhkekdtZVpDcS9VckVhK2dHd3VkT2RBUE9ZNEFcXHUwMDNkXCJ9In="
                     .to_string())
                 }),
-                browser_info: Some(BrowserInformation{
-                    user_agent: "".to_string(),
-                    accept_header: "".to_string(),
-                    language: "nl-NL".to_string(),
-                    color_depth: 24,
-                    screen_height: 723,
-                    screen_width: 1536,
-                    time_zone: 0,
-                    java_enabled: true,
-                    java_script_enabled:true,
-                    ip_address: Some("127.0.0.1".parse().unwrap())
-                }),
             currency: enums::Currency::PLN,
             ..PaymentAuthorizeType::default().0
     }), None).await;
@@ -120,18 +96,6 @@ async fn should_capture_already_authorized_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 currency: enums::Currency::PLN,
-                browser_info: Some(BrowserInformation {
-                    user_agent: "".to_string(),
-                    accept_header: "".to_string(),
-                    language: "nl-NL".to_string(),
-                    color_depth: 24,
-                    screen_height: 723,
-                    screen_width: 1536,
-                    time_zone: 0,
-                    java_enabled: true,
-                    java_script_enabled: true,
-                    ip_address: Some("127.0.0.1".parse().unwrap()),
-                }),
                 ..PaymentAuthorizeType::default().0
             }),
             None,
@@ -179,18 +143,6 @@ async fn should_sync_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 currency: enums::Currency::PLN,
-                browser_info: Some(BrowserInformation {
-                    user_agent: "".to_string(),
-                    accept_header: "".to_string(),
-                    language: "nl-NL".to_string(),
-                    color_depth: 24,
-                    screen_height: 723,
-                    screen_width: 1536,
-                    time_zone: 0,
-                    java_enabled: true,
-                    java_script_enabled: true,
-                    ip_address: Some("127.0.0.1".parse().unwrap()),
-                }),
                 ..PaymentAuthorizeType::default().0
             }),
             None,
@@ -224,18 +176,6 @@ async fn should_void_already_authorized_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 currency: enums::Currency::PLN,
-                browser_info: Some(BrowserInformation {
-                    user_agent: "".to_string(),
-                    accept_header: "".to_string(),
-                    language: "nl-NL".to_string(),
-                    color_depth: 24,
-                    screen_height: 723,
-                    screen_width: 1536,
-                    time_zone: 0,
-                    java_enabled: true,
-                    java_script_enabled: true,
-                    ip_address: Some("127.0.0.1".parse().unwrap()),
-                }),
                 ..PaymentAuthorizeType::default().0
             }),
             None,
@@ -273,18 +213,6 @@ async fn should_refund_succeeded_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 currency: enums::Currency::PLN,
-                browser_info: Some(BrowserInformation {
-                    user_agent: "".to_string(),
-                    accept_header: "".to_string(),
-                    language: "nl-NL".to_string(),
-                    color_depth: 24,
-                    screen_height: 723,
-                    screen_width: 1536,
-                    time_zone: 0,
-                    java_enabled: true,
-                    java_script_enabled: true,
-                    ip_address: Some("127.0.0.1".parse().unwrap()),
-                }),
                 ..PaymentAuthorizeType::default().0
             }),
             None,
