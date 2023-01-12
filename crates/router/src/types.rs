@@ -114,7 +114,6 @@ pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub currency: storage_enums::Currency,
     pub amount: i64,
 }
 

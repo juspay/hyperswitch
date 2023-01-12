@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
 use bytes::Bytes;
 use error_stack::ResultExt;
 use ring::hmac;
@@ -42,7 +43,8 @@ impl Fiserv {
         let raw_signature = format!("{api_key}{request_id}{timestamp}{payload}");
 
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
-        let signature_value = base64::encode(hmac::sign(&key, raw_signature.as_bytes()).as_ref());
+        let signature_value =
+            consts::BASE64_ENGINE.encode(hmac::sign(&key, raw_signature.as_bytes()).as_ref());
         Ok(signature_value)
     }
 }
