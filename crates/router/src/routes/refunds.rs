@@ -80,6 +80,7 @@ pub async fn refunds_update(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
 // #[get("/list")]
 pub async fn refunds_list(
     state: web::Data<AppState>,
