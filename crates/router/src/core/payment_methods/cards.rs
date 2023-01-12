@@ -5,7 +5,6 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::{
-    configs::settings,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::transformers as payment_methods,
@@ -19,7 +18,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{self, BytesExt, OptionExt, StringExt, ValueExt},
+    utils::{BytesExt, OptionExt, StringExt},
 };
 
 #[instrument(skip_all)]
@@ -787,34 +786,6 @@ impl BasiliskCardSupport {
         create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
         Ok(card)
     }
-}
-
-pub async fn get_card_info_value(
-    keys: &settings::Keys,
-    card_info: String,
-) -> errors::RouterResult<serde_json::Value> {
-    let key = services::KeyHandler::get_encryption_key(keys)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let enc_card_info = services::encrypt(&card_info, key.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    utils::Encode::<Vec<u8>>::encode_to_value(&enc_card_info)
-        .change_context(errors::CardVaultError::RequestEncodingFailed)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-}
-
-pub async fn get_card_info_from_value(
-    keys: &settings::Keys,
-    card_info: serde_json::Value,
-) -> errors::RouterResult<String> {
-    let key = services::KeyHandler::get_encryption_key(keys)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let card_info_val: Vec<u8> = card_info
-        .parse_value("CardInfo")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    services::decrypt(card_info_val, key.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
 }
 
 #[instrument(skip_all)]

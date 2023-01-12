@@ -52,11 +52,6 @@ pub struct Settings {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Keys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-    pub temp_card_key: String,
     pub jwt_secret: String,
     pub admin_api_key: String,
 }
