@@ -152,9 +152,8 @@ impl ConnectorData {
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
-            _ => Err(report!(errors::UnexpectedError)
+            _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
-            .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }

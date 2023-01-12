@@ -36,7 +36,7 @@ impl PaymentIntentDbExt for PaymentIntent {
         let starting_after = &pc.starting_after;
         let ending_before = &pc.ending_before;
 
-        //TODO: Replace this with Boxable Expression and pass it into generic filter
+        //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
