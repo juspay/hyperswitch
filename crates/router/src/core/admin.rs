@@ -457,6 +457,7 @@ pub async fn update_payment_connector(
         payment_methods_enabled,
         test_mode: mca.test_mode,
         disabled: req.disabled.or(mca.disabled),
+        metadata: req.metadata,
     };
 
     let updated_mca = db
@@ -471,7 +472,7 @@ pub async fn update_payment_connector(
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
         payment_methods_enabled: req.payment_methods_enabled,
-        metadata: req.metadata,
+        metadata: updated_mca.metadata,
     };
     Ok(service_api::BachResponse::Json(response))
 }
