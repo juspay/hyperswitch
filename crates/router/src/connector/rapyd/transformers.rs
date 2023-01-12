@@ -1,8 +1,11 @@
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     core::errors,
     pii::PeekInterface,
+    services,
     types::{
         self, api,
         storage::enums,
@@ -10,15 +13,20 @@ use crate::{
     },
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize)]
 pub struct RapydPaymentsRequest {
     pub amount: i64,
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
+    pub payment_method_options: PaymentMethodOptions,
     pub capture: bool,
 }
 
+#[derive(Default, Debug, Serialize)]
+pub struct PaymentMethodOptions {
+    #[serde(rename = "3d_required")]
+    pub three_ds: bool,
+}
 #[derive(Default, Debug, Serialize)]
 pub struct PaymentMethod {
     #[serde(rename = "type")]
@@ -50,6 +58,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                         cvv: ccard.card_cvc.peek().to_string(),
                     },
                 };
+                let payment_method_options = match item.auth_type {
+                    enums::AuthenticationType::ThreeDs => PaymentMethodOptions { three_ds: true },
+                    enums::AuthenticationType::NoThreeDs => {
+                        PaymentMethodOptions { three_ds: false }
+                    }
+                };
                 Ok(Self {
                     amount: item.request.amount,
                     currency: item.request.currency,
@@ -58,6 +72,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                         item.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
+                    payment_method_options,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -65,8 +80,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct RapydAuthType {
     pub access_key: String,
     pub secret_key: String,
@@ -85,8 +98,7 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum RapydPaymentStatus {
@@ -126,7 +138,6 @@ impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydPaymentsResponse {
     pub status: Status,
@@ -148,6 +159,7 @@ pub struct ResponseData {
     pub amount: i64,
     pub status: RapydPaymentStatus,
     pub next_action: String,
+    pub redirect_url: Option<String>,
     pub original_amount: Option<i64>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<enums::Currency>,
@@ -168,16 +180,36 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response.status.status.as_str() {
             "SUCCESS" => match item.response.data {
-                Some(data) => (
-                    enums::AttemptStatus::foreign_from((data.status, data.next_action)),
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
-                        redirection_data: None,
-                        redirect: false,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                    }),
-                ),
+                Some(data) => {
+                    let redirection_data = match (data.next_action.as_str(), data.redirect_url) {
+                        ("3d_verification", Some(url)) => {
+                            let url = Url::parse(&url)
+                                .into_report()
+                                .change_context(errors::ParsingError)?;
+                            let mut base_url = url.clone();
+                            base_url.set_query(None);
+                            Some(services::RedirectForm {
+                                url: base_url.to_string(),
+                                method: services::Method::Get,
+                                form_fields: std::collections::HashMap::from_iter(
+                                    url.query_pairs()
+                                        .map(|(k, v)| (k.to_string(), v.to_string())),
+                                ),
+                            })
+                        }
+                        (_, _) => None,
+                    };
+                    (
+                        enums::AttemptStatus::foreign_from((data.status, data.next_action)),
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
+                            redirect: redirection_data.is_some(),
+                            redirection_data,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                        }),
+                    )
+                }
                 None => (
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
@@ -213,9 +245,6 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
@@ -233,8 +262,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
         })
     }
 }
-
-// Type definition for Refund Response
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -256,7 +283,6 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub status: Status,
@@ -448,6 +474,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
         })
     }
 }
-//TODO: Fill the struct with respective fields
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RapydErrorResponse {}
