@@ -5,7 +5,6 @@ use std::fmt::Debug;
 use bytes::Bytes;
 use error_stack::ResultExt;
 use ring::hmac;
-use time;
 use transformers as fiserv;
 use uuid::Uuid;
 
@@ -110,7 +109,7 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
+        let timestamp = common_utils::date_time::now_unix_timestamp();
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let api_key = auth.api_key.clone();
@@ -254,7 +253,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
+        let timestamp = common_utils::date_time::now_unix_timestamp();
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let api_key = auth.api_key.clone();

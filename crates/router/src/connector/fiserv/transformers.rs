@@ -102,9 +102,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
                 };
 
                 let transaction_interaction = TransactionInteraction {
-                    origin: "ECOM".to_string(),
-                    eci_indicator: "CHANNEL_ENCRYPTED".to_string(),
-                    pos_condition_code: "CARD_NOT_PRESENT_ECOM".to_string(),
+                    origin: "ECOM".to_string(), //Payment is being made in online mode, card not present
+                    eci_indicator: "CHANNEL_ENCRYPTED".to_string(), // transaction encryption such as SSL/TLS, but authentication was not performed
+                    pos_condition_code: "CARD_NOT_PRESENT_ECOM".to_string(), //card not present in online transaction
                 };
 
                 Ok(Self {
