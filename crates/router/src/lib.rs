@@ -25,7 +25,6 @@ use actix_web::{
     body::MessageBody,
     dev::{Server, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
-    web::JsonConfig,
 };
 use http::StatusCode;
 use routes::AppState;
@@ -71,13 +70,7 @@ pub fn mk_olap_app(
         InitError = (),
     >,
 > {
-    let json_cfg = actix_web::web::JsonConfig::default()
-        .limit(request_body_limit)
-        .content_type_required(true)
-        .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
-        .error_handler(utils::error_parser::custom_json_error_handler);
-
-    let application_builder = get_application_builder(json_cfg);
+    let application_builder = get_application_builder(request_body_limit);
 
     let mut server_app = application_builder
         .service(routes::Payments::olap_server(state.clone()))
@@ -99,6 +92,7 @@ pub fn mk_olap_app(
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
+/// Starts the OLAP server with only OLAP services
 #[cfg(feature = "olap")]
 pub async fn start_olap_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
@@ -116,7 +110,7 @@ pub async fn start_olap_server(conf: settings::Settings) -> ApplicationResult<(S
 }
 
 pub fn get_application_builder(
-    json_cfg: JsonConfig,
+    request_body_limit: usize,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -126,6 +120,12 @@ pub fn get_application_builder(
         InitError = (),
     >,
 > {
+    let json_cfg = actix_web::web::JsonConfig::default()
+        .limit(request_body_limit)
+        .content_type_required(true)
+        .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
+        .error_handler(utils::error_parser::custom_json_error_handler);
+
     actix_web::App::new()
         .app_data(json_cfg)
         .wrap(middleware::RequestId)
@@ -153,13 +153,7 @@ pub fn mk_oltp_app(
         InitError = (),
     >,
 > {
-    let json_cfg = actix_web::web::JsonConfig::default()
-        .limit(request_body_limit)
-        .content_type_required(true)
-        .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
-        .error_handler(utils::error_parser::custom_json_error_handler);
-
-    let application_builder = get_application_builder(json_cfg);
+    let application_builder = get_application_builder(request_body_limit);
 
     let mut server_app = application_builder
         .service(routes::Payments::oltp_server(state.clone()))
@@ -182,6 +176,7 @@ pub fn mk_oltp_app(
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
+/// Starts the OLTP server with only OLTP services
 pub async fn start_oltp_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();

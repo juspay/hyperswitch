@@ -1,4 +1,6 @@
 use super::MockDb;
+#[cfg(feature = "olap")]
+use crate::types::api;
 use crate::{
     core::errors::{self, CustomResult},
     types::storage::{self as types, enums},
@@ -30,7 +32,7 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
-        pc: &crate::types::api::PaymentListConstraints,
+        pc: &api::PaymentListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
@@ -42,12 +44,14 @@ mod storage {
     use redis_interface::{HsetnxReply, RedisEntryId};
 
     use super::PaymentIntentInterface;
+    #[cfg(feature = "olap")]
+    use crate::types::api;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{enums, kv, payment_intent::*},
-        utils::storage_partitioning::KvStorePartition,
+        utils::storage_partitioning::{self, KvStorePartition},
     };
 
     #[async_trait::async_trait]
@@ -105,13 +109,14 @@ mod storage {
                                     insertable: kv::Insertable::PaymentIntent(new),
                                 },
                             };
-                            let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
-                                crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
-                                    merchant_id: &created_intent.merchant_id,
-                                    payment_id: &created_intent.payment_id,
-                                },
-                                self.config.drainer_num_partitions,
-                            ));
+                            let stream_name =
+                                self.get_drainer_stream_name(&PaymentIntent::shard_key(
+                                    storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                                        merchant_id: &created_intent.merchant_id,
+                                        payment_id: &created_intent.payment_id,
+                                    },
+                                    self.config.drainer_num_partitions,
+                                ));
                             self.redis_conn
                                 .stream_append_entry(
                                     &stream_name,
@@ -172,7 +177,7 @@ mod storage {
                     };
 
                     let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
-                        crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                        storage_partitioning::PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_intent.merchant_id,
                             payment_id: &updated_intent.payment_id,
                         },
@@ -233,7 +238,7 @@ mod storage {
         async fn filter_payment_intent_by_constraints(
             &self,
             merchant_id: &str,
-            pc: &crate::types::api::PaymentListConstraints,
+            pc: &api::PaymentListConstraints,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             match storage_scheme {
@@ -256,6 +261,8 @@ mod storage {
     use error_stack::IntoReport;
 
     use super::PaymentIntentInterface;
+    #[cfg(feature = "olap")]
+    use crate::types::api;
     use crate::{
         connection::pg_connection,
         core::errors::{self, CustomResult},
@@ -304,7 +311,7 @@ mod storage {
         async fn filter_payment_intent_by_constraints(
             &self,
             merchant_id: &str,
-            pc: &crate::types::api::PaymentListConstraints,
+            pc: &api::PaymentListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             let conn = pg_connection(&self.replica_pool).await;
@@ -322,7 +329,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intent_by_constraints(
         &self,
         _merchant_id: &str,
-        _pc: &crate::types::api::PaymentListConstraints,
+        _pc: &api::PaymentListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
