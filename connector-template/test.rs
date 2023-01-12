@@ -8,7 +8,7 @@ use crate::{
 };
 
 struct {{project-name | downcase | pascal_case}};
-impl utils::ConnectorActions for {{project-name | downcase | pascal_case}} {}
+impl ConnectorActions for {{project-name | downcase | pascal_case}} {}
 impl utils::Connector for {{project-name | downcase | pascal_case}} {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::{{project-name | downcase | pascal_case}};
@@ -82,11 +82,10 @@ async fn should_refund_succeeded_payment() {
     let response = connector.make_payment(None).await;
 
     //try refund for previous payment
-    if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
-        let response = connector.refund_payment(transaction_id, None).await;
-        assert_eq!(
-            response.response.unwrap().refund_status,
-            enums::RefundStatus::Success,
-        );
-    }
+    let transaction_id = utils::get_connector_transaction_id(response).unwrap(); 
+    let response = connector.refund_payment(transaction_id, None).await;
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
 }

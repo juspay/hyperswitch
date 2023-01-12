@@ -38,6 +38,7 @@ pub struct PaymentAttempt {
     pub browser_info: Option<serde_json::Value>,
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -76,6 +77,7 @@ pub struct PaymentAttemptNew {
     pub browser_info: Option<serde_json::Value>,
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +118,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<Option<String>>,
         redirect: Option<bool>,
         mandate_id: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -147,6 +150,7 @@ pub struct PaymentAttemptUpdateInternal {
     browser_info: Option<serde_json::Value>,
     payment_token: Option<String>,
     error_code: Option<String>,
+    connector_metadata: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -238,6 +242,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 redirect,
                 mandate_id,
+                connector_metadata,
             } => Self {
                 status: Some(status),
                 connector,
@@ -247,6 +252,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 redirect,
                 mandate_id,
+                connector_metadata,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

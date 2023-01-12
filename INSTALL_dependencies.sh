@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Description: One click install for ORCA Router
+# Description: One click install for hyperswitch router
 #
 #
 # Global config
@@ -10,7 +10,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
 fi
 
 RUST_MSRV=1.65.0
-_DB_NAME="orca_db"
+_DB_NAME="hyperswitch_db"
 _DB_USER="db_user"
 _DB_PASS="db_password"
 

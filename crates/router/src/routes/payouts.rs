@@ -2,10 +2,7 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     HttpResponse, Responder,
 };
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{instrument, tracing, Flow};
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
 // #[post("/create")]

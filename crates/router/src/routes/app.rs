@@ -113,12 +113,12 @@ impl Refunds {
         web::scope("/refunds")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(refunds_create)))
+            .service(web::resource("/list").route(web::get().to(refunds_list)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(refunds_retrieve))
                     .route(web::post().to(refunds_update)),
             )
-            .service(web::resource("/list").route(web::get().to(refunds_list)))
     }
 }
 
@@ -181,8 +181,7 @@ impl MerchantConnectorAccount {
                     .route(web::get().to(payment_connector_list)),
             )
             .service(
-                web::resource("/{merchant_id}/payment_methods")
-                    .route(web::get().to(list_payment_method_api)),
+                web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
             )
             .service(
                 web::resource("/{merchant_id}/connectors/{merchant_connector_id}")

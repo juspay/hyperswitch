@@ -8,11 +8,21 @@ use router::{
     routes, services,
     types::{self, api, storage::enums, PaymentAddress},
 };
+use wiremock::{Mock, MockServer};
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
     fn get_auth_token(&self) -> types::ConnectorAuthType;
     fn get_name(&self) -> String;
+    fn get_connector_meta(&self) -> Option<serde_json::Value> {
+        None
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentInfo {
+    pub address: Option<PaymentAddress>,
+    pub auth_type: Option<enums::AuthenticationType>,
 }
 
 #[async_trait]
@@ -20,65 +30,154 @@ pub trait ConnectorActions: Connector {
     async fn authorize_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsAuthorizeRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::PaymentsAuthorizeData {
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..PaymentAuthorizeType::default().0
             }),
+            payment_info,
         );
         call_connector(request, integration).await
     }
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsAuthorizeRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
+            payment_info,
         );
         call_connector(request, integration).await
     }
+
+    async fn sync_payment(
+        &self,
+        payment_data: Option<types::PaymentsSyncData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> types::PaymentsSyncRouterData {
+        let integration = self.get_data().connector.get_connector_integration();
+        let request = self.generate_data(
+            payment_data.unwrap_or_else(|| PaymentSyncType::default().0),
+            payment_info,
+        );
+        call_connector(request, integration).await
+    }
+
     async fn capture_payment(
         &self,
         transaction_id: String,
         payment_data: Option<types::PaymentsCaptureData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::PaymentsCaptureRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
+        let request = self.generate_data(
             payment_data.unwrap_or(types::PaymentsCaptureData {
                 amount_to_capture: Some(100),
                 connector_transaction_id: transaction_id,
+                currency: enums::Currency::USD,
+                amount: 100,
             }),
+            payment_info,
         );
         call_connector(request, integration).await
     }
+
+    async fn void_payment(
+        &self,
+        transaction_id: String,
+        payment_data: Option<types::PaymentsCancelData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> types::PaymentsCancelRouterData {
+        let integration = self.get_data().connector.get_connector_integration();
+        let request = self.generate_data(
+            payment_data.unwrap_or(types::PaymentsCancelData {
+                connector_transaction_id: transaction_id,
+                cancellation_reason: Some("Test cancellation".to_string()),
+            }),
+            payment_info,
+        );
+        call_connector(request, integration).await
+    }
+
     async fn refund_payment(
         &self,
         transaction_id: String,
         payment_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
     ) -> types::RefundExecuteRouterData {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = generate_data(
-            self.get_name(),
-            self.get_auth_token(),
+        let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
                 amount: 100,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
-                payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
+                connector_metadata: None,
+                reason: None,
             }),
+            payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    async fn sync_refund(
+        &self,
+        transaction_id: String,
+        payment_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> types::RefundSyncRouterData {
+        let integration = self.get_data().connector.get_connector_integration();
+        let request = self.generate_data(
+            payment_data.unwrap_or_else(|| types::RefundsData {
+                amount: 100,
+                currency: enums::Currency::USD,
+                refund_id: uuid::Uuid::new_v4().to_string(),
+                connector_transaction_id: transaction_id,
+                refund_amount: 100,
+                connector_metadata: None,
+                reason: None,
+            }),
+            payment_info,
+        );
+        call_connector(request, integration).await
+    }
+
+    fn generate_data<Flow, Req: From<Req>, Res>(
+        &self,
+        req: Req,
+        info: Option<PaymentInfo>,
+    ) -> types::RouterData<Flow, Req, Res> {
+        types::RouterData {
+            flow: PhantomData,
+            merchant_id: self.get_name(),
+            connector: self.get_name(),
+            payment_id: uuid::Uuid::new_v4().to_string(),
+            attempt_id: Some(uuid::Uuid::new_v4().to_string()),
+            status: enums::AttemptStatus::default(),
+            router_return_url: None,
+            auth_type: info
+                .clone()
+                .map_or(enums::AuthenticationType::NoThreeDs, |a| {
+                    a.auth_type
+                        .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
+                }),
+            payment_method: enums::PaymentMethodType::Card,
+            connector_auth_type: self.get_auth_token(),
+            description: Some("This is a test".to_string()),
+            return_url: None,
+            request: req,
+            response: Err(types::ErrorResponse::default()),
+            payment_method_id: None,
+            address: info.map_or(PaymentAddress::default(), |a| a.address.unwrap()),
+            connector_meta_data: self.get_connector_meta(),
+            amount_captured: None,
+        }
     }
 }
 
@@ -103,7 +202,32 @@ async fn call_connector<
     .unwrap()
 }
 
+pub struct MockConfig {
+    pub address: Option<String>,
+    pub mocks: Vec<Mock>,
+}
+
+#[async_trait]
+pub trait LocalMock {
+    async fn start_server(&self, config: MockConfig) -> MockServer {
+        let address = config
+            .address
+            .unwrap_or_else(|| "127.0.0.1:9090".to_string());
+        let listener = std::net::TcpListener::bind(address).unwrap();
+        let expected_server_address = listener
+            .local_addr()
+            .expect("Failed to get server address.");
+        let mock_server = MockServer::builder().listener(listener).start().await;
+        assert_eq!(&expected_server_address, mock_server.address());
+        for mock in config.mocks {
+            mock_server.register(mock).await;
+        }
+        mock_server
+    }
+}
+
 pub struct PaymentAuthorizeType(pub types::PaymentsAuthorizeData);
+pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
 pub struct CCardType(pub api::CCard);
 
@@ -140,15 +264,28 @@ impl Default for PaymentAuthorizeType {
     }
 }
 
+impl Default for PaymentSyncType {
+    fn default() -> Self {
+        let data = types::PaymentsSyncData {
+            connector_transaction_id: types::ResponseId::ConnectorTransactionId(
+                "12345".to_string(),
+            ),
+            encoded_data: None,
+        };
+        Self(data)
+    }
+}
+
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
             amount: 1000,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
-            payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            connector_metadata: None,
+            reason: None,
         };
         Self(data)
     }
@@ -163,31 +300,5 @@ pub fn get_connector_transaction_id(
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
         Err(_) => None,
-    }
-}
-
-fn generate_data<Flow, Req: From<Req>, Res>(
-    connector: String,
-    connector_auth_type: types::ConnectorAuthType,
-    req: Req,
-) -> types::RouterData<Flow, Req, Res> {
-    types::RouterData {
-        flow: PhantomData,
-        merchant_id: connector.clone(),
-        connector,
-        payment_id: uuid::Uuid::new_v4().to_string(),
-        status: enums::AttemptStatus::default(),
-        orca_return_url: None,
-        auth_type: enums::AuthenticationType::NoThreeDs,
-        payment_method: enums::PaymentMethodType::Card,
-        connector_auth_type,
-        description: Some("This is a test".to_string()),
-        return_url: None,
-        request: req,
-        response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
-        address: PaymentAddress::default(),
-        connector_meta_data: None,
-        amount_captured: None,
     }
 }

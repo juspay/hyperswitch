@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use self::transformers as stripe;
 use crate::{
@@ -937,6 +937,7 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match details.event_type.as_str() {
+            "payment_intent.payment_failed" => api::IncomingWebhookEvent::PaymentIntentFailure,
             "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })

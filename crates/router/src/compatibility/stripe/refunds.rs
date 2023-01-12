@@ -1,13 +1,13 @@
 pub mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::refunds,
     routes,
-    services::api,
+    services::authentication as auth,
     types::api::refunds as refund_types,
 };
 
@@ -34,7 +34,7 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         refunds::refund_create_core,
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -67,7 +67,7 @@ pub async fn refund_retrieve(
                 refunds::refund_retrieve_core,
             )
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -78,11 +78,11 @@ pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    form_payload: web::Form<types::StripeCreateRefundRequest>,
+    form_payload: web::Form<types::StripeUpdateRefundRequest>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();
     let payload = form_payload.into_inner();
-    let create_refund_update_req: refund_types::RefundRequest = payload.into();
+    let create_refund_update_req: refund_types::RefundUpdateRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
         _,
@@ -99,7 +99,7 @@ pub async fn refund_update(
         |state, merchant_account, req| {
             refunds::refund_update_core(&*state.store, merchant_account, &refund_id, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }

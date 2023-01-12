@@ -10,10 +10,7 @@ use crate::{
     routes::AppState,
     scheduler::metrics,
     services,
-    types::{
-        self, api,
-        storage::{self, enums as storage_enums},
-    },
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -54,7 +51,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
@@ -63,7 +60,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 customer,
                 Some(true),
                 call_connector_action,
-                storage_scheme,
+                merchant_account,
             )
             .await;
 
@@ -81,7 +78,7 @@ impl types::PaymentsAuthorizeRouterData {
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -100,7 +97,10 @@ impl types::PaymentsAuthorizeRouterData {
                 .await
                 .map_err(|error| error.to_payment_failed_response())?;
 
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer).await?)
+                Ok(
+                    mandate::mandate_procedure(state, resp, maybe_customer, merchant_account)
+                        .await?,
+                )
             }
             _ => Ok(self.clone()),
         }

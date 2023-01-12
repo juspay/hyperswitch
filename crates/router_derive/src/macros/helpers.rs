@@ -19,6 +19,10 @@ pub(super) fn occurrence_error<T: ToTokens>(
     error
 }
 
+pub(super) fn syn_error(span: Span, message: &str) -> syn::Error {
+    syn::Error::new(span, message)
+}
+
 pub(super) fn get_metadata_inner<'a, T: Parse + Spanned>(
     ident: &str,
     attrs: impl IntoIterator<Item = &'a Attribute>,
