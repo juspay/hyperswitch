@@ -30,7 +30,7 @@ cluster_enabled = false
 use_legacy_version = false
 cluster_urls = []
 
-[keys]
+[secrets]
 admin_api_key = "test_admin"
 jwt_secret = "secret"
 
