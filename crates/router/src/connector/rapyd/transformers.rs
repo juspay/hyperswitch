@@ -3,7 +3,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::errors,
     pii::PeekInterface,
-    types::{self, api, storage::enums},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{self, ForeignFrom},
+    },
 };
 
 //TODO: Fill the struct with respective fields
@@ -96,17 +100,29 @@ pub enum RapydPaymentStatus {
     NEW,
 }
 
-impl From<RapydPaymentStatus> for enums::AttemptStatus {
-    fn from(item: RapydPaymentStatus) -> Self {
-        match item {
-            RapydPaymentStatus::CLO => Self::Charged,
-            RapydPaymentStatus::ACT => Self::AuthenticationPending,
+impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
+    for transformers::Foreign<enums::AttemptStatus>
+{
+    fn from(item: transformers::Foreign<(RapydPaymentStatus, String)>) -> Self {
+        let (status, next_action) = item.0;
+        match status {
+            RapydPaymentStatus::CLO => enums::AttemptStatus::Charged,
+            RapydPaymentStatus::ACT => {
+                if next_action == "3d_verification" {
+                    enums::AttemptStatus::AuthenticationPending
+                } else if next_action == "pending_capture" {
+                    enums::AttemptStatus::Authorized
+                } else {
+                    enums::AttemptStatus::Pending
+                }
+            }
             RapydPaymentStatus::CAN
             | RapydPaymentStatus::ERR
             | RapydPaymentStatus::EXP
-            | RapydPaymentStatus::REV => Self::Failure,
-            RapydPaymentStatus::NEW => Self::Authorizing,
+            | RapydPaymentStatus::REV => enums::AttemptStatus::Failure,
+            RapydPaymentStatus::NEW => enums::AttemptStatus::Authorizing,
         }
+        .into()
     }
 }
 
@@ -131,6 +147,7 @@ pub struct ResponseData {
     pub id: String,
     pub amount: i64,
     pub status: RapydPaymentStatus,
+    pub next_action: String,
     pub original_amount: Option<i64>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<enums::Currency>,
@@ -152,7 +169,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
         let (status, response) = match item.response.status.status.as_str() {
             "SUCCESS" => match item.response.data {
                 Some(data) => (
-                    data.status.into(),
+                    enums::AttemptStatus::foreign_from((data.status, data.next_action)),
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
                         redirection_data: None,
@@ -301,6 +318,78 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                 connector_refund_id,
                 refund_status,
             }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct CaptureRequest {
+    amount: Option<i64>,
+    receipt_email: Option<String>,
+    statement_descriptor: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.request.amount_to_capture,
+            receipt_email: None,
+            statement_descriptor: None,
+        })
+    }
+}
+
+impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
+    for types::PaymentsCaptureRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match item.response.status.status.as_str() {
+            "SUCCESS" => match item.response.data {
+                Some(data) => (
+                    enums::AttemptStatus::foreign_from((data.status, data.next_action)),
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
+                        redirection_data: None,
+                        redirect: false,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                    }),
+                ),
+                None => (
+                    enums::AttemptStatus::Failure,
+                    Err(types::ErrorResponse {
+                        code: item.response.status.error_code,
+                        message: item.response.status.status,
+                        reason: item.response.status.message,
+                    }),
+                ),
+            },
+            "ERROR" => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: item.response.status.error_code,
+                    message: item.response.status.status,
+                    reason: item.response.status.message,
+                }),
+            ),
+            _ => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: item.response.status.error_code,
+                    message: item.response.status.status,
+                    reason: item.response.status.message,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }

@@ -278,40 +278,93 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
+        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(rapyd_req))
     }
 
     fn build_request(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
+        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
+        let salt = generate_id(12, "");
+
+        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let url_path = format!(
+            "/v1/payments/{}/capture",
+            req.request.connector_transaction_id
+        );
+        let signature =
+            self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
+        let headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            ("access_key".to_string(), auth.access_key),
+            ("salt".to_string(), salt),
+            ("timestamp".to_string(), timestamp.to_string()),
+            ("signature".to_string(), signature),
+        ];
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            .headers(headers)
+            .body(Some(rapyd_req))
+            .build();
+        Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsCaptureRouterData,
-        _res: Response,
+        data: &types::PaymentsCaptureRouterData,
+        res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
+        let response: rapyd::RapydPaymentsResponse = res
+            .response
+            .parse_struct("RapydPaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
+        let id = req.request.connector_transaction_id.to_string();
+        Ok(format!(
+            "{}/v1/payments/{}/capture",
+            api::ConnectorCommon::base_url(self, connectors),
+            id
+        ))
     }
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
+        let response: rapyd::RapydPaymentsResponse = res
+            .parse_struct("Rapyd ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            code: response.status.error_code,
+            message: response.status.status,
+            reason: response.status.message,
+        })
     }
 }
 
