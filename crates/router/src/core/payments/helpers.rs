@@ -1053,6 +1053,7 @@ where
     Some(func(option1?, option2?))
 }
 
+#[cfg(feature = "olap")]
 pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
@@ -1065,6 +1066,7 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
+#[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {

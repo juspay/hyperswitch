@@ -26,8 +26,8 @@ pool_size = 5        # Number of connections to keep open
 
 # Replica SQL data store credentials
 [replica_database]
-username = "db_user"        # DB Username
-password = "db_pass"        # DB Password
+username = "replica_user"        # DB Username
+password = "replica_pass"        # DB Password
 host = "localhost"          # DB Host
 port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
