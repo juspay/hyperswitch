@@ -248,7 +248,7 @@ impl Default for PaymentAuthorizeType {
         let data = types::PaymentsAuthorizeData {
             payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
             amount: 100,
-            currency: enums::Currency::PLN,
+            currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
             capture_method: None,
