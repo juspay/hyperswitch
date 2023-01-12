@@ -132,9 +132,7 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
         .append_header(("Via", "Juspay_Router"))
         .content_type("application/json")
-        .body(format!(
-            "{{\n\"error\": {{\n\"message\": \"{err}\" \n}} \n}}\n"
-        ))
+        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
 impl ResponseError for ApplicationError {
