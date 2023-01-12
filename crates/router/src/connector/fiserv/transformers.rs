@@ -106,7 +106,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
                     eci_indicator: "CHANNEL_ENCRYPTED".to_string(), // transaction encryption such as SSL/TLS, but authentication was not performed
                     pos_condition_code: "CARD_NOT_PRESENT_ECOM".to_string(), //card not present in online transaction
                 };
-
                 Ok(Self {
                     amount,
                     source,
@@ -269,7 +268,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let amount = item
-            .amount_captured
+            .request
+            .amount_to_capture
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             amount: Amount {

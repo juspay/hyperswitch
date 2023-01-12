@@ -21,3 +21,9 @@ api_key = "Bearer MyApiKey"
 
 [globalpay]
 api_key = "Bearer MyApiKey"
+
+[fiserv]
+api_key = "MyApiKey"
+key1 = "MerchantID"
+api_secret = "MySecretKey"
+
