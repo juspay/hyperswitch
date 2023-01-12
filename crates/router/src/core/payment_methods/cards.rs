@@ -84,11 +84,11 @@ pub async fn add_payment_method(
                 metadata: req.metadata,
                 created: Some(common_utils::date_time::now()),
                 payment_method_issuer_code: req.payment_method_issuer_code,
-                recurring_enabled: false,           //TODO
-                installment_payment_enabled: false, //TODO
+                recurring_enabled: false,           //[#219]
+                installment_payment_enabled: false, //[#219]
                 payment_experience: Some(vec![
                     api_models::payment_methods::PaymentExperience::RedirectToUrl,
-                ]), //TODO
+                ]), //[#219]
             })
         }
     }
@@ -354,7 +354,7 @@ pub async fn list_payment_methods(
     db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
-) -> errors::RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+) -> errors::RouterResponse<collections::HashSet<api::ListPaymentMethodResponse>> {
     let payment_intent = helpers::verify_client_secret(
         db,
         merchant_account.storage_scheme,
@@ -392,8 +392,8 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    // TODO: Deduplicate payment methods
-    let mut response: Vec<api::ListPaymentMethodResponse> = Vec::new();
+    let mut response: collections::HashSet<api::ListPaymentMethodResponse> =
+        collections::HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -420,7 +420,7 @@ pub async fn list_payment_methods(
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
-    resp: &mut Vec<api::ListPaymentMethodResponse>,
+    resp: &mut collections::HashSet<api::ListPaymentMethodResponse>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
@@ -465,7 +465,7 @@ async fn filter_payment_methods(
                 };
 
                 if filter && filter2 && filter3 {
-                    resp.push(payment_method_object);
+                    resp.insert(payment_method_object);
                 }
             }
         }
@@ -586,8 +586,8 @@ pub async fn list_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    // TODO: Deduplicate payment methods
-    let mut enabled_methods: Vec<api::ListPaymentMethodResponse> = Vec::new();
+    let mut enabled_methods: collections::HashSet<api::ListPaymentMethodResponse> =
+        collections::HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -598,7 +598,7 @@ pub async fn list_customer_payment_method(
             if let Ok(payment_method_object) =
                 serde_json::from_value::<api::ListPaymentMethodResponse>(payment_method)
             {
-                enabled_methods.push(payment_method_object);
+                enabled_methods.insert(payment_method_object);
             }
         }
     }
@@ -854,11 +854,11 @@ pub async fn retrieve_payment_method(
             payment_method_issuer_code: pm
                 .payment_method_issuer_code
                 .map(ForeignInto::foreign_into),
-            recurring_enabled: false,           //TODO
-            installment_payment_enabled: false, //TODO
+            recurring_enabled: false,           //[#219]
+            installment_payment_enabled: false, //[#219]
             payment_experience: Some(vec![
                 api_models::payment_methods::PaymentExperience::RedirectToUrl,
-            ]), //TODO,
+            ]), //[#219],
         },
     ))
 }

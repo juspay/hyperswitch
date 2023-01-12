@@ -92,13 +92,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
 
-        //TODO: get customer from db?
         let customer_details = CustomerDetails {
             customer_id: payment_intent.customer_id.clone(),
-            name: None,
-            email: None,
-            phone: None,
-            phone_country_code: None,
+            ..CustomerDetails::default()
         };
 
         let connector_response = db
