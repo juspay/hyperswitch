@@ -1,4 +1,4 @@
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsRequest {
-    customer_ip: String,
+    customer_ip: std::net::IpAddr,
     merchant_pos_id: String,
     total_amount: i64,
     currency_code: enums::Currency,
@@ -102,8 +102,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 "Unknown payment method".to_string(),
             )),
         }?;
+        let browser_info = item.request.browser_info.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info".to_string(),
+            },
+        )?;
         Ok(Self {
-            customer_ip: "127.0.0.1".to_string(), //todo take input from core
+            customer_ip: browser_info.ip_address.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "browser_info.ip_address".to_string(),
+                },
+            )?,
             merchant_pos_id: auth_type.merchant_pos_id,
             total_amount: item.request.amount,
             currency_code: item.request.currency,
@@ -179,19 +188,6 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PayuPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // todo 3ds
-        // let mut base_url = item.response.redirect_uri.clone();
-        // base_url.set_query(None);
-        // let redirection_data = Some(services::RedirectForm {
-        //     url: base_url.to_string(),
-        //     method: services::Method::Get,
-        //     form_fields: std::collections::HashMap::from_iter(
-        //         item.response
-        //             .redirect_uri
-        //             .query_pairs()
-        //             .map(|(k, v)| (k.to_string(), v.to_string())),
-        //     ),
-        // });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -337,14 +333,14 @@ pub struct PayuProductData {
     listing_date: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuOrderResponseData {
     order_id: String,
     ext_order_id: Option<String>,
     order_create_date: String,
     notify_url: Option<String>,
-    customer_ip: String,
+    customer_ip: std::net::IpAddr,
     merchant_pos_id: String,
     description: String,
     validity_time: Option<String>,
@@ -356,7 +352,7 @@ pub struct PayuOrderResponseData {
     status: OrderStatus,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuOrderResponseBuyerData {
     ext_customer_id: Option<String>,
@@ -370,7 +366,7 @@ pub struct PayuOrderResponseBuyerData {
     customer_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayuOrderResponsePayMethod {
     CardToken,
@@ -384,7 +380,7 @@ pub struct PayuOrderResponseProperty {
     value: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PayuPaymentsSyncResponse {
     orders: Vec<PayuOrderResponseData>,
     status: PayuPaymentStatusData,
@@ -417,7 +413,13 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
             }),
-            amount_captured: Some(order.total_amount.parse::<i64>().unwrap_or_default()),
+            amount_captured: Some(
+                order
+                    .total_amount
+                    .parse::<i64>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+            ),
             ..item.data
         })
     }

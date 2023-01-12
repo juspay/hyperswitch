@@ -136,7 +136,7 @@ pub trait ConnectorActions: Connector {
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
                 amount: 1000,
-                currency: enums::Currency::PLN,
+                currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
