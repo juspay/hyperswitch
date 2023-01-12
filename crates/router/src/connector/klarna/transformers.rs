@@ -1,10 +1,8 @@
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::report;
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::{
     core::errors,
-    services,
     types::{self, storage::enums},
 };
 
@@ -121,6 +119,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
             }),
+            status: item.response.fraud_status.into(),
             ..item.data
         })
     }
