@@ -140,20 +140,15 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
+impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
     for transformers::Foreign<enums::AttemptStatus>
 {
-    fn from(
-        item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
-    ) -> Self {
-        let item = item.0;
-        let status = item.0;
-        let capture_method = item.1;
+    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Balances)>) -> Self {
+        let (status, balances) = item.0;
+
         match status {
             CheckoutPaymentStatus::Authorized => {
-                if capture_method == Some(enums::CaptureMethod::Automatic)
-                    || capture_method.is_none()
-                {
+                if balances.available_to_capture == 0 {
                     enums::AttemptStatus::Charged
                 } else {
                     enums::AttemptStatus::Authorized
@@ -184,7 +179,14 @@ pub struct PaymentsResponse {
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
     links: Links,
+    balances: Balances,
 }
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct Balances {
+    available_to_capture: i32,
+}
+
 impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
@@ -213,7 +215,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
-                item.data.request.capture_method,
+                item.response.balances,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
@@ -254,7 +256,10 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         });
 
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((item.response.status, None)),
+            status: enums::AttemptStatus::foreign_from((
+                item.response.status,
+                item.response.balances,
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirect: redirection_data.is_some(),

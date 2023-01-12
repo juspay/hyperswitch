@@ -173,14 +173,14 @@ async fn trigger_webhook_to_merchant(
 
     match response {
         Err(e) => {
-            // TODO: Schedule webhook for retry.
+            // [#217]: Schedule webhook for retry.
             Err(e)
                 .into_report()
                 .change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
         }
         Ok(res) => {
             if !res.status().is_success() {
-                // TODO: Schedule webhook for retry.
+                // [#217]: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
             }
         }

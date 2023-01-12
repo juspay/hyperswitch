@@ -146,8 +146,6 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
-    // TODO: Make currency in payments request as Currency enum
-
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
@@ -733,7 +731,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
-                // TODO: Handle token expiry
+                // [#196]: Handle token expiry
                 let (pm, tokenize_value2) =
                     Vault::get_payment_method_data_from_locker(state, &token).await?;
                 utils::when(
@@ -766,7 +764,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         field_name: "payment_method_type".to_owned(),
                     })
                 })?;
-                // TODO: Implement token flow for other payment methods
+                // [#195]: Implement token flow for other payment methods
                 None
             },
         ),
