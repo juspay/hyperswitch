@@ -80,7 +80,6 @@ pub trait ConnectorActions: Connector {
                 amount_to_capture: Some(100),
                 currency: enums::Currency::USD,
                 connector_transaction_id: transaction_id,
-                currency: enums::Currency::USD,
                 amount: 100,
             }),
             payment_info,
