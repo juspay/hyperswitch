@@ -236,6 +236,9 @@ pub enum PayLaterData {
         issuer_name: KlarnaSdkIssuer,
         token: String,
     },
+    AffirmRedirect {
+        billing_email: String,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize)]
