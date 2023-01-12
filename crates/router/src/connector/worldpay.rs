@@ -17,7 +17,7 @@ use crate::{
         payments,
     },
     headers, logger,
-    services::{self, ConnectorIntegration},
+    services::{self, AccessTokenRefresh, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -87,6 +87,7 @@ impl ConnectorCommon for Worldpay {
 }
 
 impl api::Payment for Worldpay {}
+impl AccessTokenRefresh for Worldpay {}
 
 impl api::PreVerify for Worldpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
