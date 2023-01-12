@@ -6,6 +6,7 @@ pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
+    pub globalpay: Option<HeaderKey>,
     pub shift4: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
 }
