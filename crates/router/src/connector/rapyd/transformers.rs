@@ -45,7 +45,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                         cvv: ccard.card_cvc.peek().to_string(),
                     },
                 };
-                Ok(RapydPaymentsRequest {
+                Ok(Self {
                     amount: item.request.amount,
                     currency: item.request.currency,
                     payment_method,
@@ -84,6 +84,7 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[allow(clippy::upper_case_acronyms)]
 pub enum RapydPaymentStatus {
     ACT,
     CAN,
@@ -98,13 +99,13 @@ pub enum RapydPaymentStatus {
 impl From<RapydPaymentStatus> for enums::AttemptStatus {
     fn from(item: RapydPaymentStatus) -> Self {
         match item {
-            RapydPaymentStatus::CLO => enums::AttemptStatus::Charged,
-            RapydPaymentStatus::ACT => enums::AttemptStatus::AuthenticationPending,
+            RapydPaymentStatus::CLO => Self::Charged,
+            RapydPaymentStatus::ACT => Self::AuthenticationPending,
             RapydPaymentStatus::CAN
             | RapydPaymentStatus::ERR
             | RapydPaymentStatus::EXP
-            | RapydPaymentStatus::REV => enums::AttemptStatus::Failure,
-            RapydPaymentStatus::NEW => enums::AttemptStatus::Authorizing,
+            | RapydPaymentStatus::REV => Self::Failure,
+            RapydPaymentStatus::NEW => Self::Authorizing,
         }
     }
 }

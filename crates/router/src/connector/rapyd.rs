@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use bytes::Bytes;
 use common_utils::generate_id;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use time::OffsetDateTime;
 
@@ -67,7 +67,7 @@ impl api::ConnectorCommon for Rapyd {
         &self,
         _auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 }
 
@@ -219,11 +219,11 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
-        todo!()
+        "application/json"
     }
 
     fn get_url(
@@ -231,7 +231,7 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
     }
 
     fn build_request(
@@ -239,14 +239,14 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        todo!()
+        Ok(None)
     }
 
     fn get_error_response(
         &self,
         _res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
     }
 
     fn handle_response(
@@ -254,7 +254,7 @@ impl
         _data: &types::PaymentsSyncRouterData,
         _res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
     }
 }
 
@@ -271,18 +271,18 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
-        todo!()
+        "application/json"
     }
 
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
     }
 
     fn build_request(
@@ -290,7 +290,7 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
     }
 
     fn handle_response(
@@ -298,7 +298,7 @@ impl
         _data: &types::PaymentsCaptureRouterData,
         _res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
     }
 
     fn get_url(
@@ -306,14 +306,14 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
     }
 
     fn get_error_response(
         &self,
         _res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("PaymentCapture".to_string()).into())
     }
 }
 
@@ -341,7 +341,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -443,11 +443,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
-        todo!()
+        "application/json"
     }
 
     fn get_url(
@@ -455,7 +455,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
     }
 
     fn handle_response(
@@ -481,7 +481,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
     }
 }
 
@@ -491,21 +491,21 @@ impl api::IncomingWebhook for Rapyd {
         &self,
         _body: &[u8],
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         _body: &[u8],
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
         _body: &[u8],
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
 
