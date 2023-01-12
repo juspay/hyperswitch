@@ -140,6 +140,7 @@ pub enum StripePaymentMethodData {
     Card(StripeCardData),
     Klarna(StripePayLaterData),
     Affirm(StripePayLaterData),
+    AfterpayClearpay(StripePayLaterData),
     Bank,
     Wallet,
     Paypal,
@@ -197,69 +198,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
             {
-                None => (
-                    Some(match item.request.payment_method_data {
-                        api::PaymentMethod::Card(ref ccard) => StripePaymentMethodData::Card({
-                            let payment_method_auth_type = match item.auth_type {
-                                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-                            };
-                            StripeCardData {
-                                payment_method_types: StripePaymentMethodType::Card,
-                                payment_method_data_type: StripePaymentMethodType::Card,
-                                payment_method_data_card_number: ccard.card_number.clone(),
-                                payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
-                                payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
-                                payment_method_data_card_cvc: ccard.card_cvc.clone(),
-                                payment_method_auth_type,
-                            }
-                        }),
-                        api::PaymentMethod::BankTransfer => StripePaymentMethodData::Bank,
-                        api::PaymentMethod::PayLater(ref pay_later_data) => match pay_later_data {
-                            api_models::payments::PayLaterData::KlarnaRedirect {
-                                billing_email,
-                                billing_country,
-                                ..
-                            } => StripePaymentMethodData::Klarna(StripePayLaterData {
-                                payment_method_types: StripePaymentMethodType::Klarna,
-                                payment_method_data_type: StripePaymentMethodType::Klarna,
-                                billing_email: billing_email.to_string(),
-                                billing_country: Some(billing_country.to_string()),
-                                billing_name: None,
-                            }),
-                            api_models::payments::PayLaterData::AffirmRedirect {
-                                billing_email,
-                            } => StripePaymentMethodData::Affirm(StripePayLaterData {
-                                payment_method_types: StripePaymentMethodType::Affirm,
-                                payment_method_data_type: StripePaymentMethodType::Affirm,
-                                billing_email: billing_email.to_string(),
-                                billing_country: None,
-                                billing_name: None,
-                            }),
-                            api_models::payments::PayLaterData::AfterpayClearpayRedirect {
-                                billing_email,
-                                billing_name,
-                            } => StripePaymentMethodData::Affirm(StripePayLaterData {
-                                payment_method_types: StripePaymentMethodType::AfterpayClearpay,
-                                payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
-                                billing_email: billing_email.to_string(),
-                                billing_country: None,
-                                billing_name: Some(billing_name.to_string()),
-                            }),
-                            _ => Err(error_stack::report!(
-                                errors::ApiErrorResponse::NotImplemented
-                            )
-                            .attach_printable(
-                                "Stripe does not support payment through provided payment method"
-                                    .to_string(),
-                            )
-                            .change_context(errors::ParsingError))?,
-                        },
-                        api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
-                        api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
-                    }),
-                    None,
-                ),
+                None => {
+                    let payment_method: StripePaymentMethodData =
+                        (item.request.payment_method_data.clone(), item.auth_type).try_into()?;
+                    (Some(payment_method), None)
+                }
                 Some(mandate_id) => (None, Some(mandate_id)),
             }
         };
@@ -833,8 +776,27 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     payment_method_types: StripePaymentMethodType::Klarna,
                     payment_method_data_type: StripePaymentMethodType::Klarna,
                     billing_email,
-                    billing_country: Some(billing_country.to_string()),
+                    billing_country: Some(billing_country),
                     billing_name: None,
+                })),
+                api_models::payments::PayLaterData::AffirmRedirect { billing_email } => {
+                    Ok(Self::Affirm(StripePayLaterData {
+                        payment_method_types: StripePaymentMethodType::Affirm,
+                        payment_method_data_type: StripePaymentMethodType::Affirm,
+                        billing_email,
+                        billing_country: None,
+                        billing_name: None,
+                    }))
+                }
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                    billing_email,
+                    billing_name,
+                } => Ok(Self::AfterpayClearpay(StripePayLaterData {
+                    payment_method_types: StripePaymentMethodType::AfterpayClearpay,
+                    payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
+                    billing_email,
+                    billing_country: None,
+                    billing_name: Some(billing_name),
                 })),
                 _ => Err(
                     error_stack::report!(errors::ApiErrorResponse::NotImplemented)
