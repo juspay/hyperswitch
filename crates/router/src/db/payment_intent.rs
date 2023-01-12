@@ -51,7 +51,10 @@ mod storage {
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{enums, kv, payment_intent::*},
-        utils::{self, storage_partitioning},
+        utils::{
+            self,
+            storage_partitioning::{self, KvStorePartition},
+        },
     };
 
     #[async_trait::async_trait]
@@ -110,7 +113,7 @@ mod storage {
                                 },
                             };
                             let stream_name =
-                                self.get_drainer_stream_name(&<PaymentIntent as storage_partitioning::KvStorePartition>::shard_key(
+                                self.get_drainer_stream_name(&PaymentIntent::shard_key(
                                     storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                         merchant_id: &created_intent.merchant_id,
                                         payment_id: &created_intent.payment_id,
@@ -178,15 +181,14 @@ mod storage {
                         },
                     };
 
-                    let stream_name = self.get_drainer_stream_name(
-                        &<PaymentIntent as storage_partitioning::KvStorePartition>::shard_key(
-                            storage_partitioning::PartitionKey::MerchantIdPaymentId {
-                                merchant_id: &updated_intent.merchant_id,
-                                payment_id: &updated_intent.payment_id,
-                            },
-                            self.config.drainer_num_partitions,
-                        ),
-                    );
+                    let stream_name = self.get_drainer_stream_name(&PaymentIntent::shard_key(
+                        storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                            merchant_id: &updated_intent.merchant_id,
+                            payment_id: &updated_intent.payment_id,
+                        },
+                        self.config.drainer_num_partitions,
+                    ));
+
                     self.redis_conn
                         .stream_append_entry(
                             &stream_name,
