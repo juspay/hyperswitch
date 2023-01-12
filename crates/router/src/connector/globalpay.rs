@@ -92,6 +92,7 @@ impl ConnectorCommon for Globalpay {
 }
 
 impl api::Payment for Globalpay {}
+impl services::AccessTokenRefresh for Globalpay {}
 
 impl api::PreVerify for Globalpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
