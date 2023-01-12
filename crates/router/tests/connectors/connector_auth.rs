@@ -7,9 +7,9 @@ pub(crate) struct ConnectorAuthentication {
     pub authorizedotnet: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub globalpay: Option<HeaderKey>,
+    pub payu: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
-    pub payu: Option<BodyKey>,
 }
 
 impl ConnectorAuthentication {

@@ -505,10 +505,10 @@ pub enum Connector {
     Dummy,
     Globalpay,
     Klarna,
+    Payu,
     Shift4,
     Stripe,
     Worldpay,
-    Payu,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

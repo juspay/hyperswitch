@@ -65,6 +65,20 @@ impl ConnectorCommon for Payu {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
+    fn build_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: payu::PayuErrorResponse = res
+            .parse_struct("Payu ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            code: response.status.status_code,
+            message: response.status.status_desc,
+            reason: response.status.code_literal,
+        })
+    }
 }
 
 impl api::Payment for Payu {}
@@ -146,15 +160,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payu::PayuErrorResponse = res
-            .parse_struct("Payu ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response.status.status_code,
-            message: response.status.status_desc,
-            reason: response.status.code_literal,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -207,21 +213,6 @@ impl
         ))
     }
 
-    fn get_error_response(
-        &self,
-        res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payu::PayuErrorResponse = res
-            .parse_struct("Payu ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response.status.status_code,
-            message: response.status.status_desc,
-            reason: response.status.code_literal,
-        })
-    }
-
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -239,6 +230,13 @@ impl
         }
         .try_into()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
@@ -260,6 +258,20 @@ impl
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}{}",
+            self.base_url(connectors),
+            "v2_1/orders/",
+            req.request.connector_transaction_id,
+            "/status"
+        ))
     }
 
     fn get_request_body(
@@ -306,33 +318,11 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_url(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}{}{}",
-            self.base_url(connectors),
-            "v2_1/orders/",
-            req.request.connector_transaction_id,
-            "/status"
-        ))
-    }
-
     fn get_error_response(
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payu::PayuErrorResponse = res
-            .parse_struct("Payu ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response.status.status_code,
-            message: response.status.status_desc,
-            reason: response.status.code_literal,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -432,15 +422,7 @@ impl
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payu::PayuErrorResponse = res
-            .parse_struct("Payu ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response.status.status_code,
-            message: response.status.status_desc,
-            reason: response.status.code_literal,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -525,15 +507,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payu::PayuErrorResponse = res
-            .parse_struct("Payu ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response.status.status_code,
-            message: response.status.status_desc,
-            reason: response.status.code_literal,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -603,15 +577,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payu::PayuErrorResponse = res
-            .parse_struct("Payu ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            code: response.status.status_code,
-            message: response.status.status_desc,
-            reason: response.status.code_literal,
-        })
+        self.build_error_response(res)
     }
 }
 

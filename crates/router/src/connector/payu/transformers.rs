@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    pii::PeekInterface,
+    pii::{self, Secret},
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -13,8 +13,8 @@ use crate::{
 pub struct PayuPaymentsRequest {
     customer_ip: String,
     merchant_pos_id: String,
-    total_amount: String,
-    currency_code: String,
+    total_amount: i64,
+    currency_code: enums::Currency,
     description: String,
     pay_methods: PayuPaymentMethod,
     continue_url: Option<String>,
@@ -38,10 +38,10 @@ pub enum PayuPaymentMethodData {
 pub enum PayuCard {
     #[serde(rename_all = "camelCase")]
     Card {
-        number: String,
-        expiration_month: String,
-        expiration_year: String,
-        cvv: String,
+        number: Secret<String, pii::CardNumber>,
+        expiration_month: Secret<String>,
+        expiration_year: Secret<String>,
+        cvv: Secret<String>,
     },
 }
 
@@ -50,7 +50,7 @@ pub enum PayuCard {
 pub struct PayuWallet {
     pub value: String,
     #[serde(rename = "type")]
-    pub typo: String,
+    pub wallet_type: String,
     pub authorization_code: String,
 }
 
@@ -61,10 +61,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
         let payment_method = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ccard) => Ok(PayuPaymentMethod {
                 pay_method: PayuPaymentMethodData::Card(PayuCard::Card {
-                    number: ccard.card_number.peek().clone(),
-                    expiration_month: ccard.card_exp_month.peek().clone(),
-                    expiration_year: ccard.card_exp_year.peek().clone(),
-                    cvv: ccard.card_cvc.peek().clone(),
+                    number: ccard.card_number,
+                    expiration_month: ccard.card_exp_month,
+                    expiration_year: ccard.card_exp_year,
+                    cvv: ccard.card_cvc,
                 }),
             }),
             api::PaymentMethod::Wallet(wallet_data) => match wallet_data.issuer_name {
@@ -72,7 +72,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: "ap".to_string(),
-                            typo: "PBL".to_string(),
+                            wallet_type: "PBL".to_string(),
                             authorization_code: wallet_data
                                 .token
                                 .get_required_value("token")
@@ -85,7 +85,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: "jp".to_string(),
-                            typo: "PBL".to_string(),
+                            wallet_type: "PBL".to_string(),
                             authorization_code: wallet_data
                                 .token
                                 .get_required_value("token")
@@ -105,8 +105,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
         Ok(Self {
             customer_ip: "127.0.0.1".to_string(), //todo take input from core
             merchant_pos_id: auth_type.merchant_pos_id,
-            total_amount: item.request.amount.to_string(),
-            currency_code: item.request.currency.to_string(),
+            total_amount: item.request.amount,
+            currency_code: item.request.currency,
             description: item.description.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "item.description".to_string(),
@@ -137,14 +137,12 @@ impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayuPaymentStatus {
     Success,
-    #[serde(rename = "WARNING_CONTINUE_REDIRECT")]
     WarningContinueRedirect,
     #[serde(rename = "WARNING_CONTINUE_3DS")]
     WarningContinue3ds,
-    #[serde(rename = "WARNING_CONTINUE_CVV")]
     WarningContinueCvv,
     #[default]
     Pending,
@@ -299,12 +297,11 @@ impl<F, T>
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Eq, PartialEq, Default, Deserialize, Clone)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderStatus {
     New,
     Canceled,
     Completed,
-    #[serde(rename = "WAITING_FOR_CONFIRMATION")]
     WaitingForConfirmation,
     #[default]
     Pending,
@@ -322,7 +319,6 @@ impl From<OrderStatus> for enums::AttemptStatus {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentStatusData {
@@ -352,7 +348,7 @@ pub struct PayuOrderResponseData {
     merchant_pos_id: String,
     description: String,
     validity_time: Option<String>,
-    currency_code: String,
+    currency_code: enums::Currency,
     total_amount: String,
     buyer: Option<PayuOrderResponseBuyerData>,
     pay_method: Option<PayuOrderResponsePayMethod>,
@@ -375,10 +371,8 @@ pub struct PayuOrderResponseBuyerData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type")]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayuOrderResponsePayMethod {
-    #[serde(rename = "CARD_TOKEN")]
     CardToken,
     Pbl,
     Installemnts,
@@ -432,7 +426,7 @@ impl<F, T>
 #[derive(Default, Debug, Eq, PartialEq, Serialize)]
 pub struct PayuRefundRequestData {
     description: String,
-    amount: Option<String>,
+    amount: Option<i64>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -484,7 +478,7 @@ pub struct PayuRefundResponseData {
     refund_id: String,
     ext_refund_id: String,
     amount: String,
-    currency_code: String,
+    currency_code: enums::Currency,
     description: String,
     creation_date_time: String,
     status: RefundStatus,
