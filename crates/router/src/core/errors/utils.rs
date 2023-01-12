@@ -84,7 +84,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                 Some(serde_json::json!(reason))
             }
             errors::ConnectorError::MissingRequiredField { field_name } => {
-                Some(serde_json::json!({"missing_field": field_name}))
+                Some(serde_json::json!({ "missing_field": field_name }))
             }
             _ => None,
         };
