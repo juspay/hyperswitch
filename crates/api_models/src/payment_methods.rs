@@ -1,3 +1,5 @@
+use std::collections;
+
 use common_utils::pii;
 use serde::de;
 
@@ -165,7 +167,7 @@ fn set_or_reject_duplicate<T, E: de::Error>(
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ListPaymentMethodResponse {
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
@@ -183,7 +185,7 @@ pub struct ListPaymentMethodResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ListCustomerPaymentMethodsResponse {
-    pub enabled_payment_methods: Vec<ListPaymentMethodResponse>,
+    pub enabled_payment_methods: collections::HashSet<ListPaymentMethodResponse>,
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
@@ -210,7 +212,7 @@ pub struct CustomerPaymentMethod {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PaymentExperience {
