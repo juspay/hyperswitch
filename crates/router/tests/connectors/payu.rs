@@ -32,10 +32,15 @@ impl utils::Connector for Payu {
 
 #[actix_web::test]
 async fn should_authorize_card_payment() {
-    let authorize_response = Payu {}.authorize_payment(Some(types::PaymentsAuthorizeData{
-        currency: enums::Currency::PLN,
-        ..PaymentAuthorizeType::default().0
-}), None).await;
+    let authorize_response = Payu {}
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                currency: enums::Currency::PLN,
+                ..PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
         let sync_response = Payu {}
@@ -84,10 +89,15 @@ async fn should_authorize_gpay_payment() {
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Payu {};
-    let authorize_response = connector.authorize_payment(Some(types::PaymentsAuthorizeData{
-        currency: enums::Currency::PLN,
-        ..PaymentAuthorizeType::default().0
-    }), None).await;
+    let authorize_response = connector
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                currency: enums::Currency::PLN,
+                ..PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
@@ -125,10 +135,15 @@ async fn should_capture_already_authorized_payment() {
 #[actix_web::test]
 async fn should_sync_payment() {
     let connector = Payu {};
-    let authorize_response = connector.authorize_payment(Some(types::PaymentsAuthorizeData{
-        currency: enums::Currency::PLN,
-        ..PaymentAuthorizeType::default().0
-    }), None).await;
+    let authorize_response = connector
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                currency: enums::Currency::PLN,
+                ..PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
@@ -152,10 +167,15 @@ async fn should_sync_payment() {
 async fn should_void_already_authorized_payment() {
     let connector = Payu {};
     //make a successful payment
-    let authorize_response = connector.make_payment(Some(types::PaymentsAuthorizeData{
-        currency: enums::Currency::PLN,
-        ..PaymentAuthorizeType::default().0
-    }), None).await;
+    let authorize_response = connector
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                currency: enums::Currency::PLN,
+                ..PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 
     //try CANCEL for previous payment
@@ -184,10 +204,15 @@ async fn should_void_already_authorized_payment() {
 async fn should_refund_succeeded_payment() {
     let connector = Payu {};
     //make a successful payment
-    let authorize_response = connector.make_payment(Some(types::PaymentsAuthorizeData{
-        currency: enums::Currency::PLN,
-        ..PaymentAuthorizeType::default().0
-    }), None).await;
+    let authorize_response = connector
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                currency: enums::Currency::PLN,
+                ..PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 
     //try refund for previous payment
