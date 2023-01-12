@@ -105,9 +105,9 @@ pub struct SetupIntentRequest {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardData {
     #[serde(rename = "payment_method_types[]")]
-    pub payment_method_types: String,
+    pub payment_method_types: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_data_type: String,
+    pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[card][number]")]
     pub payment_method_data_card_number: Secret<String, pii::CardNumber>,
     #[serde(rename = "payment_method_data[card][exp_month]")]
@@ -119,26 +119,35 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
     pub payment_method_auth_type: Auth3ds,
 }
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
-pub struct StripeKlarnaData {
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripePayLaterData {
     #[serde(rename = "payment_method_types[]")]
-    pub payment_method_types: String,
+    pub payment_method_types: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_data_type: String,
+    pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[billing_details][email]")]
     pub billing_email: String,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
-    pub billing_country: String,
+    pub billing_country: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
-    Klarna(StripeKlarnaData),
+    Klarna(StripePayLaterData),
+    Affirm(StripePayLaterData),
     Bank,
     Wallet,
     Paypal,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripePaymentMethodType {
+    Card,
+    Klarna,
+    Affirm,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
@@ -165,8 +174,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
                             };
                             StripeCardData {
-                                payment_method_types: "card".to_string(),
-                                payment_method_data_type: "card".to_string(),
+                                payment_method_types: StripePaymentMethodType::Card,
+                                payment_method_data_type: StripePaymentMethodType::Card,
                                 payment_method_data_card_number: ccard.card_number.clone(),
                                 payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
                                 payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
@@ -180,19 +189,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 billing_email,
                                 billing_country,
                                 ..
-                            } => StripePaymentMethodData::Klarna(StripeKlarnaData {
-                                payment_method_types: "klarna".to_string(),
-                                payment_method_data_type: "klarna".to_string(),
+                            } => StripePaymentMethodData::Klarna(StripePayLaterData {
+                                payment_method_types: StripePaymentMethodType::Klarna,
+                                payment_method_data_type: StripePaymentMethodType::Klarna,
                                 billing_email: billing_email.to_string(),
-                                billing_country: billing_country.to_string(),
+                                billing_country: Some(billing_country.to_string()),
                             }),
-                            api_models::payments::PayLaterData::KlarnaSdk { .. } => Err(
-                                error_stack::report!(errors::ApiErrorResponse::NotImplemented)
-                                    .attach_printable(
-                                        "Stripe does not support klarna sdk payments".to_string(),
-                                    )
-                                    .change_context(errors::ParsingError),
-                            )?,
+                            api_models::payments::PayLaterData::AffirmRedirect {
+                                billing_email,
+                            } => StripePaymentMethodData::Affirm(StripePayLaterData {
+                                payment_method_types: StripePaymentMethodType::Affirm,
+                                payment_method_data_type: StripePaymentMethodType::Affirm,
+                                billing_email: billing_email.to_string(),
+                                billing_country: None,
+                            }),
+                            _ => Err(error_stack::report!(
+                                errors::ApiErrorResponse::NotImplemented
+                            )
+                            .attach_printable(
+                                "Stripe does not support payment through provided payment method"
+                                    .to_string(),
+                            )
+                            .change_context(errors::ParsingError))?,
                         },
                         api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
                         api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
@@ -383,6 +401,7 @@ impl<F, T>
                         mandate_options, ..
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
                     StripePaymentMethodOptions::Klarna {} => None,
+                    StripePaymentMethodOptions::Affirm {} => None,
                 });
 
         Ok(Self {
@@ -437,6 +456,7 @@ impl<F, T>
                         mandate_options, ..
                     } => mandate_options.map(|mandate_option| mandate_option.reference),
                     StripePaymentMethodOptions::Klarna {} => None,
+                    StripePaymentMethodOptions::Affirm {} => None,
                 });
 
         Ok(Self {
@@ -672,6 +692,7 @@ pub enum StripePaymentMethodOptions {
         mandate_options: Option<StripeMandateOptions>,
     },
     Klarna {},
+    Affirm {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
@@ -775,8 +796,8 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
                 };
                 StripeCardData {
-                    payment_method_types: "card".to_string(),
-                    payment_method_data_type: "card".to_string(),
+                    payment_method_types: StripePaymentMethodType::Card,
+                    payment_method_data_type: StripePaymentMethodType::Card,
                     payment_method_data_card_number: ccard.card_number.clone(),
                     payment_method_data_card_exp_month: ccard.card_exp_month.clone(),
                     payment_method_data_card_exp_year: ccard.card_exp_year.clone(),
@@ -788,19 +809,22 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
             api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email,
-                    billing_country: country,
+                    billing_country,
                     ..
-                } => Ok(Self::Klarna(StripeKlarnaData {
-                    payment_method_types: "klarna".to_string(),
-                    payment_method_data_type: "klarna".to_string(),
+                } => Ok(Self::Klarna(StripePayLaterData {
+                    payment_method_types: StripePaymentMethodType::Klarna,
+                    payment_method_data_type: StripePaymentMethodType::Klarna,
                     billing_email,
-                    billing_country: country,
+                    billing_country: Some(billing_country),
                 })),
-                api_models::payments::PayLaterData::KlarnaSdk { .. } => Err(error_stack::report!(
-                    errors::ApiErrorResponse::NotImplemented
-                )
-                .attach_printable("Stripe does not support klarna sdk payments".to_string())
-                .change_context(errors::ParsingError))?,
+                _ => Err(
+                    error_stack::report!(errors::ApiErrorResponse::NotImplemented)
+                        .attach_printable(
+                            "Stripe does not support payment through provided payment method"
+                                .to_string(),
+                        )
+                        .change_context(errors::ParsingError),
+                )?,
             },
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),
