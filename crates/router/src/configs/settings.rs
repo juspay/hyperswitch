@@ -134,6 +134,7 @@ pub struct Connectors {
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,

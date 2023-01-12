@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use common_utils::ext_traits::AsyncExt;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -144,8 +145,6 @@ pub async fn get_token_for_recurring_mandate(
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
-
-    // TODO: Make currency in payments request as Currency enum
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -732,7 +731,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
-                // TODO: Handle token expiry
+                // [#196]: Handle token expiry
                 let (pm, tokenize_value2) =
                     Vault::get_payment_method_data_from_locker(state, &token).await?;
                 utils::when(
@@ -765,7 +764,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         field_name: "payment_method_type".to_owned(),
                     })
                 })?;
-                // TODO: Implement token flow for other payment methods
+                // [#195]: Implement token flow for other payment methods
                 None
             },
         ),
@@ -1353,11 +1352,10 @@ pub(crate) async fn verify_client_secret(
     storage_scheme: storage_enums::MerchantStorageScheme,
     client_secret: Option<String>,
     merchant_id: &str,
-) -> error_stack::Result<(), errors::ApiErrorResponse> {
-    match client_secret {
-        None => Ok(()),
-        Some(cs) => {
-            let payment_id = cs.split('_').take(2).collect::<Vec<&str>>().join("_");
+) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
+    client_secret
+        .async_map(|cs| async move {
+            let payment_id = get_payment_id_from_client_secret(&cs);
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -1369,9 +1367,16 @@ pub(crate) async fn verify_client_secret(
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(|err| err.into())
-        }
-    }
+                .map_err(errors::ApiErrorResponse::from)?;
+            Ok(payment_intent)
+        })
+        .await
+        .transpose()
+}
+
+#[inline]
+pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> String {
+    cs.split('_').take(2).collect::<Vec<&str>>().join("_")
 }
 
 #[cfg(test)]

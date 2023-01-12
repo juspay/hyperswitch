@@ -437,7 +437,6 @@ mod storage {
 
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    // TODO: Add a proper error for serialization failure
 
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
@@ -451,7 +450,7 @@ mod storage {
                         utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
                             &updated_refund,
                         )
-                        .change_context(errors::StorageError::KVError)?;
+                        .change_context(errors::StorageError::SerializationFailed)?;
 
                     self.redis_conn
                         .set_hash_fields(&key, (field, redis_value))

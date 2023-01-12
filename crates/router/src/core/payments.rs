@@ -454,7 +454,7 @@ where
     pub email: Option<masking::Secret<String, pii::Email>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<masking::Secret<String, masking::WithType>>,

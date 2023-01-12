@@ -52,7 +52,7 @@ mod storage {
             api,
             storage::{enums, kv, payment_intent::*},
         },
-        utils::storage_partitioning::KvStorePartition,
+        utils::{self, storage_partitioning::KvStorePartition},
     };
 
     #[async_trait::async_trait]
@@ -155,9 +155,11 @@ mod storage {
 
                     let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
-                    let redis_value = serde_json::to_string(&updated_intent)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
+
+                    let redis_value =
+                        utils::Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
+                            .change_context(errors::StorageError::SerializationFailed)?;
+
                     let updated_intent = self
                         .redis_conn
                         .set_hash_fields(&key, ("pi", &redis_value))
