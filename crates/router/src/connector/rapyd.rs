@@ -97,7 +97,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/v1/payments/",
+            "{}/v1/payments",
             api::ConnectorCommon::base_url(self, connectors)
         ))
     }
@@ -138,7 +138,6 @@ impl
             .headers(headers)
             .body(Some(rapyd_req))
             .build();
-        print!("myrequest {:?}", request);
         Ok(Some(request))
     }
 

@@ -37,7 +37,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethod::Card(ref ccard) => {
                 let payment_method = PaymentMethod {
-                    pm_type: "in_amex_card".to_owned(), //TODO
+                    pm_type: "in_amex_card".to_owned(), //TODO Mapping of our pm_type to rapyd
                     fields: PaymentFields {
                         number: ccard.card_number.peek().to_string(),
                         expiration_month: ccard.card_exp_month.peek().to_string(),
@@ -84,7 +84,6 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
 #[allow(clippy::upper_case_acronyms)]
 pub enum RapydPaymentStatus {
     ACT,
