@@ -1,5 +1,6 @@
-use error_stack::report;
-use router_env::{tracing, tracing::instrument};
+use common_utils::ext_traits::StringExt;
+use error_stack::{report, ResultExt};
+use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -7,11 +8,8 @@ use crate::{
     db::StorageInterface,
     logger,
     types::storage::{self, enums},
-    utils,
+    utils::{self, OptionExt},
 };
-
-pub(super) const REFUND_MAX_AGE: i64 = 365;
-pub(super) const REFUND_MAX_ATTEMPTS: usize = 10;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefundValidationError {
@@ -38,7 +36,6 @@ pub fn validate_success_transaction(
     Ok(())
 }
 
-//todo: max refund request count
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
     payment_attempt_amount: i64, // &storage::PaymentAttempt,
@@ -71,11 +68,12 @@ pub fn validate_refund_amount(
 #[instrument(skip_all)]
 pub fn validate_payment_order_age(
     created_at: &PrimitiveDateTime,
+    refund_max_age: i64,
 ) -> CustomResult<(), RefundValidationError> {
     let current_time = common_utils::date_time::now();
 
     utils::when(
-        (current_time - *created_at).whole_days() > REFUND_MAX_AGE,
+        (current_time - *created_at).whole_days() > refund_max_age,
         || Err(report!(RefundValidationError::OrderExpired)),
     )
 }
@@ -83,9 +81,9 @@ pub fn validate_payment_order_age(
 #[instrument(skip_all)]
 pub fn validate_maximum_refund_against_payment_attempt(
     all_refunds: &[storage::Refund],
+    refund_max_attempts: usize,
 ) -> CustomResult<(), RefundValidationError> {
-    // TODO: Make this configurable
-    utils::when(all_refunds.len() > REFUND_MAX_ATTEMPTS, || {
+    utils::when(all_refunds.len() > refund_max_attempts, || {
         Err(report!(RefundValidationError::MaxRefundCountReached))
     })
 }
@@ -121,4 +119,52 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
             }
         }
     }
+}
+
+pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
+    match limit {
+        Some(limit_val) => {
+            if !(1..=100).contains(&limit_val) {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "limit should be in between 1 and 100".to_string(),
+                }
+                .into())
+            } else {
+                Ok(limit_val)
+            }
+        }
+        None => Ok(10),
+    }
+}
+
+pub fn validate_for_valid_refunds(
+    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+) -> RouterResult<()> {
+    let connector: api_models::enums::Connector = payment_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")?
+        .parse_enum("connector")
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+    let payment_method = payment_attempt
+        .payment_method
+        .get_required_value("payment_method")?;
+    utils::when(
+        matches!(
+            (connector, payment_method),
+            (
+                api_models::enums::Connector::Braintree,
+                storage_models::enums::PaymentMethodType::Paypal
+            ) | (
+                api_models::enums::Connector::Klarna,
+                storage_models::enums::PaymentMethodType::Klarna
+            )
+        ),
+        || {
+            Err(errors::ApiErrorResponse::RefundNotPossible {
+                connector: connector.to_string(),
+            })
+        },
+    )?;
+    Ok(())
 }

@@ -1,3 +1,5 @@
+use std::collections;
+
 use common_utils::pii;
 use serde::de;
 
@@ -71,7 +73,7 @@ pub struct ListPaymentMethodRequest {
     pub client_secret: Option<String>,
     pub accepted_countries: Option<Vec<String>>,
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
-    pub amount: Option<i32>,
+    pub amount: Option<i64>,
     pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
 }
@@ -165,7 +167,7 @@ fn set_or_reject_duplicate<T, E: de::Error>(
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ListPaymentMethodResponse {
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
@@ -174,8 +176,8 @@ pub struct ListPaymentMethodResponse {
     pub payment_schemes: Option<Vec<String>>,
     pub accepted_countries: Option<Vec<String>>,
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
-    pub minimum_amount: Option<i32>,
-    pub maximum_amount: Option<i32>,
+    pub minimum_amount: Option<i64>,
+    pub maximum_amount: Option<i64>,
     pub recurring_enabled: bool,
     pub installment_payment_enabled: bool,
     pub payment_experience: Option<Vec<PaymentExperience>>,
@@ -183,7 +185,7 @@ pub struct ListPaymentMethodResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ListCustomerPaymentMethodsResponse {
-    pub enabled_payment_methods: Vec<ListPaymentMethodResponse>,
+    pub enabled_payment_methods: collections::HashSet<ListPaymentMethodResponse>,
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
@@ -210,7 +212,7 @@ pub struct CustomerPaymentMethod {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PaymentExperience {
@@ -285,4 +287,5 @@ pub struct TokenizedCardValue2 {
     pub card_fingerprint: Option<String>,
     pub external_id: Option<String>,
     pub customer_id: Option<String>,
+    pub payment_method_id: Option<String>,
 }

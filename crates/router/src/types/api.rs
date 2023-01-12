@@ -147,12 +147,13 @@ impl ConnectorData {
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
+            "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
             "stripe" => Ok(Box::new(&connector::Stripe)),
-            _ => Err(report!(errors::UnexpectedError)
+            "worldpay" => Ok(Box::new(&connector::Worldpay)),
+            _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
-            .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }

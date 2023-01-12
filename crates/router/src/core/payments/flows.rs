@@ -1,9 +1,9 @@
-mod authorize_flow;
-mod cancel_flow;
-mod capture_flow;
-mod psync_flow;
-mod session_flow;
-mod verfiy_flow;
+pub mod authorize_flow;
+pub mod cancel_flow;
+pub mod capture_flow;
+pub mod psync_flow;
+pub mod session_flow;
+pub mod verfiy_flow;
 
 use async_trait::async_trait;
 
@@ -11,10 +11,7 @@ use crate::{
     core::{errors::RouterResult, payments},
     routes::AppState,
     services,
-    types::{
-        self, api,
-        storage::{self, enums},
-    },
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -35,7 +32,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,

@@ -11,6 +11,11 @@ pub struct StripeCreateRefundRequest {
     pub reason: Option<String>,
 }
 
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StripeUpdateRefundRequest {
+    pub metadata: Option<serde_json::Value>,
+}
+
 #[derive(Clone, Serialize, PartialEq, Eq)]
 pub struct StripeCreateRefundResponse {
     pub id: String,
@@ -36,6 +41,14 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             payment_id: req.payment_intent,
             reason: req.reason,
             ..Default::default()
+        }
+    }
+}
+
+impl From<StripeUpdateRefundRequest> for refunds::RefundUpdateRequest {
+    fn from(req: StripeUpdateRefundRequest) -> Self {
+        Self {
+            metadata: req.metadata,
         }
     }
 }

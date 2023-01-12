@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
-use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -20,7 +19,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -40,10 +39,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -51,19 +49,25 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
     )> {
         let db = &*state.store;
 
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
+
         let (payment_intent, payment_attempt, connector_response);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
-
-        let mut is_update = false;
 
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(state, request, mandate_type, merchant_id)
-                .await?;
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type,
+                merchant_account,
+            )
+            .await?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -94,7 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        payment_attempt = match db
+        payment_attempt = db
             .insert_payment_attempt(
                 Self::make_payment_attempt(
                     &payment_id,
@@ -107,28 +111,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-        {
-            Ok(payment_attempt) => Ok(payment_attempt),
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
 
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    is_update = true;
-                    db.find_payment_attempt_by_payment_id_merchant_id(
-                        &payment_id,
-                        merchant_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                    })
-                } else {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            }
-        }?;
-
-        payment_intent = match db
+        payment_intent = db
             .insert_payment_intent(
                 Self::make_payment_intent(
                     &payment_id,
@@ -137,51 +126,26 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     request,
                     shipping_address.clone().map(|x| x.address_id),
                     billing_address.clone().map(|x| x.address_id),
-                ),
+                )?,
                 storage_scheme,
             )
             .await
-        {
-            Ok(payment_intent) => Ok(payment_intent),
-
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    is_update = true;
-                    db.find_payment_intent_by_payment_id_merchant_id(
-                        &payment_id,
-                        merchant_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                    })
-                } else {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            }
-        }?;
-
-        connector_response = match db
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
+        connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
-        {
-            Ok(connector_resp) => Ok(connector_resp),
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Err(err)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Duplicate connector response in the database")
-                } else {
-                    Err(err)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error occured when inserting connector response")
-                }
-            }
-        }?;
+            .map_err(|err| {
+                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })
+            })?;
 
         let mandate_id = request
             .mandate_id
@@ -200,7 +164,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .transpose()?;
 
         let operation = payments::if_not_create_change_operation::<_, F>(
-            is_update,
             payment_intent.status,
             request.confirm,
             self,
@@ -271,29 +234,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_method: Option<enums::PaymentMethodType>,
-        txn_id: &str,
-        payment_attempt: &storage::PaymentAttempt,
-        request: &Option<api::PaymentMethod>,
-        token: &Option<String>,
-        card_cvc: Option<Secret<String>>,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
-        Option<String>,
     )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_method,
-            txn_id,
-            payment_attempt,
-            request,
-            token,
-            card_cvc,
-        )
-        .await
+        helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 
     #[instrument(skip_all)]
@@ -309,9 +256,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, request.connector).await
     }
 }
 
@@ -407,15 +354,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             None => None,
         };
 
-        if request.confirm == Some(true)
-            && request.payment_method != Some(api_models::enums::PaymentMethodType::Paypal)
-        {
-            helpers::validate_pm_or_token_given(
-                &request.payment_token,
-                &request.payment_method_data,
-            )?;
-        }
-
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -432,6 +370,15 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         let mandate_type = helpers::validate_mandate(request)?;
+
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_pm_or_token_given(
+                &request.payment_method,
+                &request.payment_method_data,
+                &mandate_type,
+                &request.payment_token,
+            )?;
+        }
 
         Ok((
             Box::new(self),
@@ -487,14 +434,21 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
-    ) -> storage::PaymentIntentNew {
+    ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
-        storage::PaymentIntentNew {
+        let metadata = request
+            .metadata
+            .as_ref()
+            .map(Encode::<api_models::payments::Metadata>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Encoding Metadata to value failed")?;
+        Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
             status,
@@ -512,9 +466,9 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata: request.metadata.clone(),
+            metadata,
             ..storage::PaymentIntentNew::default()
-        }
+        })
     }
 
     #[instrument(skip_all)]

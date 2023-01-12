@@ -4,6 +4,8 @@ volumes:
   cargo_cache:
   pg_data:
   cargo_build_cache:
+  p_cargo_build_cache:
+  c_cargo_build_cache:
 
 networks:
   router_net:
@@ -57,8 +59,6 @@ services:
     profiles:
       - monitoring
     restart: unless-stopped
-    environment:
-      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
     volumes:
       - ./config/grafana.ini:/etc/grafana/grafana.ini
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
@@ -74,9 +74,9 @@ services:
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
-      - POSTGRES_DB=orca_db
+      - POSTGRES_DB=hyperswitch_db
 
-  orca-server:
+  hyperswitch-server:
     image: rust:1.65
     command: cargo run -- -f ./config/docker_compose.toml
     working_dir: /app
@@ -99,6 +99,41 @@ services:
       retries: 3
       start_period: 20s
       timeout: 10s
+
+  orca-producer:
+    image: rust:1.65
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - p_cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
+      - SCHEDULER_FLOW=producer
+    labels:
+      logs: "promtail"
+    
+  orca-consumer:
+    image: rust:1.65
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - c_cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
+      - SCHEDULER_FLOW=consumer
+    labels:
+      logs: "promtail"
+    
 
   redis-queue:
     image: redis:7    
@@ -148,4 +183,18 @@ services:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
       - "9090"
+    restart: unless-stopped
+  
+  tempo:
+    image: grafana/tempo:latest
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    ports:
+      - "3200" # tempo
+      - "4317" # otlp grpc
     restart: unless-stopped

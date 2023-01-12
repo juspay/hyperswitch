@@ -1,16 +1,13 @@
 mod client;
 pub(crate) mod request;
 
-use std::{borrow::Cow, collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
+use std::{collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
-use router_env::{
-    tracing::{self, instrument},
-    Tag,
-};
+use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
@@ -18,18 +15,18 @@ pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, CustomResult, RouterResponse, RouterResult},
         payments,
     },
     db::StorageInterface,
     logger,
     routes::AppState,
+    services::authentication as auth,
     types::{
         self, api,
-        storage::{self, enums},
+        storage::{self},
         ErrorResponse,
     },
-    utils::{self, OptionExt},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -183,7 +180,7 @@ where
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn call_connector_api(
+pub async fn call_connector_api(
     state: &AppState,
     request: Request,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -248,7 +245,7 @@ async fn send_request(
     }
     .map_err(|error| match error {
         error if error.is_timeout() => errors::ApiClientError::RequestTimeoutReceived,
-        _ => errors::ApiClientError::RequestNotSent,
+        _ => errors::ApiClientError::RequestNotSent(error.to_string()),
     })
     .into_report()
     .attach_printable("Unable to send request to connector")
@@ -323,26 +320,20 @@ async fn handle_response(
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum BachResponse<R> {
+pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
-    /*
-    redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    RedirectResponse(BachRedirectResponse),
-    Form(BachRedirectForm),
-    */
     JsonForRedirection(api::RedirectionResponse),
-    // RedirectResponse(BachRedirectResponse),
     Form(RedirectForm),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct BachRedirectResponse {
+pub struct ApplicationRedirectResponse {
     pub url: String,
 }
 
-impl From<&storage::PaymentAttempt> for BachRedirectResponse {
+impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
     fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
         Self {
             url: format!(
@@ -372,104 +363,49 @@ impl RedirectForm {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum ApiAuthentication<'a> {
-    Merchant(MerchantAuthentication<'a>),
-    Connector(ConnectorAuthentication<'a>),
-}
-
-#[derive(Clone, Debug)]
-pub enum MerchantAuthentication<'a> {
-    ApiKey,
-    MerchantId(Cow<'a, str>),
-    AdminApiKey,
-    PublishableKey,
-}
-
-#[derive(Clone, Debug)]
-pub enum ConnectorAuthentication<'a> {
-    MerchantId(&'a str),
-}
-
-impl<'a> From<MerchantAuthentication<'a>> for ApiAuthentication<'a> {
-    fn from(merchant_auth: MerchantAuthentication<'a>) -> Self {
-        ApiAuthentication::Merchant(merchant_auth)
-    }
-}
-
-impl<'a> From<ConnectorAuthentication<'a>> for ApiAuthentication<'a> {
-    fn from(connector_auth: ConnectorAuthentication<'a>) -> Self {
-        ApiAuthentication::Connector(connector_auth)
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AuthFlow {
     Client,
     Merchant,
 }
 
-pub(crate) fn get_auth_flow(auth_type: &MerchantAuthentication<'_>) -> AuthFlow {
-    match auth_type {
-        MerchantAuthentication::ApiKey => AuthFlow::Merchant,
-        _ => AuthFlow::Client,
-    }
-}
-
-pub(crate) fn get_auth_type(request: &HttpRequest) -> RouterResult<MerchantAuthentication<'_>> {
-    let api_key = get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-    if api_key.starts_with("pk_") {
-        Ok(MerchantAuthentication::PublishableKey)
-    } else {
-        Ok(MerchantAuthentication::ApiKey)
-    }
-}
-
-#[instrument(skip(request, payload, state, func))]
-pub(crate) async fn server_wrap_util<'a, 'b, T, Q, F, Fut>(
+#[instrument(skip(request, payload, state, func, api_auth))]
+pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut>(
     state: &'b AppState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: ApiAuthentication<'a>,
-) -> RouterResult<BachResponse<Q>>
+    api_auth: &dyn auth::AuthenticateAndFetch<U>,
+) -> RouterResult<ApplicationResponse<Q>>
 where
-    F: Fn(&'b AppState, storage::MerchantAccount, T) -> Fut,
+    F: Fn(&'b AppState, U, T) -> Fut,
     Fut: Future<Output = RouterResponse<Q>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
 {
-    let merchant_account = match api_authentication {
-        ApiAuthentication::Merchant(merchant_auth) => {
-            authenticate_merchant(request, &*state.store, merchant_auth).await?
-        }
-        ApiAuthentication::Connector(connector_auth) => {
-            authenticate_connector(request, &*state.store, connector_auth).await?
-        }
-    };
-    logger::debug!(request=?payload);
-    func(state, merchant_account, payload).await
+    let auth_out = api_auth
+        .authenticate_and_fetch(request.headers(), state)
+        .await?;
+    func(state, auth_out, payload).await
 }
 
 #[instrument(
-    skip(request, payload, state, func),
+    skip(request, payload, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
-pub(crate) async fn server_wrap<'a, 'b, A, T, Q, F, Fut>(
+pub async fn server_wrap<'a, 'b, T, U, Q, F, Fut>(
     state: &'b AppState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: A,
+    api_auth: &dyn auth::AuthenticateAndFetch<U>,
 ) -> HttpResponse
 where
-    A: Into<ApiAuthentication<'a>> + Debug,
-    F: Fn(&'b AppState, storage::MerchantAccount, T) -> Fut,
-    Fut: Future<Output = RouterResult<BachResponse<Q>>>,
+    F: Fn(&'b AppState, U, T) -> Fut,
+    Fut: Future<Output = RouterResult<ApplicationResponse<Q>>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
 {
-    let api_authentication = api_authentication.into();
     let request_method = request.method().as_str();
     let url_path = request.path();
     tracing::Span::current().record("request_method", request_method);
@@ -478,8 +414,8 @@ where
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest);
 
-    let res = match server_wrap_util(state, request, payload, func, api_authentication).await {
-        Ok(BachResponse::Json(response)) => match serde_json::to_string(&response) {
+    let res = match server_wrap_util(state, request, payload, func, api_auth).await {
+        Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
                 r#"{
@@ -489,19 +425,21 @@ where
                 }"#,
             ),
         },
-        Ok(BachResponse::StatusOk) => http_response_ok(),
-        Ok(BachResponse::TextPlain(text)) => http_response_plaintext(text),
-        Ok(BachResponse::JsonForRedirection(response)) => match serde_json::to_string(&response) {
-            Ok(res) => http_redirect_response(res, response),
-            Err(_) => http_response_err(
-                r#"{
+        Ok(ApplicationResponse::StatusOk) => http_response_ok(),
+        Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
+        Ok(ApplicationResponse::JsonForRedirection(response)) => {
+            match serde_json::to_string(&response) {
+                Ok(res) => http_redirect_response(res, response),
+                Err(_) => http_response_err(
+                    r#"{
                     "error": {
                         "message": "Error serializing response from connector"
                     }
                 }"#,
-            ),
-        },
-        Ok(BachResponse::Form(response)) => build_redirection_form(&response)
+                ),
+            }
+        }
+        Ok(ApplicationResponse::Form(response)) => build_redirection_form(&response)
             .respond_to(request)
             .map_into_boxed_body(),
 
@@ -520,124 +458,12 @@ where
     res
 }
 
-pub(crate) fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
+pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
     T: actix_web::ResponseError + error_stack::Context,
 {
     logger::error!(?error);
     error.current_context().error_response()
-}
-
-pub async fn authenticate_merchant<'a>(
-    request: &HttpRequest,
-    store: &dyn StorageInterface,
-    merchant_authentication: MerchantAuthentication<'a>,
-) -> RouterResult<storage::MerchantAccount> {
-    match merchant_authentication {
-        MerchantAuthentication::ApiKey => {
-            let api_key =
-                get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            authenticate_by_api_key(store, api_key).await
-        }
-
-        MerchantAuthentication::MerchantId(merchant_id) => store
-            .find_merchant_account_by_merchant_id(&merchant_id)
-            .await
-            .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized)),
-
-        MerchantAuthentication::AdminApiKey => {
-            let admin_api_key =
-                get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            if admin_api_key != "test_admin" {
-                Err(report!(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Admin Authentication Failure"))?;
-            }
-
-            Ok(storage::MerchantAccount {
-                id: -1,
-                merchant_id: String::from("juspay"),
-                merchant_name: None,
-                api_key: None,
-                merchant_details: None,
-                return_url: None,
-                webhook_details: None,
-                routing_algorithm: None,
-                custom_routing_rules: None,
-                sub_merchants_enabled: None,
-                parent_merchant_id: None,
-                enable_payment_response_hash: false,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: false,
-                publishable_key: None,
-                storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
-            })
-        }
-
-        MerchantAuthentication::PublishableKey => {
-            let api_key =
-                get_api_key(request).change_context(errors::ApiErrorResponse::Unauthorized)?;
-            authenticate_by_publishable_key(store, api_key).await
-        }
-    }
-}
-
-pub async fn authenticate_connector<'a>(
-    _request: &HttpRequest,
-    store: &dyn StorageInterface,
-    connector_authentication: ConnectorAuthentication<'a>,
-) -> RouterResult<storage::MerchantAccount> {
-    match connector_authentication {
-        ConnectorAuthentication::MerchantId(merchant_id) => store
-            .find_merchant_account_by_merchant_id(merchant_id)
-            .await
-            .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized)),
-    }
-}
-
-pub(crate) fn get_auth_type_and_check_client_secret<P>(
-    req: &HttpRequest,
-    payload: P,
-) -> RouterResult<(P, MerchantAuthentication<'_>)>
-where
-    P: Authenticate,
-{
-    let auth_type = get_auth_type(req)?;
-    Ok((
-        payments::helpers::client_secret_auth(payload, &auth_type)?,
-        auth_type,
-    ))
-}
-
-pub(crate) async fn authenticate_eph_key<'a>(
-    req: &'a HttpRequest,
-    store: &dyn StorageInterface,
-    customer_id: String,
-) -> RouterResult<MerchantAuthentication<'a>> {
-    let api_key = get_api_key(req)?;
-    if api_key.starts_with("epk") {
-        let ek = store
-            .get_ephemeral_key(api_key)
-            .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)?;
-        utils::when(ek.customer_id.ne(&customer_id), || {
-            Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey))
-        })?;
-        Ok(MerchantAuthentication::MerchantId(Cow::Owned(
-            ek.merchant_id,
-        )))
-    } else {
-        Ok(MerchantAuthentication::ApiKey)
-    }
-}
-
-fn get_api_key(req: &HttpRequest) -> RouterResult<&str> {
-    req.headers()
-        .get("api-key")
-        .get_required_value("api-key")?
-        .to_str()
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert API key to string")
 }
 
 pub async fn authenticate_by_api_key(
@@ -651,36 +477,25 @@ pub async fn authenticate_by_api_key(
         .attach_printable("Merchant not authenticated")
 }
 
-async fn authenticate_by_publishable_key(
-    store: &dyn StorageInterface,
-    publishable_key: &str,
-) -> RouterResult<storage::MerchantAccount> {
-    store
-        .find_merchant_account_by_publishable_key(publishable_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)
-        .attach_printable("Merchant not authenticated")
-}
-
-pub(crate) fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
+pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
         .append_header(("Via", "Juspay_router"))
         .body(response)
 }
 
-pub(crate) fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
+pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/plain")
         .append_header(("Via", "Juspay_router"))
         .body(res)
 }
 
-pub(crate) fn http_response_ok() -> HttpResponse {
+pub fn http_response_ok() -> HttpResponse {
     HttpResponse::Ok().finish()
 }
 
-pub(crate) fn http_redirect_response<T: body::MessageBody + 'static>(
+pub fn http_redirect_response<T: body::MessageBody + 'static>(
     response: T,
     redirection_response: api::RedirectionResponse,
 ) -> HttpResponse {
@@ -695,7 +510,7 @@ pub(crate) fn http_redirect_response<T: body::MessageBody + 'static>(
         .body(response)
 }
 
-pub(crate) fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
+pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::BadRequest()
         .content_type("application/json")
         .append_header(("Via", "Juspay_router"))

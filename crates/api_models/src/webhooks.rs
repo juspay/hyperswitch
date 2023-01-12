@@ -7,6 +7,7 @@ use crate::{enums as api_enums, payments};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
+    PaymentIntentFailure,
     PaymentIntentSuccess,
 }
 
@@ -19,6 +20,7 @@ pub enum WebhookFlow {
 impl From<IncomingWebhookEvent> for WebhookFlow {
     fn from(evt: IncomingWebhookEvent) -> Self {
         match evt {
+            IncomingWebhookEvent::PaymentIntentFailure => Self::Payment,
             IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
         }
     }
