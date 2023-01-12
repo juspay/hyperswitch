@@ -827,7 +827,8 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     Gpay {
-        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+        #[serde(flatten)]
+        data: GpayMetadata,
         transaction_info: GpayTransactionInfo,
     },
     Klarna {
