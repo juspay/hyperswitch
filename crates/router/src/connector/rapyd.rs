@@ -8,6 +8,7 @@ use common_utils::generate_id;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use time::OffsetDateTime;
+use transformers as rapyd;
 
 use crate::{
     configs::settings,
@@ -20,8 +21,6 @@ use crate::{
     types::{self, api, ErrorResponse, Response},
     utils::{self, BytesExt},
 };
-
-use transformers as rapyd;
 
 #[derive(Debug, Clone)]
 pub struct Rapyd;
