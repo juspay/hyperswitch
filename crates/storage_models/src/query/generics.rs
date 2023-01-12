@@ -19,7 +19,7 @@ use diesel::{
     Insertable, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::{logger, tracing, tracing::instrument};
+use router_env::{instrument, logger, tracing};
 
 use crate::{errors, PgPooledConn, StorageResult};
 

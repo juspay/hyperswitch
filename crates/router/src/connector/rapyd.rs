@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use base64;
+use base64::Engine;
 use bytes::Bytes;
 use common_utils::generate_id;
 use error_stack::ResultExt;
@@ -11,6 +11,7 @@ use time::OffsetDateTime;
 
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -42,7 +43,9 @@ impl Rapyd {
         let to_sign =
             format!("{http_method}{url_path}{salt}{timestamp}{access_key}{secret_key}{body}");
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
-        let signature_value = base64::encode(hmac::sign(&key, to_sign.as_bytes()).as_ref());
+        let tag = hmac::sign(&key, to_sign.as_bytes());
+        let hmac_sign = hex::encode(tag);
+        let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
         Ok(signature_value)
     }
 }

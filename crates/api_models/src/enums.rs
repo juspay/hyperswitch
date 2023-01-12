@@ -1,3 +1,5 @@
+use utoipa::ToSchema;
+
 #[derive(
     Clone,
     Copy,
@@ -125,6 +127,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
     frunk::LabelledGeneric,
 )]
 pub enum Currency {
@@ -339,6 +342,7 @@ pub enum PaymentMethodIssuerCode {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
     frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
@@ -364,6 +368,7 @@ pub enum PaymentMethodSubType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
     frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
@@ -435,8 +440,12 @@ pub enum RefundStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
     frunk::LabelledGeneric,
 )]
+
+/// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
+#[schema(example = "custom")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithm {
@@ -494,10 +503,21 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Globalpay,
     Klarna,
     Shift4,
     Stripe,
     Rapyd,
+    Worldpay,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportedWallets {
+    Paypal,
+    ApplePay,
+    Klarna,
+    Gpay,
 }
 
 impl From<AttemptStatus> for IntentStatus {

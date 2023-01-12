@@ -8,7 +8,7 @@ use std::{fmt::Debug, marker::PhantomData, time::Instant};
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
@@ -28,8 +28,7 @@ use crate::{
     scheduler::utils as pt_utils,
     services,
     types::{
-        self,
-        api::{self, enums as api_enums},
+        self, api,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -42,7 +41,6 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
-    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
@@ -74,10 +72,9 @@ where
         .get_trackers(
             state,
             &validate_result.payment_id,
-            validate_result.merchant_id,
             &req,
             validate_result.mandate_type,
-            validate_result.storage_scheme,
+            &merchant_account,
         )
         .await?;
 
@@ -101,7 +98,7 @@ where
 
     let connector_details = operation
         .to_domain()?
-        .get_connector(&merchant_account, state, use_connector)
+        .get_connector(&merchant_account, state, &req)
         .await?;
 
     if let api::ConnectorCallType::Single(ref connector) = connector_details {
@@ -164,7 +161,6 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
-    use_connector: Option<api_enums::Connector>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
@@ -172,7 +168,7 @@ where
     FData: Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -189,7 +185,6 @@ where
         merchant_account,
         operation.clone(),
         req,
-        use_connector,
         call_connector_action,
     )
     .await?;
@@ -248,7 +243,7 @@ where
 
     let payments_response =
         match response.change_context(errors::ApiErrorResponse::NotImplemented)? {
-            services::BachResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::Json(response) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Failed to get the response in json"),
@@ -262,7 +257,7 @@ where
     )
     .attach_printable("No redirection response")?;
 
-    Ok(services::BachResponse::JsonForRedirection(result))
+    Ok(services::ApplicationResponse::JsonForRedirection(result))
 }
 
 pub async fn payments_response_for_redirection_flows<'a>(
@@ -277,7 +272,6 @@ pub async fn payments_response_for_redirection_flows<'a>(
         PaymentStatus,
         req,
         services::api::AuthFlow::Merchant,
-        None,
         flow_type,
     )
     .await
@@ -323,7 +317,7 @@ where
             &connector,
             customer,
             call_connector_action,
-            merchant_account.storage_scheme,
+            merchant_account,
         )
         .await;
 
@@ -387,7 +381,7 @@ where
             connector,
             customer,
             CallConnectorAction::Trigger,
-            merchant_account.storage_scheme,
+            merchant_account,
         );
 
         join_handlers.push(res);
@@ -470,7 +464,6 @@ pub struct CustomerDetails {
 }
 
 pub fn if_not_create_change_operation<'a, Op, F>(
-    is_update: bool,
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
@@ -486,13 +479,7 @@ where
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
             | storage_enums::IntentStatus::RequiresCustomerAction
-            | storage_enums::IntentStatus::RequiresPaymentMethod => {
-                if is_update {
-                    Box::new(&PaymentUpdate)
-                } else {
-                    Box::new(current)
-                }
-            }
+            | storage_enums::IntentStatus::RequiresPaymentMethod => Box::new(current),
             _ => Box::new(&PaymentStatus),
         }
     }
@@ -570,10 +557,12 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    Ok(services::BachResponse::Json(api::PaymentListResponse {
-        size: data.len(),
-        data,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
 }
 
 pub async fn add_process_sync_task(

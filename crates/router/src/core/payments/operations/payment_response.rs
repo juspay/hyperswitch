@@ -178,6 +178,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 resource_id,
                 redirection_data,
                 redirect,
+                connector_metadata,
                 ..
             } => {
                 let connector_transaction_id = match resource_id {
@@ -206,6 +207,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                         .mandate_id
                         .clone()
                         .map(|mandate| mandate.mandate_id),
+                    connector_metadata,
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {

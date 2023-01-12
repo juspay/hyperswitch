@@ -17,21 +17,21 @@ request_body_limit = 16_384
 
 # Main SQL data store credentials
 [master_database]
-username = "db_user" # DB Username
-password = "db_pass" # DB Password
-host = "localhost"   # DB Host
-port = 5432          # DB Port
-dbname = "orca_db"   # Name of Database
+username = "db_user"        # DB Username
+password = "db_pass"        # DB Password
+host = "localhost"          # DB Host
+port = 5432                 # DB Port
+dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5        # Number of connections to keep open
 
 # Replica SQL data store credentials
 [replica_database]
-username = "db_user" # DB Username
-password = "db_pass" # DB Password
-host = "localhost"   # DB Host
-port = 5432          # DB Port
-dbname = "orca_db"   # Name of Database
-pool_size = 5        # Number of connections to keep open
+username = "db_user"        # DB Username
+password = "db_pass"        # DB Password
+host = "localhost"          # DB Host
+port = 5432                 # DB Port
+dbname = "hyperswitch_db"   # Name of Database
+pool_size = 5               # Number of connections to keep open
 
 # Redis credentials
 [redis]
@@ -63,12 +63,19 @@ log_format = "default"  # Log format. "default" or "json"
 # defaults to "WARN"
 level = "DEBUG"
 
+# Telemetry configuration for traces
+[log.telemetry]
+enabled = false # boolean [true or false]
+sampling_rate = 0.1 # decimal rate between 0.0 - 1.0
+
 # This section provides configuration details for using AWS KMS to encrypt
 # data like payment method details being sent over a network.
 [keys]
 aws_key_id = ""  # AWS Account Key ID
 aws_region = ""  # AWS Account region
 temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # AWS KMS Key
+admin_api_key = "test_admin" #admin api key for merchant authentication
+jwt_secret= "secret"  #secret jwt for merchant
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -87,6 +94,11 @@ locker_decryption_key1 = "" # private key 1 in pem format, corresponding public 
 locker_decryption_key2 = "" # private key 2 in pem format, corresponding public key in basilisk
 
 
+# Refund configuration
+[refund]
+max_attempts = 10 # Number of refund attempts allowed
+max_age = 365 # Max age of a refund in days.
+
 # Validity of an Ephemeral Key in Hours
 [eph_key]
 validity = 1
@@ -94,7 +106,7 @@ validity = 1
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.
-# Note: These are not optional attributes. ORCA request can fail due to invalid/empty values.
+# Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
 
@@ -128,10 +140,16 @@ base_url = "https://api.shift4.com/"
 [connectors.rapyd]
 base_url = "https://sandboxapi.rapyd.net"
 
+[connectors.worldpay]
+base_url = "https://try.access.worldpay.com/"
+
+[connectors.globalpay]
+base_url = "https://apis.sandbox.globalpay.com/ucp/"
+
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "cybersource", "shift4", "worldpay", "globalpay"]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
 # It defines the the streams/queues name and configuration as well as event selection variables
@@ -140,15 +158,15 @@ stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"
 
 [scheduler.producer]
-upper_fetch_limit = 0 # Upper limit for fetching entries from the redis queue (in seconds)
-lower_fetch_limit = 1800 # Lower limit for fetching entries from redis queue (in seconds)
-lock_key = "PRODUCER_LOCKING_KEY" # The following keys defines the producer lock that is created in redis with
-lock_ttl = 160                    # the ttl being the expiry (in seconds)
+upper_fetch_limit = 0               # Upper limit for fetching entries from the redis queue (in seconds)
+lower_fetch_limit = 1800            # Lower limit for fetching entries from redis queue (in seconds)
+lock_key = "PRODUCER_LOCKING_KEY"   # The following keys defines the producer lock that is created in redis with
+lock_ttl = 160                      # the ttl being the expiry (in seconds)
 
 batch_size = 200 # Specifies the batch size the producer will push under a single entry in the redis queue
 
 # Drainer configuration, which handles draining raw SQL queries from Redis streams to the SQL database
 [drainer]
-stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
-num_partitions = 64            # Specifies the number of partitions the stream will be divided into
-max_read_count = 100           # Specifies the maximum number of entries that would be read from redis stream in one call
+stream_name = "DRAINER_STREAM"  # Specifies the stream name to be used by the drainer
+num_partitions = 64             # Specifies the number of partitions the stream will be divided into
+max_read_count = 100            # Specifies the maximum number of entries that would be read from redis stream in one call

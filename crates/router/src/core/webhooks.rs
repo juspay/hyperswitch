@@ -3,7 +3,7 @@ pub mod utils;
 
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
-use router_env::tracing::{self, instrument};
+use router_env::{instrument, tracing};
 
 use crate::{
     consts,
@@ -52,14 +52,13 @@ async fn payments_incoming_webhook_flow(
             param: None,
         },
         services::AuthFlow::Merchant,
-        None,
         consume_or_trigger_flow,
     )
     .await
     .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
     match payments_response {
-        services::BachResponse::Json(payments_response) => {
+        services::ApplicationResponse::Json(payments_response) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()
