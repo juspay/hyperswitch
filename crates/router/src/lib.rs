@@ -89,6 +89,7 @@ pub fn mk_olap_app(
 }
 
 /// Starts the OLAP server with only OLAP services
+///
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
@@ -173,6 +174,7 @@ pub fn mk_oltp_app(
 }
 
 /// Starts the OLTP server with only OLTP services
+///
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
