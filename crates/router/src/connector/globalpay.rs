@@ -147,8 +147,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let globalpay_req = utils::Encode::<GlobalpayPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
+        let globalpay_req =
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -282,8 +284,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let globalpay_req = utils::Encode::<GlobalpayPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
+        let globalpay_req =
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -367,8 +371,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let globalpay_req = utils::Encode::<GlobalpayPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
+        let globalpay_req =
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
