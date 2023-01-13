@@ -107,7 +107,9 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
                 // to be on the safer side. Fixed this, now vector is not returned but should check the flow in detail later.
                 Ok(None)
             } else {
-                Err(err.change_context(errors::ApiErrorResponse::InternalServerError))
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while finding refund, database error"))
             }
         }
 

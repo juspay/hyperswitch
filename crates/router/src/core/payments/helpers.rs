@@ -483,7 +483,8 @@ where
         )
         .await
         .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting process schedule time")?;
 
         match schedule_time {
             Some(stime) => {
@@ -492,6 +493,7 @@ where
                     .await
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
             }
             None => Ok(()),
         }
@@ -627,13 +629,15 @@ pub async fn get_connector_default(
             .clone()
             .parse_value("CustomRoutingRulesVec")
             .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for CustomRoutingRulesVec")?;
         let custom_routing_rules: api::CustomRoutingRules = vec_val
             .into_iter()
             .next()
             .parse_value("CustomRoutingRules")
             .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for CustomRoutingRules")?;
         let connector_names = custom_routing_rules
             .connectors_pecking_order
             .unwrap_or_else(|| vec!["stripe".to_string()]);
@@ -648,7 +652,8 @@ pub async fn get_connector_default(
             .first()
             .get_required_value("connectors")
             .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to get connector name")?
             .as_str();
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -798,7 +803,8 @@ impl Vault {
     ) -> RouterResult<(Option<api::PaymentMethod>, api::TokenizedCardValue2)> {
         let (resp, card_cvc) = cards::mock_get_card(&*state.store, lookup_key)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while getting CardResponse")?;
         let card = resp.card;
         let card_number = card
             .card_number
@@ -984,6 +990,7 @@ pub async fn create_temp_card(
         .insert_temp_card(temp_card)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while inserting card to temp card") // Deprecated
 }
 
 #[instrument(skip_all)]

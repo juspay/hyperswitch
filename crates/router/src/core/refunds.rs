@@ -163,7 +163,13 @@ pub async fn trigger_refund_to_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating refund: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 
@@ -304,7 +310,13 @@ pub async fn sync_refund_with_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unable to update refund with refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 
@@ -334,7 +346,10 @@ pub async fn refund_update_core(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Unable to update refund with refund_id: {}", refund_id)
+        })?;
 
     Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
@@ -381,8 +396,13 @@ pub async fn validate_and_create_refund(
         merchant_account.storage_scheme,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?
-    {
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Unique violation while checking refund_id: {} against merchant_id: {}",
+            refund_id, merchant_account.merchant_id
+        )
+    })? {
         Some(refund) => refund,
         None => {
             let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
@@ -578,7 +598,8 @@ pub async fn schedule_refund_execution(
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_execute_task(db, &refund, runner)
                                 .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.refund_id))?;
 
                             Ok(refund)
                         }
@@ -601,7 +622,8 @@ pub async fn schedule_refund_execution(
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_sync_task(db, &refund, runner)
                                 .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.refund_id))?;
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
@@ -819,7 +841,13 @@ pub async fn add_refund_sync_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 
@@ -854,7 +882,13 @@ pub async fn add_refund_execute_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 

@@ -21,6 +21,7 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
             self.change_context(not_found_response)
         } else {
             self.change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to resolve as database not found")
         }
     }
 
@@ -32,6 +33,7 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
             self.change_context(duplicate_response)
         } else {
             self.change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to resolve as database unique violation error")
         }
     }
 }

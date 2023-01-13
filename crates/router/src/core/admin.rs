@@ -94,18 +94,22 @@ pub async fn get_merchant_account(
     let merchant_details = merchant_account
         .merchant_details
         .parse_value("MerchantDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse value, merchantDetails")?;
     let webhook_details = merchant_account
         .webhook_details
         .parse_value("WebhookDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse value, WebhookDetails")?;
     let vec_val = merchant_account
         .custom_routing_rules
         .parse_value("CustomRoutingRulesVector")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse value, CustomRoutingRulesVector")?;
     let custom_routing_rules = serde_json::Value::Array(vec_val)
         .parse_value("CustomRoutingRules")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse value, CustomRoutingRules")?;
     let response = api::MerchantAccountResponse {
         merchant_id: req.merchant_id,
         merchant_name: merchant_account.merchant_name,
@@ -154,6 +158,10 @@ pub async fn merchant_account_update(
         }))?;
     }
     let mut response = req.clone();
+
+    let encode_error_handler =
+        |value: &str| format!("Unable to encode to serde_json::Value, {value}");
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_id: merchant_id.to_string(),
         merchant_name: req
@@ -163,7 +171,8 @@ pub async fn merchant_account_update(
         merchant_details: if req.merchant_details.is_some() {
             Some(
                 utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| encode_error_handler("MerchantDetails"))?,
             )
         } else {
             merchant_account.merchant_details.to_owned()
@@ -174,7 +183,8 @@ pub async fn merchant_account_update(
         webhook_details: if req.webhook_details.is_some() {
             Some(
                 utils::Encode::<api::WebhookDetails>::encode_to_value(&req.webhook_details)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| encode_error_handler("WebhookDetails"))?,
             )
         } else {
             merchant_account.webhook_details.to_owned()
@@ -188,7 +198,8 @@ pub async fn merchant_account_update(
                 utils::Encode::<api::CustomRoutingRules>::encode_to_value(
                     &req.custom_routing_rules,
                 )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| encode_error_handler("CustomRoutingRules"))?,
             )
         } else {
             merchant_account.custom_routing_rules.to_owned()
@@ -225,7 +236,8 @@ pub async fn merchant_account_update(
 
     db.update_merchant(merchant_account, updated_merchant_account)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| format!("Failed while updating merchant: {}", merchant_id))?;
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
@@ -302,7 +314,10 @@ pub async fn create_payment_connector(
         Some(val) => {
             for pm in val.into_iter() {
                 let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed while encoding to serde_json::Value, PaymentMethod",
+                    )?;
                 vec.push(pm_value)
             }
             Some(vec)
@@ -451,7 +466,13 @@ pub async fn update_payment_connector(
     let updated_mca = db
         .update_merchant_connector_account(mca, payment_connector)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating MerchantConnectorAccount: id: {}",
+                merchant_connector_id
+            )
+        })?;
     let response = api::PaymentConnectorCreate {
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,

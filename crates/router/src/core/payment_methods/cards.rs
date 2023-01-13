@@ -302,7 +302,8 @@ pub async fn get_card_from_legacy_locker<'a>(
     let get_card_result = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while executing call_connector_api for get_card")?;
 
         match response {
             Ok(card) => card
@@ -316,7 +317,8 @@ pub async fn get_card_from_legacy_locker<'a>(
     } else {
         let (get_card_response, _) = mock_get_card(&*state.store, card_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while fetching card from mock_locker")?;
         get_card_response
     };
 
@@ -333,18 +335,24 @@ pub async fn delete_card<'a>(
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
+
+    let card_delete_failure = "Failed while deleting card from card_locker";
     let delete_card_resp = if !locker.mock_locker {
         services::call_connector_api(state, request)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(card_delete_failure)?
+            .map_err(|_x| report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable(card_delete_failure)?
             .response
             .parse_struct("DeleteCardResponse")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing DeleteCardResponse")?
     } else {
         mock_delete_card(&*state.store, card_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(card_delete_failure)?
     };
 
     Ok(delete_card_resp)
@@ -795,12 +803,15 @@ pub async fn get_card_info_value(
 ) -> errors::RouterResult<serde_json::Value> {
     let key = services::KeyHandler::get_encryption_key(keys)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting encryption key")?;
     let enc_card_info = services::encrypt(&card_info, key.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting card info")?;
     utils::Encode::<Vec<u8>>::encode_to_value(&enc_card_info)
         .change_context(errors::CardVaultError::RequestEncodingFailed)
         .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encoding enc_card_info")
 }
 
 pub async fn get_card_info_from_value(
@@ -809,12 +820,15 @@ pub async fn get_card_info_from_value(
 ) -> errors::RouterResult<String> {
     let key = services::KeyHandler::get_encryption_key(keys)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting encryption key")?;
     let card_info_val: Vec<u8> = card_info
         .parse_value("CardInfo")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing CardInfo")?;
     services::decrypt(card_info_val, key.as_bytes())
         .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while decrypting CardInfo")
 }
 
 #[instrument(skip_all)]
@@ -835,7 +849,8 @@ pub async fn retrieve_payment_method(
         let get_card_resp =
             get_card_from_legacy_locker(state, &locker_id, &pm.payment_method_id).await?;
         let card_detail = payment_methods::get_card_detail(&pm, get_card_resp.card)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while getting card details from locker")?;
         Some(card_detail)
     } else {
         None
@@ -936,7 +951,8 @@ pub async fn create_tokenize(
     .attach_printable("Making tokenize request failed")?;
     let response = services::call_connector_api(state, request)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while calling locker with request")?;
 
     match response {
         Ok(r) => {
@@ -992,7 +1008,8 @@ pub async fn get_tokenized_data(
     .attach_printable("Making Get Tokenized request failed")?;
     let response = services::call_connector_api(state, request)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while calling locker to get tokenize data")?;
     match response {
         Ok(r) => {
             let resp: api::TokenizePayloadEncrypted = r
@@ -1045,7 +1062,8 @@ pub async fn delete_tokenized_data(
     .attach_printable("Making Delete Tokenized request failed")?;
     let response = services::call_connector_api(state, request)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while calling locker to delete token")?;
     match response {
         Ok(r) => {
             let resp: api::TokenizePayloadEncrypted = r

@@ -339,7 +339,8 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
         let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
             Some(val) => serde_json::Value::Array(val)
                 .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while parsing value PaymentMethods")?,
             None => None,
         };
 
