@@ -21,7 +21,6 @@ pub mod query;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod schema;
-pub mod temp_card;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
 

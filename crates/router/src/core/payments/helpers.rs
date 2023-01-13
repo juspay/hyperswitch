@@ -943,36 +943,6 @@ impl Vault {
 }
 
 #[instrument(skip_all)]
-pub async fn create_temp_card(
-    state: &AppState,
-    txn_id: &str,
-    card: &api::CCard,
-) -> RouterResult<storage::TempCard> {
-    let (card_info, temp_card);
-    card_info = format!(
-        "{}:::{}:::{}:::{}:::{}",
-        card.card_number.peek(),
-        card.card_exp_month.peek(),
-        card.card_exp_year.peek(),
-        card.card_holder_name.peek(),
-        card.card_cvc.peek()
-    );
-
-    let card_info_val = cards::get_card_info_value(&state.conf.keys, card_info).await?;
-    temp_card = storage::TempCardNew {
-        card_info: Some(card_info_val),
-        date_created: common_utils::date_time::now(),
-        txn_id: Some(txn_id.to_string()),
-        id: None,
-    };
-    state
-        .store
-        .insert_temp_card(temp_card)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-}
-
-#[instrument(skip_all)]
 pub(crate) fn validate_capture_method(
     capture_method: storage_enums::CaptureMethod,
 ) -> RouterResult<()> {
