@@ -1,13 +1,12 @@
 mod transformers;
-
 use std::fmt::Debug;
 
 use base64::Engine;
 use bytes::Bytes;
-use common_utils::generate_id;
+use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
+use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
-use time::OffsetDateTime;
 use transformers as rapyd;
 
 use crate::{
@@ -111,8 +110,8 @@ impl
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
-        let salt = generate_id(12, "");
+        let timestamp = date_time::now_unix_timestamp();
+        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let rapyd_req = utils::Encode::<rapyd::RapydPaymentsRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -241,8 +240,8 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
-        let salt = generate_id(12, "");
+        let timestamp = date_time::now_unix_timestamp();
+        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!("/v1/payments/{}", req.request.connector_transaction_id);
@@ -374,7 +373,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_url_encode(req)
+        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }
@@ -384,8 +383,8 @@ impl
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
-        let salt = generate_id(12, "");
+        let timestamp = date_time::now_unix_timestamp();
+        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -518,8 +517,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::unix_timestamp(OffsetDateTime::now_utc());
-        let salt = generate_id(12, "");
+        let timestamp = date_time::now_unix_timestamp();
+        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let rapyd_req = utils::Encode::<rapyd::RapydRefundRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;

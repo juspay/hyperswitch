@@ -49,7 +49,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethod::Card(ref ccard) => {
                 let payment_method = PaymentMethod {
-                    pm_type: "in_amex_card".to_owned(), //TODO Mapping of our pm_type to rapyd
+                    pm_type: "in_amex_card".to_owned(), //https://github.com/juspay/hyperswitch/issues/369
                     fields: PaymentFields {
                         number: ccard.card_number.peek().to_string(),
                         expiration_month: ccard.card_exp_month.peek().to_string(),
@@ -58,11 +58,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                         cvv: ccard.card_cvc.peek().to_string(),
                     },
                 };
-                let payment_method_options = match item.auth_type {
-                    enums::AuthenticationType::ThreeDs => PaymentMethodOptions { three_ds: true },
-                    enums::AuthenticationType::NoThreeDs => {
-                        PaymentMethodOptions { three_ds: false }
-                    }
+                let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
+                let payment_method_options = PaymentMethodOptions {
+                    three_ds: three_ds_enabled,
                 };
                 Ok(Self {
                     amount: item.request.amount,
@@ -102,14 +100,21 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum RapydPaymentStatus {
-    ACT,
-    CAN,
-    CLO,
-    ERR,
-    EXP,
-    REV,
+    #[serde(rename = "ACT")]
+    Active,
+    #[serde(rename = "CAN")]
+    CanceledByClientOrBank,
+    #[serde(rename = "CLO")]
+    Closed,
+    #[serde(rename = "ERR")]
+    Error,
+    #[serde(rename = "EXP")]
+    Expired,
+    #[serde(rename = "REV")]
+    ReversedByRapyd,
     #[default]
-    NEW,
+    #[serde(rename = "NEW")]
+    New,
 }
 
 impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
@@ -118,8 +123,8 @@ impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
     fn from(item: transformers::Foreign<(RapydPaymentStatus, String)>) -> Self {
         let (status, next_action) = item.0;
         match status {
-            RapydPaymentStatus::CLO => enums::AttemptStatus::Charged,
-            RapydPaymentStatus::ACT => {
+            RapydPaymentStatus::Closed => enums::AttemptStatus::Charged,
+            RapydPaymentStatus::Active => {
                 if next_action == "3d_verification" {
                     enums::AttemptStatus::AuthenticationPending
                 } else if next_action == "pending_capture" {
@@ -128,11 +133,11 @@ impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
                     enums::AttemptStatus::Pending
                 }
             }
-            RapydPaymentStatus::CAN
-            | RapydPaymentStatus::ERR
-            | RapydPaymentStatus::EXP
-            | RapydPaymentStatus::REV => enums::AttemptStatus::Failure,
-            RapydPaymentStatus::NEW => enums::AttemptStatus::Authorizing,
+            RapydPaymentStatus::CanceledByClientOrBank
+            | RapydPaymentStatus::Error
+            | RapydPaymentStatus::Expired
+            | RapydPaymentStatus::ReversedByRapyd => enums::AttemptStatus::Failure,
+            RapydPaymentStatus::New => enums::AttemptStatus::Authorizing,
         }
         .into()
     }
@@ -474,6 +479,3 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
         })
     }
 }
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct RapydErrorResponse {}

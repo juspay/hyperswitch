@@ -8,7 +8,6 @@ pub mod cybersource;
 pub mod globalpay;
 pub mod klarna;
 pub mod rapyd;
-
 pub mod shift4;
 pub mod stripe;
 pub mod utils;

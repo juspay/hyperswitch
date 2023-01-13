@@ -505,9 +505,9 @@ pub enum Connector {
     Dummy,
     Globalpay,
     Klarna,
+    Rapyd,
     Shift4,
     Stripe,
-    Rapyd,
     Worldpay,
 }
 
