@@ -464,7 +464,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
 
 pub fn get_adyen_response(
     response: AdyenResponse,
-    _is_capture_manual: bool,
+    is_capture_manual: bool,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -473,7 +473,18 @@ pub fn get_adyen_response(
     ),
     errors::ParsingError,
 > {
-    let status = response.result_code.into();
+    let status = match response.result_code {
+        AdyenStatus::Authorised => {
+            if is_capture_manual {
+                storage_enums::AttemptStatus::Authorized
+            } else {
+                storage_enums::AttemptStatus::Charged
+            }
+        }
+        AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,
+        _ => storage_enums::AttemptStatus::Pending,
+    };
+    //let status = response.result_code.into();
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
