@@ -7,8 +7,8 @@ body:
     attributes:
       value: |
         We value your time and efforts to submit this feature request form. Here are a few things to check before clicking the submit button :)
-        1. Make sure you're on the latest version of the app. Features are being added all the time and it is entirely possible what you're requesting has already been added. The current release can be found here: https://github.com/juspay/orca/releases/latest.
-        2. Check the changelog file to confirm that the feature hasn't been added for an upcoming release: https://github.com/juspay/orca/blob/main/CHANGELOG.md
+        1. Make sure you're on the latest version of the app. Features are being added all the time and it is entirely possible what you're requesting has already been added. The current release can be found here: https://github.com/juspay/hyperswitch/releases/latest.
+        2. Check the changelog file to confirm that the feature hasn't been added for an upcoming release: https://github.com/juspay/hyperswitch/blob/main/CHANGELOG.md
         3. Please try to fill this template completely to the best of your abilities. A feature request that is clear and explicit in its needs lets us get to work faster.
 
   - type: textarea
@@ -42,7 +42,7 @@ body:
     attributes:
       label: Have you read the Contributing Guidelines?
       options:
-        - label: I have read the [Contributing Guidelines](https://github.com/juspay/orca/blob/main/contrib/CONTRIBUTING.md)
+        - label: I have read the [Contributing Guidelines](https://github.com/juspay/hyperswitch/blob/main/contrib/CONTRIBUTING.md)
           required: true
 
   - type: dropdown

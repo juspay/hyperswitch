@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use error_stack::{report, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 use time::Duration;
 
 use super::metrics;

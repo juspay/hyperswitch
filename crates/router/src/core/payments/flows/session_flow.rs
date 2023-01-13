@@ -9,10 +9,7 @@ use crate::{
         payments::{self, transformers, PaymentData},
     },
     routes, services,
-    types::{
-        self, api,
-        storage::{self, enums},
-    },
+    types::{self, api, storage},
     utils::OptionExt,
 };
 
@@ -45,7 +42,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _storage_schema: enums::MerchantStorageScheme,
+        _merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -87,7 +84,7 @@ fn create_gpay_session_token(
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Gpay {
-                allowed_payment_methods: gpay_data.gpay.allowed_payment_methods,
+                data: gpay_data.data,
                 transaction_info,
             },
         }),

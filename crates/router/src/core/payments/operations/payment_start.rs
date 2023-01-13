@@ -16,7 +16,7 @@ use crate::{
     pii::Secret,
     routes::AppState,
     types::{
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -34,10 +34,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -46,6 +45,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
+        let merchant_id = &merchant_account.merchant_id;
+        let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -91,13 +92,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
 
-        //TODO: get customer from db?
         let customer_details = CustomerDetails {
             customer_id: payment_intent.customer_id.clone(),
-            name: None,
-            email: None,
-            phone: None,
-            phone_country_code: None,
+            ..CustomerDetails::default()
         };
 
         let connector_response = db
@@ -251,8 +248,8 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsStartRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, None).await
     }
 }

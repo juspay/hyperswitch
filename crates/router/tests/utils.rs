@@ -11,7 +11,7 @@ use actix_web::{
     test::{call_and_read_body_json, TestRequest},
 };
 use derive_deref::Deref;
-use router::{configs::settings::Settings, routes::AppState, start_server};
+use router::{configs::settings::Settings, routes::AppState};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{json, Value};
 use tokio::sync::OnceCell;
@@ -20,7 +20,9 @@ static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let (server, _state) = start_server(conf).await.expect("failed to create server");
+    let (server, _state) = router::start_oltp_server(conf)
+        .await
+        .expect("failed to create server");
 
     let _server = tokio::spawn(server);
     true
@@ -47,7 +49,7 @@ pub async fn mk_service(
     }
 
     let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock).await;
-    actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
+    actix_web::test::init_service(router::mk_oltp_app(app_state, request_body_limit)).await
 }
 
 pub struct Guest;
