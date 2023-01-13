@@ -484,7 +484,6 @@ pub fn get_adyen_response(
         AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,
         _ => storage_enums::AttemptStatus::Pending,
     };
-    //let status = response.result_code.into();
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
