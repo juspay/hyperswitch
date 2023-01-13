@@ -95,7 +95,7 @@ pub async fn get_merchant_account(
         .merchant_details
         .parse_value("MerchantDetails")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to parse value, merchantDetails")?;
+        .attach_printable("Unable to parse value, MerchantDetails")?;
     let webhook_details = merchant_account
         .webhook_details
         .parse_value("WebhookDetails")
