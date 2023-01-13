@@ -55,7 +55,7 @@ impl AuthenticateAndFetch<()> for AdminApiAuth {
     ) -> RouterResult<()> {
         let admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        if admin_api_key != state.conf.keys.admin_api_key {
+        if admin_api_key != state.conf.secrets.admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -231,7 +231,7 @@ pub fn decode_jwt<T>(token: &str, state: &AppState) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    let secret = state.conf.keys.jwt_secret.as_bytes();
+    let secret = state.conf.secrets.jwt_secret.as_bytes();
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)

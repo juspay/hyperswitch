@@ -306,33 +306,19 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
     Ok(())
 }
 
-pub fn validate_customer_id_mandatory_cases_api(
-    shipping: &Option<api::Address>,
-    billing: &Option<api::Address>,
-    setup_future_usage: &Option<api_enums::FutureUsage>,
+pub fn validate_customer_id_mandatory_cases(
+    has_shipping: bool,
+    has_billing: bool,
+    has_setup_future_usage: bool,
     customer_id: &Option<String>,
 ) -> RouterResult<()> {
-    match (shipping, billing, setup_future_usage, customer_id) {
-        (Some(_), _, _, None) | (_, Some(_), _, None) | (_, _, Some(_), None) => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "customer_id is mandatory when shipping or billing \
-                address is given or when setup_future_usage is given"
-                    .to_string(),
-            })
-            .into_report()
-        }
-        _ => Ok(()),
-    }
-}
-
-pub fn validate_customer_id_mandatory_cases_storage(
-    shipping: &Option<storage::Address>,
-    billing: &Option<storage::Address>,
-    setup_future_usage: &Option<storage_enums::FutureUsage>,
-    customer_id: &Option<String>,
-) -> RouterResult<()> {
-    match (shipping, billing, setup_future_usage, customer_id) {
-        (Some(_), _, _, None) | (_, Some(_), _, None) | (_, _, Some(_), None) => {
+    match (
+        has_shipping,
+        has_billing,
+        has_setup_future_usage,
+        customer_id,
+    ) {
+        (true, _, _, None) | (_, true, _, None) | (_, _, true, None) => {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "customer_id is mandatory when shipping or billing \
                 address is given or when setup_future_usage is given"
@@ -957,36 +943,6 @@ impl Vault {
 }
 
 #[instrument(skip_all)]
-pub async fn create_temp_card(
-    state: &AppState,
-    txn_id: &str,
-    card: &api::CCard,
-) -> RouterResult<storage::TempCard> {
-    let (card_info, temp_card);
-    card_info = format!(
-        "{}:::{}:::{}:::{}:::{}",
-        card.card_number.peek(),
-        card.card_exp_month.peek(),
-        card.card_exp_year.peek(),
-        card.card_holder_name.peek(),
-        card.card_cvc.peek()
-    );
-
-    let card_info_val = cards::get_card_info_value(&state.conf.keys, card_info).await?;
-    temp_card = storage::TempCardNew {
-        card_info: Some(card_info_val),
-        date_created: common_utils::date_time::now(),
-        txn_id: Some(txn_id.to_string()),
-        id: None,
-    };
-    state
-        .store
-        .insert_temp_card(temp_card)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-}
-
-#[instrument(skip_all)]
 pub(crate) fn validate_capture_method(
     capture_method: storage_enums::CaptureMethod,
 ) -> RouterResult<()> {
@@ -1078,6 +1034,7 @@ where
     Some(func(option1?, option2?))
 }
 
+#[cfg(feature = "olap")]
 pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
@@ -1090,6 +1047,7 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
+#[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {

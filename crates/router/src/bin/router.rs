@@ -9,7 +9,6 @@ use structopt::StructOpt;
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = CmdLineConf::from_args();
-
     if let Some(Subcommand::GenerateOpenapiSpec) = cmd_line.subcommand {
         let file_path = "openapi/generated.json";
         #[allow(clippy::expect_used)]
@@ -33,7 +32,14 @@ async fn main() -> ApplicationResult<()> {
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
-    let (server, mut state) = router::start_server(conf)
+    #[cfg(not(feature = "olap"))]
+    let (server, mut state) = router::start_oltp_server(conf)
+        .await
+        .expect("Failed to create the server");
+
+    #[allow(clippy::expect_used)]
+    #[cfg(feature = "olap")]
+    let (server, mut state) = router::start_olap_server(conf)
         .await
         .expect("Failed to create the server");
 
