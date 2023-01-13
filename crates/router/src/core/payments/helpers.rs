@@ -1033,6 +1033,31 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
+#[instrument(skip_all)]
+pub(crate) fn validate_payment_method_fields_present(
+    req: &api::PaymentsRequest,
+) -> RouterResult<()> {
+    utils::when(
+        req.payment_method.is_none() && req.payment_method_data.is_some(),
+        || {
+            Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payent_method".to_string(),
+            })
+        },
+    )?;
+
+    utils::when(
+        req.payment_method.is_some() && req.payment_method_data.is_none(),
+        || {
+            Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_data".to_string(),
+            })
+        },
+    )?;
+
+    Ok(())
+}
+
 pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
