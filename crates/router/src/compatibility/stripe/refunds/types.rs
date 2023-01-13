@@ -49,6 +49,7 @@ impl From<StripeUpdateRefundRequest> for refunds::RefundUpdateRequest {
     fn from(req: StripeUpdateRefundRequest) -> Self {
         Self {
             metadata: req.metadata,
+            reason: None,
         }
     }
 }
