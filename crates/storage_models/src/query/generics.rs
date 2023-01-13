@@ -23,6 +23,8 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{errors, PgPooledConn, StorageResult};
 
+const DEFAULT_LIMIT: i64 = 100;
+
 #[instrument(level = "DEBUG", skip_all)]
 pub(super) async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
@@ -378,7 +380,7 @@ where
     let query = <T as HasTable>::table()
         .filter(predicate)
         .order(expr)
-        .limit(limit.unwrap_or(100));
+        .limit(limit.unwrap_or(DEFAULT_LIMIT));
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
@@ -386,7 +388,7 @@ where
         .get_results_async(conn)
         .await
         .into_report()
-        .change_context(errors::DatabaseError::NotFound)
+        .change_context(errors::DatabaseError::Others)
         .attach_printable_lazy(|| "Error filtering records by predicate and order")
 }
 
