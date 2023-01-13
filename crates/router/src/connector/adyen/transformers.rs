@@ -73,7 +73,7 @@ struct AdyenBrowserInfo {
     java_enabled: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AdyenStatus {
     Authorised,
     Refused,
@@ -85,8 +85,7 @@ impl From<AdyenStatus> for storage_enums::AttemptStatus {
     fn from(item: AdyenStatus) -> Self {
         match item {
             AdyenStatus::Authorised => Self::Charged,
-            AdyenStatus::Refused => Self::Failure,
-            AdyenStatus::Cancelled => Self::Failure,
+            AdyenStatus::Refused | AdyenStatus::Cancelled => Self::Failure,
             AdyenStatus::RedirectShopper => Self::AuthenticationPending,
         }
     }
@@ -135,7 +134,7 @@ pub enum AdyenPaymentResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenResponse {
     psp_reference: String,
-    result_code: String,
+    result_code: AdyenStatus,
     amount: Option<Amount>,
     merchant_reference: String,
     refusal_reason: Option<String>,
@@ -465,7 +464,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
 
 pub fn get_adyen_response(
     response: AdyenResponse,
-    is_capture_manual: bool,
+    _is_capture_manual: bool,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -474,18 +473,7 @@ pub fn get_adyen_response(
     ),
     errors::ParsingError,
 > {
-    let result = response.result_code;
-    let status = match result.as_str() {
-        "Authorised" => {
-            if is_capture_manual {
-                storage_enums::AttemptStatus::Authorized
-            } else {
-                storage_enums::AttemptStatus::Charged
-            }
-        }
-        "Refused" => storage_enums::AttemptStatus::Failure,
-        _ => storage_enums::AttemptStatus::Pending,
-    };
+    let status = response.result_code.into();
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
@@ -807,10 +795,10 @@ impl From<AdyenNotificationRequestItemWH> for AdyenResponse {
         Self {
             psp_reference: notif.psp_reference,
             merchant_reference: notif.merchant_reference,
-            result_code: String::from(match notif.success.as_str() {
-                "true" => "Authorised",
-                _ => "Refused",
-            }),
+            result_code: match notif.success.as_str() {
+                "true" => AdyenStatus::Authorised,
+                _ => AdyenStatus::Refused,
+            },
             amount: Some(Amount {
                 value: notif.amount.value,
                 currency: notif.amount.currency,
