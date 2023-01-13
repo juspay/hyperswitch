@@ -30,10 +30,9 @@ cluster_enabled = false
 use_legacy_version = false
 cluster_urls = []
 
-[keys]
-temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+[secrets]
 admin_api_key = "test_admin"
-jwt_secret="secret" 
+jwt_secret = "secret"
 
 [locker]
 
