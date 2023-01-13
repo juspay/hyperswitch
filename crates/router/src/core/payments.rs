@@ -19,7 +19,6 @@ use self::{
     flows::{ConstructFlowSpecificData, Feature},
     operations::{BoxedOperation, Operation},
 };
-use super::errors::StorageErrorExt;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -33,7 +32,6 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -457,7 +455,7 @@ where
     pub email: Option<masking::Secret<String, pii::Email>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<masking::Secret<String, masking::WithType>>,
@@ -544,6 +542,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     }
 }
 
+#[cfg(feature = "olap")]
 pub async fn list_payments(
     db: &dyn StorageInterface,
     merchant: storage::MerchantAccount,
@@ -554,11 +553,16 @@ pub async fn list_payments(
     let payment_intent =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
-            .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+            .map_err(|err| {
+                errors::StorageErrorExt::to_not_found_response(
+                    err,
+                    errors::ApiErrorResponse::PaymentNotFound,
+                )
+            })?;
 
     let data: Vec<api::PaymentsResponse> = payment_intent
         .into_iter()
-        .map(ForeignInto::foreign_into)
+        .map(types::transformers::ForeignInto::foreign_into)
         .collect();
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {

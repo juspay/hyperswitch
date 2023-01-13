@@ -42,7 +42,6 @@ pub(crate) trait ConnectorErrorExt {
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
-// FIXME: The implementation can be improved by handling BOM maybe?
 impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
         let data = match self.current_context() {
@@ -83,6 +82,9 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
             }
             errors::ConnectorError::RequestEncodingFailedWithReason(reason) => {
                 Some(serde_json::json!(reason))
+            }
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                Some(serde_json::json!({ "missing_field": field_name }))
             }
             _ => None,
         };

@@ -210,7 +210,7 @@ where
                 .payment_method_data
                 .map(api::PaymentMethodDataResponse::from),
             payment_token: data.token,
-            error_code: None,
+            error_code: data.payment_attempt.error_code,
             error_message: data.payment_attempt.error_message,
         }))
     }
@@ -315,6 +315,7 @@ where
                         )
                         .set_payment_token(payment_attempt.payment_token)
                         .set_error_message(payment_attempt.error_message)
+                        .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
                         .to_owned()
