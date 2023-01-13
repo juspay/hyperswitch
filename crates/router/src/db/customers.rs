@@ -3,7 +3,10 @@ use error_stack::IntoReport;
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
-    core::errors::{self, CustomResult},
+    core::{
+        customers::REDACTED,
+        errors::{self, CustomResult},
+    },
     types::storage,
 };
 
@@ -57,7 +60,7 @@ impl CustomerInterface for Store {
         .map_err(Into::into)
         .into_report()?;
         maybe_customer.map_or(Ok(None), |customer| {
-            if customer.name == Some("Redacted".to_string()) {
+            if customer.name == Some(REDACTED.to_string()) {
                 Err(errors::StorageError::CustomerRedacted)?
             } else {
                 Ok(Some(customer))
@@ -94,7 +97,7 @@ impl CustomerInterface for Store {
                 .await
                 .map_err(Into::into)
                 .into_report()?;
-        if customer.name == Some("Redacted".to_string()) {
+        if customer.name == Some(REDACTED.to_string()) {
             Err(errors::StorageError::CustomerRedacted)?
         } else {
             Ok(customer)
