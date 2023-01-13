@@ -12,7 +12,7 @@ use diesel::{
         QueryId, UpdateStatement,
     },
     query_dsl::{
-        methods::{FilterDsl, FindDsl, LimitDsl},
+        methods::{FilterDsl, FindDsl, LimitDsl, OrderDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
