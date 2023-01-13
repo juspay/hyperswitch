@@ -11,7 +11,7 @@ use crate::{
         payment_methods::transformers as payment_methods,
         payments::helpers,
     },
-    db,
+    db, logger,
     pii::prelude::*,
     routes, services,
     types::{
@@ -342,7 +342,10 @@ pub async fn delete_card<'a>(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(card_delete_failure)?
-            .map_err(|_x| report!(errors::ApiErrorResponse::InternalServerError))
+            .map_err(|err| {
+                logger::error!(card_error_response=?err);
+                report!(errors::ApiErrorResponse::InternalServerError)
+            })
             .attach_printable(card_delete_failure)?
             .response
             .parse_struct("DeleteCardResponse")
