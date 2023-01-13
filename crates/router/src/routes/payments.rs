@@ -322,6 +322,7 @@ pub async fn payments_cancel(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
 // #[get("/list")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,

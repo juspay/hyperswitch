@@ -83,6 +83,9 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
             errors::ConnectorError::RequestEncodingFailedWithReason(reason) => {
                 Some(serde_json::json!(reason))
             }
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                Some(serde_json::json!({ "missing_field": field_name }))
+            }
             _ => None,
         };
         self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })

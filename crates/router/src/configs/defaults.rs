@@ -23,14 +23,9 @@ impl Default for super::settings::Database {
     }
 }
 
-impl Default for super::settings::Keys {
+impl Default for super::settings::Secrets {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "kms")]
-            aws_key_id: String::new(),
-            #[cfg(feature = "kms")]
-            aws_region: String::new(),
-            temp_card_key: "OJobAzAwOlibOhygIZOqOGideGUdEBeX".into(), // 32 character long key
             jwt_secret: "secret".into(),
             admin_api_key: "test_admin".into(),
         }
