@@ -39,7 +39,7 @@ pub struct Settings {
     pub replica_database: Database,
     pub redis: RedisSettings,
     pub log: Log,
-    pub keys: Keys, //remove this during refactoring
+    pub secrets: Secrets,
     pub locker: Locker,
     pub connectors: Connectors,
     pub refund: Refund,
@@ -51,12 +51,7 @@ pub struct Settings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Keys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-    pub temp_card_key: String,
+pub struct Secrets {
     pub jwt_secret: String,
     pub admin_api_key: String,
 }
