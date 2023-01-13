@@ -359,6 +359,37 @@ where
     .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
+#[instrument(level = "DEBUG", skip_all)]
+pub(super) async fn generic_filter_order<T, P, R, Expr>(
+    conn: &PgPooledConn,
+    predicate: P,
+    limit: Option<i64>,
+    expr: Expr,
+) -> StorageResult<Vec<R>>
+where
+    Expr: diesel::Expression,
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    <T as FilterDsl<P>>::Output: OrderDsl<Expr> + Send + 'static,
+    <<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output: LimitDsl + Send + 'static,
+    <<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as LimitDsl>::Output:
+        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    R: Send + 'static,
+{
+    let query = <T as HasTable>::table()
+        .filter(predicate)
+        .order(expr)
+        .limit(limit.unwrap_or(100));
+
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+    query
+        .get_results_async(conn)
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate and order")
+}
+
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
     match arg {
         Ok(value) => Ok(Some(value)),
