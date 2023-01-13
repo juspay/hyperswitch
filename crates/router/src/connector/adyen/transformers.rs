@@ -63,12 +63,11 @@ struct AdyenBrowserInfo {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub enum AdyenStatus{
+pub enum AdyenStatus {
     Authorised,
     Refused,
     Cancelled,
     RedirectShopper,
-
 }
 
 impl From<AdyenStatus> for storage_enums::AttemptStatus {
@@ -78,12 +77,9 @@ impl From<AdyenStatus> for storage_enums::AttemptStatus {
             AdyenStatus::Refused => Self::Failure,
             AdyenStatus::Cancelled => Self::Failure,
             AdyenStatus::RedirectShopper => Self::AuthenticationPending,
-            
         }
     }
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AdyenRedirectRequest {
@@ -117,7 +113,7 @@ pub struct AdyenThreeDS {
     pub result_code: Option<String>,
 }
 
-#[derive(Debug, Clone,  Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     AdyenResponse(AdyenResponse),
