@@ -38,8 +38,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .connector_account_details
         .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while parsing ConnectorAuthType")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let status = payment_attempt.status;
 

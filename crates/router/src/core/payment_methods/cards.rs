@@ -10,7 +10,7 @@ use crate::{
         payment_methods::transformers as payment_methods,
         payments::helpers,
     },
-    db, logger,
+    db,
     pii::prelude::*,
     routes, services,
     types::{
@@ -18,7 +18,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{BytesExt, OptionExt, StringExt},
+    utils::{BytesExt, ConnectorResponseExt, OptionExt, StringExt},
 };
 
 #[instrument(skip_all)]
@@ -302,17 +302,9 @@ pub async fn get_card_from_legacy_locker<'a>(
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while executing call_connector_api for get_card")?;
+            .attach_printable("Failed while executing call_connector_api for get_card");
 
-        match response {
-            Ok(card) => card
-                .response
-                .parse_struct("AddCardResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding failed for AddCardResponse"),
-            Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(format!("Got 4xx from the locker: {err:?}"))),
-        }?
+        response.get_response_inner(ConnectorResponseExt::get_response, "AddCardResponse")?
     } else {
         let (get_card_response, _) = mock_get_card(&*state.store, card_id)
             .await
@@ -335,26 +327,16 @@ pub async fn delete_card<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
 
-    let card_delete_failure = "Failed while deleting card from card_locker";
+    let card_delete_failure_message = "Failed while deleting card from card_locker";
     let delete_card_resp = if !locker.mock_locker {
         services::call_connector_api(state, request)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(card_delete_failure)?
-            .map_err(|err| {
-                logger::error!(card_error_response=?err);
-                report!(errors::ApiErrorResponse::InternalServerError)
-            })
-            .attach_printable(card_delete_failure)?
-            .response
-            .parse_struct("DeleteCardResponse")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while parsing DeleteCardResponse")?
+            .get_response_inner(ConnectorResponseExt::get_response, "DeleteCardResponse")?
     } else {
         mock_delete_card(&*state.store, card_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(card_delete_failure)?
+            .attach_printable(card_delete_failure_message)?
     };
 
     Ok(delete_card_resp)
@@ -927,8 +909,7 @@ pub async fn create_tokenize(
             let resp: api::TokenizePayloadEncrypted = r
                 .response
                 .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let decrypted_payload =
                 services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
                     .await
@@ -936,10 +917,7 @@ pub async fn create_tokenize(
                     .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
             let get_response: api::GetTokenizePayloadResponse = decrypted_payload
                 .parse_struct("GetTokenizePayloadResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error getting GetTokenizePayloadResponse from tokenize response",
-                )?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             Ok(get_response.lookup_key)
         }
         Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -983,8 +961,7 @@ pub async fn get_tokenized_data(
             let resp: api::TokenizePayloadEncrypted = r
                 .response
                 .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let decrypted_payload =
                 services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
                     .await
@@ -994,8 +971,7 @@ pub async fn get_tokenized_data(
                     )?;
             let get_response: api::TokenizePayloadRequest = decrypted_payload
                 .parse_struct("TokenizePayloadRequest")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             Ok(get_response)
         }
         Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -1037,8 +1013,7 @@ pub async fn delete_tokenized_data(
             let resp: api::TokenizePayloadEncrypted = r
                 .response
                 .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let decrypted_payload =
                 services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
                     .await
@@ -1048,10 +1023,7 @@ pub async fn delete_tokenized_data(
                     )?;
             let delete_response = decrypted_payload
                 .parse_struct("Delete")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error getting TokenizePayloadEncrypted from tokenize response",
-                )?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             Ok(delete_response)
         }
         Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)

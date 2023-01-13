@@ -94,22 +94,18 @@ pub async fn get_merchant_account(
     let merchant_details = merchant_account
         .merchant_details
         .parse_value("MerchantDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to parse value, MerchantDetails")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let webhook_details = merchant_account
         .webhook_details
         .parse_value("WebhookDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to parse value, WebhookDetails")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let vec_val = merchant_account
         .custom_routing_rules
         .parse_value("CustomRoutingRulesVector")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to parse value, CustomRoutingRulesVector")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let custom_routing_rules = serde_json::Value::Array(vec_val)
         .parse_value("CustomRoutingRules")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to parse value, CustomRoutingRules")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let response = api::MerchantAccountResponse {
         merchant_id: req.merchant_id,
         merchant_name: merchant_account.merchant_name,
