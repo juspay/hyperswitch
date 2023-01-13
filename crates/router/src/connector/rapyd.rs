@@ -17,7 +17,11 @@ use crate::{
         payments,
     },
     headers, logger, services,
-    types::{self, api, ErrorResponse, Response},
+    types::{
+        self,
+        api::{self, ConnectorCommon},
+        ErrorResponse, Response,
+    },
     utils::{self, BytesExt},
 };
 
@@ -48,7 +52,7 @@ impl Rapyd {
     }
 }
 
-impl api::ConnectorCommon for Rapyd {
+impl ConnectorCommon for Rapyd {
     fn id(&self) -> &'static str {
         "rapyd"
     }
@@ -83,11 +87,14 @@ impl
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -95,10 +102,7 @@ impl
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/v1/payments",
-            api::ConnectorCommon::base_url(self, connectors)
-        ))
+        Ok(format!("{}/v1/payments", self.base_url(connectors)))
     }
 
     fn build_request(
@@ -120,10 +124,6 @@ impl
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
             ("access_key".to_string(), auth.access_key),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
@@ -132,6 +132,9 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsAuthorizeType::get_url(
+                self, req, connectors,
+            )?)
+            .headers(types::PaymentsAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
             .headers(headers)
@@ -209,11 +212,14 @@ impl
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsVoidType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -221,20 +227,13 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.to_string();
         Ok(format!(
             "{}/v1/payments/{}",
-            api::ConnectorCommon::base_url(self, connectors),
-            id
+            self.base_url(connectors),
+            req.request.connector_transaction_id
         ))
     }
 
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -249,10 +248,6 @@ impl
             self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
             ("access_key".to_string(), auth.access_key),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
@@ -261,6 +256,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
         Ok(Some(request))
@@ -314,7 +310,7 @@ impl
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -362,11 +358,14 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsCaptureType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_request_body(
@@ -397,10 +396,6 @@ impl
         let signature =
             self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
             ("access_key".to_string(), auth.access_key),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
@@ -409,6 +404,9 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsCaptureType::get_headers(
+                self, req, connectors,
+            )?)
             .headers(headers)
             .body(Some(rapyd_req))
             .build();
@@ -438,11 +436,10 @@ impl
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.to_string();
         Ok(format!(
             "{}/v1/payments/{}/capture",
-            api::ConnectorCommon::base_url(self, connectors),
-            id
+            self.base_url(connectors),
+            req.request.connector_transaction_id
         ))
     }
 
@@ -485,7 +482,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundExecuteType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -497,10 +497,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/v1/refunds",
-            api::ConnectorCommon::base_url(self, connectors)
-        ))
+        Ok(format!("{}/v1/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -527,10 +524,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let signature =
             self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
             ("access_key".to_string(), auth.access_key),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
@@ -591,7 +584,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(

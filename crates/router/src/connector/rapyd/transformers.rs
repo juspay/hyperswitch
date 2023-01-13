@@ -4,7 +4,7 @@ use url::Url;
 
 use crate::{
     core::errors,
-    pii::PeekInterface,
+    pii::{self, Secret},
     services,
     types::{
         self, api,
@@ -36,11 +36,11 @@ pub struct PaymentMethod {
 
 #[derive(Default, Debug, Serialize)]
 pub struct PaymentFields {
-    pub number: String,
-    pub expiration_month: String,
-    pub expiration_year: String,
-    pub name: String,
-    pub cvv: String,
+    pub number: Secret<String, pii::CardNumber>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub name: Secret<String>,
+    pub cvv: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
@@ -49,13 +49,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethod::Card(ref ccard) => {
                 let payment_method = PaymentMethod {
-                    pm_type: "in_amex_card".to_owned(), //https://github.com/juspay/hyperswitch/issues/369
+                    pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: PaymentFields {
-                        number: ccard.card_number.peek().to_string(),
-                        expiration_month: ccard.card_exp_month.peek().to_string(),
-                        expiration_year: ccard.card_exp_year.peek().to_string(),
-                        name: ccard.card_holder_name.peek().to_string(),
-                        cvv: ccard.card_cvc.peek().to_string(),
+                        number: ccard.card_number.to_owned(),
+                        expiration_month: ccard.card_exp_month.to_owned(),
+                        expiration_year: ccard.card_exp_year.to_owned(),
+                        name: ccard.card_holder_name.to_owned(),
+                        cvv: ccard.card_cvc.to_owned(),
                     },
                 };
                 let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
