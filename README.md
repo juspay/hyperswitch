@@ -8,7 +8,7 @@
 [license-badge]: https://img.shields.io/github/license/juspay/hyperswitch
 [license-url]: https://github.com/juspay/hyperswitch/blob/main/LICENSE
 
-hyperswitch is a **_Payment Switch_** that lets you connect with **multiple payment processors with a single API integration**.
+hyperswitch is an open-source **_Payment Switch_** to make your Payments fast, reliable and affrodable. It lets you connect with **multiple payment processors with a single API integration**.
 Once integrated, you can add new payment processors and route traffic effortlessly.
 Using hyperswitch, you can:
 
@@ -27,14 +27,22 @@ _hyperswitch is wire-compatible with top processors like Stripe making it easy t
 
 ## Table of Contents
 
-- [Quick Start Guide](#quick-start-guide)
-- [Supported Features](#supported-features)
-- [What's Included](#whats-included)
-- [Join us in building hyperswitch](#join-us-in-building-hyperswitch)
-- [Community](#community)
-- [Bugs and feature requests](#bugs-and-feature-requests)
-- [Versioning](#versioning)
-- [Copyright and License](#copyright-and-license)
+- [hyperswitch](#hyperswitch)
+  - [Table of Contents](#table-of-contents)
+  - [Quick Start Guide](#quick-start-guide)
+    - [Try It Out](#try-it-out)
+    - [Fast Integration for Stripe Users](#fast-integration-for-stripe-users)
+  - [Supported Features](#supported-features)
+  - [What's Included](#whats-included)
+    - [Repositories](#repositories)
+    - [Files Tree Layout](#files-tree-layout)
+  - [Join us in building hyperswitch](#join-us-in-building-hyperswitch)
+    - [Our Belief](#our-belief)
+    - [Contributing](#contributing)
+  - [Community](#community)
+  - [Bugs and feature requests](#bugs-and-feature-requests)
+  - [Versioning](#versioning)
+  - [Copyright and License](#copyright-and-license)
 
 ## Quick Start Guide
 
