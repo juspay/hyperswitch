@@ -167,7 +167,7 @@ fn set_or_reject_duplicate<T, E: de::Error>(
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize)]
 pub struct ListPaymentMethodResponse {
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
@@ -181,6 +181,33 @@ pub struct ListPaymentMethodResponse {
     pub recurring_enabled: bool,
     pub installment_payment_enabled: bool,
     pub payment_experience: Option<Vec<PaymentExperience>>,
+}
+
+impl serde::Serialize for ListPaymentMethodResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("ListPaymentMethodResponse", 2)?;
+        state.serialize_field("payment_method", &self.payment_method)?;
+        match self.payment_method {
+            api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
+                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
+            }
+            api_enums::PaymentMethodType::Card => {
+                state.serialize_field("payment_method_types", &self.payment_method_types)?;
+                state.serialize_field("payment_schemes", &self.payment_schemes)?;
+                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
+            }
+            _ => {
+                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
+                state.serialize_field("payment_method_types", &self.payment_method_types)?;
+                state.serialize_field("payment_schemes", &self.payment_schemes)?;
+            }
+        }
+        state.end()
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
