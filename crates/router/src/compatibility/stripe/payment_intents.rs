@@ -331,6 +331,7 @@ pub async fn payment_intents_cancel(
 
 #[instrument(skip_all)]
 #[get("/list")]
+#[cfg(feature = "olap")]
 pub async fn payment_intent_list(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

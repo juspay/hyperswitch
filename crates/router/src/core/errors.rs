@@ -56,6 +56,8 @@ pub enum StorageError {
     DuplicateValue(String),
     #[error("KV error")]
     KVError,
+    #[error("Serialization failure")]
+    SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
 }
