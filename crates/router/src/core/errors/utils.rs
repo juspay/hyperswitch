@@ -18,9 +18,13 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
         not_found_response: errors::ApiErrorResponse,
     ) -> error_stack::Report<errors::ApiErrorResponse> {
         if self.current_context().is_db_not_found() {
-            self.change_context(not_found_response)
-        } else {
-            self.change_context(errors::ApiErrorResponse::InternalServerError)
+            return self.change_context(not_found_response);
+        }
+        match self.current_context() {
+            errors::StorageError::CustomerRedacted => {
+                self.change_context(errors::ApiErrorResponse::CustomerRedacted)
+            }
+            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
 
