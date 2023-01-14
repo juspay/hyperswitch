@@ -88,6 +88,8 @@ base_url = "https://cert.api.fiservapps.com/"
 [connectors.worldpay]
 base_url = "http://localhost:9090/"
 
+[connectors.payu]
+base_url = "https://secure.snd.payu.com/api/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 

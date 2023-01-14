@@ -506,6 +506,7 @@ pub enum Connector {
     Fiserv,
     Globalpay,
     Klarna,
+    Payu,
     Shift4,
     Stripe,
     Worldpay,

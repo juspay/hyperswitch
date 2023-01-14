@@ -149,6 +149,7 @@ impl ConnectorData {
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
+            "payu" => Ok(Box::new(&connector::Payu)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
             "stripe" => Ok(Box::new(&connector::Stripe)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
