@@ -183,6 +183,10 @@ pub struct ListPaymentMethodResponse {
     pub payment_experience: Option<Vec<PaymentExperience>>,
 }
 
+/// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
+/// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
+/// and `payment_method_issuers`. Otherwise only consider
+/// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.
 impl serde::Serialize for ListPaymentMethodResponse {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
