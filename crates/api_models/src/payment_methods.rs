@@ -289,3 +289,14 @@ pub struct TokenizedCardValue2 {
     pub customer_id: Option<String>,
     pub payment_method_id: Option<String>,
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue1 {
+    pub issuer: String,
+    pub token: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue2 {
+    pub customer_id: Option<String>,
+}
