@@ -19,5 +19,9 @@ api_key = "Bearer MyApiKey"
 [worldpay]
 api_key = "Bearer MyApiKey"
 
+[payu]
+api_key = "Bearer MyApiKey"
+key1 = "MerchantPosId"
+
 [globalpay]
 api_key = "Bearer MyApiKey"

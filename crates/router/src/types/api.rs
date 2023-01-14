@@ -150,6 +150,7 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
+            "payu" => Ok(Box::new(&connector::Payu)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
