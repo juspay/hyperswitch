@@ -236,6 +236,11 @@
             "type": "string",
             "description": "API key that will be used for server side API access",
             "example": "AH3423bkjbkjdsfbkj"
+          },
+          "locker_id": {
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
           }
         }
       },
@@ -593,6 +598,11 @@
             "type": "string",
             "description": "API key that will be used for server side API access",
             "example": "AH3423bkjbkjdsfbkj"
+          },
+          "locker_id": {
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
           }
         }
       },
