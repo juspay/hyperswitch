@@ -13,15 +13,19 @@ pub trait ConfigInterface {
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn find_config_by_key(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn update_config_by_key(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError>;
+
+    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -56,6 +60,14 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        storage::Config::delete_by_key(&conn, key)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -81,6 +93,11 @@ impl ConfigInterface for MockDb {
         _key: &str,
         _config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn delete_config_by_key(&self, _key: &str) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

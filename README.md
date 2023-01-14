@@ -53,7 +53,7 @@ You have two options to try out hyperswitch:
 If you are already using Stripe, integrating with hyperswitch is fun, fast & easy.
 Try the steps below to get a feel for how quick the setup is:
 
-1. Get API keys from our [dashboard](https://orca-dahboard.netlify.app).
+1. Get API keys from our [dashboard](https://dashboard-hyperswitch.netlify.app).
 2. Follow the instructions detailed on our [documentation page](https://hyperswitch.io/docs).
 
 ## Supported Features

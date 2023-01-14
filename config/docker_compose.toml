@@ -28,10 +28,9 @@ pool_size = 5
 # http_url = "http proxy URL"
 # https_url = "https proxy URL"
 
-[keys]
-temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+[secrets]
 admin_api_key = "test_admin"
-jwt_secret="secret" 
+jwt_secret = "secret"
 
 [locker]
 host = ""
@@ -51,6 +50,10 @@ host = "redis-queue"
 port = 6379
 cluster_enabled = true
 cluster_urls = ["redis-queue:6379"]
+
+[refund]
+max_attempts = 10
+max_age = 365
 
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
@@ -85,6 +88,9 @@ base_url = "https://api.shift4.com/"
 [connectors.worldpay]
 base_url = "https://try.access.worldpay.com/"
 
+[connectors.globalpay]
+base_url = "https://apis.sandbox.globalpay.com/ucp/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay"]

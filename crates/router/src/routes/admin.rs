@@ -2,8 +2,24 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-use crate::{core::admin::*, services::api, types::api::admin};
+use crate::{
+    core::admin::*,
+    services::{api, authentication as auth},
+    types::api::admin,
+};
 
+/// Merchant Account - Create
+///
+/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
+#[utoipa::path(
+    post,
+    path = "/account",
+    request_body= CreateMerchantAccount,
+    responses(
+        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 400, description = "Invalid data")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 // #[post("")]
 pub async fn merchant_account_create(
@@ -16,7 +32,7 @@ pub async fn merchant_account_create(
         &req,
         json_payload.into_inner(),
         |state, _, req| create_merchant_account(&*state.store, req),
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -37,7 +53,7 @@ pub async fn retrieve_merchant_account(
         &req,
         payload,
         |state, _, req| get_merchant_account(&*state.store, req),
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -56,7 +72,7 @@ pub async fn update_merchant_account(
         &req,
         json_payload.into_inner(),
         |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -77,7 +93,7 @@ pub async fn delete_merchant_account(
         &req,
         payload,
         |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -97,7 +113,7 @@ pub async fn payment_connector_create(
         &req,
         json_payload.into_inner(),
         |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -122,7 +138,7 @@ pub async fn payment_connector_retrieve(
         |state, _, req| {
             retrieve_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -140,7 +156,7 @@ pub async fn payment_connector_list(
         &req,
         merchant_id,
         |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -161,7 +177,7 @@ pub async fn payment_connector_update(
         |state, _, req| {
             update_payment_connector(&*state.store, &merchant_id, merchant_connector_id, req)
         },
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }
@@ -186,7 +202,7 @@ pub async fn payment_connector_delete(
         |state, _, req| {
             delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
-        api::MerchantAuthentication::AdminApiKey,
+        &auth::AdminApiAuth,
     )
     .await
 }

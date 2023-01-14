@@ -70,6 +70,7 @@ pub async fn create_merchant_account(
         payment_response_hash_key: req.payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         publishable_key: Some(publishable_key.to_owned()),
+        locker_id: req.locker_id,
     };
 
     db.insert_merchant(merchant_account)
@@ -77,7 +78,7 @@ pub async fn create_merchant_account(
         .map_err(|error| {
             error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
         })?;
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn get_merchant_account(
@@ -125,8 +126,9 @@ pub async fn get_merchant_account(
         ),
         metadata: None,
         publishable_key: merchant_account.publishable_key,
+        locker_id: merchant_account.locker_id,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn merchant_account_update(
@@ -214,6 +216,9 @@ pub async fn merchant_account_update(
         publishable_key: req
             .publishable_key
             .or_else(|| merchant_account.publishable_key.clone()),
+        locker_id: req
+            .locker_id
+            .or_else(|| merchant_account.locker_id.to_owned()),
     };
     response.merchant_id = merchant_id.to_string();
     response.api_key = merchant_account.api_key.to_owned();
@@ -221,7 +226,7 @@ pub async fn merchant_account_update(
     db.update_merchant(merchant_account, updated_merchant_account)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn merchant_account_delete(
@@ -238,7 +243,7 @@ pub async fn merchant_account_delete(
         merchant_id,
         deleted: is_deleted,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 async fn get_parent_merchant(
@@ -335,7 +340,7 @@ pub async fn create_payment_connector(
         })?;
 
     response.merchant_connector_id = Some(mca.merchant_connector_id);
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn retrieve_payment_connector(
@@ -360,7 +365,9 @@ pub async fn retrieve_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
 
-    Ok(service_api::BachResponse::Json(mca.foreign_try_into()?))
+    Ok(service_api::ApplicationResponse::Json(
+        mca.foreign_try_into()?,
+    ))
 }
 
 pub async fn list_payment_connectors(
@@ -388,7 +395,7 @@ pub async fn list_payment_connectors(
         response.push(mca.foreign_try_into()?);
     }
 
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn update_payment_connector(
@@ -455,7 +462,7 @@ pub async fn update_payment_connector(
         payment_methods_enabled: req.payment_methods_enabled,
         metadata: req.metadata,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn delete_payment_connector(
@@ -484,5 +491,5 @@ pub async fn delete_payment_connector(
         merchant_connector_id,
         deleted: is_deleted,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }

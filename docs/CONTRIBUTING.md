@@ -488,10 +488,14 @@ The area label describes the area relevant to this issue or PR.
 - **A-connector-integration**: This issue/PR concerns connector integrations.
 - **A-core**: This issue/PR concerns the core flows.
 - **A-dependencies**: The issue/PR concerns one or more of our dependencies.
+- **A-drainer**: The issue/PR concerns the drainer code.
 - **A-framework**: The issue/PR concerns code to interact with other systems or
   services such as database, Redis, connector APIs, etc.
 - **A-infra**: This issue/PR concerns deployments, Dockerfiles, Docker Compose
   files, etc.
+- **A-macros**: This issue/PR concerns the `router_derive` crate.
+- **A-payment-methods**: This issue/PR concerns the integration of new or
+  existing payment methods.
 - **A-process-tracker**: This issue/PR concerns the process tracker code.
 
 ### Category
@@ -499,6 +503,7 @@ The area label describes the area relevant to this issue or PR.
 - **C-bug**: This issue is a bug report or this PR is a bug fix.
 - **C-doc**: This issue/PR concerns changes to the documentation.
 - **C-feature**: This issue is a feature request or this PR adds new features.
+- **C-refactor**: This issue/PR concerns a refactor of existing behavior.
 - **C-tracking-issue**: This is a tracking issue for a proposal or for a
   category of bugs.
 
@@ -536,6 +541,8 @@ The status label provides information about the status of the issue or PR.
   or the proposed solution raises other questions.
 - **S-in-progress**: The implementation relevant to this issue/PR is underway.
 - **S-invalid**: This is an invalid issue.
+- **S-needs-conflict-resolution**: This PR requires merge conflicts to be
+  resolved by the author.
 - **S-needs-reproduction-steps**: This behavior hasn't been reproduced by the
   team.
 - **S-unactionable**: There is not enough information to act on this problem.

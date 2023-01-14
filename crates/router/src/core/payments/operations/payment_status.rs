@@ -14,7 +14,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api::{self, enums as api_enums},
+        api,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -100,9 +100,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(merchant_account, state, None).await
     }
 }
 
@@ -152,10 +152,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        merchant_id: &str,
         request: &api::PaymentsRetrieveRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -163,11 +162,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
     )> {
         get_tracker_for_sync(
             payment_id,
-            merchant_id,
+            &merchant_account.merchant_id,
             &*state.store,
             request,
             self,
-            storage_scheme,
+            merchant_account.storage_scheme,
         )
         .await
     }

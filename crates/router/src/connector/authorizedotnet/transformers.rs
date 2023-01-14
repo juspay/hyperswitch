@@ -1,3 +1,4 @@
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -5,6 +6,7 @@ use crate::{
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -38,21 +40,22 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
     }
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: String,
-    expiration_date: String,
-    card_code: String,
+    card_number: masking::Secret<String, common_utils::pii::CardNumber>,
+    expiration_date: masking::Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card_code: Option<masking::Secret<String>>,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct BankAccountDetails {
-    account_number: String,
+    account_number: masking::Secret<String>,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 enum PaymentDetails {
     #[serde(rename = "creditCard")]
     CreditCard(CreditCardDetails),
@@ -61,6 +64,29 @@ enum PaymentDetails {
     Wallet,
     Klarna,
     Paypal,
+}
+
+impl From<api_models::payments::PaymentMethod> for PaymentDetails {
+    fn from(value: api_models::payments::PaymentMethod) -> Self {
+        match value {
+            api::PaymentMethod::Card(ref ccard) => {
+                let expiry_month = ccard.card_exp_month.peek().clone();
+                let expiry_year = ccard.card_exp_year.peek().clone();
+
+                Self::CreditCard(CreditCardDetails {
+                    card_number: ccard.card_number.clone(),
+                    expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                    card_code: Some(ccard.card_cvc.clone()),
+                })
+            }
+            api::PaymentMethod::BankTransfer => Self::BankAccount(BankAccountDetails {
+                account_number: "XXXXX".to_string().into(),
+            }),
+            api::PaymentMethod::PayLater(_) => Self::Klarna,
+            api::PaymentMethod::Wallet(_) => Self::Wallet,
+            api::PaymentMethod::Paypal => Self::Paypal,
+        }
+    }
 }
 
 #[derive(Serialize, PartialEq)]
@@ -132,24 +158,7 @@ impl From<enums::CaptureMethod> for AuthorizationType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_details = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                let expiry_month = ccard.card_exp_month.peek().clone();
-                let expiry_year = ccard.card_exp_year.peek().clone();
-
-                PaymentDetails::CreditCard(CreditCardDetails {
-                    card_number: ccard.card_number.peek().clone(),
-                    expiration_date: format!("{expiry_year}-{expiry_month}"),
-                    card_code: ccard.card_cvc.peek().clone(),
-                })
-            }
-            api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(BankAccountDetails {
-                account_number: "XXXXX".to_string(),
-            }),
-            api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
-            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
-        };
+        let payment_details = item.request.payment_method_data.clone().into();
         let authorization_indicator_type =
             item.request.capture_method.map(|c| AuthorizationIndicator {
                 authorization_indicator: c.into(),
@@ -252,6 +261,7 @@ pub struct TransactionResponse {
     auth_code: String,
     #[serde(rename = "transId")]
     transaction_id: String,
+    pub(super) account_number: Option<String>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
 }
 
@@ -294,6 +304,20 @@ impl<F, T>
                 })
             });
 
+        let metadata = item
+            .response
+            .transaction_response
+            .account_number
+            .map(|acc_no| {
+                Encode::<'_, PaymentDetails>::encode_to_value(&construct_refund_payment_details(
+                    acc_no,
+                ))
+            })
+            .transpose()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata".to_string(),
+            })?;
+
         Ok(Self {
             status,
             response: match error {
@@ -305,6 +329,7 @@ impl<F, T>
                     redirection_data: None,
                     redirect: false,
                     mandate_reference: None,
+                    connector_metadata: metadata,
                 }),
             },
             ..item.data
@@ -340,32 +365,26 @@ pub struct CreateRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let (payment_details, merchant_authentication, transaction_request);
-        payment_details = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                let expiry_month = ccard.card_exp_month.peek().clone();
-                let expiry_year = ccard.card_exp_year.peek().clone();
+        let payment_details = item
+            .request
+            .connector_metadata
+            .as_ref()
+            .get_required_value("connector_metadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata".to_string(),
+            })?
+            .clone();
 
-                PaymentDetails::CreditCard(CreditCardDetails {
-                    card_number: ccard.card_number.peek().clone(),
-                    expiration_date: format!("{expiry_year}-{expiry_month}"),
-                    card_code: ccard.card_cvc.peek().clone(),
-                })
-            }
-            api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(BankAccountDetails {
-                account_number: "XXXXX".to_string(),
-            }),
-            api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
-            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
-        };
+        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
-        merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
-
-        transaction_request = RefundTransactionRequest {
+        let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.request.refund_amount,
-            payment: payment_details,
+            payment: payment_details
+                .parse_value("PaymentDetails")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_details".to_string(),
+                })?,
             currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
@@ -590,6 +609,7 @@ impl<F, Req>
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             status: payment_status,
             ..item.data
@@ -609,4 +629,12 @@ pub struct ErrorDetails {
 #[derive(Default, Debug, Deserialize, PartialEq, Eq)]
 pub struct AuthorizedotnetErrorResponse {
     pub error: ErrorDetails,
+}
+
+fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
+    PaymentDetails::CreditCard(CreditCardDetails {
+        card_number: masked_number.into(),
+        expiration_date: "XXXX".to_string().into(),
+        card_code: None,
+    })
 }

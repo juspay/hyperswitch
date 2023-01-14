@@ -11,10 +11,7 @@ use crate::{
     core::{errors::RouterResult, payments},
     routes::AppState,
     services,
-    types::{
-        self, api,
-        storage::{self, enums},
-    },
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -35,7 +32,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        storage_scheme: enums::MerchantStorageScheme,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,

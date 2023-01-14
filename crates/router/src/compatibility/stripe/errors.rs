@@ -157,6 +157,8 @@ pub enum StripeErrorCode {
     },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
+    DuplicatePayment { payment_id: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -318,6 +320,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
     fn from(value: errors::ApiErrorResponse) -> Self {
         match value {
             errors::ApiErrorResponse::Unauthorized
+            | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::InvalidEphermeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
@@ -352,6 +355,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
             errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
+            errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
             errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
@@ -409,6 +413,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 current_value,
                 states,
             },
+            errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
+                Self::DuplicatePayment { payment_id }
+            }
         }
     }
 }
@@ -451,7 +458,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::AddressNotFound
             | Self::ResourceIdNotFound
             | Self::PaymentIntentMandateInvalid { .. }
-            | Self::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
+            | Self::PaymentIntentUnexpectedState { .. }
+            | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

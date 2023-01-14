@@ -16,11 +16,10 @@ pub use self::api_error_response::ApiErrorResponse;
 pub(crate) use self::utils::{ConnectorErrorExt, StorageErrorExt};
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
-pub type RouterResponse<T> = CustomResult<services::BachResponse<T>, ApiErrorResponse>;
+pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
 
-// FIXME: Phase out BachResult and BachResponse
-pub type BachResult<T> = Result<T, BachError>;
-pub type BachResponse<T> = BachResult<services::BachResponse<T>>;
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
@@ -47,25 +46,6 @@ macro_rules! impl_error_type {
     };
 }
 
-// FIXME: Make this a derive macro instead
-macro_rules! router_error_error_stack_specific {
-    ($($path: ident)::+ < $st: ident >, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl From<$($path)::+ <$st>> for BachError {
-            fn from(err: $($path)::+ <$st> ) -> Self {
-                $($path2)::*(err)
-            }
-        }
-    };
-
-    ($($path: ident)::+  <$($inner_path:ident)::+>, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl<'a> From< $($path)::+ <$($inner_path)::+> > for BachError {
-            fn from(err: $($path)::+ <$($inner_path)::+> ) -> Self {
-                $($path2)::*(err)
-            }
-        }
-    };
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("DatabaseError: {0}")]
@@ -76,6 +56,8 @@ pub enum StorageError {
     DuplicateValue(String),
     #[error("KV error")]
     KVError,
+    #[error("Serialization failure")]
+    SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
     #[error("Customer with this id is Redacted")]
@@ -110,76 +92,31 @@ impl StorageError {
     }
 }
 
-impl_error_type!(AuthenticationError, "Authentication error");
-impl_error_type!(AuthorisationError, "Authorisation error");
 impl_error_type!(EncryptionError, "Encryption error");
-impl_error_type!(UnexpectedError, "Unexpected error");
 
 #[derive(Debug, thiserror::Error)]
-pub enum BachError {
+pub enum ApplicationError {
     // Display's impl can be overridden by the attribute error marco.
     // Don't use Debug here, Debug gives error stack in response.
-    #[error("{{ error_description: Error while Authenticating, error_message: {0} }}")]
-    EAuthenticationError(error_stack::Report<AuthenticationError>),
-
-    #[error("{{ error_description: Error while Authorizing, error_message: {0} }}")]
-    EAuthorisationError(error_stack::Report<AuthorisationError>),
-
-    #[error("{{ error_description: Connector implementation missing, error_message: {0} }}")]
-    NotImplementedByConnector(String), //Feature not implemented by chosen connector.
-
-    #[error("{{ error_description: Unexpected error, error_message: {0} }}")]
-    EUnexpectedError(error_stack::Report<UnexpectedError>),
-
-    #[error("{{ error_description: Error while parsing, error_message: {0} }}")]
-    EParsingError(error_stack::Report<ParsingError>),
-
     #[error("Application configuration error: {0}")]
     ConfigurationError(ConfigError),
 
-    #[error("{{ error_description: Database operation failed, error_message: {0} }}")]
-    EDatabaseError(error_stack::Report<storage_errors::DatabaseError>),
-
-    #[error("{{ error_description: Encryption module operation failed, error_message: {0} }}")]
-    EEncryptionError(error_stack::Report<EncryptionError>),
-
     #[error("Metrics error: {0}")]
-    EMetrics(MetricsError),
+    MetricsError(MetricsError),
 
     #[error("I/O: {0}")]
-    EIo(std::io::Error),
+    IoError(std::io::Error),
 }
 
-router_error_error_stack_specific!(
-    error_stack::Report<storage_errors::DatabaseError>,
-    BachError::EDatabaseError(error_stack::Report<DatabaseError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<AuthenticationError>,
-    BachError::EAuthenticationError(error_stack::Report<AuthenticationError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<UnexpectedError>,
-    BachError::EUnexpectedError(error_stack::Report<UnexpectedError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<ParsingError>,
-    BachError::EParsingError(error_stack::Report<ParsingError>)
-);
-router_error_error_stack_specific!(
-    error_stack::Report<EncryptionError>,
-    BachError::EEncryptionError(error_stack::Report<EncryptionError>)
-);
-
-impl From<MetricsError> for BachError {
+impl From<MetricsError> for ApplicationError {
     fn from(err: MetricsError) -> Self {
-        Self::EMetrics(err)
+        Self::MetricsError(err)
     }
 }
 
-impl From<std::io::Error> for BachError {
+impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
-        Self::EIo(err)
+        Self::IoError(err)
     }
 }
 
@@ -189,7 +126,7 @@ impl From<ring::error::Unspecified> for EncryptionError {
     }
 }
 
-impl From<ConfigError> for BachError {
+impl From<ConfigError> for ApplicationError {
     fn from(err: ConfigError) -> Self {
         Self::ConfigurationError(err)
     }
@@ -199,25 +136,15 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
         .append_header(("Via", "Juspay_Router"))
         .content_type("application/json")
-        .body(format!(
-            "{{\n\"error\": {{\n\"message\": \"{err}\" \n}} \n}}\n"
-        ))
+        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
-impl ResponseError for BachError {
+impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::EParsingError(_)
-            | Self::EAuthenticationError(_)
-            | Self::EAuthorisationError(_) => StatusCode::BAD_REQUEST,
-
-            Self::EDatabaseError(_)
-            | Self::NotImplementedByConnector(_)
-            | Self::EMetrics(_)
-            | Self::EIo(_)
-            | Self::ConfigurationError(_)
-            | Self::EEncryptionError(_)
-            | Self::EUnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::MetricsError(_) | Self::IoError(_) | Self::ConfigurationError(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 
@@ -318,7 +245,7 @@ pub enum ConnectorError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum CardVaultError {
+pub enum VaultError {
     #[error("Failed to save card in card vault")]
     SaveCardFailed,
     #[error("Failed to fetch card details from card vault")]
@@ -329,6 +256,8 @@ pub enum CardVaultError {
     ResponseDeserializationFailed,
     #[error("Failed to create payment method")]
     PaymentMethodCreationFailed,
+    #[error("The given payment method is currently not supported in vault")]
+    PaymentMethodNotSupported,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: String },
     #[error("The card vault returned an unexpected response: {0:?}")]
