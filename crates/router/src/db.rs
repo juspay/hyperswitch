@@ -15,7 +15,6 @@ pub mod process_tracker;
 pub mod queue;
 pub mod refund;
 pub mod reverse_lookup;
-pub mod temp_card;
 
 use std::sync::Arc;
 
@@ -39,7 +38,6 @@ pub trait StorageInterface:
     + mandate::MandateInterface
     + address::AddressInterface
     + configs::ConfigInterface
-    + temp_card::TempCardInterface
     + customers::CustomerInterface
     + events::EventInterface
     + merchant_account::MerchantAccountInterface
@@ -76,7 +74,6 @@ pub struct MockDb {
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
     payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
     customers: Arc<Mutex<Vec<storage::Customer>>>,
-    temp_cards: Arc<Mutex<Vec<storage::TempCard>>>,
     refunds: Arc<Mutex<Vec<storage::Refund>>>,
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
@@ -91,7 +88,6 @@ impl MockDb {
             payment_attempts: Default::default(),
             payment_intents: Default::default(),
             customers: Default::default(),
-            temp_cards: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
