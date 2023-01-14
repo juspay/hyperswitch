@@ -5,7 +5,6 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::{
-    configs::settings,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::transformers as payment_methods,
@@ -19,7 +18,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{self, BytesExt, OptionExt, StringExt, ValueExt},
+    utils::{BytesExt, OptionExt, StringExt},
 };
 
 #[instrument(skip_all)]
@@ -84,11 +83,11 @@ pub async fn add_payment_method(
                 metadata: req.metadata,
                 created: Some(common_utils::date_time::now()),
                 payment_method_issuer_code: req.payment_method_issuer_code,
-                recurring_enabled: false,           //TODO
-                installment_payment_enabled: false, //TODO
+                recurring_enabled: false,           //[#219]
+                installment_payment_enabled: false, //[#219]
                 payment_experience: Some(vec![
                     api_models::payment_methods::PaymentExperience::RedirectToUrl,
-                ]), //TODO
+                ]), //[#219]
             })
         }
     }
@@ -354,7 +353,7 @@ pub async fn list_payment_methods(
     db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
-) -> errors::RouterResponse<Vec<api::ListPaymentMethodResponse>> {
+) -> errors::RouterResponse<collections::HashSet<api::ListPaymentMethodResponse>> {
     let payment_intent = helpers::verify_client_secret(
         db,
         merchant_account.storage_scheme,
@@ -392,8 +391,8 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    // TODO: Deduplicate payment methods
-    let mut response: Vec<api::ListPaymentMethodResponse> = Vec::new();
+    let mut response: collections::HashSet<api::ListPaymentMethodResponse> =
+        collections::HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -420,7 +419,7 @@ pub async fn list_payment_methods(
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
-    resp: &mut Vec<api::ListPaymentMethodResponse>,
+    resp: &mut collections::HashSet<api::ListPaymentMethodResponse>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
@@ -465,7 +464,7 @@ async fn filter_payment_methods(
                 };
 
                 if filter && filter2 && filter3 {
-                    resp.push(payment_method_object);
+                    resp.insert(payment_method_object);
                 }
             }
         }
@@ -586,8 +585,8 @@ pub async fn list_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    // TODO: Deduplicate payment methods
-    let mut enabled_methods: Vec<api::ListPaymentMethodResponse> = Vec::new();
+    let mut enabled_methods: collections::HashSet<api::ListPaymentMethodResponse> =
+        collections::HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -598,7 +597,7 @@ pub async fn list_customer_payment_method(
             if let Ok(payment_method_object) =
                 serde_json::from_value::<api::ListPaymentMethodResponse>(payment_method)
             {
-                enabled_methods.push(payment_method_object);
+                enabled_methods.insert(payment_method_object);
             }
         }
     }
@@ -789,34 +788,6 @@ impl BasiliskCardSupport {
     }
 }
 
-pub async fn get_card_info_value(
-    keys: &settings::Keys,
-    card_info: String,
-) -> errors::RouterResult<serde_json::Value> {
-    let key = services::KeyHandler::get_encryption_key(keys)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let enc_card_info = services::encrypt(&card_info, key.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    utils::Encode::<Vec<u8>>::encode_to_value(&enc_card_info)
-        .change_context(errors::CardVaultError::RequestEncodingFailed)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-}
-
-pub async fn get_card_info_from_value(
-    keys: &settings::Keys,
-    card_info: serde_json::Value,
-) -> errors::RouterResult<String> {
-    let key = services::KeyHandler::get_encryption_key(keys)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let card_info_val: Vec<u8> = card_info
-        .parse_value("CardInfo")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    services::decrypt(card_info_val, key.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-}
-
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     state: &routes::AppState,
@@ -854,11 +825,11 @@ pub async fn retrieve_payment_method(
             payment_method_issuer_code: pm
                 .payment_method_issuer_code
                 .map(ForeignInto::foreign_into),
-            recurring_enabled: false,           //TODO
-            installment_payment_enabled: false, //TODO
+            recurring_enabled: false,           //[#219]
+            installment_payment_enabled: false, //[#219]
             payment_experience: Some(vec![
                 api_models::payment_methods::PaymentExperience::RedirectToUrl,
-            ]), //TODO,
+            ]), //[#219],
         },
     ))
 }

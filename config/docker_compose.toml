@@ -28,10 +28,9 @@ pool_size = 5
 # http_url = "http proxy URL"
 # https_url = "https proxy URL"
 
-[keys]
-temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+[secrets]
 admin_api_key = "test_admin"
-jwt_secret="secret" 
+jwt_secret = "secret"
 
 [locker]
 host = ""

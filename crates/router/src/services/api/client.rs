@@ -41,7 +41,7 @@ pub(super) fn create_client(
     client_certificate: Option<String>,
     client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
-    let mut client_builder = reqwest::Client::builder();
+    let mut client_builder = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
 
     if !should_bypass_proxy {
         if let Some(url) = ProxyType::Http.get_proxy_url(proxy) {

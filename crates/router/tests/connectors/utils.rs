@@ -135,7 +135,7 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
-                amount: 100,
+                amount: 1000,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 connector_transaction_id: transaction_id,
@@ -230,6 +230,7 @@ pub struct PaymentAuthorizeType(pub types::PaymentsAuthorizeData);
 pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
 pub struct CCardType(pub api::CCard);
+pub struct BrowserInfoType(pub types::BrowserInformation);
 
 impl Default for CCardType {
     fn default() -> Self {
@@ -256,9 +257,27 @@ impl Default for PaymentAuthorizeType {
             mandate_id: None,
             off_session: None,
             setup_mandate_details: None,
-            browser_info: None,
+            browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+        };
+        Self(data)
+    }
+}
+
+impl Default for BrowserInfoType {
+    fn default() -> Self {
+        let data = types::BrowserInformation {
+            user_agent: "".to_string(),
+            accept_header: "".to_string(),
+            language: "nl-NL".to_string(),
+            color_depth: 24,
+            screen_height: 723,
+            screen_width: 1536,
+            time_zone: 0,
+            java_enabled: true,
+            java_script_enabled: true,
+            ip_address: Some("127.0.0.1".parse().unwrap()),
         };
         Self(data)
     }
