@@ -4,6 +4,7 @@ mod aci;
 mod authorizedotnet;
 mod checkout;
 mod connector_auth;
+mod cybersource;
 mod fiserv;
 mod globalpay;
 mod payu;
