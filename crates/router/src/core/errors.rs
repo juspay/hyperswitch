@@ -60,6 +60,8 @@ pub enum StorageError {
     SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Customer with this id is Redacted")]
+    CustomerRedacted,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -245,7 +247,7 @@ pub enum ConnectorError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum CardVaultError {
+pub enum VaultError {
     #[error("Failed to save card in card vault")]
     SaveCardFailed,
     #[error("Failed to fetch card details from card vault")]
@@ -256,6 +258,8 @@ pub enum CardVaultError {
     ResponseDeserializationFailed,
     #[error("Failed to create payment method")]
     PaymentMethodCreationFailed,
+    #[error("The given payment method is currently not supported in vault")]
+    PaymentMethodNotSupported,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: String },
     #[error("The card vault returned an unexpected response: {0:?}")]

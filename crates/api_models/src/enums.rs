@@ -503,8 +503,10 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Fiserv,
     Globalpay,
     Klarna,
+    Payu,
     Shift4,
     Stripe,
     Worldline,

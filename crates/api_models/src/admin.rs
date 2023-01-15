@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 pub use self::CreateMerchantAccount as MerchantAccountResponse;
 use super::payments::AddressDetails;
 use crate::{enums as api_enums, payment_methods};
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateMerchantAccount {

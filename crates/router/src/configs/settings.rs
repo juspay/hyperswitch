@@ -122,17 +122,19 @@ pub struct SupportedConnectors {
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+    pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
-    pub klarna: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub fiserv: ConnectorParams,
+    pub globalpay: ConnectorParams,
+    pub klarna: ConnectorParams,
+    pub payu: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
-    pub globalpay: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub applepay: ConnectorParams,
     pub worldline: ConnectorParams,
 }
 
