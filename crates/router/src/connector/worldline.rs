@@ -30,27 +30,25 @@ impl Worldline {
     pub fn generate_authorization_token(
         &self,
         auth: worldline::AuthType,
-        http_method: &str,
+        http_method: &services::Method,
         content_type: &str,
         date: &str,
         endpoint: &str,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let signature_data: String = http_method.trim().to_owned()
-            + "\n"
-            + content_type.trim()
-            + "\n"
-            + date.trim()
-            + "\n/"
-            + endpoint.trim()
-            + "\n";
+        let signature_data: String = format!(
+            "{}\n{}\n{}\n/{}\n",
+            http_method,
+            content_type.trim(),
+            date.trim(),
+            endpoint.trim()
+        );
         let worldline::AuthType {
             api_key,
             api_secret,
             merchant_account_id: _,
         } = auth;
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
-        let signed_data = base64::engine::general_purpose::STANDARD
-            .encode(hmac::sign(&key, signature_data.as_bytes()));
+        let signed_data = consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_data.as_bytes()));
 
         Ok(format!("GCS v1HMAC:{api_key}:{signed_data}"))
     }
@@ -84,7 +82,6 @@ impl ConnectorCommon for Worldline {
         let response: worldline::ErrorResponse = res
             .parse_struct("Worldline ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        // Always picks the first error message & code
         let error = response.errors.into_iter().next().unwrap_or_default();
         Ok(ErrorResponse {
             code: error
@@ -123,13 +120,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
         let date = self.get_current_date_time()?;
         let content_type = types::PaymentsAuthorizeType::get_content_type(self);
-        let signed_data: String = self.generate_authorization_token(
-            auth,
-            &http_method.to_string(),
-            content_type,
-            &date,
-            &endpoint,
-        )?;
+        let signed_data: String =
+            self.generate_authorization_token(auth, &http_method, content_type, &date, &endpoint)?;
 
         Ok(vec![
             (headers::DATE.to_string(), date),
@@ -210,13 +202,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let endpoint = url.clone().replace(base_url, "");
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
         let date = self.get_current_date_time()?;
-        let signed_data: String = self.generate_authorization_token(
-            auth,
-            &services::Method::Get.to_string(),
-            "",
-            &date,
-            &endpoint,
-        )?;
+        let signed_data: String =
+            self.generate_authorization_token(auth, &services::Method::Get, "", &date, &endpoint)?;
         Ok(vec![
             (headers::DATE.to_string(), date),
             (headers::AUTHORIZATION.to_string(), signed_data),
@@ -268,9 +255,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: worldline::PaymentResponse = res
+        let response: worldline::Payment = res
             .response
-            .parse_struct("worldline PaymentsResponse")
+            .parse_struct("Payment")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -285,59 +272,7 @@ impl api::PaymentCapture for Worldline {}
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Worldline
 {
-    fn get_headers(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Connector doesn't support Capture flow".to_string(),
-        ))
-        .into_report()
-    }
-
-    fn build_request(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Connector doesn't support Capture flow".to_string(),
-        ))
-        .into_report()
-    }
-
-    fn handle_response(
-        &self,
-        _data: &types::PaymentsCaptureRouterData,
-        _res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Connector doesn't support Capture flow".to_string(),
-        ))
-        .into_report()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Connector doesn't support Capture flow".to_string(),
-        ))
-        .into_report()
-    }
-
-    fn get_error_response(
-        &self,
-        _res: Bytes,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Connector doesn't support Capture flow".to_string(),
-        ))
-        .into_report()
-    }
+    // Not Implemented
 }
 
 impl api::PaymentSession for Worldline {}
@@ -345,6 +280,7 @@ impl api::PaymentSession for Worldline {}
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Worldline
 {
+    // Not Implemented
 }
 
 impl api::PaymentAuthorize for Worldline {}
@@ -369,7 +305,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let content_type = types::PaymentsAuthorizeType::get_content_type(self);
         let signed_data: String = self.generate_authorization_token(
             auth,
-            &services::Method::Post.to_string(),
+            &services::Method::Post,
             content_type,
             &date,
             &endpoint,
@@ -475,7 +411,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let content_type = types::RefundExecuteType::get_content_type(self);
         let signed_data: String = self.generate_authorization_token(
             auth,
-            &services::Method::Post.to_string(),
+            &services::Method::Post,
             content_type,
             &date,
             &endpoint,
@@ -511,7 +447,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let refund_req =
-            utils::Encode::<worldline::WorldlineRefundRequest>::convert_and_url_encode(req)
+            utils::Encode::<worldline::WorldlineRefundRequest>::convert_and_encode(req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(refund_req))
     }
@@ -572,19 +508,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let endpoint = url.clone().replace(base_url, "");
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
         let date = self.get_current_date_time()?;
-        let content_type = types::RefundSyncType::get_content_type(self);
-        let signed_data: String = self.generate_authorization_token(
-            auth,
-            &services::Method::Get.to_string(),
-            content_type,
-            &date,
-            &endpoint,
-        )?;
+        let signed_data: String =
+            self.generate_authorization_token(auth, &services::Method::Get, "", &date, &endpoint)?;
 
         Ok(vec![
             (headers::DATE.to_string(), date),
             (headers::AUTHORIZATION.to_string(), signed_data),
-            (headers::CONTENT_TYPE.to_string(), content_type.to_string()),
         ])
     }
 
@@ -606,6 +535,20 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let merchat_account_id = auth.merchant_account_id;
         Ok(format!(
             "{base_url}v1/{merchat_account_id}/refunds/{refund_id}/"
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .build(),
         ))
     }
 

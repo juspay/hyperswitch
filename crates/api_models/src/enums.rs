@@ -507,8 +507,8 @@ pub enum Connector {
     Klarna,
     Shift4,
     Stripe,
-    Worldpay,
     Worldline,
+    Worldpay,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

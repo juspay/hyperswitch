@@ -1,11 +1,11 @@
-use api_models::payments::{AddressDetails, CCard};
+use api_models::payments as api_models;
 use common_utils::pii::{self, Email};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    types::{self, api, storage::enums, PaymentAddress, PaymentsAuthorizeData},
+    types::{self, api, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -22,7 +22,7 @@ pub struct Card {
 pub struct CardPaymentMethod {
     pub card: Card,
     pub requires_approval: bool,
-    pub payment_product_id: i8,
+    pub payment_product_id: i16,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -108,9 +108,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
 }
 
 fn make_card_request(
-    address: &PaymentAddress,
-    req: &PaymentsAuthorizeData,
-    ccard: &CCard,
+    address: &types::PaymentAddress,
+    req: &types::PaymentsAuthorizeData,
+    ccard: &api_models::CCard,
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let expiry_month = ccard.card_exp_month.peek().clone();
     let expiry_year = ccard.card_exp_year.peek().clone();
@@ -122,13 +122,14 @@ fn make_card_request(
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
+    let payment_product_id = 1;
     let card_payment_method_specific_input = CardPaymentMethod {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),
-        payment_product_id: 1,
+        payment_product_id,
     };
 
-    let customer = build_customer_info(&address.clone(), req.email.clone())?;
+    let customer = build_customer_info(address, &req.email)?;
 
     let order = Order {
         amount_of_money: AmountOfMoney {
@@ -151,39 +152,44 @@ fn make_card_request(
     })
 }
 
-fn build_customer_info(
-    payment_address: &PaymentAddress,
-    email: Option<Secret<String, Email>>,
-) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
-    let billing = payment_address
-        .billing
-        .clone()
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-    let address = billing
-        .address
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-    address
-        .country
-        .clone()
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+fn get_address(
+    payment_address: &types::PaymentAddress,
+) -> Option<(&api_models::Address, &api_models::AddressDetails)> {
+    let billing = payment_address.billing.as_ref()?;
+    let address = billing.address.as_ref()?;
+    address.country.as_ref()?;
+    Some((billing, address))
+}
 
-    let phone_country_code = billing.phone.clone().and_then(|phone| phone.country_code);
-    let number: Option<Secret<String>> = billing.phone.and_then(|phone| phone.number);
-    let number_with_country_code: Option<Secret<String>> = number.and_then(|number| {
-        phone_country_code.map(|cc| Secret::new(format!("{}{}", cc, number.peek())))
+fn build_customer_info(
+    payment_address: &types::PaymentAddress,
+    email: &Option<Secret<String, Email>>,
+) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
+    let (billing, address) =
+        get_address(payment_address).ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+
+    let number_with_country_code = billing.phone.as_ref().and_then(|phone| {
+        phone.number.as_ref().and_then(|number| {
+            phone
+                .country_code
+                .as_ref()
+                .map(|cc| Secret::new(format!("{}{}", cc, number.peek())))
+        })
     });
 
     Ok(Customer {
-        billing_address: BillingAddress { ..address.into() },
+        billing_address: BillingAddress {
+            ..address.clone().into()
+        },
         contact_details: Some(ContactDetails {
             mobile_phone_number: number_with_country_code,
-            email_address: email,
+            email_address: email.clone(),
         }),
     })
 }
 
-impl From<AddressDetails> for BillingAddress {
-    fn from(value: AddressDetails) -> Self {
+impl From<api_models::AddressDetails> for BillingAddress {
+    fn from(value: api_models::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -194,8 +200,8 @@ impl From<AddressDetails> for BillingAddress {
     }
 }
 
-impl From<AddressDetails> for Shipping {
-    fn from(value: AddressDetails) -> Self {
+impl From<api_models::AddressDetails> for Shipping {
+    fn from(value: api_models::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -237,21 +243,16 @@ impl TryFrom<&types::ConnectorAuthType> for AuthType {
     }
 }
 
-// PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     Captured,
     Paid,
-    #[serde(rename = "CHARGEBACK_NOTIFICATION")]
-    ChargeBackNotification,
+    ChargebackNotification,
     Cancelled,
     Rejected,
-    #[serde(rename = "CHARGEBACK_NOTIFICATION")]
     RejectedCapture,
-    #[serde(rename = "PENDING_APPROVAL")]
     PendingApproval,
-    #[serde(rename = "CAPTURE_REQUESTED")]
     CaptureRequested,
     #[default]
     Processing,
@@ -260,12 +261,11 @@ pub enum PaymentStatus {
 impl From<PaymentStatus> for enums::AttemptStatus {
     fn from(item: PaymentStatus) -> Self {
         match item {
-            PaymentStatus::Captured => Self::Charged,
-            PaymentStatus::Paid => Self::Charged,
-            PaymentStatus::ChargeBackNotification => Self::Charged,
+            PaymentStatus::Captured
+            | PaymentStatus::Paid
+            | PaymentStatus::ChargebackNotification => Self::Charged,
             PaymentStatus::Cancelled => Self::Voided,
-            PaymentStatus::Rejected => Self::Failure,
-            PaymentStatus::RejectedCapture => Self::Failure,
+            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
             PaymentStatus::CaptureRequested => Self::CaptureInitiated,
             PaymentStatus::PendingApproval => Self::Authorizing,
             _ => Self::Pending,
@@ -273,13 +273,34 @@ impl From<PaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct Payment {
     id: String,
     status: PaymentStatus,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status.clone()),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PaymentResponse {
     payment: Payment,
 }
@@ -305,8 +326,6 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
     }
 }
 
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct WorldlineRefundRequest {
     amount_of_money: AmountOfMoney,
@@ -324,9 +343,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
     }
 }
 
-// Type definition for Refund Response
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Cancelled,
@@ -340,14 +358,13 @@ impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Refunded => Self::Success,
-            RefundStatus::Cancelled => Self::Failure,
-            RefundStatus::Rejected => Self::Failure,
+            RefundStatus::Cancelled | RefundStatus::Rejected => Self::Failure,
             RefundStatus::Processing => Self::Pending,
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
@@ -389,7 +406,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//CANCEL :
 impl From<&PaymentResponse> for enums::AttemptStatus {
     fn from(item: &PaymentResponse) -> Self {
         if item.payment.status == PaymentStatus::Cancelled {
@@ -400,7 +416,7 @@ impl From<&PaymentResponse> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     pub code: Option<String>,
@@ -408,7 +424,7 @@ pub struct Error {
     pub message: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error_id: Option<String>,
