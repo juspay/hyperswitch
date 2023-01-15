@@ -63,4 +63,4 @@ max_read_count = 100
 
 [connectors.supported]
 wallets = ["klarna","braintree"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree", "cybersource", "fiserv"]
