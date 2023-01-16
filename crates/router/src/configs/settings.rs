@@ -134,6 +134,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
+    pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
 }
 
