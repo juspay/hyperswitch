@@ -15,3 +15,23 @@ key1 = "MyProcessingChannelId"
 
 [shift4]
 api_key = "Bearer MyApiKey"
+
+[worldpay]
+api_key = "Bearer MyApiKey"
+
+[payu]
+api_key = "Bearer MyApiKey"
+key1 = "MerchantPosId"
+
+[globalpay]
+api_key = "Bearer MyApiKey"
+
+[fiserv]
+api_key = "MyApiKey"
+key1 = "MerchantID"
+api_secret = "MySecretKey"
+
+[worldline]
+key1 = "Merchant Id"
+api_key = "API Key"
+api_secret = "API Secret Key"

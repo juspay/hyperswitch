@@ -139,19 +139,23 @@ impl ConnectorData {
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
-            "stripe" => Ok(Box::new(&connector::Stripe)),
-            "adyen" => Ok(Box::new(&connector::Adyen)),
             "aci" => Ok(Box::new(&connector::Aci)),
-            "checkout" => Ok(Box::new(&connector::Checkout)),
+            "adyen" => Ok(Box::new(&connector::Adyen)),
+            "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
-            "klarna" => Ok(Box::new(&connector::Klarna)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
+            "checkout" => Ok(Box::new(&connector::Checkout)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
+            "fiserv" => Ok(Box::new(&connector::Fiserv)),
+            "globalpay" => Ok(Box::new(&connector::Globalpay)),
+            "klarna" => Ok(Box::new(&connector::Klarna)),
+            "payu" => Ok(Box::new(&connector::Payu)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
-            _ => Err(report!(errors::UnexpectedError)
+            "stripe" => Ok(Box::new(&connector::Stripe)),
+            "worldline" => Ok(Box::new(&connector::Worldline)),
+            "worldpay" => Ok(Box::new(&connector::Worldpay)),
+            _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
-            .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }

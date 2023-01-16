@@ -28,7 +28,7 @@ pub mod date_time {
         PrimitiveDateTime::new(offset_time.date(), offset_time.time())
     }
 
-    /// Get the current time in unix timestamp format
+    /// Return the UNIX timestamp of the current date and time in UTC
     pub fn now_unix_timestamp() -> i64 {
         OffsetDateTime::now_utc().unix_timestamp()
     }

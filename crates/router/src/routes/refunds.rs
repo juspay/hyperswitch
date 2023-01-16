@@ -1,12 +1,25 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-use crate::{core::refunds::*, services::api, types::api::refunds};
+use crate::{
+    core::refunds::*,
+    services::{api, authentication as auth},
+    types::api::refunds,
+};
 
+/// Refunds - Create
+///
+/// To create a refund against an already processed payment
+#[utoipa::path(
+    post,
+    path = "/refunds",
+    request_body=RefundRequest,
+    responses(
+        (status = 200, description = "Refund created", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
 pub async fn refunds_create(
@@ -19,7 +32,7 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         refund_create_core,
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -40,7 +53,7 @@ pub async fn refunds_retrieve(
         |state, merchant_account, refund_id| {
             refund_response_wrapper(state, merchant_account, refund_id, refund_retrieve_core)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
@@ -50,7 +63,7 @@ pub async fn refunds_retrieve(
 pub async fn refunds_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<refunds::RefundRequest>,
+    json_payload: web::Json<refunds::RefundUpdateRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();
@@ -61,13 +74,25 @@ pub async fn refunds_update(
         |state, merchant_account, req| {
             refund_update_core(&*state.store, merchant_account, &refund_id, req)
         },
-        api::MerchantAuthentication::ApiKey,
+        &auth::ApiKeyAuth,
     )
     .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
 // #[get("/list")]
-pub async fn refunds_list() -> HttpResponse {
-    api::http_response_json("list")
+pub async fn refunds_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<api_models::refunds::RefundListRequest>,
+) -> HttpResponse {
+    api::server_wrap(
+        &state,
+        &req,
+        payload.into_inner(),
+        |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
+        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
+    )
+    .await
 }

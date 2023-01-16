@@ -2,13 +2,15 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
-use router_env::{tracing, tracing::instrument};
+use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -81,7 +83,90 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let id = req.request.connector_transaction_id.as_str();
+        Ok(format!(
+            "{}{}/{}/captures",
+            self.base_url(connectors),
+            "v68/payments",
+            id
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let adyen_req = utils::Encode::<adyen::AdyenCaptureRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(adyen_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCaptureRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenCaptureResponse = res
+            .response
+            .parse_struct("AdyenCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: adyen::ErrorResponse = res
+            .parse_struct("adyen::ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            code: response.error_code,
+            message: response.message,
+            reason: None,
+        })
+    }
 }
 
 impl
@@ -189,12 +274,15 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let is_manual_capture = false;
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_manual_capture,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -294,12 +382,16 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let is_manual_capture =
+            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Manual);
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_manual_capture,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -344,10 +436,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v68/cancel"))
+        let id = req.request.connector_transaction_id.as_str();
+        Ok(format!(
+            "{}v68/payments/{}/cancels",
+            self.base_url(connectors),
+            id
+        ))
     }
 
     fn get_request_body(
@@ -545,7 +642,8 @@ impl api::IncomingWebhook for Adyen {
 
         let base64_signature = notif_item.additional_data.hmac_signature;
 
-        let signature = base64::decode(base64_signature.as_bytes())
+        let signature = consts::BASE64_ENGINE
+            .decode(base64_signature.as_bytes())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
@@ -630,8 +728,9 @@ impl api::IncomingWebhook for Adyen {
 
     fn get_webhook_api_response(
         &self,
-    ) -> CustomResult<services::api::BachResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(services::api::BachResponse::TextPlain(
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
+        Ok(services::api::ApplicationResponse::TextPlain(
             "[accepted]".to_string(),
         ))
     }

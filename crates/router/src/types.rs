@@ -40,6 +40,8 @@ pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsCaptureResponseRouterData<R> =
+    ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
@@ -67,12 +69,13 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
+    pub attempt_id: Option<String>,
     pub status: storage_enums::AttemptStatus,
     pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub orca_return_url: Option<String>,
+    pub router_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<serde_json::Value>,
@@ -96,8 +99,6 @@ pub struct PaymentsAuthorizeData {
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    // redirect form not used https://juspay.atlassian.net/browse/ORCA-301
-    // pub redirection: Option<Redirection>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -111,7 +112,9 @@ pub struct PaymentsAuthorizeData {
 #[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
+    pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
+    pub amount: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -160,6 +163,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         redirect: bool,
         mandate_reference: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -192,13 +196,15 @@ impl ResponseId {
 #[derive(Debug, Clone)]
 pub struct RefundsData {
     pub refund_id: String,
-    pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
+    pub reason: Option<String>,
     /// Amount to be refunded
     pub refund_amount: i64,
+    /// Arbitrary metadata required for refund
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

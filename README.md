@@ -1,16 +1,16 @@
-# ORCA
+# hyperswitch
 
 [![Build Status][actions-badge]][actions-url]
 [![Apache 2.0 license][license-badge]][license-url]
 
-[actions-badge]: https://github.com/juspay/orca/workflows/CI/badge.svg
-[actions-url]: https://github.com/juspay/orca/actions?query=workflow%3ACI+branch%3Amain
-[license-badge]: https://img.shields.io/github/license/juspay/orca
-[license-url]: https://github.com/juspay/orca/blob/main/LICENSE
+[actions-badge]: https://github.com/juspay/hyperswitch/workflows/CI/badge.svg
+[actions-url]: https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain
+[license-badge]: https://img.shields.io/github/license/juspay/hyperswitch
+[license-url]: https://github.com/juspay/hyperswitch/blob/main/LICENSE
 
-Orca is a **_Payment Switch_** that lets you connect with **multiple payment processors with a single API integration**.
+hyperswitch is a **_Payment Switch_** that lets you connect with **multiple payment processors with a single API integration**.
 Once integrated, you can add new payment processors and route traffic effortlessly.
-Using Orca, you can:
+Using hyperswitch, you can:
 
 - Reduce dependency on a single processor like Stripe
 - Control & customize your payment flow with 100% visibility
@@ -19,10 +19,10 @@ Using Orca, you can:
 - Expand your business reach with new payment methods
 - Reduce development & testing efforts of adding new processors
 
-_Orca is wire-compatible with top processors like Stripe making it easy to integrate._
+_hyperswitch is wire-compatible with top processors like Stripe making it easy to integrate._
 
 <p align="center">
-<img src= "./docs/imgs/orca-product.png" alt="orca-product" width="40%" />
+<img src= "./docs/imgs/hyperswitch-product.png" alt="hyperswitch-product" width="40%" />
 </p>
 
 ## Table of Contents
@@ -30,7 +30,8 @@ _Orca is wire-compatible with top processors like Stripe making it easy to integ
 - [Quick Start Guide](#quick-start-guide)
 - [Supported Features](#supported-features)
 - [What's Included](#whats-included)
-- [Join us in building ORCA](#join-us-in-building-orca)
+- [Join us in building hyperswitch](#join-us-in-building-hyperswitch)
+- [Community](#community)
 - [Bugs and feature requests](#bugs-and-feature-requests)
 - [Versioning](#versioning)
 - [Copyright and License](#copyright-and-license)
@@ -39,144 +40,21 @@ _Orca is wire-compatible with top processors like Stripe making it easy to integ
 
 ### Try It Out
 
-**Step 1:** Use [**Orca Sandbox**](https://orca-test-app.netlify.app/) to create your account and test payments.
-Please save the API key for the next step.
+You have two options to try out hyperswitch:
 
-**Step 2:** Import our [**Postman Collection**](https://www.getpostman.com/collections/63d0d419ce1d1140fc9f) using the link below.
-(Please use the API key auth type.)
-
-```text
-https://www.getpostman.com/collections/63d0d419ce1d1140fc9f
-```
-
-### Installation Options
-
-**Option 1:** Self-hosting with **Docker Image**.
-_(This option is coming soon!!)_
-
-**Option 2:** Setup dev environment using **Docker Compose**:
-
-1. [Install Docker Compose](https://docs.docker.com/compose/install/).
-
-2. Clone the repository:
-
-   ```bash
-   git clone https://github.com/juspay/orca.git
-   ```
-
-   You might need to create a [Personal Access Token (PAT)](https://docs.github.com/en/enterprise-server@3.4/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) if you are prompted to authenticate.
-   Use the generated PAT as the password.
-
-3. [Optional] Configure your settings in [docker_compose.toml](./config/docker_compose.toml)
-
-4. Run the application and create an account:
-
-   1. Build and run Orca using Docker Compose:
-
-      ```bash
-      docker compose up -d
-      ```
-
-   2. Run database migrations:
-
-      ```bash
-      docker compose run orca-server bash -c "cargo install diesel_cli && diesel migration --database-url postgres://db_user:db_pass@pg:5432/orca_db run"
-      ```
-
-   3. Verify that the Orca server is up by checking your local server health:
-
-      ```bash
-      curl --location --request GET 'http://localhost:8080/health'
-      ```
-
-   4. Create your Merchant Account and get your account information:
-
-      ```bash
-      bash ./scripts/create_merchant_account.sh
-      ```
-
-#### Configure & Test
-
-5. Configure & test using your API key:
-
-   1. Add your Connector API keys in [`keys.conf`](./keys.conf) file.
-      You can fetch API keys from the Connector's Dashboard (say Stripe/Adyen/Checkout dashboard).
-
-   2. Configure the connector in your dev environment:
-
-      ```bash
-      bash ./scripts/create_connector_account.sh <connector_name> <your Orca merchant_id>
-      ```
-
-      Use the Orca merchant ID generated from the previous step.
-
-   3. Run a health check for your local server:
-
-      ```bash
-      curl --location --request GET 'http://localhost:8080/health'
-      ```
-
-   4. Update the below command with your Orca API key and perform a test transaction.
-      Refer our [Postman collection](https://www.getpostman.com/collections/63d0d419ce1d1140fc9f) to test more features (refunds, customers, payment methods etc.,)
-
-      ```bash
-      export API_KEY="<your api-key>"
-      curl --location --request POST "http://localhost:8080/payments" \
-      --header "Content-Type: application/json" \
-      --header "Accept: application/json" \
-      --header "api-key: ${API_KEY}" \
-      --data-raw '{
-      "amount": 6540,
-      "currency": "USD",
-      "confirm" :true,
-      "return_url": "https://juspay.io",
-      "payment_method": "card",
-      "payment_method_data": {
-         "card": {
-            "card_number": "4000056655665556",
-            "card_exp_month": "10",
-            "card_exp_year": "25",
-            "card_holder_name": "John Doe",
-            "card_cvc": "123"
-         }
-      }
-      }'
-      ```
-
-**Option 3:** Local setup:
-
-a. [For MacOS](/INSTALL_macos.md)
-
-b. [For Linux](/INSTALL_linux.md)
-
-<!-- 4. Install with **Setup Script**
-
-    a. Clone the repository
-    ```
-    git clone https://github.com/juspay/orca.git
-    ```
-
-    b. Execute script
-    ```
-    install orca.sh
-    ```
-
-    b. Create your Merchant Account
-    ```
-    create_merchant_account.sh
-    ```
-
-    c. [Configure & Test](#configure--test-the-setup) the setup using the api-key generated in Step 2 -->
+1. [Try out our sandbox environment](/docs/try_sandbox.md): Requires the least
+   effort and does not involve setting up anything on your system.
+2. [Try out hyperswitch on your local system](/docs/try_local_system.md):
+   Requires comparatively more effort as it involves setting up dependencies on
+   your system.
 
 ### Fast Integration for Stripe Users
 
-If you are already using Stripe, integrating with Orca is fun, fast & easy.
+If you are already using Stripe, integrating with hyperswitch is fun, fast & easy.
 Try the steps below to get a feel for how quick the setup is:
 
-1. Download Stripe's [demo app](https://stripe.com/docs/payments/quickstart)
-2. Change server and client SDK dependencies in your app
-3. Change API keys in your App
-4. [Configure & Test](#configure--test)
+1. Get API keys from our [dashboard](https://dashboard-hyperswitch.netlify.app).
+2. Follow the instructions detailed on our [documentation page](https://hyperswitch.io/docs).
 
 ## Supported Features
 
@@ -258,15 +136,15 @@ The current setup contains a single repo, which contains the core payment router
 └── target                       : generated files
 ```
 
-## Join us in building ORCA
+## Join us in building hyperswitch
 
 ### Our Belief
 
 **We believe payments should be open, fast and cheap.**
 
-Orca would allow everyone to quickly customize and set up an open payment switch, while giving a unified experience to your users, abstracting away the ever shifting payments landscape.
+hyperswitch would allow everyone to quickly customize and set up an open payment switch, while giving a unified experience to your users, abstracting away the ever shifting payments landscape.
 
-The Orca journey starts with a payment orchestrator.
+The hyperswitch journey starts with a payment orchestrator.
 It was born from our struggle to understand and integrate various payment options/payment processors/networks and banks, with varying degrees of documentation and inconsistent API semantics.
 
 ### Contributing
@@ -281,22 +159,19 @@ Important note for Rust developers: We aim for contributions from the community 
 Hence, we have prioritized simplicity and code readability over purely idiomatic code.
 For example, some of the code in core functions (e.g. `payments_core`) is written to be more readable rather than being pure-idiomatic.
 
-<!--
 ## Community
 
-Get updates on ORCA development and chat with the community:
+Get updates on hyperswitch development and chat with the community:
 
-- Join our Slack channel [Link]
-- Join our Discord channel [Link]
-- Follow @orca_juspay on Twitter [Link]
-- Read and subscribe to The Official Orca Blog [Link]
-- Ask and explore our GitHub Discussion [Link]
--->
+- Read and subscribe to [the official hyperswitch blog](https://blog.hyperswitch.io)
+- Join our [Discord server](https://discord.gg/wJZ7DVW8mm)
+- Join our [Slack workspace](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg)
+- Ask and explore our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
 ## Bugs and feature requests
 
-Please read the issue guidelines and search for [existing and closed issues](https://github.com/juspay/orca/issues).
-If your problem or idea is not addressed yet, please [open a new issue](https://github.com/juspay/orca/issues/new/choose).
+Please read the issue guidelines and search for [existing and closed issues](https://github.com/juspay/hyperswitch/issues).
+If your problem or idea is not addressed yet, please [open a new issue](https://github.com/juspay/hyperswitch/issues/new/choose).
 
 ## Versioning
 
