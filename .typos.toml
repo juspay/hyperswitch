@@ -8,6 +8,7 @@ PaymentVas = "PaymentVas"
 [default.extend-words]
 aci = "aci" # Name of a connector
 encrypter = "encrypter" # Used by the `ring` crate
+nin = "nin" # National identification number, a field used by PayU connector
 substituters = "substituters" # Present in `flake.nix`
 
 [files]
