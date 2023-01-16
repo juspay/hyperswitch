@@ -226,6 +226,7 @@ async fn test_rapyd_payment_failure() {
         &request,
         payments::CallConnectorAction::Trigger,
     )
-    .await;
-    assert!(response.is_err(), "The payment passed");
+    .await
+    .unwrap();
+    assert!(response.response.is_err(), "The payment passed");
 }
