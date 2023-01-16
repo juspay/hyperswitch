@@ -53,7 +53,7 @@ impl Worldline {
         Ok(format!("GCS v1HMAC:{api_key}:{signed_data}"))
     }
 
-    pub fn get_current_date_time(&self) -> CustomResult<String, errors::ConnectorError> {
+    pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
         let format = format_description::parse(
             "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
         )
@@ -118,7 +118,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let endpoint = url.clone().replace(base_url, "");
         let http_method = services::Method::Post;
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = self.get_current_date_time()?;
+        let date = Self::get_current_date_time()?;
         let content_type = types::PaymentsAuthorizeType::get_content_type(self);
         let signed_data: String =
             self.generate_authorization_token(auth, &http_method, content_type, &date, &endpoint)?;
@@ -201,7 +201,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let url = &types::PaymentsSyncType::get_url(self, req, connectors)?;
         let endpoint = url.clone().replace(base_url, "");
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = self.get_current_date_time()?;
+        let date = Self::get_current_date_time()?;
         let signed_data: String =
             self.generate_authorization_token(auth, &services::Method::Get, "", &date, &endpoint)?;
         Ok(vec![
@@ -301,7 +301,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let url = &types::PaymentsAuthorizeType::get_url(self, req, connectors)?;
         let endpoint = url.clone().replace(base_url, "");
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = self.get_current_date_time()?;
+        let date = Self::get_current_date_time()?;
         let content_type = types::PaymentsAuthorizeType::get_content_type(self);
         let signed_data: String = self.generate_authorization_token(
             auth,
@@ -407,7 +407,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let url = &types::RefundExecuteType::get_url(self, req, connectors)?;
         let endpoint = url.clone().replace(base_url, "");
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = self.get_current_date_time()?;
+        let date = Self::get_current_date_time()?;
         let content_type = types::RefundExecuteType::get_content_type(self);
         let signed_data: String = self.generate_authorization_token(
             auth,
@@ -507,7 +507,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let url = &types::RefundSyncType::get_url(self, req, connectors)?;
         let endpoint = url.clone().replace(base_url, "");
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = self.get_current_date_time()?;
+        let date = Self::get_current_date_time()?;
         let signed_data: String =
             self.generate_authorization_token(auth, &services::Method::Get, "", &date, &endpoint)?;
 
