@@ -723,7 +723,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         .customer_id
                         .ne(&payment_data.payment_intent.customer_id),
                     || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
                     },
                 )?;
                 payment_data.token = Some(token.to_string());
@@ -752,7 +752,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         .customer_id
                         .ne(&payment_data.payment_intent.customer_id),
                     || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
                     },
                 )?;
                 payment_data.token = Some(token.to_string());
