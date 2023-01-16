@@ -33,17 +33,17 @@ pub struct PaymentsRequest {
     #[schema(max_length = 255, example = "merchant_1668273825")]
     pub merchant_id: Option<String>,
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(value_type = Option<i64>, example = 6540)]
+    #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     pub amount: Option<Amount>,
-    /// The allows the merchant to manually select a connector with which the payment can go through
-    #[schema(value_type = Option<String>, max_length = 255, example = "stripe")]
+    /// This allows the merchant to manually select a connector with which the payment can go through
+    #[schema(max_length = 255, example = "stripe")]
     pub connector: Option<api_enums::Connector>,
     /// The currency of the payment request can be specified here
-    #[schema(value_type = Currency, example = "USD")]
+    #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method. Capture request may happen in three types: (1) AUTOMATIC: Post the payment authorization, the capture will be executed on the full amount immediately, (2) MANUAL: The capture will happen only if the merchant triggers a Capture API request, (3) SCHEDULED: The capture can be scheduled to automatically get triggered at a specific date & time
-    #[schema(value_type = CaptureMethod, example = "PaymentProcessor")]
+    #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
     pub capture_method: Option<api_enums::CaptureMethod>,
     /// The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     /// If not provided, the default amount_to_capture will be the payment amount.
@@ -70,9 +70,9 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
     pub phone: Option<Secret<String>>,
     /// The country code for the customer phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "+1")]
+    #[schema(max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
-    /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.
+    /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.
     #[schema(example = true)]
     pub off_session: Option<bool>,
     /// A description of the payment
@@ -82,16 +82,16 @@ pub struct PaymentsRequest {
     #[schema(example = "https://hyperswitch.io")]
     pub return_url: Option<String>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
-    #[schema(value_type = FutureUsage, example = "off_session")]
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     /// The transaction authentication can be set to undergo payer authentication. Possible values are: (i) THREE_DS: If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer, (ii) NO_THREE_DS: 3DS based authentication will not be activated. The liability of chargeback stays with the merchant. By default, the authentication will be marked as NO_THREE_DS
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
     pub payment_method_data: Option<PaymentMethod>,
     /// The payment method that is to be used
-    #[schema(value_type = PaymentMethodType, example = "bank_transfer")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "bank_transfer")]
     pub payment_method: Option<api_enums::PaymentMethodType>,
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
@@ -615,7 +615,7 @@ pub struct PaymentsResponse {
     #[schema()]
     pub mandate_data: Option<MandateData>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
-    #[schema(value_type = FutureUsage, example = "off_session")]
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.
     #[schema(example = true)]
