@@ -69,13 +69,16 @@ pub fn mk_add_card_request(
     customer_id: &str,
     _req: &api::CreatePaymentMethod,
     locker_id: &str,
-    _merchant_id: &str,
+    merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    #[cfg(feature = "sandbox")]
-    let customer_id = &format!("{}::{}", customer_id, _merchant_id);
+    let customer_id = if cfg!(feature = "sandbox") {
+        format!("{}::{}", customer_id, merchant_id)
+    } else {
+        customer_id.to_owned()
+    };
     let add_card_req = AddCardRequest {
         card_number: card.card_number.clone(),
-        customer_id,
+        customer_id: &customer_id,
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
