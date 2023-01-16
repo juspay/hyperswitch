@@ -106,6 +106,25 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for PublishableKeyAuth {
 pub struct JWTAuth;
 
 #[derive(serde::Deserialize)]
+struct JwtAuthPayloadFetchUnit {
+    #[serde(rename(deserialize = "exp"))]
+    _exp: u64,
+}
+
+#[async_trait]
+impl AuthenticateAndFetch<()> for JWTAuth {
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &AppState,
+    ) -> RouterResult<()> {
+        let mut token = get_jwt(request_headers)?;
+        token = strip_jwt_token(token)?;
+        decode_jwt::<JwtAuthPayloadFetchUnit>(token, state).map(|_| ())
+    }
+}
+
+#[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchMerchantAccount {
     merchant_id: String,
 }
@@ -144,17 +163,17 @@ impl ClientSecretFetch for ListPaymentMethodRequest {
     }
 }
 
-pub fn jwt_auth_or<T>(
+pub fn jwt_auth_or<'a, T>(
+    default_auth: &'a dyn AuthenticateAndFetch<T>,
     headers: &HeaderMap,
-    default_auth: Box<dyn AuthenticateAndFetch<T>>,
-) -> Box<dyn AuthenticateAndFetch<T>>
+) -> Box<&'a dyn AuthenticateAndFetch<T>>
 where
     JWTAuth: AuthenticateAndFetch<T>,
 {
     if is_jwt_auth(headers) {
-        return Box::new(JWTAuth);
+        return Box::new(&JWTAuth);
     }
-    default_auth
+    Box::new(default_auth)
 }
 
 pub fn get_auth_type_and_flow(

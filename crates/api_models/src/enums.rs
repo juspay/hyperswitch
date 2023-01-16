@@ -509,6 +509,7 @@ pub enum Connector {
     Payu,
     Shift4,
     Stripe,
+    Worldline,
     Worldpay,
 }
 
