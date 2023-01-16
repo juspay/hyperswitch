@@ -13,8 +13,9 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-static CARD_REJEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
+static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
+    // Reffered regex pattern from https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
     map.insert(
         CardProduct::AmericanExpress,
         Regex::new(r"^3[47][0-9]{13}$"),
@@ -48,7 +49,7 @@ pub struct Card {
 pub struct CardPaymentMethod {
     pub card: Card,
     pub requires_approval: bool,
-    pub payment_product_id: i16,
+    pub payment_product_id: u16,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -181,14 +182,14 @@ fn make_card_request(
 
 fn get_card_product_id(
     card_number: &str,
-) -> Result<i16, error_stack::Report<errors::ConnectorError>> {
-    for (k, v) in CARD_REJEX.iter() {
+) -> Result<u16, error_stack::Report<errors::ConnectorError>> {
+    for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         if regex.is_match(card_number) {
-            return Ok(k.value());
+            return Ok(k.product_id());
         }
     }
     Err(error_stack::Report::new(
@@ -487,7 +488,7 @@ pub enum CardProduct {
 }
 
 impl CardProduct {
-    fn value(&self) -> i16 {
+    fn product_id(&self) -> u16 {
         match *self {
             Self::AmericanExpress => 2,
             Self::Jcb => 125,

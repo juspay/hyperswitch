@@ -95,7 +95,7 @@ async fn should_requires_manual_authorization() {
     let response = WorldlineTest {}
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::Authorizing);
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
 }
 
 #[actix_web::test]
@@ -110,7 +110,7 @@ async fn should_auto_authorize_and_request_capture() {
     let response = WorldlineTest {}
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
 }
 
 #[actix_web::test]
@@ -144,7 +144,7 @@ async fn should_sync_manual_auth_payment() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::Authorizing);
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let sync_response = connector
         .sync_payment(
@@ -157,7 +157,7 @@ async fn should_sync_manual_auth_payment() {
             None,
         )
         .await;
-    assert!(sync_response.status == enums::AttemptStatus::Authorizing);
+    assert_eq!(sync_response.status, enums::AttemptStatus::Authorizing);
 }
 
 #[actix_web::test]
@@ -173,7 +173,7 @@ async fn should_sync_auto_auth_payment() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let sync_response = connector
         .sync_payment(
@@ -186,7 +186,7 @@ async fn should_sync_auto_auth_payment() {
             None,
         )
         .await;
-    assert!(sync_response.status == enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(sync_response.status, enums::AttemptStatus::CaptureInitiated);
 }
 
 #[actix_web::test]
@@ -213,12 +213,12 @@ async fn should_cancel_unauthorized_payment() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::Authorizing);
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
         .await;
-    assert!(cancel_response.status == enums::AttemptStatus::Voided);
+    assert_eq!(cancel_response.status, enums::AttemptStatus::Voided);
 }
 
 #[actix_web::test]
@@ -234,12 +234,12 @@ async fn should_cancel_uncaptured_payment() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
         .await;
-    assert!(cancel_response.status == enums::AttemptStatus::Voided);
+    assert_eq!(cancel_response.status, enums::AttemptStatus::Voided);
 }
 
 #[actix_web::test]
@@ -266,7 +266,7 @@ async fn should_fail_refund_with_invalid_payment_status() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert!(response.status == enums::AttemptStatus::Authorizing);
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let refund_response = connector
         .refund_payment(connector_payment_id, None, None)
