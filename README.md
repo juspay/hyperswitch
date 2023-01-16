@@ -164,7 +164,7 @@ For example, some of the code in core functions (e.g. `payments_core`) is writte
 Get updates on hyperswitch development and chat with the community:
 
 - Read and subscribe to [the official hyperswitch blog](https://blog.hyperswitch.io)
-- Join our [Discord server](https://discord.gg/XbHNKqeAjE)
+- Join our [Discord server](https://discord.gg/wJZ7DVW8mm)
 - Join our [Slack workspace](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg)
 - Ask and explore our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
