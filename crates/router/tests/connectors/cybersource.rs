@@ -133,8 +133,8 @@ async fn should_capture_already_authorized_payment() {
                 .status
         })
         .into();
-    assert_eq!(response.await, Some(enums::AttemptStatus::Pending));
     //cybersource takes sometime to settle the transaction,so it will be in pending for long time
+    assert_eq!(response.await, Some(enums::AttemptStatus::Pending));
 }
 
 #[actix_web::test]

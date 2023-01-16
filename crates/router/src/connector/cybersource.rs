@@ -47,25 +47,16 @@ impl Cybersource {
             api_secret,
         } = auth;
         let is_post_method = matches!(http_method, services::Method::Post);
-        let headers = vec![
-            "host date (request-target) ",
-            if is_post_method { "digest " } else { "" },
-            "v-c-merchant-id",
-        ]
-        .join("");
+        let digest_str = if is_post_method { "digest " } else { "" };
+        let headers = format!("host date (request-target) {digest_str}v-c-merchant-id");
         let request_target = if is_post_method {
-            format!(
-                "(request-target): post {resource}\n\
-                digest: SHA-256={payload}\n"
-            )
+            format!("(request-target): post {resource}\ndigest: SHA-256={payload}\n")
         } else {
             format!("(request-target): get {resource}\n")
         };
         let signature_string = format!(
-            "host: {host}\n\
-             date: {date}\n"
-        ) + &(request_target
-            + &format!("v-c-merchant-id: {merchant_account}"));
+            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {merchant_account}"
+        );
         let key_value = consts::BASE64_ENGINE
             .decode(api_secret)
             .into_report()
@@ -122,8 +113,7 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let date = OffsetDateTime::now_utc();
         let cybersource_req = self.get_request_body(req)?;
-        let auth: cybersource::CybersourceAuthType =
-            cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
+        let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.cybersource.base_url.as_str();
         let cybersource_host = Url::parse(base_url)
@@ -158,14 +148,13 @@ where
                 headers::ACCEPT.to_string(),
                 "application/hal+json;charset=utf-8".to_string(),
             ),
-            ("Digest".to_string(), format!("SHA-256={}", sha256)),
             ("v-c-merchant-id".to_string(), merchant_account),
             ("Date".to_string(), date.to_string()),
             ("Host".to_string(), host.to_string()),
             ("Signature".to_string(), signature),
         ];
-        if matches!(http_method, services::Method::Get) {
-            headers.remove(2);
+        if matches!(http_method, services::Method::Post | services::Method::Put) {
+            headers.push(("Digest".to_string(), format!("SHA-256={}", sha256)));
         }
         Ok(headers)
     }
@@ -569,7 +558,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             &req_obj,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("{:?}", req);
         Ok(Some(req))
     }
     fn build_request(

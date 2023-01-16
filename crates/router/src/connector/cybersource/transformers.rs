@@ -28,8 +28,8 @@ pub struct ProcessingInformation {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureOptions {
-    capture_sequence_number: i32,
-    total_capture_count: i32,
+    capture_sequence_number: u32,
+    total_capture_count: u32,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
