@@ -45,7 +45,7 @@ impl Worldline {
         let worldline::AuthType {
             api_key,
             api_secret,
-            merchant_account_id: _,
+            ..
         } = auth;
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
         let signed_data = consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_data.as_bytes()));

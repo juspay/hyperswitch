@@ -16,20 +16,12 @@ use crate::{
 static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+    // To do https://github.com/juspay/hyperswitch/issues/379
+    map.insert(CardProduct::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
     map.insert(
         CardProduct::AmericanExpress,
         Regex::new(r"^3[47][0-9]{13}$"),
     );
-    map.insert(
-        CardProduct::Jcb,
-        Regex::new(r"^(?:2131|1800|35\d{3})\d{11}$"),
-    );
-    map.insert(
-        CardProduct::Maestro,
-        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-    );
-    map.insert(CardProduct::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(CardProduct::UnionPay, Regex::new(r"^(62[0-9]{14,17})$"));
     map.insert(CardProduct::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
     map.insert(CardProduct::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
     map
@@ -139,10 +131,9 @@ fn make_card_request(
     req: &types::PaymentsAuthorizeData,
     ccard: &api_models::CCard,
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let card_number = ccard.card_number.peek().clone();
-    let expiry_month = ccard.card_exp_month.peek().clone();
+    let card_number = ccard.card_number.peek().as_ref();
     let expiry_year = ccard.card_exp_year.peek().clone();
-    let secret_value = expiry_month + &expiry_year[2..];
+    let secret_value = format!("{}{}", ccard.card_exp_month.peek(), &expiry_year[2..]);
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
@@ -150,7 +141,7 @@ fn make_card_request(
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
-    let payment_product_id = get_card_product_id(&card_number)?;
+    let payment_product_id = get_card_product_id(card_number)?;
     let card_payment_method_specific_input = CardPaymentMethod {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),
@@ -167,10 +158,10 @@ fn make_card_request(
         customer,
     };
 
-    let shipping: Option<Shipping> = address
-        .clone()
+    let shipping = address
         .shipping
-        .and_then(|shipping| shipping.address)
+        .as_ref()
+        .and_then(|shipping| shipping.address.clone())
         .map(|address| Shipping { ..address.into() });
 
     Ok(PaymentsRequest {
@@ -479,10 +470,7 @@ pub struct ErrorResponse {
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub enum CardProduct {
     AmericanExpress,
-    Jcb,
-    Maestro,
     Master,
-    UnionPay,
     Visa,
     Discover,
 }
@@ -491,10 +479,7 @@ impl CardProduct {
     fn product_id(&self) -> u16 {
         match *self {
             Self::AmericanExpress => 2,
-            Self::Jcb => 125,
-            Self::Maestro => 117,
             Self::Master => 3,
-            Self::UnionPay => 56,
             Self::Visa => 1,
             Self::Discover => 128,
         }
