@@ -3,7 +3,10 @@ use error_stack::IntoReport;
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
-    core::errors::{self, CustomResult},
+    core::{
+        customers::REDACTED,
+        errors::{self, CustomResult},
+    },
     types::storage,
 };
 
@@ -48,10 +51,21 @@ impl CustomerInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let maybe_customer = storage::Customer::find_optional_by_customer_id_merchant_id(
+            &conn,
+            customer_id,
+            merchant_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()?;
+        maybe_customer.map_or(Ok(None), |customer| {
+            if customer.name == Some(REDACTED.to_string()) {
+                Err(errors::StorageError::CustomerRedacted)?
+            } else {
+                Ok(Some(customer))
+            }
+        })
     }
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -78,10 +92,16 @@ impl CustomerInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let customer =
+            storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()?;
+        if customer.name == Some(REDACTED.to_string()) {
+            Err(errors::StorageError::CustomerRedacted)?
+        } else {
+            Ok(customer)
+        }
     }
 
     async fn insert_customer(

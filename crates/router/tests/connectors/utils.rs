@@ -78,8 +78,8 @@ pub trait ConnectorActions: Connector {
         let request = self.generate_data(
             payment_data.unwrap_or(types::PaymentsCaptureData {
                 amount_to_capture: Some(100),
-                connector_transaction_id: transaction_id,
                 currency: enums::Currency::USD,
+                connector_transaction_id: transaction_id,
                 amount: 100,
             }),
             payment_info,

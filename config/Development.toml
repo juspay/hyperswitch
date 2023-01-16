@@ -43,7 +43,7 @@ locker_decryption_key2 = ""
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv"]
 
 [refund]
 max_attempts = 10
@@ -85,11 +85,15 @@ base_url = "https://api.shift4.com/"
 [connectors.rapyd]
 base_url = "https://sandboxapi.rapyd.net"
 
+[connectors.fiserv]
+base_url = "https://cert.api.fiservapps.com/"
+
 [connectors.worldpay]
 base_url = "http://localhost:9090/"
 
 [connectors.payu]
 base_url = "https://secure.snd.payu.com/api/"
+
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
