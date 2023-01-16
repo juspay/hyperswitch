@@ -196,3 +196,47 @@ async fn should_sync_refund() {
         enums::RefundStatus::Pending, //cybersource takes sometime to refund the transaction,so it will be in pending state for long time
     );
 }
+
+#[actix_web::test]
+async fn should_fail_payment_for_incorrect_card_number() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("424242442424242".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
+            get_default_payment_info(),
+        )
+        .await;
+    assert_eq!(response.status, enums::AttemptStatus::Failure);
+    let x = response.response.unwrap_err();
+    assert_eq!(
+        x.message,
+        "Decline - Invalid account number".to_string(),
+    );
+}
+
+#[actix_web::test]
+async fn should_fail_payment_for_incorrect_exp_month() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("4242424242424242".to_string()),
+                    card_exp_month: Secret::new("101".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
+            get_default_payment_info(),
+        )
+        .await;
+    let x = response.response.unwrap_err();
+    assert_eq!(
+        x.message,
+        "[{\"field\":\"paymentInformation.card.expirationMonth\",\"reason\":\"INVALID_DATA\"}]".to_string(),
+    );
+}

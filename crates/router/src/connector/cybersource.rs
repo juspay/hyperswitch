@@ -94,9 +94,7 @@ impl ConnectorCommon for Cybersource {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
-            message: response
-                .message
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            message: response.details.to_string(),
             reason: None,
         })
     }
@@ -426,16 +424,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Bytes,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::ErrorResponse = res
-            .parse_struct("Cybersource ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response
-                .message
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 

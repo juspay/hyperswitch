@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self, AddressDetailsData, PaymentsRequestData, PhoneDetailsData},
     core::errors,
     pii::PeekInterface,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums}, consts,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -233,6 +233,7 @@ pub enum CybersourcePaymentStatus {
     Voided,
     Reversed,
     Pending,
+    Declined,
     Transmitted,
     #[default]
     Processing,
@@ -246,7 +247,7 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
                 Self::Charged
             }
             CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
-            CybersourcePaymentStatus::Failed => Self::Failure,
+            CybersourcePaymentStatus::Failed | CybersourcePaymentStatus::Declined => Self::Failure,
             CybersourcePaymentStatus::Processing => Self::Authorizing,
             CybersourcePaymentStatus::Pending => Self::Pending,
         }
@@ -264,9 +265,17 @@ impl From<CybersourcePaymentStatus> for enums::RefundStatus {
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
+    error_information: Option<CybersourceErrorInformation>
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+pub struct CybersourceErrorInformation {
+    reason: String,
+    message: String,
 }
 
 impl<F, T>
@@ -285,13 +294,20 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: item.response.status.into(),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                redirect: false,
-                mandate_reference: None,
-                connector_metadata: None,
-            }),
+            response: match item.response.error_information {
+                Some(error) => Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error.message,
+                    reason: Some(error.reason),
+                }),
+                _ => Ok( types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    redirection_data: None,
+                    redirect: false,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                })
+            },
             ..item.data
         })
     }
@@ -349,6 +365,7 @@ pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: String,
     pub message: Option<String>,
+    pub details: serde_json::Value
 }
 
 #[derive(Debug, Default, Deserialize)]
