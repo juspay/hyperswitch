@@ -51,6 +51,7 @@ pub enum AttemptStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -72,6 +73,7 @@ pub enum AuthenticationType {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -94,6 +96,7 @@ pub enum CaptureMethod {
     serde::Deserialize,
     serde::Serialize,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -262,6 +265,7 @@ pub enum EventType {
     Default,
     Eq,
     PartialEq,
+    ToSchema,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -294,6 +298,7 @@ pub enum IntentStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -396,6 +401,7 @@ pub enum PaymentMethodType {
     Eq,
     Hash,
     PartialEq,
+    ToSchema,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,

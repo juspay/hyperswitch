@@ -26,7 +26,7 @@ pub struct CreateMerchantAccount {
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
-    #[schema(max_length = 255, example = "www.example.com/success")]
+    #[schema(max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
     /// Webhook related details

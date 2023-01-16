@@ -9,6 +9,18 @@ use crate::{
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
+/// Payments - Create
+///
+/// To create a new payment, against a merchant API key
+#[utoipa::path(
+    post,
+    path = "/payments",
+    request_body=PaymentsRequest,
+    responses(
+        (status = 200, description = "Payment created", body = PaymentsResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
 pub async fn payments_create(
