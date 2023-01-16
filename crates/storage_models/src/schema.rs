@@ -343,18 +343,6 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    temp_card (id) {
-        id -> Int4,
-        date_created -> Timestamp,
-        txn_id -> Nullable<Varchar>,
-        card_info -> Nullable<Json>,
-    }
-}
-
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     configs,
@@ -371,5 +359,4 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
-    temp_card,
 );

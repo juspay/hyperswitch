@@ -106,6 +106,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
+        helpers::validate_customer_id_mandatory_cases(
+            request.shipping.is_some(),
+            request.billing.is_some(),
+            request.setup_future_usage.is_some(),
+            &payment_intent
+                .customer_id
+                .clone()
+                .or_else(|| request.customer_id.clone()),
+        )?;
+
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
@@ -122,18 +132,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_intent.customer_id,
         )
         .await?;
-
-        helpers::validate_customer_id_mandatory_cases_storage(
-            &shipping_address,
-            &billing_address,
-            &payment_intent
-                .setup_future_usage
-                .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
-            &payment_intent
-                .customer_id
-                .clone()
-                .or_else(|| request.customer_id.clone()),
-        )?;
 
         connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
@@ -368,6 +366,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
+
+        helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;

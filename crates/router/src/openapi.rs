@@ -30,7 +30,7 @@ Use the following base URLs when making requests to the APIs:
 
 ## Authentication
 
-When you sign up on our [dashboard](https://orca-dahboard.netlify.app) and create a merchant
+When you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant
 account, you are given a secret key (also referred as api-key).
 You may authenticate all API requests with Juspay server by providing the appropriate key in the
 request Authorization header.
