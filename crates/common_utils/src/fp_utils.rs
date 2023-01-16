@@ -1,3 +1,5 @@
+//! Functional programming utilities
+
 pub trait Applicative<R> {
     type WrappedSelf<T>;
 
