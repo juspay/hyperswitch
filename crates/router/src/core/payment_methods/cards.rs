@@ -303,7 +303,7 @@ pub async fn get_card_from_legacy_locker<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while executing call_connector_api for get_card");
 
-        response.get_response_inner(ConnectorResponseExt::get_response, "AddCardResponse")?
+        response.get_response_inner("AddCardResponse")?
     } else {
         let (get_card_response, _) = mock_get_card(&*state.store, card_id)
             .await
@@ -330,7 +330,7 @@ pub async fn delete_card<'a>(
     let delete_card_resp = if !locker.mock_locker {
         services::call_connector_api(state, request)
             .await
-            .get_response_inner(ConnectorResponseExt::get_response, "DeleteCardResponse")?
+            .get_response_inner("DeleteCardResponse")?
     } else {
         mock_delete_card(&*state.store, card_id)
             .await
