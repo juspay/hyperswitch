@@ -92,7 +92,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 }
 
 #[actix_web::test]
-#[ignore]
 async fn test_rapyd_payment_success() {
     use router::{configs::settings::Settings, connector::Rapyd, services};
 
@@ -100,7 +99,7 @@ async fn test_rapyd_payment_success() {
     static CV: Rapyd = Rapyd;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
-        connector_name: types::Connector::Checkout,
+        connector_name: types::Connector::Rapyd,
         get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
@@ -130,7 +129,6 @@ async fn test_rapyd_payment_success() {
 }
 
 #[actix_web::test]
-#[ignore]
 async fn test_rapyd_refund_success() {
     // Successful payment
     use router::{configs::settings::Settings, connector::Rapyd, services};
@@ -200,7 +198,7 @@ async fn test_rapyd_refund_success() {
 }
 
 #[actix_web::test]
-async fn test_checkout_payment_failure() {
+async fn test_rapyd_payment_failure() {
     use router::{configs::settings::Settings, connector::Rapyd, services};
 
     let conf = Settings::new().expect("invalid settings");
