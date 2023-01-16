@@ -527,17 +527,20 @@ pub enum Connector {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum SupportedConnectors {
+pub enum RoutableConnectors {
     Aci,
     Adyen,
     Authorizedotnet,
     Braintree,
     Checkout,
     Cybersource,
+    Fiserv,
     Globalpay,
     Klarna,
+    Payu,
     Shift4,
     Stripe,
+    Worldline,
     Worldpay,
 }
 

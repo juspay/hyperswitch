@@ -593,7 +593,6 @@ pub async fn get_customer_from_details(
 }
 
 pub async fn get_connector_default(
-    _merchant_account: &storage::MerchantAccount,
     state: &AppState,
     request_connector: Option<api_enums::Connector>,
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
