@@ -340,8 +340,9 @@ pub async fn refund_update_core(
     let response = db
         .update_refund(
             refund,
-            storage::RefundUpdate::MetadataUpdate {
+            storage::RefundUpdate::MetadataAndReasonUpdate {
                 metadata: req.metadata,
+                reason: req.reason,
             },
             merchant_account.storage_scheme,
         )

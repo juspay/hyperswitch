@@ -1,10 +1,8 @@
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::report;
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::{
     core::errors,
-    services,
     types::{self, storage::enums},
 };
 
@@ -19,8 +17,9 @@ pub struct KlarnaPaymentsRequest {
 #[derive(Default, Debug, Deserialize)]
 pub struct KlarnaPaymentsResponse {
     order_id: String,
-    redirection_url: String,
+    fraud_status: KlarnaFraudStatus,
 }
+
 #[derive(Serialize)]
 pub struct KlarnaSessionRequest {
     intent: KlarnaSessionIntent,
@@ -112,27 +111,15 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let url = Url::parse(&response.redirection_url)
-            .into_report()
-            .change_context(errors::ParsingError)
-            .attach_printable("Could not parse the redirection data")?;
-        let redirection_data = services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
-        };
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
-                redirect: true,
-                redirection_data: Some(redirection_data),
+                redirect: false,
+                redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
+            status: item.response.fraud_status.into(),
             ..item.data
         })
     }
@@ -172,20 +159,18 @@ impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum KlarnaPaymentStatus {
-    Succeeded,
-    Failed,
+#[serde(rename_all = "UPPERCASE")]
+pub enum KlarnaFraudStatus {
+    Accepted,
     #[default]
-    Processing,
+    Pending,
 }
 
-impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
-    fn from(item: KlarnaPaymentStatus) -> Self {
+impl From<KlarnaFraudStatus> for enums::AttemptStatus {
+    fn from(item: KlarnaFraudStatus) -> Self {
         match item {
-            KlarnaPaymentStatus::Succeeded => Self::Charged,
-            KlarnaPaymentStatus::Failed => Self::Failure,
-            KlarnaPaymentStatus::Processing => Self::Authorizing,
+            KlarnaFraudStatus::Accepted => Self::Charged,
+            KlarnaFraudStatus::Pending => Self::Authorizing,
         }
     }
 }
