@@ -105,7 +105,7 @@ pub async fn get_customer_mandates(
         |state, merchant_account, req| {
             crate::core::mandate::get_customer_mandates(state, merchant_account, req)
         },
-        &auth::ApiKeyAuth,
+        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
     )
     .await
 }
