@@ -233,6 +233,7 @@ async fn send_request(
                     logger::debug!(?url_encoded_payload);
                     client.body(url_encoded_payload).send()
                 }
+                // If payload needs processing the body cannot have default
                 None => client
                     .body(request.payload.expose_option().unwrap_or_default())
                     .send(),
@@ -240,7 +241,14 @@ async fn send_request(
             .await
         }
 
-        Method::Put => client.put(url).add_headers(headers).send().await,
+        Method::Put => {
+            client
+                .put(url)
+                .add_headers(headers)
+                .body(request.payload.expose_option().unwrap_or_default()) // If payload needs processing the body cannot have default
+                .send()
+                .await
+        }
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
     .map_err(|error| match error {
@@ -260,7 +268,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             match status_code {
-                200..=202 => {
+                200..=202 | 302 => {
                     logger::debug!(response=?response);
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);
