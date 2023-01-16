@@ -68,6 +68,7 @@ tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 utoipa = { git = "https://github.com/SanchithHegde/utoipa", branch = "retain-property-order" }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
+regex = "1.7.1"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }

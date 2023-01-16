@@ -1,12 +1,38 @@
+use std::collections::HashMap;
+
 use api_models::payments as api_models;
 use common_utils::pii::{self, Email};
+use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
     types::{self, api, storage::enums},
 };
+
+static CARD_REJEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    map.insert(
+        CardProduct::AmericanExpress,
+        Regex::new(r"^3[47][0-9]{13}$"),
+    );
+    map.insert(
+        CardProduct::Jcb,
+        Regex::new(r"^(?:2131|1800|35\d{3})\d{11}$"),
+    );
+    map.insert(
+        CardProduct::Maestro,
+        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+    );
+    map.insert(CardProduct::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
+    map.insert(CardProduct::UnionPay, Regex::new(r"^(62[0-9]{14,17})$"));
+    map.insert(CardProduct::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
+    map.insert(CardProduct::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+    map
+});
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +138,7 @@ fn make_card_request(
     req: &types::PaymentsAuthorizeData,
     ccard: &api_models::CCard,
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let card_number = ccard.card_number.peek().clone();
     let expiry_month = ccard.card_exp_month.peek().clone();
     let expiry_year = ccard.card_exp_year.peek().clone();
     let secret_value = expiry_month + &expiry_year[2..];
@@ -122,7 +149,7 @@ fn make_card_request(
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
-    let payment_product_id = 1;
+    let payment_product_id = get_card_product_id(&card_number)?;
     let card_payment_method_specific_input = CardPaymentMethod {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),
@@ -150,6 +177,23 @@ fn make_card_request(
         order,
         shipping,
     })
+}
+
+fn get_card_product_id(
+    card_number: &str,
+) -> Result<i16, error_stack::Report<errors::ConnectorError>> {
+    for (k, v) in CARD_REJEX.iter() {
+        let regex: Regex = v
+            .clone()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        if regex.is_match(card_number) {
+            return Ok(k.value());
+        }
+    }
+    Err(error_stack::Report::new(
+        errors::ConnectorError::RequestEncodingFailed,
+    ))
 }
 
 fn get_address(
@@ -429,4 +473,29 @@ pub struct Error {
 pub struct ErrorResponse {
     pub error_id: Option<String>,
     pub errors: Vec<Error>,
+}
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub enum CardProduct {
+    AmericanExpress,
+    Jcb,
+    Maestro,
+    Master,
+    UnionPay,
+    Visa,
+    Discover,
+}
+
+impl CardProduct {
+    fn value(&self) -> i16 {
+        match *self {
+            Self::AmericanExpress => 2,
+            Self::Jcb => 125,
+            Self::Maestro => 117,
+            Self::Master => 3,
+            Self::UnionPay => 56,
+            Self::Visa => 1,
+            Self::Discover => 128,
+        }
+    }
 }
