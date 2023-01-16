@@ -15,7 +15,7 @@ use crate::{
 
 static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    // Reffered regex pattern from https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
     map.insert(
         CardProduct::AmericanExpress,
         Regex::new(r"^3[47][0-9]{13}$"),
