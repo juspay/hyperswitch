@@ -211,13 +211,18 @@ impl MerchantConnectorAccount {
                     .route(web::get().to(payment_connector_list)),
             )
             .service(
-                web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
-            )
-            .service(
                 web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
                     .route(web::get().to(payment_connector_retrieve))
                     .route(web::post().to(payment_connector_update))
                     .route(web::delete().to(payment_connector_delete)),
+            )
+    }
+
+    pub fn oltp_server(state: AppState) -> Scope {
+        web::scope("/account")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
             )
     }
 }
@@ -236,6 +241,7 @@ impl EphemeralKey {
 pub struct Mandates;
 
 impl Mandates {
+    #[cfg(feature = "olap")]
     pub fn olap_server(state: AppState) -> Scope {
         web::scope("/mandates")
             .app_data(web::Data::new(state))

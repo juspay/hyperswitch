@@ -10,4 +10,5 @@ mod payu;
 mod rapyd;
 mod shift4;
 mod utils;
+mod worldline;
 mod worldpay;

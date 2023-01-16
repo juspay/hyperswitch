@@ -510,6 +510,7 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Stripe,
+    Worldline,
     Worldpay,
 }
 
