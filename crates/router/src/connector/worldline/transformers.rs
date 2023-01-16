@@ -16,7 +16,7 @@ use crate::{
 static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-    // To do https://github.com/juspay/hyperswitch/issues/379
+    // [#379]: Determine card issuer from card BIN number
     map.insert(CardProduct::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
     map.insert(
         CardProduct::AmericanExpress,
