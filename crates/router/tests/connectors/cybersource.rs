@@ -213,10 +213,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .await;
     assert_eq!(response.status, enums::AttemptStatus::Failure);
     let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "Decline - Invalid account number".to_string(),
-    );
+    assert_eq!(x.message, "Decline - Invalid account number".to_string(),);
 }
 
 #[actix_web::test]
@@ -237,6 +234,7 @@ async fn should_fail_payment_for_incorrect_exp_month() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        "[{\"field\":\"paymentInformation.card.expirationMonth\",\"reason\":\"INVALID_DATA\"}]".to_string(),
+        r#"[{"field":"paymentInformation.card.expirationMonth","reason":"INVALID_DATA"}]"#
+            .to_string(),
     );
 }

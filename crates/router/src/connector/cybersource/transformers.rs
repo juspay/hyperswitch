@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, AddressDetailsData, PaymentsRequestData, PhoneDetailsData},
+    consts,
     core::errors,
     pii::PeekInterface,
-    types::{self, api, storage::enums}, consts,
+    types::{self, api, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -269,7 +270,7 @@ impl From<CybersourcePaymentStatus> for enums::RefundStatus {
 pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
-    error_information: Option<CybersourceErrorInformation>
+    error_information: Option<CybersourceErrorInformation>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -300,13 +301,13 @@ impl<F, T>
                     message: error.message,
                     reason: Some(error.reason),
                 }),
-                _ => Ok( types::PaymentsResponseData::TransactionResponse {
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                     redirection_data: None,
                     redirect: false,
                     mandate_reference: None,
                     connector_metadata: None,
-                })
+                }),
             },
             ..item.data
         })
@@ -365,7 +366,7 @@ pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: String,
     pub message: Option<String>,
-    pub details: serde_json::Value
+    pub details: serde_json::Value,
 }
 
 #[derive(Debug, Default, Deserialize)]
