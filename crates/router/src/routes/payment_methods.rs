@@ -48,7 +48,7 @@ pub async fn list_payment_method_api(
         |state, merchant_account, req| {
             cards::list_payment_methods(&*state.store, merchant_account, req)
         },
-        &*auth,
+        *auth::jwt_auth_or(&*auth, req.headers()),
     )
     .await
 }
