@@ -93,6 +93,9 @@ base_url = "https://secure.snd.payu.com/api/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.worldline]
+base_url = "https://eu.sandbox.api-ingenico.com/"
+
 [scheduler]
 stream = "SCHEDULER_STREAM"
 consumer_group = "SCHEDULER_GROUP"
