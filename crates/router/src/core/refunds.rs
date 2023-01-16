@@ -527,6 +527,8 @@ impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
             status,
             metadata: None,
             error_message,
+            created_at: None,
+            updated_at: None,
         })
     }
 }
@@ -543,6 +545,8 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
             status: refund.refund_status.foreign_into(),
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
+            created_at: Some(refund.created_at),
+            updated_at: Some(refund.updated_at),
         }
         .into()
     }
