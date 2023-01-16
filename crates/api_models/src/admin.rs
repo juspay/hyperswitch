@@ -32,7 +32,7 @@ pub struct CreateMerchantAccount {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// The custom routing rules to be used for various payment methods and conditions
+    /// The routing algorithm to be used for routing payments to desired connectors
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
