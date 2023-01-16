@@ -345,7 +345,9 @@
             "example": "AH3423bkjbkjdsfbkj"
           },
           "locker_id": {
-            "type": "string"
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
           }
         }
       },
@@ -816,7 +818,9 @@
             "example": "AH3423bkjbkjdsfbkj"
           },
           "locker_id": {
-            "type": "string"
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
           }
         }
       },
