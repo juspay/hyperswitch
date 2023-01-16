@@ -93,7 +93,7 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 #[serial]
-async fn should_void_already_authorized_payment() {
+async fn voiding_already_authorized_payment_fails() {
     let connector = Rapyd {};
     let authorize_response = connector.authorize_payment(None, None).await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
