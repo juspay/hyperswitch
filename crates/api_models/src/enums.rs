@@ -56,8 +56,10 @@ pub enum AttemptStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
+    /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
     #[default]
     ThreeDs,
+    /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
     NoThreeDs,
 }
 
@@ -78,10 +80,14 @@ pub enum AuthenticationType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureMethod {
+    /// Post the payment authorization, the capture will be executed on the full amount immediately
     #[default]
     Automatic,
+    /// The capture will happen only if the merchant triggers a Capture API request
     Manual,
+    /// The capture will happen only if the merchant triggers a Capture API request
     ManualMultiple,
+    /// The capture can be scheduled to automatically get triggered at a specific date & time
     Scheduled,
 }
 
@@ -491,6 +497,7 @@ pub enum MandateStatus {
     Default,
     Eq,
     PartialEq,
+    ToSchema,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,

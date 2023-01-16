@@ -37,7 +37,7 @@ pub struct PaymentsRequest {
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     pub amount: Option<Amount>,
     /// This allows the merchant to manually select a connector with which the payment can go through
-    #[schema(max_length = 255, example = "stripe")]
+    #[schema(value_type = Option<Connector>, max_length = 255, example = "stripe")]
     pub connector: Option<api_enums::Connector>,
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
@@ -100,10 +100,8 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<String>)]
     pub card_cvc: Option<Secret<String>>,
     /// The shipping address for the payment
-    #[schema()]
     pub shipping: Option<Address>,
     /// The billing address for the payment
-    #[schema()]
     pub billing: Option<Address>,
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 255, example = "Juspay Router")]
@@ -112,21 +110,19 @@ pub struct PaymentsRequest {
     #[schema(max_length = 255, example = "Payment for shoes purchase")]
     pub statement_descriptor_suffix: Option<String>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema()]
     pub metadata: Option<Metadata>,
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<String>,
     /// Provide mandate information for creating a mandate
-    #[schema()]
     pub mandate_data: Option<MandateData>,
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
     pub mandate_id: Option<String>,
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<Object>, example = r#"{
-        "user_agent": "Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/70.0.3538.110 Safari\/537.36",
-        "accept_header": "text\/html,application\/xhtml+xml,application\/xml;q=0.9,image\/webp,image\/apng,*\/*;q=0.8",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
         "language": "nl-NL",
         "color_depth": 24,
         "screen_height": 723,
@@ -283,7 +279,6 @@ pub struct CustomerAcceptance {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     /// Information required for online mandate generation
-    #[schema()]
     pub online: Option<OnlineMandate>,
 }
 
@@ -444,7 +439,6 @@ impl Default for PaymentIdType {
 #[serde(deny_unknown_fields)]
 pub struct Address {
     /// Provide the address details
-    #[schema()]
     pub address: Option<AddressDetails>,
 
     pub phone: Option<PhoneDetails>,
@@ -575,7 +569,6 @@ pub struct PaymentsResponse {
     /// The status of the current payment that was made
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
-    ///
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(example = 100)]
     pub amount: i64,
@@ -588,7 +581,6 @@ pub struct PaymentsResponse {
     /// The connector used for the payment
     #[schema(example = "stripe")]
     pub connector: Option<String>,
-    ///
     /// It's a token used for client side verification.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<Secret<String>>,
@@ -612,7 +604,6 @@ pub struct PaymentsResponse {
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
     pub mandate_id: Option<String>,
     /// Provided mandate information for creating a mandate
-    #[schema()]
     pub mandate_data: Option<MandateData>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
@@ -625,8 +616,8 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
-    /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method. Capture request may happen in three types: (1) AUTOMATIC: Post the payment authorization, the capture will be executed on the full amount immediately, (2) MANUAL: The capture will happen only if the merchant triggers a Capture API request, (3) SCHEDULED: The capture can be scheduled to automatically get triggered at a specific date & time
-    #[schema(value_type = CaptureMethod, example = "PaymentProcessor")]
+    /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
+    #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
     pub capture_method: Option<api_enums::CaptureMethod>,
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethodType, example = "bank_transfer")]
@@ -640,10 +631,8 @@ pub struct PaymentsResponse {
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
     /// The shipping address for the payment
-    #[schema()]
     pub shipping: Option<Address>,
     /// The billing address for the payment
-    #[schema()]
     pub billing: Option<Address>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>)]
@@ -660,20 +649,18 @@ pub struct PaymentsResponse {
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
     pub return_url: Option<String>,
-    /// The transaction authentication can be set to undergo payer authentication. Possible values are: (i) THREE_DS: If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer, (ii) NO_THREE_DS: 3DS based authentication will not be activated. The liability of chargeback stays with the merchant. By default, the authentication will be marked as NO_THREE_DS
+    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 255, example = "Juspay Router")]
     pub statement_descriptor_name: Option<String>,
-    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
+    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
     #[schema(max_length = 255, example = "Payment for shoes purchase")]
     pub statement_descriptor_suffix: Option<String>,
     /// Additional information required for redirection
-    #[schema()]
     pub next_action: Option<NextAction>,
     /// If the payment was cancelled the reason provided here
-    #[schema()]
     pub cancellation_reason: Option<String>,
     /// If there was an error while calling the connectors the code is received here
     #[schema(example = "E0001")]
@@ -984,7 +971,6 @@ pub struct OrderDetails {
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct Metadata {
     /// Information about the product and quantity for specific connectors. (e.g. Klarna)
-    #[schema()]
     pub order_details: Option<OrderDetails>,
     /// Any other metadata that is to be provided
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]

@@ -63,6 +63,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::FutureUsage,
         api_models::enums::AuthenticationType,
         api_models::enums::WalletIssuer,
+        api_models::enums::Connector,
         api_models::enums::PaymentMethodType,
         api_models::payments::AddressDetails,
         api_models::payments::Address,

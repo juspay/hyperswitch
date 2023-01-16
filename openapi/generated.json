@@ -265,6 +265,26 @@
           "scheduled"
         ]
       },
+      "Connector": {
+        "type": "string",
+        "enum": [
+          "aci",
+          "adyen",
+          "applepay",
+          "authorizedotnet",
+          "braintree",
+          "checkout",
+          "cybersource",
+          "dummy",
+          "fiserv",
+          "globalpay",
+          "klarna",
+          "payu",
+          "shift4",
+          "stripe",
+          "worldpay"
+        ]
+      },
       "CreateMerchantAccount": {
         "type": "object",
         "required": [
@@ -1133,13 +1153,6 @@
       },
       "PaymentsRequest": {
         "type": "object",
-        "required": [
-          "currency",
-          "capture_method",
-          "setup_future_usage",
-          "authentication_type",
-          "payment_method"
-        ],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -1161,10 +1174,7 @@
             "example": 6540
           },
           "connector": {
-            "type": "string",
-            "description": "The allows the merchant to manually select a connector with which the payment can go through",
-            "example": "stripe",
-            "maxLength": 255
+            "$ref": "#/components/schemas/Connector"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -1222,7 +1232,7 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.",
             "example": true
           },
           "description": {
@@ -1301,8 +1311,6 @@
           "status",
           "amount",
           "currency",
-          "setup_future_usage",
-          "capture_method",
           "payment_method"
         ],
         "properties": {
@@ -1325,7 +1333,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "\nThe payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 100
           },
           "amount_capturable": {
@@ -1349,7 +1357,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "\nIt's a token used for client side verification.",
+            "description": "It's a token used for client side verification.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
           },
           "created": {
@@ -1458,7 +1466,7 @@
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.",
             "example": "Payment for shoes purchase",
             "maxLength": 255
           },
