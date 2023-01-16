@@ -1,232 +1,144 @@
-use std::marker::PhantomData;
+use futures::future::OptionFuture;
+use masking::Secret;
+use router::types::{self, api, storage::enums};
+use serial_test::serial;
 
-use router::{
-    core::payments,
-    db::StorageImpl,
-    routes,
-    types::{self, api, storage::enums, PaymentAddress},
+use crate::{
+    connector_auth,
+    utils::{self, ConnectorActions},
 };
 
-use crate::connector_auth::ConnectorAuthentication;
-
-fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
-    let auth = ConnectorAuthentication::new()
-        .rapyd
-        .expect("Missing Rapyd connector authentication configuration");
-
-    types::RouterData {
-        flow: PhantomData,
-        merchant_id: "rapyd".to_string(),
-        connector: "rapyd".to_string(),
-        payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: None,
-        status: enums::AttemptStatus::default(),
-        router_return_url: None,
-        auth_type: enums::AuthenticationType::NoThreeDs,
-        payment_method: enums::PaymentMethodType::Card,
-        connector_auth_type: auth.into(),
-        description: Some("This is a test".to_string()),
-        return_url: None,
-        request: types::PaymentsAuthorizeData {
-            amount: 100,
-            currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(api::CCard {
-                card_number: "4111111111111111".to_string().into(),
-                card_exp_month: "02".to_string().into(),
-                card_exp_year: "24".to_string().into(),
-                card_holder_name: "John Doe".to_string().into(),
-                card_cvc: "123".to_string().into(),
-            }),
-            confirm: true,
-            statement_descriptor_suffix: None,
-            setup_future_usage: None,
-            mandate_id: None,
-            off_session: None,
-            setup_mandate_details: None,
-            capture_method: None,
-            browser_info: None,
-            order_details: None,
-            email: None,
-        },
-        response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
-        address: PaymentAddress::default(),
-        connector_meta_data: None,
-        amount_captured: None,
-    }
-}
-
-fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
-    let auth = ConnectorAuthentication::new()
-        .rapyd
-        .expect("Missing Rapyd connector authentication configuration");
-
-    types::RouterData {
-        flow: PhantomData,
-        connector_meta_data: None,
-        merchant_id: "rapyd".to_string(),
-        connector: "rapyd".to_string(),
-        payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: None,
-        status: enums::AttemptStatus::default(),
-        router_return_url: None,
-        payment_method: enums::PaymentMethodType::Card,
-        auth_type: enums::AuthenticationType::NoThreeDs,
-        connector_auth_type: auth.into(),
-        description: Some("This is a test".to_string()),
-        return_url: None,
-        request: types::RefundsData {
-            amount: 100,
-            currency: enums::Currency::USD,
-            refund_id: uuid::Uuid::new_v4().to_string(),
-            connector_transaction_id: String::new(),
-            refund_amount: 10,
-            connector_metadata: None,
-            reason: None,
-        },
-        response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
-        address: PaymentAddress::default(),
-        amount_captured: None,
-    }
-}
-
-#[actix_web::test]
-async fn test_rapyd_payment_success() {
-    use router::{configs::settings::Settings, connector::Rapyd, services};
-
-    let conf = Settings::new().unwrap();
-    static CV: Rapyd = Rapyd;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Rapyd,
-        get_token: types::api::GetToken::Connector,
-    };
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        types::api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > = connector.connector.get_connector_integration();
-    let request = construct_payment_router_data();
-
-    let response = services::api::execute_connector_processing_step(
-        &state,
-        connector_integration,
-        &request,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
-
-    println!("{response:?}");
-
-    assert!(
-        response.status == enums::AttemptStatus::Charged,
-        "The payment failed"
-    );
-}
-
-#[actix_web::test]
-async fn test_rapyd_refund_success() {
-    // Successful payment
-    use router::{configs::settings::Settings, connector::Rapyd, services};
-
-    let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
-    static CV: Rapyd = Rapyd;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Rapyd,
-        get_token: types::api::GetToken::Connector,
-    };
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        types::api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > = connector.connector.get_connector_integration();
-    let request = construct_payment_router_data();
-
-    let response = services::api::execute_connector_processing_step(
-        &state,
-        connector_integration,
-        &request,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
-
-    println!("{response:?}");
-
-    assert!(
-        response.status == enums::AttemptStatus::Charged,
-        "The payment failed"
-    );
-    // Successful refund
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        types::api::Execute,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > = connector.connector.get_connector_integration();
-    let mut refund_request = construct_refund_router_data();
-
-    refund_request.request.connector_transaction_id = match response.response.unwrap() {
-        types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
-            resource_id.get_connector_transaction_id().unwrap()
+struct Rapyd;
+impl ConnectorActions for Rapyd {}
+impl utils::Connector for Rapyd {
+    fn get_data(&self) -> types::api::ConnectorData {
+        use router::connector::Rapyd;
+        types::api::ConnectorData {
+            connector: Box::new(&Rapyd),
+            connector_name: types::Connector::Rapyd,
+            get_token: types::api::GetToken::Connector,
         }
-        _ => panic!("Connector transaction id not found"),
-    };
+    }
 
-    let response = services::api::execute_connector_processing_step(
-        &state,
-        connector_integration,
-        &refund_request,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await;
+    fn get_auth_token(&self) -> types::ConnectorAuthType {
+        types::ConnectorAuthType::from(
+            connector_auth::ConnectorAuthentication::new()
+                .rapyd
+                .expect("Missing connector authentication configuration"),
+        )
+    }
 
-    let response = response.unwrap();
-    println!("{response:?}");
-
-    assert!(
-        response.response.unwrap().refund_status == enums::RefundStatus::Success,
-        "The refund failed"
-    );
+    fn get_name(&self) -> String {
+        "rapyd".to_string()
+    }
 }
 
 #[actix_web::test]
-async fn test_rapyd_payment_failure() {
-    use router::{configs::settings::Settings, connector::Rapyd, services};
+async fn should_only_authorize_payment() {
+    let response = Rapyd {}
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("4111111111111111".to_string()),
+                    card_exp_month: Secret::new("02".to_string()),
+                    card_exp_year: Secret::new("2024".to_string()),
+                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_cvc: Secret::new("123".to_string()),
+                }),
+                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+}
 
-    let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
-    static CV: Rapyd = Rapyd;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Rapyd,
-        get_token: types::api::GetToken::Connector,
-    };
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        types::api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > = connector.connector.get_connector_integration();
-    let mut request = construct_payment_router_data();
-    request.connector_auth_type = types::ConnectorAuthType::BodyKey {
-        api_key: "".to_string(),
-        key1: "".to_string(),
-    };
-    let response = services::api::execute_connector_processing_step(
-        &state,
-        connector_integration,
-        &request,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .unwrap();
-    assert!(response.response.is_err(), "The payment passed");
+#[actix_web::test]
+async fn should_authorize_and_capture_payment() {
+    let response = Rapyd {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("4111111111111111".to_string()),
+                    card_exp_month: Secret::new("02".to_string()),
+                    card_exp_year: Secret::new("2024".to_string()),
+                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_cvc: Secret::new("123".to_string()),
+                }),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
+    assert_eq!(response.status, enums::AttemptStatus::Charged);
+}
+
+#[actix_web::test]
+async fn should_capture_already_authorized_payment() {
+    let connector = Rapyd {};
+    let authorize_response = connector.authorize_payment(None, None).await;
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let response: OptionFuture<_> = txn_id
+        .map(|transaction_id| async move {
+            connector
+                .capture_payment(transaction_id, None, None)
+                .await
+                .status
+        })
+        .into();
+    assert_eq!(response.await, Some(enums::AttemptStatus::Charged));
+}
+
+#[actix_web::test]
+#[serial]
+async fn should_void_already_authorized_payment() {
+    let connector = Rapyd {};
+    let authorize_response = connector.authorize_payment(None, None).await;
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let response: OptionFuture<_> = txn_id
+        .map(|transaction_id| async move {
+            connector
+                .void_payment(transaction_id, None, None)
+                .await
+                .status
+        })
+        .into();
+    assert_eq!(response.await, Some(enums::AttemptStatus::Failure)); //rapyd doesn't allow authorize transaction to be voided
+}
+
+#[actix_web::test]
+async fn should_refund_succeeded_payment() {
+    let connector = Rapyd {};
+    //make a successful payment
+    let response = connector.make_payment(None, None).await;
+
+    //try refund for previous payment
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
+        let response = connector.refund_payment(transaction_id, None, None).await;
+        assert_eq!(
+            response.response.unwrap().refund_status,
+            enums::RefundStatus::Success,
+        );
+    }
+}
+
+#[actix_web::test]
+async fn should_fail_payment_for_incorrect_card_number() {
+    let response = Rapyd {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("0000000000000000".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
+
+    assert!(response.response.is_err(), "The Payment pass");
 }
