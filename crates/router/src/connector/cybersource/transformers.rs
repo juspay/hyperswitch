@@ -231,6 +231,7 @@ pub enum CybersourcePaymentStatus {
     Succeeded,
     Failed,
     Voided,
+    Reversed,
     Pending,
     Transmitted,
     #[default]
@@ -244,7 +245,7 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
-            CybersourcePaymentStatus::Voided => Self::Voided,
+            CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
             CybersourcePaymentStatus::Failed => Self::Failure,
             CybersourcePaymentStatus::Processing => Self::Authorizing,
             CybersourcePaymentStatus::Pending => Self::Pending,
