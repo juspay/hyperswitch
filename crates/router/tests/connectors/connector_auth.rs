@@ -8,6 +8,7 @@ pub(crate) struct ConnectorAuthentication {
     pub checkout: Option<BodyKey>,
     pub globalpay: Option<HeaderKey>,
     pub payu: Option<BodyKey>,
+    pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
 }

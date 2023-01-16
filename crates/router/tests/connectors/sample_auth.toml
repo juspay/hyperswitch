@@ -25,3 +25,7 @@ key1 = "MerchantPosId"
 
 [globalpay]
 api_key = "Bearer MyApiKey"
+
+[rapyd]
+api_key = "access_key"
+key1 = "secret_key"
