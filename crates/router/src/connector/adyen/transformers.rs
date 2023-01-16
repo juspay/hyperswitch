@@ -85,7 +85,8 @@ impl From<AdyenStatus> for storage_enums::AttemptStatus {
     fn from(item: AdyenStatus) -> Self {
         match item {
             AdyenStatus::Authorised => Self::Charged,
-            AdyenStatus::Refused | AdyenStatus::Cancelled => Self::Failure,
+            AdyenStatus::Refused => Self::Failure,
+            AdyenStatus::Cancelled => Self::Voided,
             AdyenStatus::RedirectShopper => Self::AuthenticationPending,
         }
     }
