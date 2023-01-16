@@ -42,7 +42,7 @@ pub struct PaymentsRequest {
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
-    /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method. Capture request may happen in three types: (1) AUTOMATIC: Post the payment authorization, the capture will be executed on the full amount immediately, (2) MANUAL: The capture will happen only if the merchant triggers a Capture API request, (3) SCHEDULED: The capture can be scheduled to automatically get triggered at a specific date & time
+    /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
     #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
     pub capture_method: Option<api_enums::CaptureMethod>,
     /// The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
@@ -84,7 +84,7 @@ pub struct PaymentsRequest {
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
-    /// The transaction authentication can be set to undergo payer authentication. Possible values are: (i) THREE_DS: If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer, (ii) NO_THREE_DS: 3DS based authentication will not be activated. The liability of chargeback stays with the merchant. By default, the authentication will be marked as NO_THREE_DS
+    /// The transaction authentication can be set to undergo payer authentication.
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
     /// The payment method information provided for making a payment
