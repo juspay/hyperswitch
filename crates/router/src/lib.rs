@@ -78,7 +78,8 @@ pub fn mk_olap_app(
         .service(routes::Refunds::olap_server(state.clone()))
         .service(routes::Payouts::olap_server(state.clone()))
         .service(routes::MerchantAccount::olap_server(state.clone()))
-        .service(routes::MerchantConnectorAccount::olap_server(state.clone()));
+        .service(routes::MerchantConnectorAccount::olap_server(state.clone()))
+        .service(routes::Mandates::olap_server(state.clone()));
 
     #[cfg(feature = "stripe")]
     {
@@ -163,7 +164,9 @@ pub fn mk_oltp_app(
         .service(routes::Payouts::oltp_server(state.clone()))
         .service(routes::PaymentMethods::oltp_server(state.clone()))
         .service(routes::EphemeralKey::oltp_server(state.clone()))
-        .service(routes::Webhooks::oltp_server(state.clone()));
+        .service(routes::Webhooks::oltp_server(state.clone()))
+        .service(routes::MerchantConnectorAccount::oltp_server(state.clone()))
+        .service(routes::Mandates::oltp_server(state.clone()));
 
     #[cfg(feature = "stripe")]
     {
