@@ -558,12 +558,16 @@ pub enum RoutableConnectors {
     Worldpay,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedWallets {
+    /// Paypal wallet is supported to get the session object
     Paypal,
+    /// Applepay wallet is supported to get the session object
     ApplePay,
+    /// Klarna wallet is supported to get the session object
     Klarna,
+    /// Gpay wallet is supported to get the session object
     Gpay,
 }
 
