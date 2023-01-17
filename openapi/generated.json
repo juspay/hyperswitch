@@ -287,6 +287,18 @@
           "worldpay"
         ]
       },
+      "ConnectorType": {
+        "type": "string",
+        "enum": [
+          "payment_processor",
+          "payment_vas",
+          "fin_operations",
+          "fiz_operations",
+          "networks",
+          "banking_entities",
+          "non_banking_finance"
+        ]
+      },
       "CreateMerchantAccount": {
         "type": "object",
         "required": [
@@ -910,7 +922,7 @@
           "connector_name": {
             "type": "string",
             "description": "Name of the Connector",
-            "example": "stripe,adyen"
+            "example": "stripe"
           },
           "merchant_connector_id": {
             "type": "integer",
@@ -1098,7 +1110,11 @@
               "type": "string",
               "description": "List of payment schemes accepted or has the processing capabilities of the processor"
             },
-            "example": "[MASTER,VISA,DINERS]"
+            "example": [
+              "MASTER",
+              "VISA",
+              "DINERS"
+            ]
           },
           "accepted_currencies": {
             "type": "array",

@@ -33,7 +33,7 @@ pub struct CreateMerchantAccount {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = "round_robin,min_cost")]
+    #[schema(value_type = Option<Object>,example = "round_robin")]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -170,10 +170,10 @@ pub struct MerchantConnectorId {
 #[serde(deny_unknown_fields)]
 pub struct PaymentConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
-    #[schema(value_type = ConnectorType, example = "payment_processor,payment_vas")]
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
-    #[schema(example = "stripe,adyen")]
+    #[schema(example = "stripe")]
     pub connector_name: String,
     /// Unique ID of the connector
     #[schema(example = 42)]
@@ -227,7 +227,7 @@ pub struct PaymentConnectorCreate {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethods {
     /// Type of payment method.
-    #[schema(value_type = PaymentMethodType,example = "card,bank_transfer")]
+    #[schema(value_type = PaymentMethodType,example = "card")]
     pub payment_method: api_enums::PaymentMethodType,
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit"]))]
@@ -236,7 +236,7 @@ pub struct PaymentMethods {
     #[schema(example = json!(["HDFC"]))]
     pub payment_method_issuers: Option<Vec<String>>,
     /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(example = "[MASTER,VISA,DINERS]")]
+    #[schema(example = json!(["MASTER","VISA","DINERS"]))]
     pub payment_schemes: Option<Vec<String>>,
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
