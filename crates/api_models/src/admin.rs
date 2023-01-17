@@ -21,7 +21,6 @@ pub struct CreateMerchantAccount {
     pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
-    #[schema(value_type = Option<MerchantDetails>)]
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -29,7 +28,6 @@ pub struct CreateMerchantAccount {
     pub return_url: Option<String>,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
