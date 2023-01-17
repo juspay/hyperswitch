@@ -1,13 +1,10 @@
 pub use api_models::admin::{
-    CreateMerchantAccount, CustomRoutingRules, DeleteMcaResponse, DeleteResponse,
-    MerchantAccountResponse, MerchantConnectorId, MerchantDetails, MerchantId,
-    PaymentConnectorCreate, PaymentMethods, WebhookDetails,
+    CreateMerchantAccount, DeleteMcaResponse, DeleteResponse, MerchantAccountResponse,
+    MerchantConnectorId, MerchantDetails, MerchantId, PaymentConnectorCreate, PaymentMethods,
+    RoutingAlgorithm, WebhookDetails,
 };
 
-use crate::types::{
-    storage,
-    transformers::{Foreign, ForeignInto},
-};
+use crate::types::{storage, transformers::Foreign};
 
 impl From<Foreign<storage::MerchantAccount>> for Foreign<MerchantAccountResponse> {
     fn from(value: Foreign<storage::MerchantAccount>) -> Self {
@@ -22,8 +19,7 @@ impl From<Foreign<storage::MerchantAccount>> for Foreign<MerchantAccountResponse
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_details: item.merchant_details,
             webhook_details: item.webhook_details,
-            routing_algorithm: item.routing_algorithm.map(ForeignInto::foreign_into),
-            custom_routing_rules: item.custom_routing_rules,
+            routing_algorithm: item.routing_algorithm,
             sub_merchants_enabled: item.sub_merchants_enabled,
             parent_merchant_id: item.parent_merchant_id,
             publishable_key: item.publishable_key,

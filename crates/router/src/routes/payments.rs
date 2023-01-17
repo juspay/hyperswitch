@@ -9,6 +9,18 @@ use crate::{
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
+/// Payments - Create
+///
+/// To create a new payment, against a merchant API key
+#[utoipa::path(
+    post,
+    path = "/payments",
+    request_body=PaymentsRequest,
+    responses(
+        (status = 200, description = "Payment created", body = PaymentsResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
 pub async fn payments_create(
@@ -63,7 +75,6 @@ pub async fn payments_start(
                 payments::operations::PaymentStart,
                 req,
                 api::AuthFlow::Client,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -103,7 +114,6 @@ pub async fn payments_retrieve(
                 payments::PaymentStatus,
                 req,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -219,7 +229,6 @@ pub async fn payments_capture(
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -253,7 +262,6 @@ pub async fn payments_connector_session(
                 payments::PaymentSession,
                 payload,
                 api::AuthFlow::Client,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -317,7 +325,6 @@ pub async fn payments_cancel(
                 payments::PaymentCancel,
                 req,
                 api::AuthFlow::Merchant,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -327,6 +334,7 @@ pub async fn payments_cancel(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
 // #[get("/list")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
@@ -341,7 +349,7 @@ pub async fn payments_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        &auth::ApiKeyAuth,
+        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
     )
     .await
 }
@@ -366,7 +374,6 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    let connector = req.connector;
     match req.amount.as_ref() {
         Some(api_types::Amount::Value(_)) | None => payments::payments_core::<
             api_types::Authorize,
@@ -380,7 +387,6 @@ where
             operation,
             req,
             auth_flow,
-            connector,
             payments::CallConnectorAction::Trigger,
         )
         .await,
@@ -392,7 +398,6 @@ where
                 operation,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
             .await

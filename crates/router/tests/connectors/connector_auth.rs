@@ -6,8 +6,14 @@ pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
+    pub cybersource: Option<SignatureKey>,
+    pub fiserv: Option<SignatureKey>,
+    pub globalpay: Option<HeaderKey>,
+    pub payu: Option<BodyKey>,
+    pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
+    pub worldline: Option<SignatureKey>,
 }
 
 impl ConnectorAuthentication {
@@ -45,6 +51,23 @@ impl From<BodyKey> for ConnectorAuthType {
         Self::BodyKey {
             api_key: key.api_key,
             key1: key.key1,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct SignatureKey {
+    pub api_key: String,
+    pub key1: String,
+    pub api_secret: String,
+}
+
+impl From<SignatureKey> for ConnectorAuthType {
+    fn from(key: SignatureKey) -> Self {
+        Self::SignatureKey {
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
         }
     }
 }

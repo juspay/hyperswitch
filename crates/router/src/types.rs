@@ -112,8 +112,8 @@ pub struct PaymentsAuthorizeData {
 #[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
-    pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
+    pub connector_transaction_id: String,
     pub amount: i64,
 }
 
@@ -163,6 +163,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         redirect: bool,
         mandate_reference: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -195,13 +196,15 @@ impl ResponseId {
 #[derive(Debug, Clone)]
 pub struct RefundsData {
     pub refund_id: String,
-    pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
+    pub reason: Option<String>,
     /// Amount to be refunded
     pub refund_amount: i64,
+    /// Arbitrary metadata required for refund
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

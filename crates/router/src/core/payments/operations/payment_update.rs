@@ -16,7 +16,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -93,6 +93,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.client_secret.as_ref(),
         )?;
 
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_customer_id_mandatory_cases(
+                request.shipping.is_some(),
+                request.billing.is_some(),
+                request.setup_future_usage.is_some(),
+                &payment_intent
+                    .customer_id
+                    .clone()
+                    .or_else(|| request.customer_id.clone()),
+            )?;
+        }
+
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
@@ -113,20 +125,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
         payment_intent.return_url = request.return_url.clone();
-
-        if request.confirm.unwrap_or(false) {
-            helpers::validate_customer_id_mandatory_cases_storage(
-                &shipping_address,
-                &billing_address,
-                &payment_intent
-                    .setup_future_usage
-                    .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
-                &payment_intent
-                    .customer_id
-                    .clone()
-                    .or_else(|| request.customer_id.clone()),
-            )?;
-        }
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -269,11 +267,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request_connector: Option<api_enums::Connector>,
+        _request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request_connector).await
+        helpers::get_connector_default(state, None).await
     }
 }
 
@@ -406,6 +404,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             field_name: "amount_to_capture".to_string(),
             expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
         })?;
+
+        helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;

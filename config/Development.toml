@@ -18,10 +18,15 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 
-[proxy]
+[replica_database]
+username = "replica_user"
+password = "replica_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
 
-[keys]
-temp_card_key = "OJobAzAwOlibOhygIZOqOGideGUdEBeX" # 32 character long key
+[proxy]
 
 [locker]
 host = ""
@@ -37,8 +42,12 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "aci", "shift4", "cybersource", "worldpay"]
+wallets = ["klarna","braintree","applepay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv"]
+
+[refund]
+max_attempts = 10
+max_age = 365
 
 [eph_key]
 validity = 1
@@ -73,8 +82,23 @@ base_url = "https://apitest.cybersource.com/"
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
 
+[connectors.rapyd]
+base_url = "https://sandboxapi.rapyd.net"
+
+[connectors.fiserv]
+base_url = "https://cert.api.fiservapps.com/"
+
 [connectors.worldpay]
 base_url = "http://localhost:9090/"
+
+[connectors.payu]
+base_url = "https://secure.snd.payu.com/api/"
+
+[connectors.globalpay]
+base_url = "https://apis.sandbox.globalpay.com/ucp/"
+
+[connectors.worldline]
+base_url = "https://eu.sandbox.api-ingenico.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

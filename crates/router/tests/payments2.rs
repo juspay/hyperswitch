@@ -37,12 +37,9 @@ async fn payments_create_core() {
 
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
-    let mut merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
+    let merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
         .await
         .unwrap();
-    merchant_account.custom_routing_rules = Some(serde_json::json!([
-        crate::api::CustomRoutingRules::default()
-    ]));
 
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(
@@ -98,7 +95,7 @@ async fn payments_create_core() {
         mandate_id: None,
         ..Default::default()
     };
-    let expected_response = services::BachResponse::Json(expected_response);
+    let expected_response = services::ApplicationResponse::Json(expected_response);
     let actual_response =
         router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
@@ -106,7 +103,6 @@ async fn payments_create_core() {
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
-            None,
             payments::CallConnectorAction::Trigger,
         )
         .await
@@ -162,7 +158,7 @@ async fn payments_create_core() {
 //         .await
 //         .unwrap();
 //
-//     let expected_response = services::BachResponse::Form(services::RedirectForm {
+//     let expected_response = services::ApplicationResponse::Form(services::RedirectForm {
 //         url: "http://example.com/payments".to_string(),
 //         method: services::Method::Post,
 //         form_fields: HashMap::from([("payment_id".to_string(), payment_id.clone())]),
@@ -245,7 +241,7 @@ async fn payments_create_core_adyen_no_redirect() {
         browser_info: None,
     };
 
-    let expected_response = services::BachResponse::Json(api::PaymentsResponse {
+    let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {
         payment_id: Some(payment_id.clone()),
         status: api_enums::IntentStatus::Processing,
         amount: 6540,
@@ -267,7 +263,6 @@ async fn payments_create_core_adyen_no_redirect() {
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
-            None,
             payments::CallConnectorAction::Trigger,
         )
         .await

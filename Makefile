@@ -90,3 +90,7 @@ nextest:
 #	make precommit
 
 precommit : fmt clippy test
+
+
+hack:
+	cargo hack check --workspace --each-feature --no-dev-deps

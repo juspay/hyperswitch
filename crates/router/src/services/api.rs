@@ -58,6 +58,11 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         mime::APPLICATION_JSON.essence_str()
     }
 
+    /// primarily used when creating signature based on request method of payment flow
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
     fn get_url(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -233,6 +238,7 @@ async fn send_request(
                     logger::debug!(?url_encoded_payload);
                     client.body(url_encoded_payload).send()
                 }
+                // If payload needs processing the body cannot have default
                 None => client
                     .body(request.payload.expose_option().unwrap_or_default())
                     .send(),
@@ -240,7 +246,14 @@ async fn send_request(
             .await
         }
 
-        Method::Put => client.put(url).add_headers(headers).send().await,
+        Method::Put => {
+            client
+                .put(url)
+                .add_headers(headers)
+                .body(request.payload.expose_option().unwrap_or_default()) // If payload needs processing the body cannot have default
+                .send()
+                .await
+        }
         Method::Delete => client.delete(url).add_headers(headers).send().await,
     }
     .map_err(|error| match error {
@@ -260,7 +273,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             match status_code {
-                200..=202 => {
+                200..=202 | 302 => {
                     logger::debug!(response=?response);
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);
@@ -320,7 +333,7 @@ async fn handle_response(
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum BachResponse<R> {
+pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
@@ -329,11 +342,11 @@ pub enum BachResponse<R> {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct BachRedirectResponse {
+pub struct ApplicationRedirectResponse {
     pub url: String,
 }
 
-impl From<&storage::PaymentAttempt> for BachRedirectResponse {
+impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
     fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
         Self {
             url: format!(
@@ -376,7 +389,7 @@ pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut>(
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U>,
-) -> RouterResult<BachResponse<Q>>
+) -> RouterResult<ApplicationResponse<Q>>
 where
     F: Fn(&'b AppState, U, T) -> Fut,
     Fut: Future<Output = RouterResponse<Q>>,
@@ -402,7 +415,7 @@ pub async fn server_wrap<'a, 'b, T, U, Q, F, Fut>(
 ) -> HttpResponse
 where
     F: Fn(&'b AppState, U, T) -> Fut,
-    Fut: Future<Output = RouterResult<BachResponse<Q>>>,
+    Fut: Future<Output = RouterResult<ApplicationResponse<Q>>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
 {
@@ -415,7 +428,7 @@ where
     logger::info!(tag = ?Tag::BeginRequest);
 
     let res = match server_wrap_util(state, request, payload, func, api_auth).await {
-        Ok(BachResponse::Json(response)) => match serde_json::to_string(&response) {
+        Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
                 r#"{
@@ -425,19 +438,21 @@ where
                 }"#,
             ),
         },
-        Ok(BachResponse::StatusOk) => http_response_ok(),
-        Ok(BachResponse::TextPlain(text)) => http_response_plaintext(text),
-        Ok(BachResponse::JsonForRedirection(response)) => match serde_json::to_string(&response) {
-            Ok(res) => http_redirect_response(res, response),
-            Err(_) => http_response_err(
-                r#"{
+        Ok(ApplicationResponse::StatusOk) => http_response_ok(),
+        Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
+        Ok(ApplicationResponse::JsonForRedirection(response)) => {
+            match serde_json::to_string(&response) {
+                Ok(res) => http_redirect_response(res, response),
+                Err(_) => http_response_err(
+                    r#"{
                     "error": {
                         "message": "Error serializing response from connector"
                     }
                 }"#,
-            ),
-        },
-        Ok(BachResponse::Form(response)) => build_redirection_form(&response)
+                ),
+            }
+        }
+        Ok(ApplicationResponse::Form(response)) => build_redirection_form(&response)
             .respond_to(request)
             .map_into_boxed_body(),
 

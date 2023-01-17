@@ -16,14 +16,13 @@ pub struct MerchantAccount {
     pub merchant_name: Option<String>,
     pub merchant_details: Option<serde_json::Value>,
     pub webhook_details: Option<serde_json::Value>,
-    pub routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
-    pub custom_routing_rules: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -35,8 +34,6 @@ pub struct MerchantAccountNew {
     pub merchant_details: Option<serde_json::Value>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
-    pub routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
-    pub custom_routing_rules: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
@@ -45,6 +42,7 @@ pub struct MerchantAccountNew {
     pub publishable_key: Option<String>,
     pub locker_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -56,8 +54,6 @@ pub enum MerchantAccountUpdate {
         merchant_details: Option<serde_json::Value>,
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
-        routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
-        custom_routing_rules: Option<serde_json::Value>,
         sub_merchants_enabled: Option<bool>,
         parent_merchant_id: Option<String>,
         enable_payment_response_hash: Option<bool>,
@@ -66,6 +62,7 @@ pub enum MerchantAccountUpdate {
         publishable_key: Option<String>,
         locker_id: Option<String>,
         metadata: Option<serde_json::Value>,
+        routing_algorithm: Option<serde_json::Value>,
     },
 }
 
@@ -78,8 +75,6 @@ pub struct MerchantAccountUpdateInternal {
     merchant_details: Option<serde_json::Value>,
     return_url: Option<String>,
     webhook_details: Option<serde_json::Value>,
-    routing_algorithm: Option<storage_enums::RoutingAlgorithm>,
-    custom_routing_rules: Option<serde_json::Value>,
     sub_merchants_enabled: Option<bool>,
     parent_merchant_id: Option<String>,
     enable_payment_response_hash: Option<bool>,
@@ -88,6 +83,7 @@ pub struct MerchantAccountUpdateInternal {
     publishable_key: Option<String>,
     locker_id: Option<String>,
     metadata: Option<serde_json::Value>,
+    routing_algorithm: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -101,7 +97,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 return_url,
                 webhook_details,
                 routing_algorithm,
-                custom_routing_rules,
                 sub_merchants_enabled,
                 parent_merchant_id,
                 enable_payment_response_hash,
@@ -118,7 +113,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 return_url,
                 webhook_details,
                 routing_algorithm,
-                custom_routing_rules,
                 sub_merchants_enabled,
                 parent_merchant_id,
                 enable_payment_response_hash,

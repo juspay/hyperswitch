@@ -31,6 +31,7 @@ pub struct Refund {
     pub updated_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
+    pub refund_reason: Option<String>,
 }
 
 #[derive(
@@ -43,6 +44,7 @@ pub struct Refund {
     router_derive::DebugAsDisplay,
     serde::Serialize,
     serde::Deserialize,
+    router_derive::Setter,
 )]
 #[diesel(table_name = refund)]
 pub struct RefundNew {
@@ -67,6 +69,7 @@ pub struct RefundNew {
     pub modified_at: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub attempt_id: String,
+    pub refund_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -78,8 +81,9 @@ pub enum RefundUpdate {
         refund_error_message: Option<String>,
         refund_arn: String,
     },
-    MetadataUpdate {
+    MetadataAndReasonUpdate {
         metadata: Option<serde_json::Value>,
+        reason: Option<String>,
     },
     StatusUpdate {
         connector_refund_id: Option<String>,
@@ -101,6 +105,7 @@ pub struct RefundUpdateInternal {
     refund_error_message: Option<String>,
     refund_arn: Option<String>,
     metadata: Option<serde_json::Value>,
+    refund_reason: Option<String>,
 }
 
 impl From<RefundUpdate> for RefundUpdateInternal {
@@ -120,8 +125,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_arn: Some(refund_arn),
                 ..Default::default()
             },
-            RefundUpdate::MetadataUpdate { metadata } => Self {
+            RefundUpdate::MetadataAndReasonUpdate { metadata, reason } => Self {
                 metadata,
+                refund_reason: reason,
                 ..Default::default()
             },
             RefundUpdate::StatusUpdate {

@@ -1,3 +1,4 @@
+use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, ResultExt};
 use uuid::Uuid;
 
@@ -47,12 +48,15 @@ pub async fn create_merchant_account(
             })?,
     );
 
-    let custom_routing_rules = Some(
-        utils::Encode::<api::CustomRoutingRules>::encode_to_value(&req.custom_routing_rules)
+    if let Some(ref routing_algorithm) = req.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "custom routing rules",
-            })?,
-    );
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
 
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
@@ -61,12 +65,11 @@ pub async fn create_merchant_account(
         merchant_details,
         return_url: req.return_url,
         webhook_details,
-        routing_algorithm: req.routing_algorithm.map(ForeignInto::foreign_into),
-        custom_routing_rules,
+        routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
         parent_merchant_id: get_parent_merchant(
             db,
-            &req.sub_merchants_enabled,
+            req.sub_merchants_enabled,
             req.parent_merchant_id,
         )
         .await?,
@@ -84,7 +87,8 @@ pub async fn create_merchant_account(
         .map_err(|error| {
             error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
         })?;
-    Ok(service_api::BachResponse::Json(
+
+    Ok(service_api::ApplicationResponse::Json(
         merchant_account.foreign_into(),
     ))
 }
@@ -99,7 +103,8 @@ pub async fn get_merchant_account(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
-    Ok(service_api::BachResponse::Json(
+
+    Ok(service_api::ApplicationResponse::Json(
         merchant_account.foreign_into(),
     ))
 }
@@ -128,6 +133,16 @@ pub async fn merchant_account_update(
         }))?;
     }
 
+    if let Some(ref routing_algorithm) = req.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req.merchant_name,
 
@@ -147,16 +162,9 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        routing_algorithm: req.routing_algorithm.map(ForeignInto::foreign_into),
-
-        custom_routing_rules: req
-            .custom_routing_rules
-            .as_ref()
-            .map(utils::Encode::<api::CustomRoutingRules>::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
+        routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
+
         parent_merchant_id: get_parent_merchant(
             db,
             &req.sub_merchants_enabled
@@ -182,7 +190,9 @@ pub async fn merchant_account_update(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    Ok(service_api::BachResponse::Json(response.foreign_into()))
+    Ok(service_api::ApplicationResponse::Json(
+        response.foreign_into(),
+    ))
 }
 
 pub async fn merchant_account_delete(
@@ -199,12 +209,12 @@ pub async fn merchant_account_delete(
         merchant_id,
         deleted: is_deleted,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 async fn get_parent_merchant(
     db: &dyn StorageInterface,
-    sub_merchants_enabled: &Option<bool>,
+    sub_merchants_enabled: Option<bool>,
     parent_merchant: Option<String>,
 ) -> RouterResult<Option<String>> {
     Ok(match sub_merchants_enabled {
@@ -296,7 +306,7 @@ pub async fn create_payment_connector(
         })?;
 
     response.merchant_connector_id = Some(mca.merchant_connector_id);
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn retrieve_payment_connector(
@@ -321,7 +331,9 @@ pub async fn retrieve_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
 
-    Ok(service_api::BachResponse::Json(mca.foreign_try_into()?))
+    Ok(service_api::ApplicationResponse::Json(
+        mca.foreign_try_into()?,
+    ))
 }
 
 pub async fn list_payment_connectors(
@@ -349,7 +361,7 @@ pub async fn list_payment_connectors(
         response.push(mca.foreign_try_into()?);
     }
 
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn update_payment_connector(
@@ -415,7 +427,7 @@ pub async fn update_payment_connector(
         payment_methods_enabled: req.payment_methods_enabled,
         metadata: updated_mca.metadata,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn delete_payment_connector(
@@ -444,5 +456,5 @@ pub async fn delete_payment_connector(
         merchant_connector_id,
         deleted: is_deleted,
     };
-    Ok(service_api::BachResponse::Json(response))
+    Ok(service_api::ApplicationResponse::Json(response))
 }

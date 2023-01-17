@@ -153,14 +153,13 @@ diesel::table! {
         merchant_name -> Nullable<Varchar>,
         merchant_details -> Nullable<Json>,
         webhook_details -> Nullable<Json>,
-        routing_algorithm -> Nullable<RoutingAlgorithm>,
-        custom_routing_rules -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
+        routing_algorithm -> Nullable<Json>,
     }
 }
 
@@ -218,6 +217,7 @@ diesel::table! {
         browser_info -> Nullable<Jsonb>,
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
+        connector_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -328,6 +328,7 @@ diesel::table! {
         modified_at -> Timestamp,
         description -> Nullable<Varchar>,
         attempt_id -> Varchar,
+        refund_reason -> Nullable<Varchar>,
     }
 }
 
@@ -340,18 +341,6 @@ diesel::table! {
         sk_id -> Varchar,
         pk_id -> Varchar,
         source -> Varchar,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    temp_card (id) {
-        id -> Int4,
-        date_created -> Timestamp,
-        txn_id -> Nullable<Varchar>,
-        card_info -> Nullable<Json>,
     }
 }
 
@@ -371,5 +360,4 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
-    temp_card,
 );

@@ -15,7 +15,7 @@ use tracing_subscriber::{layer::Context, Layer};
 #[derive(Clone, Debug)]
 pub struct StorageSubscription;
 
-/// Sotrage to store key value pairs of spans.
+/// Storage to store key value pairs of spans.
 /// When new entry is crated it stores it in [HashMap] which is owned by `extensions`.
 #[derive(Clone, Debug)]
 pub struct Storage<'a> {

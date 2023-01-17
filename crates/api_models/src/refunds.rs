@@ -45,6 +45,18 @@ pub struct RefundRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundUpdateRequest {
+    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
+    #[schema(max_length = 255, example = "Customer returned the product")]
+    pub reason: Option<String>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<serde_json::Value>,
+}
+
 #[derive(Default, Debug, Clone, ToSchema, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
@@ -64,6 +76,10 @@ pub struct RefundResponse {
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<serde_json::Value>,
     pub error_message: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]

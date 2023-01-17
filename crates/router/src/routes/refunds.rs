@@ -63,7 +63,7 @@ pub async fn refunds_retrieve(
 pub async fn refunds_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<refunds::RefundRequest>,
+    json_payload: web::Json<refunds::RefundUpdateRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let refund_id = path.into_inner();
@@ -80,6 +80,7 @@ pub async fn refunds_update(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
 // #[get("/list")]
 pub async fn refunds_list(
     state: web::Data<AppState>,
@@ -91,7 +92,7 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
-        &auth::ApiKeyAuth,
+        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
     )
     .await
 }

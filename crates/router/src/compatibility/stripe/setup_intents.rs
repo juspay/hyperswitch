@@ -44,14 +44,12 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -99,7 +97,6 @@ pub async fn setup_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
-                None,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -149,14 +146,12 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -207,14 +202,12 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            let connector = req.connector;
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
-                connector,
                 payments::CallConnectorAction::Trigger,
             )
         },
