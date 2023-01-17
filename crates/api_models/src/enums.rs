@@ -507,6 +507,7 @@ pub enum Connector {
     Globalpay,
     Klarna,
     Payu,
+    Rapyd,
     Shift4,
     Stripe,
     Worldline,

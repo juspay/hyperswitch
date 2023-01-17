@@ -374,7 +374,8 @@ pub struct PayuOrderResponseBuyerData {
     phone: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
-    nin: Option<String>,
+    #[serde(rename = "nin")]
+    national_identification_number: Option<String>,
     language: Option<String>,
     delivery: Option<String>,
     customer_id: Option<String>,
