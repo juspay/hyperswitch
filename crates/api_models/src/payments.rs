@@ -345,7 +345,7 @@ pub enum PayLaterData {
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
-        /// The issuer name of the redirec
+        /// The issuer name of the redirect
         issuer_name: KlarnaSdkIssuer,
         /// The token for the sdk workflow
         token: String,
