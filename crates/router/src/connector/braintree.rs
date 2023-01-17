@@ -152,7 +152,7 @@ impl
         logger::debug!(payment_session_response_braintree=?res);
         let response: braintree::BraintreeSessionTokenResponse = res
             .response
-            .parse_struct("braintree SessionTokenReponse")
+            .parse_struct("braintree SessionTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

@@ -141,10 +141,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         let payment_id: &str = req.request.connector_transaction_id.as_ref();
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}/cancel"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/cancel"
         ))
     }
 
@@ -222,9 +222,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}"
         ))
     }
 
@@ -329,8 +329,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
-        Ok(format!("{base_url}v1/{merchat_account_id}/payments"))
+        let merchant_account_id = auth.merchant_account_id;
+        Ok(format!("{base_url}v1/{merchant_account_id}/payments"))
     }
 
     fn get_request_body(
@@ -436,9 +436,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}/refund"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/refund"
         ))
     }
 
@@ -532,9 +532,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .clone();
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/refunds/{refund_id}/"
+            "{base_url}v1/{merchant_account_id}/refunds/{refund_id}/"
         ))
     }
 

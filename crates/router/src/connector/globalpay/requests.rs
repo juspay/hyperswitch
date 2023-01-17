@@ -360,7 +360,7 @@ pub struct StoredCredential {
     pub model: Option<Model>,
     /// The reason stored credentials are being used to to create a transaction.
     pub reason: Option<Reason>,
-    /// Indiciates the order of this transaction in the sequence of a planned repeating
+    /// Indicates the order of this transaction in the sequence of a planned repeating
     /// transaction processing model.
     pub sequence: Option<Sequence>,
 }
@@ -506,10 +506,10 @@ pub enum GlobalpayPaymentsRequestType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Initiator {
-    /// The transaction was initated by the merchant, who is getting paid by the
+    /// The transaction was initiated by the merchant, who is getting paid by the
     /// payer.'
     Merchant,
-    /// The transaction was initated by the customer who is paying the merchant.
+    /// The transaction was initiated by the customer who is paying the merchant.
     Payer,
 }
 
@@ -789,7 +789,7 @@ pub enum Reason {
     Resubmission,
 }
 
-/// Indiciates the order of this transaction in the sequence of a planned repeating
+/// Indicates the order of this transaction in the sequence of a planned repeating
 /// transaction processing model.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
