@@ -105,7 +105,6 @@ impl<E> ConnectorResponseExt
                 }
                 Err(err_res) => Ok(err_res),
             })
-            .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 
     fn get_response(self) -> RouterResult<types::Response> {
@@ -122,6 +121,5 @@ impl<E> ConnectorResponseExt
                 }
                 Ok(res) => Ok(res),
             })
-            .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
