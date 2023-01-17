@@ -1,6 +1,6 @@
 use crate::{core::errors, logger};
 
-pub(crate) trait StorageErrorExt {
+pub trait StorageErrorExt {
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
@@ -40,7 +40,7 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
     }
 }
 
-pub(crate) trait ConnectorErrorExt {
+pub trait ConnectorErrorExt {
     fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
@@ -115,7 +115,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     }
 }
 
-pub(crate) trait RedisErrorExt {
+pub trait RedisErrorExt {
     fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
 }
 

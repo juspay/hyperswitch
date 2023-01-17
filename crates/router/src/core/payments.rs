@@ -88,7 +88,8 @@ where
             validate_result.merchant_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while fetching/creating customer")?;
 
     let (operation, payment_method_data) = operation
         .to_domain()?

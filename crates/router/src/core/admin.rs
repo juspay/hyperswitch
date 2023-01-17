@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[inline]
-fn create_merchant_api_key() -> String {
+pub fn create_merchant_api_key() -> String {
     let id = Uuid::new_v4().simple();
     match env::which() {
         Env::Development => format!("dev_{id}"),
@@ -268,7 +268,10 @@ pub async fn create_payment_connector(
         Some(val) => {
             for pm in val.into_iter() {
                 let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed while encoding to serde_json::Value, PaymentMethod",
+                    )?;
                 vec.push(pm_value)
             }
             Some(vec)
@@ -416,7 +419,13 @@ pub async fn update_payment_connector(
     let updated_mca = db
         .update_merchant_connector_account(mca, payment_connector)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating MerchantConnectorAccount: id: {}",
+                merchant_connector_id
+            )
+        })?;
     let response = api::PaymentConnectorCreate {
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,

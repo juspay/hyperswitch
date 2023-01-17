@@ -1,12 +1,6 @@
 //!
 //! Logger-specific config.
 //!
-//! Looking for config files algorithm first tries to deduce type of environment ( `Development`/`Sandbox`/`Production` ) from environment variable `RUN_ENV`.
-//! It uses type of environment to deduce which config to load.
-//! Default config is `/config/Development.toml`.
-//! Default type of environment is `Development`.
-//! It falls back to defaults defined in file "defaults.toml" in src if no config file found or it does not have some key value pairs.
-//!
 
 use std::path::PathBuf;
 
@@ -23,7 +17,8 @@ pub struct Config {
 }
 
 /// Log config settings.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Log {
     /// Logging to a file.
     pub file: LogFile,
@@ -35,6 +30,7 @@ pub struct Log {
 
 /// Logging to a file.
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct LogFile {
     /// Whether you want to store log in log files.
     pub enabled: bool,
@@ -50,7 +46,7 @@ pub struct LogFile {
 
 /// Describes the level of verbosity of a span or event.
 #[derive(Debug, Clone)]
-pub struct Level(tracing::Level);
+pub struct Level(pub(super) tracing::Level);
 
 impl Level {
     /// Returns the most verbose [`tracing::Level`]
@@ -75,6 +71,7 @@ impl<'de> Deserialize<'de> for Level {
 
 /// Logging to a console.
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct LogConsole {
     /// Whether you want to see log in your terminal.
     pub enabled: bool,
@@ -86,7 +83,8 @@ pub struct LogConsole {
 }
 
 /// Telemetry / tracing.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct LogTelemetry {
     /// Whether tracing/telemetry is enabled.
     pub enabled: bool,
@@ -110,10 +108,24 @@ impl Config {
     pub fn new() -> Result<Self, config::ConfigError> {
         Self::new_with_config_path(None)
     }
+
     /// Constructor expecting config path set explicitly.
     pub fn new_with_config_path(
         explicit_config_path: Option<PathBuf>,
     ) -> Result<Self, config::ConfigError> {
+        // Configuration values are picked up in the following priority order (1 being least
+        // priority):
+        // 1. Defaults from the implementation of the `Default` trait.
+        // 2. Values from config file. The config file accessed depends on the environment
+        //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
+        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/Development.toml` file is read.
+        // 3. Environment variables prefixed with `ROUTER` and each level separated by double
+        //    underscores.
+        //
+        // Values in config file override the defaults in `Default` trait, and the values set using
+        // environment variables override both the defaults and the config file values.
+
         let environment = crate::env::which();
         let config_path = Self::config_path(&environment.to_string(), explicit_config_path);
 
@@ -133,22 +145,11 @@ impl Config {
     pub fn builder(
         environment: &str,
     ) -> Result<config::ConfigBuilder<config::builder::DefaultState>, config::ConfigError> {
-        Ok(config::Config::builder()
-            // Here should be `set_override` not `set_default`.
+        config::Config::builder()
+            // Here, it should be `set_override()` not `set_default()`.
             // "env" can't be altered by config field.
             // Should be single source of truth.
-            .set_override("env", environment)?
-            .add_source(config::File::from_str(
-                // Plan on handling with the changes in crates/router
-                // FIXME: embedding of textual file into bin files has several disadvantages
-                // 1. larger bin file
-                // 2. slower initialization of program
-                // 3. too late ( run-time ) information about broken toml file
-                // Consider embedding all defaults into code.
-                // Example: https://github.com/instrumentisto/medea/blob/medea-0.2.0/src/conf/mod.rs#L60-L102
-                include_str!("defaults.toml"),
-                config::FileFormat::Toml,
-            )))
+            .set_override("env", environment)
     }
 
     /// Config path.
