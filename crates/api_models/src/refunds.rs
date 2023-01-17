@@ -76,6 +76,10 @@ pub struct RefundResponse {
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<serde_json::Value>,
     pub error_message: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]

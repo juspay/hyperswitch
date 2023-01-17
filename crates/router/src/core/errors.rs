@@ -242,6 +242,8 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Invalid Date/time format")]
+    InvalidDateFormat,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -298,15 +300,15 @@ pub enum ProcessTrackerError {
     NotImplemented,
     #[error("Job not found")]
     JobNotFound,
-    #[error("Recieved Error ApiResponseError: {0}")]
+    #[error("Received Error ApiResponseError: {0}")]
     EApiErrorResponse(error_stack::Report<ApiErrorResponse>),
-    #[error("Recieved Error StorageError: {0}")]
+    #[error("Received Error StorageError: {0}")]
     EStorageError(error_stack::Report<StorageError>),
-    #[error("Recieved Error RedisError: {0}")]
+    #[error("Received Error RedisError: {0}")]
     ERedisError(error_stack::Report<RedisError>),
-    #[error("Recieved Error ParsingError: {0}")]
+    #[error("Received Error ParsingError: {0}")]
     EParsingError(error_stack::Report<ParsingError>),
-    #[error("Validation Error Recieved: {0}")]
+    #[error("Validation Error Received: {0}")]
     EValidationError(error_stack::Report<ValidationError>),
 }
 

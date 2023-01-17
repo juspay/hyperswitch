@@ -23,7 +23,6 @@ use crate::{
     scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
-        self,
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -594,7 +593,6 @@ pub async fn get_customer_from_details(
 }
 
 pub async fn get_connector_default(
-    merchant_account: &storage::MerchantAccount,
     state: &AppState,
     request_connector: Option<api_enums::Connector>,
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
@@ -607,41 +605,7 @@ pub async fn get_connector_default(
         )?;
         Ok(api::ConnectorCallType::Single(connector_data))
     } else {
-        let vec_val: Vec<serde_json::Value> = merchant_account
-            .custom_routing_rules
-            .clone()
-            .parse_value("CustomRoutingRulesVec")
-            .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let custom_routing_rules: api::CustomRoutingRules = vec_val
-            .into_iter()
-            .next()
-            .parse_value("CustomRoutingRules")
-            .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let connector_names = custom_routing_rules
-            .connectors_pecking_order
-            .unwrap_or_else(|| vec!["stripe".to_string()]);
-
-        //use routing rules if configured by merchant else query MCA as per PM
-        let connector_list: types::ConnectorsList = types::ConnectorsList {
-            connectors: connector_names,
-        };
-
-        let connector_name = connector_list
-            .connectors
-            .first()
-            .get_required_value("connectors")
-            .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .as_str();
-
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
+        Ok(api::ConnectorCallType::Routing)
     }
 }
 

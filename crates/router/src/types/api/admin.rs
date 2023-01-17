@@ -1,7 +1,6 @@
 pub use api_models::admin::{
-    CreateMerchantAccount, CustomRoutingRules, DeleteMcaResponse, DeleteResponse,
-    MerchantConnectorId, MerchantDetails, MerchantId, PaymentConnectorCreate, PaymentMethods,
-    WebhookDetails,
+    CreateMerchantAccount, DeleteMcaResponse, DeleteResponse, MerchantConnectorId, MerchantDetails,
+    MerchantId, PaymentConnectorCreate, PaymentMethods, RoutingAlgorithm, WebhookDetails,
 };
 
 //use serde::{Serialize, Deserialize};
