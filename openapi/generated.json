@@ -280,9 +280,23 @@
           "globalpay",
           "klarna",
           "payu",
+          "rapyd",
           "shift4",
           "stripe",
+          "worldline",
           "worldpay"
+        ]
+      },
+      "ConnectorType": {
+        "type": "string",
+        "enum": [
+          "payment_processor",
+          "payment_vas",
+          "fin_operations",
+          "fiz_operations",
+          "networks",
+          "banking_entities",
+          "non_banking_finance"
         ]
       },
       "CreateMerchantAccount": {
@@ -320,13 +334,7 @@
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
-          },
-          "custom_routing_rules": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomRoutingRules"
-            }
+            "type": "object"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -479,174 +487,6 @@
           "ZAR"
         ]
       },
-      "CustomRoutingRules": {
-        "type": "object",
-        "properties": {
-          "payment_methods_incl": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "example": [
-              "card",
-              "upi"
-            ]
-          },
-          "payment_methods_excl": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "example": [
-              "card",
-              "upi"
-            ]
-          },
-          "payment_method_types_incl": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodSubType"
-            },
-            "example": [
-              "credit_card",
-              "debit_card"
-            ]
-          },
-          "payment_method_types_excl": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodSubType"
-            },
-            "example": [
-              "credit_card",
-              "debit_card"
-            ]
-          },
-          "payment_method_issuers_incl": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "The List of payment method issuers to include for this routing rule"
-            },
-            "example": [
-              "Citibank",
-              "JPMorgan"
-            ]
-          },
-          "payment_method_issuers_excl": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "The List of payment method issuers to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list."
-            },
-            "example": [
-              "Citibank",
-              "JPMorgan"
-            ]
-          },
-          "countries_incl": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "The List of countries to include for this routing rule"
-            },
-            "example": [
-              "US",
-              "UK"
-            ]
-          },
-          "countries_excl": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "The List of countries to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list."
-            },
-            "example": [
-              "US",
-              "UK"
-            ]
-          },
-          "currencies_incl": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "example": [
-              "EUR",
-              "USD"
-            ]
-          },
-          "currencies_excl": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "example": [
-              "EUR",
-              "USD"
-            ]
-          },
-          "metadata_filters_keys": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of Metadata Filter keys to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the keys."
-            },
-            "example": [
-              "platform",
-              "Category"
-            ]
-          },
-          "metadata_filters_values": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of Metadata Filters to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the values."
-            },
-            "example": [
-              "android",
-              "Category_Electronics"
-            ]
-          },
-          "connectors_pecking_order": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "The pecking order of payment connectors (or processors) to be used for routing. The first connector in the array will be attempted for routing. If it fails, the second connector will be used till the list is exhausted."
-            },
-            "example": [
-              "stripe",
-              "adyen",
-              "brain_tree"
-            ]
-          },
-          "connectors_traffic_weightage_key": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "An Array of Connectors (as Keys) with the associated percentage of traffic to be routed through the given connector (Expressed as an array of values)"
-            },
-            "example": [
-              "stripe",
-              "adyen",
-              "brain_tree"
-            ]
-          },
-          "connectors_traffic_weightage_value": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32",
-              "description": "An Array of Weightage (expressed in percentage) that needs to be associated with the respective connectors (Expressed as an array of keys)"
-            },
-            "example": [
-              50,
-              30,
-              20
-            ]
-          }
-        }
-      },
       "CustomerAcceptance": {
         "type": "object",
         "required": [
@@ -793,13 +633,7 @@
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
-          },
-          "custom_routing_rules": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomRoutingRules"
-            }
+            "type": "object"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -1074,6 +908,94 @@
           }
         ]
       },
+      "PaymentConnectorCreate": {
+        "type": "object",
+        "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "required": [
+          "connector_type",
+          "connector_name"
+        ],
+        "properties": {
+          "connector_type": {
+            "$ref": "#/components/schemas/ConnectorType"
+          },
+          "connector_name": {
+            "type": "string",
+            "description": "Name of the Connector",
+            "example": "stripe"
+          },
+          "merchant_connector_id": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Unique ID of the connector",
+            "example": 42
+          },
+          "connector_account_details": {
+            "type": "object"
+          },
+          "test_mode": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethods"
+            },
+            "example": [
+              {
+                "payment_method": "wallet",
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
+                ],
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ],
+                "payment_schemes": [
+                  "Discover",
+                  "Discover"
+                ],
+                "accepted_currencies": [
+                  "AED",
+                  "AED"
+                ],
+                "accepted_countries": [
+                  "in",
+                  "us"
+                ],
+                "minimum_amount": 1,
+                "maximum_amount": 68607706,
+                "recurring_enabled": true,
+                "installment_payment_enabled": true
+              }
+            ]
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "PaymentExperience": {
+        "type": "string",
+        "enum": [
+          "redirect_to_url",
+          "invoke_sdk_client",
+          "display_qr_code",
+          "one_click",
+          "link_wallet",
+          "invoke_payment_app"
+        ]
+      },
       "PaymentMethod": {
         "oneOf": [
           {
@@ -1150,6 +1072,106 @@
           "klarna",
           "paypal"
         ]
+      },
+      "PaymentMethods": {
+        "type": "object",
+        "description": "Details of all the payment methods enabled for the connector for the given merchant account",
+        "required": [
+          "payment_method",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodSubType"
+            },
+            "example": [
+              "credit"
+            ]
+          },
+          "payment_method_issuers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of payment method issuers to be enabled for this payment method"
+            },
+            "example": [
+              "HDFC"
+            ]
+          },
+          "payment_schemes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of payment schemes accepted or has the processing capabilities of the processor"
+            },
+            "example": [
+              "MASTER",
+              "VISA",
+              "DINERS"
+            ]
+          },
+          "accepted_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "example": [
+              "USD",
+              "EUR",
+              "AED"
+            ]
+          },
+          "accepted_countries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of Countries accepted or has the processing capabilities of the processor"
+            },
+            "example": [
+              "US",
+              "IN"
+            ]
+          },
+          "minimum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
+            "example": 1
+          },
+          "maximum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
+            "example": 1313
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable recurring payments / mandates. Default is true.",
+            "default": true,
+            "example": false
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
+            "default": true,
+            "example": false
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "example": [
+              "redirect_to_url"
+            ]
+          }
+        }
       },
       "PaymentsRequest": {
         "type": "object",
@@ -1585,6 +1607,14 @@
           },
           "error_message": {
             "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
