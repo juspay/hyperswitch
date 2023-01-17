@@ -160,7 +160,10 @@ impl ResponseError for ApplicationError {
 }
 
 pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
-    ApiErrorResponse::NotImplemented.error_response()
+    ApiErrorResponse::NotImplemented {
+        message: api_error_response::NotImplementedMessage::Default,
+    }
+    .error_response()
 }
 
 #[derive(Debug, thiserror::Error)]

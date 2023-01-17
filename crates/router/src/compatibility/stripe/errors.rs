@@ -401,7 +401,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicateMandate => Self::DuplicateMandate,
             errors::ApiErrorResponse::SuccessfulPaymentNotFound => Self::SuccessfulPaymentNotFound,
             errors::ApiErrorResponse::AddressNotFound => Self::AddressNotFound,
-            errors::ApiErrorResponse::NotImplemented => Self::Unauthorized,
+            errors::ApiErrorResponse::NotImplemented { .. } => Self::Unauthorized,
             errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,

@@ -292,8 +292,14 @@ pub struct ErrorResponse {
 impl ErrorResponse {
     pub fn get_not_implemented() -> Self {
         Self {
-            code: errors::ApiErrorResponse::NotImplemented.error_code(),
-            message: errors::ApiErrorResponse::NotImplemented.error_message(),
+            code: errors::ApiErrorResponse::NotImplemented {
+                message: errors::api_error_response::NotImplementedMessage::Default,
+            }
+            .error_code(),
+            message: errors::ApiErrorResponse::NotImplemented {
+                message: errors::api_error_response::NotImplementedMessage::Default,
+            }
+            .error_message(),
             reason: None,
         }
     }

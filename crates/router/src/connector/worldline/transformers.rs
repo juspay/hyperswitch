@@ -188,7 +188,7 @@ fn get_card_product_id(
         }
     }
     Err(error_stack::Report::new(
-        errors::ConnectorError::RequestEncodingFailed,
+        errors::ConnectorError::NotImplemented(String::from("Payment Method")),
     ))
 }
 
@@ -206,7 +206,9 @@ fn build_customer_info(
     email: &Option<Secret<String, Email>>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
-        get_address(payment_address).ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: String::from("billing.address.country"),
+        })?;
 
     let number_with_country_code = billing.phone.as_ref().and_then(|phone| {
         phone.number.as_ref().and_then(|number| {

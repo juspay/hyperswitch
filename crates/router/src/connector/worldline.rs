@@ -108,7 +108,7 @@ impl ConnectorCommon for Worldline {
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: worldline::ErrorResponse = res
-            .parse_struct("Worldline ErrorResponse")
+            .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let error = response.errors.into_iter().next().unwrap_or_default();
         Ok(ErrorResponse {
@@ -425,8 +425,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let worldline_req = utils::Encode::<worldline::PaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = worldline::PaymentsRequest::try_from(req)?;
+        let worldline_req =
+            utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldline_req))
     }
 
@@ -460,7 +462,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         logger::debug!(payment_authorize_response=?res);
         let mut response: worldline::PaymentResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         response.payment.capture_method = data.request.capture_method.unwrap_or_default();
         types::ResponseRouterData {
@@ -543,7 +545,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         logger::debug!(target: "router::connector::worldline", response=?res);
         let response: worldline::RefundResponse = res
             .response
-            .parse_struct("worldline RefundResponse")
+            .parse_struct("RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
@@ -624,7 +626,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         logger::debug!(target: "router::connector::worldline", response=?res);
         let response: worldline::RefundResponse = res
             .response
-            .parse_struct("worldline RefundResponse")
+            .parse_struct("RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
