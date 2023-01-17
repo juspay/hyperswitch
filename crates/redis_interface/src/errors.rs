@@ -4,6 +4,8 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum RedisError {
+    #[error("Invalid Redis configuration: {0}")]
+    InvalidConfiguration(String),
     #[error("Failed to set key value in Redis")]
     SetFailed,
     #[error("Failed to set key value with expiry in Redis")]
