@@ -4,7 +4,6 @@ docs/ @juspay/orca-maintainers
 *.md @juspay/orca-maintainers
 LICENSE @juspay/orca-maintainers
 NOTICE @juspay/orca-maintainers
-contrib/ @juspay/orca-maintainers
 .github/ @juspay/orca-maintainers
 .gitignore @juspay/orca-maintainers
 Makefile @juspay/orca-maintainers

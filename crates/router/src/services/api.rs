@@ -58,6 +58,11 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         mime::APPLICATION_JSON.essence_str()
     }
 
+    /// primarily used when creating signature based on request method of payment flow
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
     fn get_url(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
