@@ -1,9 +1,12 @@
 use actix_web::{web, Scope};
 
-use super::{
-    customers::*, ephemeral_key::*, health::*, mandates::*, payment_methods::*, payments::*,
-    payouts::*, refunds::*, webhooks::*,
-};
+#[cfg(feature = "olap")]
+use super::admin::*;
+use super::health::*;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::{customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+#[cfg(feature = "oltp")]
+use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},
@@ -43,13 +46,7 @@ impl AppState {
 pub struct Health;
 
 impl Health {
-    pub fn oltp_server(state: AppState) -> Scope {
-        web::scope("")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/health").route(web::get().to(health)))
-    }
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
+    pub fn server(state: AppState) -> Scope {
         web::scope("")
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
@@ -58,115 +55,139 @@ impl Health {
 
 pub struct Payments;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl Payments {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        web::scope("/payments")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/list").route(web::get().to(payments_list)))
-    }
-    pub fn oltp_server(state: AppState) -> Scope {
-        // Routes are matched in the order they are declared.
-        web::scope("/payments")
-            .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(payments_create)))
-            .service(
-                web::resource("/session_tokens").route(web::post().to(payments_connector_session)),
-            )
-            .service(
-                web::resource("/{payment_id}")
-                    .route(web::get().to(payments_retrieve))
-                    .route(web::post().to(payments_update)),
-            )
-            .service(web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)))
-            .service(web::resource("/{payment_id}/cancel").route(web::post().to(payments_cancel)))
-            .service(web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)))
-            .service(
-                web::resource("/start/{payment_id}/{merchant_id}/{attempt_id}")
-                    .route(web::get().to(payments_start)),
-            )
-            .service(
-                web::resource("/{payment_id}/{merchant_id}/response/{connector}")
-                    .route(web::get().to(payments_response)),
-            )
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/payments").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(payments_list)));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(payments_create)))
+                .service(
+                    web::resource("/session_tokens")
+                        .route(web::post().to(payments_connector_session)),
+                )
+                .service(
+                    web::resource("/{payment_id}")
+                        .route(web::get().to(payments_retrieve))
+                        .route(web::post().to(payments_update)),
+                )
+                .service(
+                    web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
+                )
+                .service(
+                    web::resource("/{payment_id}/cancel").route(web::post().to(payments_cancel)),
+                )
+                .service(
+                    web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
+                )
+                .service(
+                    web::resource("/start/{payment_id}/{merchant_id}/{attempt_id}")
+                        .route(web::get().to(payments_start)),
+                )
+                .service(
+                    web::resource("/{payment_id}/{merchant_id}/response/{connector}")
+                        .route(web::get().to(payments_response)),
+                );
+        }
+        route
     }
 }
 
 pub struct Customers;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl Customers {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        web::scope("/customers")
-            .app_data(web::Data::new(state))
-            .service(
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/customers").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(
                 web::resource("/{customer_id}/mandates")
                     .route(web::get().to(get_customer_mandates)),
-            )
-    }
-    pub fn oltp_server(state: AppState) -> Scope {
-        web::scope("/customers")
-            .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(customers_create)))
-            .service(
-                web::resource("/{customer_id}")
-                    .route(web::get().to(customers_retrieve))
-                    .route(web::post().to(customers_update))
-                    .route(web::delete().to(customers_delete)),
-            )
-            .service(
-                web::resource("/{customer_id}/payment_methods")
-                    .route(web::get().to(list_customer_payment_method_api)),
-            )
+            );
+        }
+
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(
+                    web::resource("/{customer_id}")
+                        .route(web::get().to(customers_retrieve))
+                        .route(web::post().to(customers_update))
+                        .route(web::delete().to(customers_delete)),
+                )
+                .service(
+                    web::resource("/{customer_id}/payment_methods")
+                        .route(web::get().to(list_customer_payment_method_api)),
+                );
+        }
+        route
     }
 }
 
 pub struct Refunds;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl Refunds {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        web::scope("/refunds")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/list").route(web::get().to(refunds_list)))
-    }
-    pub fn oltp_server(state: AppState) -> Scope {
-        // Routes are matches in the order they are declared.
-        web::scope("/refunds")
-            .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(refunds_create)))
-            .service(
-                web::resource("/{id}")
-                    .route(web::get().to(refunds_retrieve))
-                    .route(web::post().to(refunds_update)),
-            )
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/refunds").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(refunds_list)));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(refunds_create)))
+                .service(
+                    web::resource("/{id}")
+                        .route(web::get().to(refunds_retrieve))
+                        .route(web::post().to(refunds_update)),
+                );
+        }
+        route
     }
 }
 
 pub struct Payouts;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl Payouts {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        web::scope("/payouts")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/accounts").route(web::get().to(payouts_accounts)))
-    }
-    pub fn oltp_server(state: AppState) -> Scope {
-        web::scope("/payouts")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/create").route(web::post().to(payouts_create)))
-            .service(web::resource("/retrieve").route(web::get().to(payouts_retrieve)))
-            .service(web::resource("/update").route(web::post().to(payouts_update)))
-            .service(web::resource("/reverse").route(web::post().to(payouts_reverse)))
-            .service(web::resource("/cancel").route(web::post().to(payouts_cancel)))
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/payouts").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route =
+                route.service(web::resource("/accounts").route(web::get().to(payouts_accounts)));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("/create").route(web::post().to(payouts_create)))
+                .service(web::resource("/retrieve").route(web::get().to(payouts_retrieve)))
+                .service(web::resource("/update").route(web::post().to(payouts_update)))
+                .service(web::resource("/reverse").route(web::post().to(payouts_reverse)))
+                .service(web::resource("/cancel").route(web::post().to(payouts_cancel)));
+        }
+        route
     }
 }
 
 pub struct PaymentMethods;
 
+#[cfg(feature = "oltp")]
 impl PaymentMethods {
-    pub fn oltp_server(state: AppState) -> Scope {
+    pub fn server(state: AppState) -> Scope {
         web::scope("/payment_methods")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(create_payment_method_api)))
@@ -181,10 +202,9 @@ impl PaymentMethods {
 
 pub struct MerchantAccount;
 
+#[cfg(feature = "olap")]
 impl MerchantAccount {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        use super::admin::*;
+    pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
@@ -199,38 +219,43 @@ impl MerchantAccount {
 
 pub struct MerchantConnectorAccount;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl MerchantConnectorAccount {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        use super::admin::*;
-        web::scope("/account")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("/{merchant_id}/connectors")
-                    .route(web::post().to(payment_connector_create))
-                    .route(web::get().to(payment_connector_list)),
-            )
-            .service(
-                web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
-                    .route(web::get().to(payment_connector_retrieve))
-                    .route(web::post().to(payment_connector_update))
-                    .route(web::delete().to(payment_connector_delete)),
-            )
-    }
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/account").app_data(web::Data::new(state));
 
-    pub fn oltp_server(state: AppState) -> Scope {
-        web::scope("/account")
-            .app_data(web::Data::new(state))
-            .service(
+        #[cfg(feature = "olap")]
+        {
+            use super::admin::*;
+
+            route = route
+                .service(
+                    web::resource("/{merchant_id}/connectors")
+                        .route(web::post().to(payment_connector_create))
+                        .route(web::get().to(payment_connector_list)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
+                        .route(web::get().to(payment_connector_retrieve))
+                        .route(web::post().to(payment_connector_update))
+                        .route(web::delete().to(payment_connector_delete)),
+                );
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route.service(
                 web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
-            )
+            );
+        }
+        route
     }
 }
 
 pub struct EphemeralKey;
 
+#[cfg(feature = "oltp")]
 impl EphemeralKey {
-    pub fn oltp_server(config: AppState) -> Scope {
+    pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::post().to(ephemeral_key_create)))
@@ -240,24 +265,29 @@ impl EphemeralKey {
 
 pub struct Mandates;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl Mandates {
-    #[cfg(feature = "olap")]
-    pub fn olap_server(state: AppState) -> Scope {
-        web::scope("/mandates")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/{id}").route(web::get().to(get_mandate)))
-    }
-    pub fn oltp_server(config: AppState) -> Scope {
-        web::scope("/mandates")
-            .app_data(web::Data::new(config))
-            .service(web::resource("/revoke/{id}").route(web::post().to(revoke_mandate)))
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/mandates").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(web::resource("/{id}").route(web::get().to(get_mandate)));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route =
+                route.service(web::resource("/revoke/{id}").route(web::post().to(revoke_mandate)));
+        }
+        route
     }
 }
 
 pub struct Webhooks;
 
+#[cfg(feature = "oltp")]
 impl Webhooks {
-    pub fn oltp_server(config: AppState) -> Scope {
+    pub fn server(config: AppState) -> Scope {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(

@@ -73,6 +73,25 @@ struct AdyenBrowserInfo {
     java_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AdyenStatus {
+    Authorised,
+    Refused,
+    Cancelled,
+    RedirectShopper,
+}
+
+impl From<AdyenStatus> for storage_enums::AttemptStatus {
+    fn from(item: AdyenStatus) -> Self {
+        match item {
+            AdyenStatus::Authorised => Self::Charged,
+            AdyenStatus::Refused => Self::Failure,
+            AdyenStatus::Cancelled => Self::Voided,
+            AdyenStatus::RedirectShopper => Self::AuthenticationPending,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AdyenRedirectRequest {
     pub details: AdyenRedirectRequestTypes,
@@ -105,7 +124,7 @@ pub struct AdyenThreeDS {
     pub result_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     AdyenResponse(AdyenResponse),
@@ -116,17 +135,17 @@ pub enum AdyenPaymentResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenResponse {
     psp_reference: String,
-    result_code: String,
+    result_code: AdyenStatus,
     amount: Option<Amount>,
     merchant_reference: String,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRedirectionResponse {
-    result_code: String,
+    result_code: AdyenStatus,
     action: AdyenRedirectionAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
@@ -455,16 +474,15 @@ pub fn get_adyen_response(
     ),
     errors::ParsingError,
 > {
-    let result = response.result_code;
-    let status = match result.as_str() {
-        "Authorised" => {
+    let status = match response.result_code {
+        AdyenStatus::Authorised => {
             if is_capture_manual {
                 storage_enums::AttemptStatus::Authorized
             } else {
                 storage_enums::AttemptStatus::Charged
             }
         }
-        "Refused" => storage_enums::AttemptStatus::Failure,
+        AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,
         _ => storage_enums::AttemptStatus::Pending,
     };
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
@@ -501,14 +519,7 @@ pub fn get_redirection_response(
     ),
     errors::ParsingError,
 > {
-    let result = response.result_code;
-    let status = match result.as_str() {
-        "Authorised" => storage_enums::AttemptStatus::Charged,
-        "Refused" => storage_enums::AttemptStatus::Failure,
-        "Cancelled" => storage_enums::AttemptStatus::Failure,
-        "RedirectShopper" => storage_enums::AttemptStatus::AuthenticationPending,
-        _ => storage_enums::AttemptStatus::Pending,
-    };
+    let status = response.result_code.into();
 
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
@@ -795,10 +806,10 @@ impl From<AdyenNotificationRequestItemWH> for AdyenResponse {
         Self {
             psp_reference: notif.psp_reference,
             merchant_reference: notif.merchant_reference,
-            result_code: String::from(match notif.success.as_str() {
-                "true" => "Authorised",
-                _ => "Refused",
-            }),
+            result_code: match notif.success.as_str() {
+                "true" => AdyenStatus::Authorised,
+                _ => AdyenStatus::Refused,
+            },
             amount: Some(Amount {
                 value: notif.amount.value,
                 currency: notif.amount.currency,
