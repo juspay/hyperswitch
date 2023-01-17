@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -28,6 +29,7 @@ pub struct Settings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Database {
     pub username: String,
     pub password: String,
@@ -38,6 +40,7 @@ pub struct Database {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
@@ -47,11 +50,11 @@ pub struct DrainerSettings {
 impl Default for Database {
     fn default() -> Self {
         Self {
-            username: String::new(),
-            password: String::new(),
+            username: String::default(),
+            password: String::default(),
             host: "localhost".into(),
             port: 5432,
-            dbname: String::new(),
+            dbname: String::default(),
             pool_size: 5,
         }
     }
@@ -64,6 +67,46 @@ impl Default for DrainerSettings {
             num_partitions: 64,
             max_read_count: 100,
         }
+    }
+}
+
+impl Database {
+    fn validate(&self) -> Result<(), errors::DrainerError> {
+        use common_utils::fp_utils::when;
+
+        when(self.username.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database username must not be empty".into(),
+            ))
+        })?;
+
+        when(self.password.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database user password must not be empty".into(),
+            ))
+        })?;
+
+        when(self.host.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database host must not be empty".into(),
+            ))
+        })?;
+
+        when(self.dbname.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database name must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl DrainerSettings {
+    fn validate(&self) -> Result<(), errors::DrainerError> {
+        common_utils::fp_utils::when(self.stream_name.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "drainer stream name must not be empty".into(),
+            ))
+        })
     }
 }
 
@@ -105,5 +148,16 @@ impl Settings {
             eprintln!("Unable to deserialize application configuration: {error}");
             errors::DrainerError::from(error.into_inner())
         })
+    }
+
+    pub fn validate(&self) -> Result<(), errors::DrainerError> {
+        self.master_database.validate()?;
+        self.redis.validate().map_err(|error| {
+            println!("{error}");
+            errors::DrainerError::ConfigParsingError("invalid Redis configuration".into())
+        })?;
+        self.drainer.validate()?;
+
+        Ok(())
     }
 }
