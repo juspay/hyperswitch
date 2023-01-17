@@ -1,11 +1,13 @@
-use crate::types::{storage, transformers::ForeignInto};
 pub use api_models::admin::{
     CreateMerchantAccount, CustomRoutingRules, DeleteMcaResponse, DeleteResponse,
     MerchantAccountResponse, MerchantConnectorId, MerchantDetails, MerchantId,
     PaymentConnectorCreate, PaymentMethods, WebhookDetails,
 };
 
-use crate::types::transformers::Foreign;
+use crate::types::{
+    storage,
+    transformers::{Foreign, ForeignInto},
+};
 
 impl From<Foreign<storage::MerchantAccount>> for Foreign<MerchantAccountResponse> {
     fn from(value: Foreign<storage::MerchantAccount>) -> Self {
