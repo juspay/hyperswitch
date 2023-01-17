@@ -527,6 +527,37 @@ pub enum Connector {
     Worldpay,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutableConnectors {
+    Aci,
+    Adyen,
+    Authorizedotnet,
+    Braintree,
+    Checkout,
+    Cybersource,
+    Fiserv,
+    Globalpay,
+    Klarna,
+    Payu,
+    Shift4,
+    Stripe,
+    Worldline,
+    Worldpay,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedWallets {

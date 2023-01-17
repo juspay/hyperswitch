@@ -32,12 +32,8 @@ pub struct CreateMerchantAccount {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
-    pub routing_algorithm: Option<api_enums::RoutingAlgorithm>,
-
-    /// The custom routing rules to be used for various payment methods and conditions
-    pub custom_routing_rules: Option<Vec<CustomRoutingRules>>,
+    /// The routing algorithm to be used for routing payments to desired connectors
+    pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
     #[schema(default = false, example = false)]
@@ -113,6 +109,12 @@ pub struct MerchantDetails {
     pub address: Option<AddressDetails>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum RoutingAlgorithm {
+    Single(api_enums::RoutableConnectors),
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetails {
@@ -143,70 +145,6 @@ pub struct WebhookDetails {
     /// If this property is true, a webhook message is posted whenever a payment fails
     #[schema(example = true)]
     pub payment_failed_enabled: Option<bool>,
-}
-
-#[derive(Default, Clone, Debug, Deserialize, ToSchema, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct CustomRoutingRules {
-    /// The List of payment methods to include for this routing rule
-    #[schema(value_type = Option<Vec<PaymentMethodType>>, example = json!(["card", "upi"]))]
-    pub payment_methods_incl: Option<Vec<api_enums::PaymentMethodType>>,
-
-    /// The List of payment methods to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list.
-    #[schema(value_type = Option<Vec<PaymentMethodType>>, example = json!(["card", "upi"]))]
-    pub payment_methods_excl: Option<Vec<api_enums::PaymentMethodType>>,
-
-    /// The List of payment method types to include for this routing rule
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>, example = json!(["credit_card", "debit_card"]))]
-    pub payment_method_types_incl: Option<Vec<api_enums::PaymentMethodSubType>>,
-
-    /// The List of payment method types to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list.
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>, example = json!(["credit_card", "debit_card"]))]
-    pub payment_method_types_excl: Option<Vec<api_enums::PaymentMethodSubType>>,
-
-    /// The List of payment method issuers to include for this routing rule
-    #[schema(example = json!(["Citibank", "JPMorgan"]))]
-    pub payment_method_issuers_incl: Option<Vec<String>>,
-
-    /// The List of payment method issuers to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list.
-    #[schema(example = json!(["Citibank", "JPMorgan"]))]
-    pub payment_method_issuers_excl: Option<Vec<String>>,
-
-    /// The List of countries to include for this routing rule
-    #[schema(example = json!(["US", "UK"]))]
-    pub countries_incl: Option<Vec<String>>,
-
-    /// The List of countries to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list.
-    #[schema(example = json!(["US", "UK"]))]
-    pub countries_excl: Option<Vec<String>>,
-
-    /// The List of currencies to include for this routing rule
-    #[schema(value_type = Option<Vec<Currency>>, example = json!(["EUR","USD"]))]
-    pub currencies_incl: Option<Vec<api_enums::Currency>>,
-
-    /// The List of currencies to exclude for this routing rule. If there is conflict between include and exclude lists, include list overrides the exclude list.
-    #[schema(value_type = Option<Vec<Currency>>, example = json!(["EUR","USD"]))]
-    pub currencies_excl: Option<Vec<api_enums::Currency>>,
-
-    /// List of Metadata Filter keys to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the keys.
-    #[schema(example = json!(["platform","Category"]))]
-    pub metadata_filters_keys: Option<Vec<String>>,
-
-    /// List of Metadata Filters to apply for the Routing Rule. The filters are presented as 2 arrays of keys and value. This property contains all the values.
-    #[schema(example = json!(["android", "Category_Electronics"]))]
-    pub metadata_filters_values: Option<Vec<String>>,
-
-    /// The pecking order of payment connectors (or processors) to be used for routing. The first connector in the array will be attempted for routing. If it fails, the second connector will be used till the list is exhausted.
-    #[schema(example = json!([ "stripe", "adyen", "brain_tree"]))]
-    pub connectors_pecking_order: Option<Vec<String>>,
-
-    ///An Array of Connectors (as Keys) with the associated percentage of traffic to be routed through the given connector (Expressed as an array of values)
-    #[schema(example = json!([ "stripe", "adyen", "brain_tree"]))]
-    pub connectors_traffic_weightage_key: Option<Vec<String>>,
-
-    /// An Array of Weightage (expressed in percentage) that needs to be associated with the respective connectors (Expressed as an array of keys)
-    #[schema(example = json!([ 50, 30, 20 ]))]
-    pub connectors_traffic_weightage_value: Option<Vec<i32>>,
 }
 
 #[derive(Debug, Serialize)]

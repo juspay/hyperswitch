@@ -153,13 +153,12 @@ diesel::table! {
         merchant_name -> Nullable<Varchar>,
         merchant_details -> Nullable<Json>,
         webhook_details -> Nullable<Json>,
-        routing_algorithm -> Nullable<RoutingAlgorithm>,
-        custom_routing_rules -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         locker_id -> Nullable<Varchar>,
+        routing_algorithm -> Nullable<Json>,
     }
 }
 
