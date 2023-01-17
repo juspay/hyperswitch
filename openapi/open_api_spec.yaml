@@ -1146,7 +1146,7 @@ paths:
                 capture_on: "2022-09-10T10:11:12Z"
                 amount_to_capture: 6540
                 amount_capturable: 6540
-                amount_recieved: 0
+                amount_received: 0
                 customer_id: "cus_udst2tfldj6upmye2reztkmm4i"
                 email: "guest@example.com"
                 name: "John Doe"
@@ -3032,7 +3032,7 @@ components:
           minimum: 100
           example: 6540
           nullable: true
-        amount_recieved:
+        amount_received:
           type: integer
           description: The amount which is already captured from the payment
           minimum: 100

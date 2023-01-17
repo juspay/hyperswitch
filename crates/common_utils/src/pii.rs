@@ -213,7 +213,7 @@ mod pii_masking_strategy_tests {
     }
 
     #[test]
-    fn test_invalid_lient_secret_masking() {
+    fn test_invalid_client_secret_masking() {
         let secret: Secret<String, IpAddress> =
             Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
