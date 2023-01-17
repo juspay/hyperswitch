@@ -50,25 +50,6 @@ where
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let auth_type = if let types::ConnectorAuthType::AccessToken { .. } = &auth_type {
-        let db = &*state.store;
-        let access_token = db
-            .get_access_token(&merchant_account.merchant_id, connector_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        let _token = match access_token {
-            Some(token) => token,
-            None => services::refresh_connector_access_token(state, connector_id.to_string())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        };
-
-        auth_type
-    } else {
-        auth_type
-    };
-
     payment_method = payment_data
         .payment_attempt
         .payment_method
@@ -116,6 +97,7 @@ where
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,
+        access_token: None,
     };
 
     Ok(router_data)

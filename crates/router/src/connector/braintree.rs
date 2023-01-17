@@ -52,6 +52,17 @@ impl api::PaymentVoid for Braintree {}
 impl api::PaymentCapture for Braintree {}
 
 impl api::PaymentSession for Braintree {}
+impl api::ConnectorUpdateAuth for Braintree {}
+
+impl
+    services::ConnectorIntegration<
+        api::UpdateAuth,
+        types::RefreshTokenRequestData,
+        types::AccessToken,
+    > for Braintree
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

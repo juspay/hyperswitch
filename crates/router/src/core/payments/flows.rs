@@ -38,4 +38,15 @@ pub trait Feature<F, T> {
         Self: Sized,
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn update_connector_auth<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 }

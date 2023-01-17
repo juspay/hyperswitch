@@ -2,10 +2,11 @@ pub mod api;
 pub mod authentication;
 pub mod encryption;
 pub mod logger;
+pub mod refresh_token;
 
 use std::sync::Arc;
 
-pub use self::{api::*, encryption::*};
+pub use self::{api::*, encryption::*, refresh_token::*};
 use crate::connection::{diesel_make_pg_pool, PgPool};
 
 #[derive(Clone)]

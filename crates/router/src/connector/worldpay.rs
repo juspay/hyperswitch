@@ -178,6 +178,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
+impl api::ConnectorUpdateAuth for Worldpay {}
+
+impl ConnectorIntegration<api::UpdateAuth, types::RefreshTokenRequestData, types::AccessToken>
+    for Worldpay
+{
+}
+
 impl api::PaymentSync for Worldpay {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Worldpay

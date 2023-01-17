@@ -57,12 +57,23 @@ impl api::PaymentSync for Checkout {}
 impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
+impl api::ConnectorUpdateAuth for Checkout {}
 
 impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
         types::PaymentsResponseData,
+    > for Checkout
+{
+    // Not Implemented (R)
+}
+
+impl
+    services::ConnectorIntegration<
+        api::UpdateAuth,
+        types::RefreshTokenRequestData,
+        types::AccessToken,
     > for Checkout
 {
     // Not Implemented (R)

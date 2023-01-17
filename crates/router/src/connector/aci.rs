@@ -52,12 +52,23 @@ impl api::PaymentSync for Aci {}
 impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
 impl api::PaymentSession for Aci {}
+impl api::ConnectorUpdateAuth for Aci {}
 
 impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
         types::PaymentsResponseData,
+    > for Aci
+{
+    // Not Implemented (R)
+}
+
+impl
+    services::ConnectorIntegration<
+        api::UpdateAuth,
+        types::RefreshTokenRequestData,
+        types::AccessToken,
     > for Aci
 {
     // Not Implemented (R)

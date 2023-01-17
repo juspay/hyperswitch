@@ -53,6 +53,15 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         )
         .await
     }
+
+    async fn update_connector_auth<'a>(
+        &mut self,
+        state: &routes::AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(services::update_connector_auth(state, connector, merchant_account, self).await?)
+    }
 }
 
 fn create_gpay_session_token(

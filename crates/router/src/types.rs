@@ -32,6 +32,8 @@ pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 
+pub type RefreshTokenRouterData = RouterData<api::UpdateAuth, RefreshTokenRequestData, AccessToken>;
+
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
@@ -80,6 +82,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<serde_json::Value>,
     pub amount_captured: Option<i64>,
+    pub access_token: Option<AccessToken>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -150,10 +153,16 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsTransactionResponse {
-    pub resource_id: ResponseId,
-    pub redirection_data: Option<services::RedirectForm>,
-    pub redirect: bool,
+pub struct RefreshTokenRequestData {
+    pub app_id: String,
+    pub id: Option<String>,
+    // Add more keys if required
+}
+
+#[derive(serde::Deserialize, Debug, Clone)]
+pub struct AccessToken {
+    pub token: String,
+    pub expires: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -266,12 +275,6 @@ pub enum ConnectorAuthType {
         key1: String,
         api_secret: String,
     },
-    AccessToken {
-        api_key: String,
-        id: String,
-        #[serde(skip_deserializing)]
-        access_token: Option<String>,
-    },
     #[default]
     NoKey,
 }
@@ -300,6 +303,29 @@ impl ErrorResponse {
             code: errors::ApiErrorResponse::NotImplemented.error_code(),
             message: errors::ApiErrorResponse::NotImplemented.error_message(),
             reason: None,
+        }
+    }
+}
+
+impl From<ConnectorAuthType> for RefreshTokenRequestData {
+    fn from(connector_auth: ConnectorAuthType) -> Self {
+        match connector_auth {
+            ConnectorAuthType::HeaderKey { api_key } => Self {
+                app_id: api_key,
+                id: None,
+            },
+            ConnectorAuthType::BodyKey { api_key, key1 } => Self {
+                app_id: api_key,
+                id: Some(key1),
+            },
+            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Self {
+                app_id: api_key,
+                id: Some(key1),
+            },
+            ConnectorAuthType::NoKey => Self {
+                app_id: "".to_string(),
+                id: None,
+            },
         }
     }
 }

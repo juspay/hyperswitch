@@ -52,6 +52,15 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         )
         .await
     }
+
+    async fn update_connector_auth<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(services::update_connector_auth(state, connector, merchant_account, self).await?)
+    }
 }
 
 impl types::VerifyRouterData {
