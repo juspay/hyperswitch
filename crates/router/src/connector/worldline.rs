@@ -317,9 +317,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}/approve"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/approve"
         ))
     }
 
