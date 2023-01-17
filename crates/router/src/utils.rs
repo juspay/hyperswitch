@@ -1,11 +1,11 @@
-pub(crate) mod custom_serde;
-pub(crate) mod db_utils;
-mod ext_traits;
+pub mod custom_serde;
+pub mod db_utils;
+pub mod ext_traits;
 
 #[cfg(feature = "kv_store")]
-pub(crate) mod storage_partitioning;
+pub mod storage_partitioning;
 
-pub(crate) use common_utils::{
+pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
@@ -15,7 +15,7 @@ use error_stack::{IntoReport, ResultExt};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 
-pub(crate) use self::ext_traits::{OptionExt, ValidateCall};
+pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
     core::errors::{self, RouterResult},

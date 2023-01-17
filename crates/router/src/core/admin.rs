@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[inline]
-fn create_merchant_api_key() -> String {
+pub fn create_merchant_api_key() -> String {
     let id = Uuid::new_v4().simple();
     match env::which() {
         Env::Development => format!("dev_{id}"),
