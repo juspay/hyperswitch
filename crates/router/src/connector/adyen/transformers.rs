@@ -738,7 +738,7 @@ pub struct ErrorResponse {
 //     use super::*;
 
 //     #[test]
-//     fn verify_tranform_from_router_to_adyen_req() {
+//     fn verify_transform_from_router_to_adyen_req() {
 //         let router_req = PaymentsRequest {
 //             amount: 0.0,
 //             currency: "None".to_string(),

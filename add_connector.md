@@ -8,7 +8,7 @@ This is a guide to contributing new connector to Router. This guide includes ins
 
 - Understanding of the Connector APIs which you wish to integrate with Router
 - Setup of Router repository and running it on local
-- Access to API credentials for testing the Connector API (you can quickly sign up for sandbox/uat credentials by visting the website of the connector you wish to integrate)
+- Access to API credentials for testing the Connector API (you can quickly sign up for sandbox/uat credentials by visiting the website of the connector you wish to integrate)
 
 In Router, there are Connectors and Payment Methods, examples of both are shown below from which the difference is apparent.
 
@@ -53,6 +53,7 @@ sh add_connector.sh <connector-name>
 For this tutorial `<connector-name>` would be `checkout`.
 
 The folder structure will be modified as below
+
 ```
 crates/router/src/connector
 ├── checkout
@@ -76,7 +77,7 @@ The Connector module is implemented as a stateless module, so that you will not 
 Lets add code in `transformers.rs` file.
 A little planning and designing is required for implementing the Requests and Responses of the connector, as it depends on the API spec of the connector.
 
-For example, in case of checkout, the [request](https://api-reference.checkout.com/#tag/Payments) has a required parameter `currency` and few other required parameters in `source`. But the fields in “source” vary depending on the `source type`. An enum is needed to accomodate this in the Request type. You may need to add the serde tags to convert enum into json or url encoded based on your requirements. Here `serde(untagged)` is added to make the whole structure into the proper json acceptable to the connector.
+For example, in case of checkout, the [request](https://api-reference.checkout.com/#tag/Payments) has a required parameter `currency` and few other required parameters in `source`. But the fields in “source” vary depending on the `source type`. An enum is needed to accommodate this in the Request type. You may need to add the serde tags to convert enum into json or url encoded based on your requirements. Here `serde(untagged)` is added to make the whole structure into the proper json acceptable to the connector.
 
 Now let's implement Request type for checkout
 
@@ -277,17 +278,19 @@ And the below derive traits
 There is a trait bound to implement refunds, if you don't want to implement refunds you can mark them as `todo!()` but code panics when you initiate refunds then.
 
 Don’t forget to add logs lines in appropriate places.
-Refer to other conector code for trait implementations. mostly tThe rust compiler will guide you to do it easily.
+Refer to other connector code for trait implementations. mostly tThe rust compiler will guide you to do it easily.
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
 
 ### **Test the connector**
+
 Try running the tests in `crates/router/tests/connectors/{{connector-name}}.rs`.
-All tests should pass and add appropiate tests for connector specific payment flows.
+All tests should pass and add appropriate tests for connector specific payment flows.
 
 ### **Build payment request and response from json schema**
+
 Some connectors will provide [json schema](https://developer.worldpay.com/docs/access-worldpay/api/references/payments) for each request and response supported. We can directly convert that schema to rust code by using below script. On running the script a `temp.rs` file will be created in `src/connector/<connector-name>` folder
 
-*Note: The code generated may not be production ready and might fail for some case, we have to clean up the code as per our standards.*
+_Note: The code generated may not be production ready and might fail for some case, we have to clean up the code as per our standards._
 
 ```bash
 brew install openapi-generator
@@ -297,33 +300,33 @@ openapi-generator generate -g rust  -i ${SCHEMA_PATH} -o temp &&  cat temp/src/m
 ```
 
 JSON example
+
 ```json
 {
-    "openapi": "3.0.1",
-    "paths": {},
-    "info": {
-        "title": "",
-        "version": ""
-    },
-    "components": {
-        "schemas": {
-            "PaymentsResponse": {
-                "type": "object",
-                "properties": {
-                    "outcome": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "outcome"
-                ]
-            }
-        }
+  "openapi": "3.0.1",
+  "paths": {},
+  "info": {
+    "title": "",
+    "version": ""
+  },
+  "components": {
+    "schemas": {
+      "PaymentsResponse": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          }
+        },
+        "required": ["outcome"]
+      }
     }
+  }
 }
 ```
 
 YAML example
+
 ```yaml
 ---
 openapi: 3.0.1
@@ -334,10 +337,10 @@ info:
 components:
   schemas:
     PaymentsResponse:
-        type: object
-        properties:
-            outcome:
-              type: string
-        required:
-            - outcome
+      type: object
+      properties:
+        outcome:
+          type: string
+      required:
+        - outcome
 ```

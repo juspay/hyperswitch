@@ -42,7 +42,7 @@ ARG RUN_ENV=Sandbox
 
 # args for deciding the executable to export. three binaries:
 # 1. BINARY=router - for main application
-# 2. BINARY=scheduler, SCHEDULER_FLOW=Consumer - part of proces tracker
+# 2. BINARY=scheduler, SCHEDULER_FLOW=Consumer - part of process tracker
 # 3. BINARY=scheduler, SCHEDULER_FLOW=Producer - part of process tracker
 ARG BINARY=router
 ARG SCHEDULER_FLOW=Consumer
