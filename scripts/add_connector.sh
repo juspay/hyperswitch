@@ -33,7 +33,7 @@ cd $conn/
 # generate template files for the connector
 cargo install cargo-generate
 cargo gen-pg $pg
-# move sub files and test files to appropiate folder
+# move sub files and test files to appropriate folder
 mv $pg/mod.rs $pg.rs
 mv $pg/test.rs ${tests}/$pg.rs
 # remove changes from tests if already done for this connector

@@ -184,3 +184,13 @@ jobs:
       # - name: Run tests
       #   shell: bash
       #   run: cargo nextest run --all-features
+
+  typos:
+    name: Spell check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+
+      - name: Spell check
+        uses: crate-ci/typos@master

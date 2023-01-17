@@ -162,7 +162,7 @@ pub struct Bank {
     pub iban: Option<String>,
     /// The international identifier code for the bank.
     pub identifier_code: Option<String>,
-    /// The name assocaited with the bank account
+    /// The name associated with the bank account
     pub name: Option<String>,
 }
 
