@@ -85,6 +85,9 @@ base_url = "https://apitest.cybersource.com/"
 [connectors.shift4]
 base_url = "https://api.shift4.com/"
 
+[connectors.rapyd]
+base_url = "https://sandboxapi.rapyd.net"
+
 [connectors.fiserv]
 base_url = "https://cert.api.fiservapps.com/"
 

@@ -44,11 +44,16 @@ pub async fn create_merchant_account(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "webhook details",
             })?;
-    let custom_routing_rules =
-        utils::Encode::<api::CustomRoutingRules>::encode_to_value(&req.custom_routing_rules)
+
+    if let Some(ref routing_algorithm) = req.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "custom routing rules",
-            })?;
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
 
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
@@ -57,8 +62,7 @@ pub async fn create_merchant_account(
         merchant_details: Some(merchant_details),
         return_url: req.return_url,
         webhook_details: Some(webhook_details),
-        routing_algorithm: req.routing_algorithm.map(ForeignInto::foreign_into),
-        custom_routing_rules: Some(custom_routing_rules),
+        routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
         parent_merchant_id: get_parent_merchant(
             db,
@@ -99,13 +103,6 @@ pub async fn get_merchant_account(
         .webhook_details
         .parse_value("WebhookDetails")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let vec_val = merchant_account
-        .custom_routing_rules
-        .parse_value("CustomRoutingRulesVector")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let custom_routing_rules = serde_json::Value::Array(vec_val)
-        .parse_value("CustomRoutingRules")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let response = api::MerchantAccountResponse {
         merchant_id: req.merchant_id,
         merchant_name: merchant_account.merchant_name,
@@ -113,10 +110,7 @@ pub async fn get_merchant_account(
         merchant_details,
         return_url: merchant_account.return_url,
         webhook_details,
-        routing_algorithm: merchant_account
-            .routing_algorithm
-            .map(ForeignInto::foreign_into),
-        custom_routing_rules,
+        routing_algorithm: merchant_account.routing_algorithm,
         sub_merchants_enabled: merchant_account.sub_merchants_enabled,
         parent_merchant_id: merchant_account.parent_merchant_id,
         enable_payment_response_hash: Some(merchant_account.enable_payment_response_hash),
@@ -142,6 +136,7 @@ pub async fn merchant_account_update(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
+
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
             field_name: "parent_merchant_id"
@@ -153,6 +148,17 @@ pub async fn merchant_account_update(
             field_name: "parent_merchant_id",
         }))?;
     }
+
+    if let Some(ref routing_algorithm) = req.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
     let mut response = req.clone();
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_id: merchant_id.to_string(),
@@ -181,18 +187,7 @@ pub async fn merchant_account_update(
         },
         routing_algorithm: req
             .routing_algorithm
-            .map(ForeignInto::foreign_into)
-            .or(merchant_account.routing_algorithm),
-        custom_routing_rules: if req.custom_routing_rules.is_some() {
-            Some(
-                utils::Encode::<api::CustomRoutingRules>::encode_to_value(
-                    &req.custom_routing_rules,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-        } else {
-            merchant_account.custom_routing_rules.to_owned()
-        },
+            .or_else(|| merchant_account.routing_algorithm.clone()),
         sub_merchants_enabled: req
             .sub_merchants_enabled
             .or(merchant_account.sub_merchants_enabled),

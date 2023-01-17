@@ -56,7 +56,7 @@ pub async fn trim_from_stream(
         .map_err(DrainerError::from)
         .into_report()?;
 
-    // Since xtrim deletes entires below given id excluding the given id.
+    // Since xtrim deletes entries below given id excluding the given id.
     // Hence, deleting the minimum entry id
     redis
         .stream_delete_entries(stream_name, minimum_entry_id)
