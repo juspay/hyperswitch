@@ -98,9 +98,19 @@ pub async fn delete_merchant_account(
     .await
 }
 
-//payment connector api
+/// PaymentsConnectors - Create
+///
+/// Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}/connectors",
+    request_body = PaymentConnectorCreate,
+    responses(
+        (status = 200, description = "Payment Connector Created", body = PaymentConnectorCreate),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsCreate))]
-// #[post("/{merchant_id}/connectors")]
 pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,

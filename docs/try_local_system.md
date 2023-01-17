@@ -320,10 +320,9 @@ Once you're done with configuring the application, proceed with
 4. Open the ["Merchant Account - Create"][merchant-account-create] request,
    switch to the "Body" tab and update any request parameters as required.
 
-   - If you want to use a different priority order for choosing a payment
-     connector other than the provided default, update the
-     `connectors_pecking_order` field present in the `custom_routing_rules`
-     field to your liking.
+   - If you want to use a different connector for making payments with
+     than the provided default, update the `data` field present
+     in the `routing_algorithm` field to your liking.
 
    Click on the "Send" button to create a merchant account.
    You should obtain a response containing most of the data included in the
