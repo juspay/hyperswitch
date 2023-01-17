@@ -25,7 +25,8 @@ impl<R, E> Applicative<R> for Result<R, E> {
     }
 }
 
-/// This function allows lazy evaluation of the `f` argument
+/// This function wraps the evaluated result of `f` into current context,
+/// based on the condition provided into the `predicate`
 pub fn when<W: Applicative<(), WrappedSelf<()> = W>, F>(predicate: bool, f: F) -> W
 where
     F: FnOnce() -> W,
