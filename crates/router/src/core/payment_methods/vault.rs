@@ -277,10 +277,7 @@ impl Vault {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encode payment method as mock tokenize db value")?;
 
-        let already_present = state
-            .store
-            .find_config_by_key(&lookup_key)
-            .await;
+        let already_present = state.store.find_config_by_key(&lookup_key).await;
 
         if already_present.is_err() {
             let config = storage::ConfigNew {
@@ -296,7 +293,7 @@ impl Vault {
                 .attach_printable("Mock tokenization save to db failed insert")?;
         } else {
             let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string)
+                config: Some(value_string),
             };
             state
                 .store
