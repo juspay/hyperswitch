@@ -58,8 +58,7 @@ pub mod pii {
     pub use masking::*;
 }
 
-#[cfg(feature = "olap")]
-pub fn mk_olap_app(
+pub fn mk_app(
     state: AppState,
     request_body_limit: usize,
 ) -> actix_web::App<
@@ -71,40 +70,54 @@ pub fn mk_olap_app(
         InitError = (),
     >,
 > {
-    let application_builder = get_application_builder(request_body_limit);
+    let mut server_app = get_application_builder(request_body_limit);
 
-    let mut server_app = application_builder
-        .service(routes::Payments::olap_server(state.clone()))
-        .service(routes::Customers::olap_server(state.clone()))
-        .service(routes::Refunds::olap_server(state.clone()))
-        .service(routes::Payouts::olap_server(state.clone()))
-        .service(routes::MerchantAccount::olap_server(state.clone()))
-        .service(routes::MerchantConnectorAccount::olap_server(state.clone()))
-        .service(routes::Mandates::olap_server(state.clone()));
+    #[cfg(any(feature = "olap", feature = "oltp"))]
+    {
+        server_app = server_app
+            .service(routes::Payments::server(state.clone()))
+            .service(routes::Customers::server(state.clone()))
+            .service(routes::Refunds::server(state.clone()))
+            .service(routes::Payouts::server(state.clone()))
+            .service(routes::MerchantConnectorAccount::server(state.clone()))
+            .service(routes::Mandates::server(state.clone()));
+    }
+
+    #[cfg(feature = "oltp")]
+    {
+        server_app = server_app
+            .service(routes::PaymentMethods::server(state.clone()))
+            .service(routes::EphemeralKey::server(state.clone()))
+            .service(routes::Webhooks::server(state.clone()));
+    }
+
+    #[cfg(feature = "olap")]
+    {
+        server_app = server_app.service(routes::MerchantAccount::server(state.clone()));
+    }
 
     #[cfg(feature = "stripe")]
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
-    server_app = server_app.service(routes::Health::olap_server(state));
+    server_app = server_app.service(routes::Health::server(state));
     server_app
 }
 
-/// Starts the OLAP server with only OLAP services
+/// Starts the server
 ///
 /// # Panics
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-#[cfg(feature = "olap")]
-pub async fn start_olap_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
+pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let state = routes::AppState::new(conf).await;
     // Cloning to close connections before shutdown
     let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_olap_app(state.clone(), request_body_limit))
+    let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
         .workers(server.workers.unwrap_or_else(num_cpus::get_physical))
         .run();
@@ -142,58 +155,4 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(cors::cors())
-}
-
-pub fn mk_oltp_app(
-    state: AppState,
-    request_body_limit: usize,
-) -> actix_web::App<
-    impl ServiceFactory<
-        ServiceRequest,
-        Config = (),
-        Response = actix_web::dev::ServiceResponse<impl MessageBody>,
-        Error = actix_web::Error,
-        InitError = (),
-    >,
-> {
-    let application_builder = get_application_builder(request_body_limit);
-
-    let mut server_app = application_builder
-        .service(routes::Payments::oltp_server(state.clone()))
-        .service(routes::Customers::oltp_server(state.clone()))
-        .service(routes::Refunds::oltp_server(state.clone()))
-        .service(routes::Payouts::oltp_server(state.clone()))
-        .service(routes::PaymentMethods::oltp_server(state.clone()))
-        .service(routes::EphemeralKey::oltp_server(state.clone()))
-        .service(routes::Webhooks::oltp_server(state.clone()))
-        .service(routes::MerchantConnectorAccount::oltp_server(state.clone()))
-        .service(routes::Mandates::oltp_server(state.clone()));
-
-    #[cfg(feature = "stripe")]
-    {
-        server_app = server_app.service(routes::StripeApis::server(state.clone()));
-    }
-    server_app = server_app.service(routes::Health::oltp_server(state));
-    server_app
-}
-
-/// Starts the OLTP server with only OLTP services
-///
-/// # Panics
-///
-///  Unwrap used because without the value we can't start the server
-#[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_oltp_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
-    logger::debug!(startup_config=?conf);
-    let server = conf.server.clone();
-    let state = routes::AppState::new(conf).await;
-    // Cloning to close connections before shutdown
-    let app_state = state.clone();
-    let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_oltp_app(state.clone(), request_body_limit))
-        .bind((server.host.as_str(), server.port))?
-        .workers(server.workers.unwrap_or_else(num_cpus::get_physical))
-        .run();
-
-    Ok((server, app_state))
 }

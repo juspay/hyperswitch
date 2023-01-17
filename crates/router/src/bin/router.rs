@@ -32,14 +32,7 @@ async fn main() -> ApplicationResult<()> {
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
-    #[cfg(not(feature = "olap"))]
-    let (server, mut state) = router::start_oltp_server(conf)
-        .await
-        .expect("Failed to create the server");
-
-    #[allow(clippy::expect_used)]
-    #[cfg(feature = "olap")]
-    let (server, mut state) = router::start_olap_server(conf)
+    let (server, mut state) = router::start_server(conf)
         .await
         .expect("Failed to create the server");
 

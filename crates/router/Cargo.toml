@@ -10,12 +10,13 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe"]
+default = ["kv_store", "stripe", "oltp", "olap"]
 kms = ["aws-config", "aws-sdk-kms"]
 basilisk = []
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
 olap = []
+oltp = []
 production = []
 kv_store = []
 
