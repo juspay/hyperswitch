@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -59,6 +60,7 @@ pub struct Secrets {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
@@ -66,17 +68,20 @@ pub struct Locker {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Refund {
     pub max_attempts: usize,
     pub max_age: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct EphemeralConfig {
     pub validity: i64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Jwekey {
     #[cfg(feature = "kms")]
     pub aws_key_id: String,
@@ -91,12 +96,14 @@ pub struct Jwekey {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Server {
     pub port: u16,
     pub workers: usize,
@@ -106,6 +113,7 @@ pub struct Server {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Database {
     pub username: String,
     pub password: String,
@@ -116,11 +124,13 @@ pub struct Database {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
@@ -144,6 +154,7 @@ pub struct Connectors {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
 }
@@ -157,6 +168,7 @@ pub struct SchedulerSettings {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct ProducerSettings {
     pub upper_fetch_limit: i64,
     pub lower_fetch_limit: i64,
@@ -168,6 +180,7 @@ pub struct ProducerSettings {
 
 #[cfg(feature = "kv_store")]
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
@@ -213,5 +226,42 @@ impl Settings {
             eprintln!("Unable to deserialize application configuration: {error}");
             ApplicationError::from(error.into_inner())
         })
+    }
+
+    pub fn validate(&self) -> ApplicationResult<()> {
+        self.server.validate()?;
+        self.master_database.validate()?;
+        #[cfg(feature = "olap")]
+        self.replica_database.validate()?;
+        self.redis.validate().map_err(|error| {
+            println!("{error}");
+            ApplicationError::InvalidConfigurationValueError("Redis configuration".into())
+        })?;
+        if self.log.file.enabled {
+            if self.log.file.file_name.is_default_or_empty() {
+                return Err(ApplicationError::InvalidConfigurationValueError(
+                    "log file name must not be empty".into(),
+                ));
+            }
+
+            if self.log.file.path.is_default_or_empty() {
+                return Err(ApplicationError::InvalidConfigurationValueError(
+                    "log directory path must not be empty".into(),
+                ));
+            }
+        }
+        self.secrets.validate()?;
+        self.locker.validate()?;
+        self.connectors.validate()?;
+
+        self.scheduler
+            .as_ref()
+            .map(|scheduler_settings| scheduler_settings.validate())
+            .transpose()?;
+        #[cfg(feature = "kv_store")]
+        self.drainer.validate()?;
+        self.jwekey.validate()?;
+
+        Ok(())
     }
 }

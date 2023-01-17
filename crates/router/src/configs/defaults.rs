@@ -82,13 +82,19 @@ impl Default for super::settings::SchedulerSettings {
         Self {
             stream: "SCHEDULER_STREAM".into(),
             consumer_group: "SCHEDULER_GROUP".into(),
-            producer: super::settings::ProducerSettings {
-                upper_fetch_limit: 0,
-                lower_fetch_limit: 1800,
-                lock_key: "PRODUCER_LOCKING_KEY".into(),
-                lock_ttl: 160,
-                batch_size: 200,
-            },
+            producer: super::settings::ProducerSettings::default(),
+        }
+    }
+}
+
+impl Default for super::settings::ProducerSettings {
+    fn default() -> Self {
+        Self {
+            upper_fetch_limit: 0,
+            lower_fetch_limit: 1800,
+            lock_key: "PRODUCER_LOCKING_KEY".into(),
+            lock_ttl: 160,
+            batch_size: 200,
         }
     }
 }
