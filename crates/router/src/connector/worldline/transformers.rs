@@ -10,7 +10,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    types::{self, api, storage::enums},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{self, ForeignFrom},
+    },
 };
 
 static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
@@ -294,18 +298,30 @@ pub enum PaymentStatus {
     Processing,
 }
 
-impl From<PaymentStatus> for enums::AttemptStatus {
-    fn from(item: PaymentStatus) -> Self {
-        match item {
+impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
+    for transformers::Foreign<enums::AttemptStatus>
+{
+    fn from(item: transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>) -> Self {
+        let (status, capture_method) = item.0;
+        match status {
             PaymentStatus::Captured
             | PaymentStatus::Paid
-            | PaymentStatus::ChargebackNotification => Self::Charged,
-            PaymentStatus::Cancelled => Self::Voided,
-            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
-            PaymentStatus::CaptureRequested => Self::CaptureInitiated,
-            PaymentStatus::PendingApproval => Self::Authorized,
-            _ => Self::Pending,
+            | PaymentStatus::ChargebackNotification => enums::AttemptStatus::Charged,
+            PaymentStatus::Cancelled => enums::AttemptStatus::Voided,
+            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => {
+                enums::AttemptStatus::Failure
+            }
+            PaymentStatus::CaptureRequested => {
+                if capture_method == enums::CaptureMethod::Automatic {
+                    enums::AttemptStatus::Pending
+                } else {
+                    enums::AttemptStatus::CaptureInitiated
+                }
+            }
+            PaymentStatus::PendingApproval => enums::AttemptStatus::Authorized,
+            _ => enums::AttemptStatus::Pending,
         }
+        .into()
     }
 }
 
@@ -313,6 +329,9 @@ impl From<PaymentStatus> for enums::AttemptStatus {
 pub struct Payment {
     id: String,
     status: PaymentStatus,
+    /// capture_method is not part of response from connector. This is used to decide payment status while converting connector response to RouterData. To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows this will be capture_method will be set from RouterData request.
+    #[serde(skip_deserializing)]
+    pub capture_method: enums::CaptureMethod,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>>
@@ -323,7 +342,10 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
         item: types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.clone()),
+            status: enums::AttemptStatus::foreign_from((
+                item.response.status,
+                item.response.capture_method,
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
@@ -338,7 +360,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PaymentResponse {
-    payment: Payment,
+    pub payment: Payment,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>>
@@ -349,7 +371,10 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
         item: types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payment.status.clone()),
+            status: enums::AttemptStatus::foreign_from((
+                item.response.payment.status,
+                item.response.payment.capture_method,
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
                 redirection_data: None,
@@ -448,16 +473,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
             }),
             ..item.data
         })
-    }
-}
-
-impl From<&PaymentResponse> for enums::AttemptStatus {
-    fn from(item: &PaymentResponse) -> Self {
-        if item.payment.status == PaymentStatus::Cancelled {
-            Self::Voided
-        } else {
-            Self::VoidFailed
-        }
     }
 }
 

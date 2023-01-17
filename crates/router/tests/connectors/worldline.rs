@@ -110,7 +110,7 @@ async fn should_auto_authorize_and_request_capture() {
     let response = WorldlineTest {}
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 #[actix_web::test]
@@ -153,6 +153,7 @@ async fn should_sync_manual_auth_payment() {
                     connector_payment_id,
                 ),
                 encoded_data: None,
+                capture_method: Some(enums::CaptureMethod::Manual),
             }),
             None,
         )
@@ -173,7 +174,7 @@ async fn should_sync_auto_auth_payment() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let sync_response = connector
         .sync_payment(
@@ -182,11 +183,12 @@ async fn should_sync_auto_auth_payment() {
                     connector_payment_id,
                 ),
                 encoded_data: None,
+                capture_method: Some(enums::CaptureMethod::Automatic),
             }),
             None,
         )
         .await;
-    assert_eq!(sync_response.status, enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(sync_response.status, enums::AttemptStatus::Pending);
 }
 
 #[actix_web::test]
@@ -258,7 +260,7 @@ async fn should_cancel_uncaptured_payment() {
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
