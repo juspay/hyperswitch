@@ -152,7 +152,7 @@ It was born from our struggle to understand and integrate various payment option
 This project is created and currently maintained by [Juspay](https://juspay.io/juspay-router).
 
 We welcome contributions from the open source community.
-Please read through our [contributing guidelines](contrib/CONTRIBUTING.md).
+Please read through our [contributing guidelines](/docs/CONTRIBUTING.md).
 Included are directions for opening issues, coding standards, and notes on development.
 
 Important note for Rust developers: We aim for contributions from the community across a broad range of tracks.
