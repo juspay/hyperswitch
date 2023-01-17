@@ -467,7 +467,8 @@ where
         )
         .await
         .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting process schedule time")?;
 
         match schedule_time {
             Some(stime) => {
@@ -476,6 +477,7 @@ where
                     .await
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
             }
             None => Ok(()),
         }

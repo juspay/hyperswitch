@@ -26,6 +26,9 @@ async fn main() -> ApplicationResult<()> {
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
+    #[allow(clippy::expect_used)]
+    conf.validate()
+        .expect("Failed to validate router configuration");
 
     let _guard = logger::setup(&conf.log)?;
 

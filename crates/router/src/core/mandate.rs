@@ -70,7 +70,13 @@ pub async fn get_customer_mandates(
         .store
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while finding mandate: merchant_id: {}, customer_id: {}",
+                merchant_account.merchant_id, req.customer_id
+            )
+        })?;
 
     if mandates.is_empty() {
         Err(report!(errors::ApiErrorResponse::MandateNotFound).attach_printable("No Mandate found"))

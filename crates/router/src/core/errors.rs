@@ -1,6 +1,6 @@
-pub(crate) mod api_error_response;
-pub(crate) mod error_handlers;
-pub(crate) mod utils;
+pub mod api_error_response;
+pub mod error_handlers;
+pub mod utils;
 
 use std::fmt::Display;
 
@@ -12,8 +12,10 @@ pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 use storage_models::errors as storage_errors;
 
-pub use self::api_error_response::ApiErrorResponse;
-pub(crate) use self::utils::{ConnectorErrorExt, StorageErrorExt};
+pub use self::{
+    api_error_response::ApiErrorResponse,
+    utils::{ConnectorErrorExt, StorageErrorExt},
+};
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
@@ -101,6 +103,9 @@ pub enum ApplicationError {
     #[error("Application configuration error: {0}")]
     ConfigurationError(ConfigError),
 
+    #[error("Invalid configuration value provided: {0}")]
+    InvalidConfigurationValueError(String),
+
     #[error("Metrics error: {0}")]
     MetricsError(MetricsError),
 
@@ -142,9 +147,10 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
 impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::MetricsError(_) | Self::IoError(_) | Self::ConfigurationError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            Self::MetricsError(_)
+            | Self::IoError(_)
+            | Self::ConfigurationError(_)
+            | Self::InvalidConfigurationValueError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
