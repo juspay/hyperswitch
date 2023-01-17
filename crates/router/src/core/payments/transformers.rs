@@ -23,15 +23,15 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
-    payment_data: PaymentData<F>,
+    payment_data: PaymentData,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
-    T: TryFrom<PaymentData<F>>,
+    T: TryFrom<PaymentData>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
     F: Clone,
-    error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
+    error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
     let db = &*state.store;
@@ -117,15 +117,14 @@ where
     ) -> RouterResponse<Self>;
 }
 
-impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
+impl<Req, Op> ToResponse<Req, PaymentData, Op> for api::PaymentsResponse
 where
     Self: TryFrom<Req>,
-    F: Clone,
     Op: Debug,
 {
     fn generate_response(
         req: Option<Req>,
-        payment_data: PaymentData<F>,
+        payment_data: PaymentData,
         customer: Option<storage::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
@@ -147,15 +146,14 @@ where
     }
 }
 
-impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
+impl<Req, Op> ToResponse<Req, PaymentData, Op> for api::PaymentsSessionResponse
 where
     Self: From<Req>,
-    F: Clone,
     Op: Debug,
 {
     fn generate_response(
         _req: Option<Req>,
-        payment_data: PaymentData<F>,
+        payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
@@ -173,15 +171,14 @@ where
     }
 }
 
-impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
+impl<Req, Op> ToResponse<Req, PaymentData, Op> for api::VerifyResponse
 where
     Self: From<Req>,
-    F: Clone,
     Op: Debug,
 {
     fn generate_response(
         _req: Option<Req>,
-        data: PaymentData<F>,
+        data: PaymentData,
         customer: Option<storage::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
@@ -384,10 +381,10 @@ where
     })
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
+impl TryFrom<PaymentData> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData) -> Result<Self, Self::Error> {
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
@@ -433,10 +430,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
+impl TryFrom<PaymentData> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData) -> Result<Self, Self::Error> {
         Ok(Self {
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {
@@ -449,10 +446,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
+impl TryFrom<PaymentData> for types::PaymentsCaptureData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: payment_data.payment_attempt.amount_to_capture,
             currency: payment_data.currency,
@@ -465,10 +462,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
+impl TryFrom<PaymentData> for types::PaymentsCancelData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData) -> Result<Self, Self::Error> {
         Ok(Self {
             connector_transaction_id: payment_data
                 .payment_attempt
@@ -481,10 +478,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
+impl TryFrom<PaymentData> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData) -> Result<Self, Self::Error> {
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
             .metadata
@@ -514,10 +511,10 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
+impl TryFrom<PaymentData> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(payment_data: PaymentData) -> Result<Self, Self::Error> {
         Ok(Self {
             confirm: true,
             payment_method_data: payment_data

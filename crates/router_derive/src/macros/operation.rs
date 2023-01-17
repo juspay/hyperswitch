@@ -127,7 +127,7 @@ impl Conversion {
                 }
             },
             Self::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -137,12 +137,12 @@ impl Conversion {
                 }
             },
             Self::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Self::PostUpdateTracker => quote! {
-                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
+                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData, #req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -175,7 +175,7 @@ impl Conversion {
                 }
             },
             Self::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
@@ -185,12 +185,12 @@ impl Conversion {
                 }
             },
             Self::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Self::PostUpdateTracker => quote! {
-                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
+                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData, #req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },

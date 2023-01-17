@@ -1,9 +1,9 @@
 use std::{collections::HashSet, marker::PhantomData};
 
+use api_models::payments::PaymentsSessionRequest;
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -24,14 +24,54 @@ use crate::{
     utils::OptionExt,
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "session")]
+#[derive(Debug, Clone, Copy)]
+// #[operation(ops = "all", flow = "session")]
 pub struct PaymentSession;
 
+impl Operation<PaymentsSessionRequest> for &PaymentSession {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<PaymentsSessionRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, PaymentsSessionRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<PaymentsSessionRequest>)> {
+        Ok(*self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsSessionRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl Operation<PaymentsSessionRequest> for PaymentSession {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<PaymentsSessionRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, PaymentsSessionRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_domain(&self) -> RouterResult<&dyn Domain<PaymentsSessionRequest>> {
+        Ok(self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsSessionRequest> + Send + Sync)> {
+        Ok(self)
+    }
+}
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
-    for PaymentSession
-{
+impl GetTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -41,8 +81,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-        PaymentData<F>,
+        BoxedOperation<'a, api::PaymentsSessionRequest>,
+        PaymentData,
         Option<payments::CustomerDetails>,
     )> {
         let payment_id = payment_id
@@ -128,7 +168,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         Ok((
             Box::new(self),
             PaymentData {
-                flow: PhantomData,
                 payment_intent,
                 payment_attempt,
                 currency,
@@ -155,22 +194,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
+impl UpdateTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
+        mut payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        PaymentData<F>,
-    )>
-    where
-        F: 'b + Send,
-    {
+    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsSessionRequest>, PaymentData)> {
         let metadata = payment_data.payment_intent.metadata.clone();
         payment_data.payment_intent = match metadata {
             Some(metadata) => db
@@ -190,14 +223,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
+impl ValidateRequest<api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
@@ -221,21 +254,21 @@ pub struct PaymentMethodEnabled {
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
-    Domain<F, api::PaymentsSessionRequest> for Op
+impl<Op: Send + Sync + Operation<api::PaymentsSessionRequest>> Domain<api::PaymentsSessionRequest>
+    for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest>,
+    for<'a> &'a Op: Operation<api::PaymentsSessionRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
-        payment_data: &mut PaymentData<F>,
+        payment_data: &mut PaymentData,
         request: Option<payments::CustomerDetails>,
         merchant_id: &str,
     ) -> errors::CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsSessionRequest>,
+            BoxedOperation<'a, api::PaymentsSessionRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -254,10 +287,10 @@ where
     async fn make_pm_data<'b>(
         &'b self,
         _state: &'b AppState,
-        _payment_data: &mut PaymentData<F>,
+        _payment_data: &mut PaymentData,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
     )> {
         //No payment method data for this operation

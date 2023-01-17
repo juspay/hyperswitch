@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use super::{
-    operations::{BoxedOperation, Operation, PaymentResponse},
+    operations::{BoxedEndOperation, BoxedOperation, EndOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
 use crate::{
@@ -484,10 +484,10 @@ where
     }
 }
 
-pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
+pub fn response_operation<'a, F, R>() -> BoxedEndOperation<'a, F, R>
 where
     F: Send + Clone,
-    PaymentResponse: Operation<F, R>,
+    PaymentResponse: EndOperation<F, R>,
 {
     Box::new(PaymentResponse)
 }
@@ -610,13 +610,13 @@ pub async fn get_connector_default(
 }
 
 #[instrument(skip_all)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn create_customer_if_not_exist<'a, R>(
+    operation: BoxedOperation<'a, R>,
     db: &dyn StorageInterface,
-    payment_data: &mut PaymentData<F>,
+    payment_data: &mut PaymentData,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, R>, Option<storage::Customer>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -666,11 +666,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn make_pm_data<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn make_pm_data<'a, R>(
+    operation: BoxedOperation<'a, R>,
     state: &'a AppState,
-    payment_data: &mut PaymentData<F>,
-) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
+    payment_data: &mut PaymentData,
+) -> RouterResult<(BoxedOperation<'a, R>, Option<api::PaymentMethod>)> {
     let payment_method_type = payment_data.payment_attempt.payment_method;
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();

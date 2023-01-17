@@ -13,7 +13,7 @@ use crate::{
 
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for PaymentData<api::PSync>
+    for PaymentData
 {
     async fn construct_router_data<'a>(
         &self,

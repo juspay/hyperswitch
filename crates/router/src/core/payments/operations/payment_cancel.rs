@@ -1,11 +1,14 @@
 use std::marker::PhantomData;
 
+use api_models::payments::PaymentsCancelRequest;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive;
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{
+    BoxedOperation, DeriveFlow, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest,
+};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -21,12 +24,54 @@ use crate::{
     utils::OptionExt,
 };
 
-#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(ops = "all", flow = "cancel")]
+#[derive(Debug, Clone, Copy)]
+// #[operation(ops = "all", flow = "cancel")]
 pub struct PaymentCancel;
 
+impl Operation<PaymentsCancelRequest> for &PaymentCancel {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<PaymentsCancelRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, PaymentsCancelRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<PaymentsCancelRequest>)> {
+        Ok(*self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsCancelRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl Operation<PaymentsCancelRequest> for PaymentCancel {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<PaymentsCancelRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, PaymentsCancelRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_domain(&self) -> RouterResult<&dyn Domain<PaymentsCancelRequest>> {
+        Ok(self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsCancelRequest> + Send + Sync)> {
+        Ok(self)
+    }
+}
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl GetTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -36,8 +81,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-        PaymentData<F>,
+        BoxedOperation<'a, api::PaymentsCancelRequest>,
+        PaymentData,
         Option<CustomerDetails>,
     )> {
         let db = &*state.store;
@@ -109,7 +154,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             _ => Ok((
                 Box::new(self),
                 PaymentData {
-                    flow: PhantomData,
                     payment_intent,
                     payment_attempt,
                     currency,
@@ -137,22 +181,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl UpdateTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
+        mut payment_data: PaymentData,
         _customer: Option<Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
-        PaymentData<F>,
-    )>
-    where
-        F: 'b + Send,
-    {
+    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsCancelRequest>, PaymentData)> {
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
         payment_data.payment_attempt = db
             .update_payment_attempt(
@@ -170,14 +208,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
+impl ValidateRequest<api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'b, api::PaymentsCancelRequest>,
         operations::ValidateResult<'a>,
     )> {
         Ok((

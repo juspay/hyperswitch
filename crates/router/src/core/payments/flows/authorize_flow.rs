@@ -19,7 +19,7 @@ impl
         api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-    > for PaymentData<api::Authorize>
+    > for PaymentData
 {
     async fn construct_router_data<'a>(
         &self,

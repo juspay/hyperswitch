@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive;
 
-use super::{Operation, PostUpdateTracker};
+use super::{EndOperation, Operation, PostUpdateTracker};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -18,29 +18,141 @@ use crate::{
     utils,
 };
 
-#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(
-    ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,verifydata,sessiondata"
-)]
+#[derive(Debug, Clone, Copy)]
 pub struct PaymentResponse;
 
+impl<F: Send + Clone> EndOperation<F, types::PaymentsSyncData> for &PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData, types::PaymentsSyncData> + Send + Sync)>
+    {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsAuthorizeData> for &PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsAuthorizeData> + Send + Sync),
+    > {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsCancelData> for &PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsCancelData> + Send + Sync),
+    > {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsCaptureData> for &PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsCaptureData> + Send + Sync),
+    > {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::VerifyRequestData> for &PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::VerifyRequestData> + Send + Sync),
+    > {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsSessionData> for &PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsSessionData> + Send + Sync),
+    > {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsSyncData> for PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData, types::PaymentsSyncData> + Send + Sync)>
+    {
+        Ok(self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsAuthorizeData> for PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsAuthorizeData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsCancelData> for PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsCancelData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsCaptureData> for PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsCaptureData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::VerifyRequestData> for PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::VerifyRequestData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone> EndOperation<F, types::PaymentsSessionData> for PaymentResponse {
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData, types::PaymentsSessionData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData, types::PaymentsAuthorizeData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
+        mut payment_data: PaymentData,
         router_data: types::RouterData<
             F,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
+    ) -> RouterResult<PaymentData>
     where
         F: 'b + Send,
     {
@@ -54,15 +166,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
+impl<F: Clone> PostUpdateTracker<F, PaymentData, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
+        payment_data: PaymentData,
         response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
+    ) -> RouterResult<PaymentData>
     where
         F: 'b + Send,
     {
@@ -72,17 +184,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData, types::PaymentsSessionData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
+        payment_data: PaymentData,
         response: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
+    ) -> RouterResult<PaymentData>
     where
         F: 'b + Send,
     {
@@ -92,17 +202,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
-    for PaymentResponse
-{
+impl<F: Clone> PostUpdateTracker<F, PaymentData, types::PaymentsCaptureData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
+        payment_data: PaymentData,
         response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
+    ) -> RouterResult<PaymentData>
     where
         F: 'b + Send,
     {
@@ -112,16 +220,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
+impl<F: Clone> PostUpdateTracker<F, PaymentData, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
+        payment_data: PaymentData,
         response: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
 
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
+    ) -> RouterResult<PaymentData>
     where
         F: 'b + Send,
     {
@@ -131,16 +239,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
+impl<F: Clone> PostUpdateTracker<F, PaymentData, types::VerifyRequestData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
+        mut payment_data: PaymentData,
         router_data: types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
 
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
+    ) -> RouterResult<PaymentData>
     where
         F: 'b + Send,
     {
@@ -157,10 +265,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
 async fn payment_response_update_tracker<F: Clone, T>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
-    mut payment_data: PaymentData<F>,
+    mut payment_data: PaymentData,
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<PaymentData<F>> {
+) -> RouterResult<PaymentData> {
     let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {

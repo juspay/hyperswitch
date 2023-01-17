@@ -17,7 +17,7 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    operations::{BoxedOperation, Operation},
+    operations::{BoxedOperation, DeriveFlow, EndOperation, Operation},
 };
 use crate::{
     core::{
@@ -43,13 +43,13 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
+) -> RouterResult<(PaymentData, Req, Option<storage::Customer>)>
 where
     F: Send + Clone,
-    Op: Operation<F, Req> + Send + Sync,
+    Op: Operation<Req> + Send + Sync,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
+    PaymentData: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
@@ -57,10 +57,10 @@ where
         services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData>,
+    PaymentResponse: EndOperation<F, FData>,
     FData: Send,
 {
-    let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
+    let operation: BoxedOperation<'_, Req> = Box::new(operation);
 
     let (operation, validate_result) = operation
         .to_validate_request()?
@@ -198,11 +198,11 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
 where
     F: Send + Clone,
     FData: Send,
-    Op: Operation<F, Req> + Send + Sync + Clone,
+    Op: Operation<Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
+    Res: transformers::ToResponse<Req, PaymentData, Op> + TryFrom<Req>,
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
+    PaymentData: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
@@ -210,7 +210,7 @@ where
         services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData>,
+    PaymentResponse: EndOperation<F, FData>,
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -317,23 +317,23 @@ pub async fn call_connector_service<F, Op, Req>(
     payment_id: &api::PaymentIdType,
     connector: api::ConnectorData,
     _operation: &Op,
-    payment_data: PaymentData<F>,
+    payment_data: PaymentData,
     customer: &Option<storage::Customer>,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<PaymentData<F>>
+) -> RouterResult<PaymentData>
 where
     Op: Debug,
     F: Send + Clone,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
+    PaymentData: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
     types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
+    PaymentResponse: EndOperation<F, Req>,
 {
     let db = &*state.store;
 
@@ -382,22 +382,22 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     merchant_account: &storage::MerchantAccount,
     connectors: Vec<api::ConnectorData>,
     _operation: &Op,
-    mut payment_data: PaymentData<F>,
+    mut payment_data: PaymentData,
     customer: &Option<storage::Customer>,
-) -> RouterResult<PaymentData<F>>
+) -> RouterResult<PaymentData>
 where
     Op: Debug,
     F: Send + Clone,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
+    PaymentData: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
     types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
+    PaymentResponse: EndOperation<F, Req>,
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
@@ -463,11 +463,7 @@ pub struct PaymentAddress {
 }
 
 #[derive(Clone)]
-pub struct PaymentData<F>
-where
-    F: Clone,
-{
-    pub flow: PhantomData<F>,
+pub struct PaymentData {
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
@@ -495,15 +491,14 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
 }
 
-pub fn if_not_create_change_operation<'a, Op, F>(
+pub fn if_not_create_change_operation<'a, Op>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
-) -> BoxedOperation<'_, F, api::PaymentsRequest>
+) -> BoxedOperation<'_, api::PaymentsRequest>
 where
-    F: Send + Clone,
-    Op: Operation<F, api::PaymentsRequest> + Send + Sync,
-    &'a Op: Operation<F, api::PaymentsRequest>,
+    Op: Operation<api::PaymentsRequest> + Send + Sync,
+    &'a Op: Operation<api::PaymentsRequest>,
 {
     if confirm.unwrap_or(false) {
         Box::new(PaymentConfirm)
@@ -517,15 +512,12 @@ where
     }
 }
 
-pub fn is_confirm<'a, F: Clone + Send, R, Op>(
-    operation: &'a Op,
-    confirm: Option<bool>,
-) -> BoxedOperation<'_, F, R>
+pub fn is_confirm<'a, R, Op>(operation: &'a Op, confirm: Option<bool>) -> BoxedOperation<'_, R>
 where
-    PaymentConfirm: Operation<F, R>,
-    &'a PaymentConfirm: Operation<F, R>,
-    Op: Operation<F, R> + Send + Sync,
-    &'a Op: Operation<F, R>,
+    PaymentConfirm: Operation<R>,
+    &'a PaymentConfirm: Operation<R>,
+    Op: Operation<R> + Send + Sync,
+    &'a Op: Operation<R>,
 {
     if confirm.unwrap_or(false) {
         Box::new(&PaymentConfirm)
@@ -534,10 +526,7 @@ where
     }
 }
 
-pub fn should_call_connector<Op: Debug, F: Clone>(
-    operation: &Op,
-    payment_data: &PaymentData<F>,
-) -> bool {
+pub fn should_call_connector<Op: Debug>(operation: &Op, payment_data: &PaymentData) -> bool {
     match format!("{:?}", operation).as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {

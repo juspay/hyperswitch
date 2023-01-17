@@ -154,7 +154,7 @@ pub trait ConnectorActions: Connector {
         info: Option<PaymentInfo>,
     ) -> types::RouterData<Flow, Req, Res> {
         types::RouterData {
-            flow: PhantomData,
+            ,
             merchant_id: self.get_name(),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),

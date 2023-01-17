@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
+use api_models::payments::VerifyRequest;
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult};
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -26,18 +26,59 @@ use crate::{
     utils,
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "verify")]
+#[derive(Debug, Clone, Copy)]
 pub struct PaymentMethodValidate;
 
-impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodValidate {
+impl Operation<VerifyRequest> for &PaymentMethodValidate {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<VerifyRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, VerifyRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<VerifyRequest>)> {
+        Ok(*self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, VerifyRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl Operation<VerifyRequest> for PaymentMethodValidate {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<VerifyRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, VerifyRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_domain(&self) -> RouterResult<&dyn Domain<VerifyRequest>> {
+        Ok(self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, VerifyRequest> + Send + Sync)> {
+        Ok(self)
+    }
+}
+
+impl ValidateRequest<api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::VerifyRequest,
         merchant_account: &'a types::storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::VerifyRequest>,
+        BoxedOperation<'b, api::VerifyRequest>,
         operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = request.merchant_id.as_deref();
@@ -60,7 +101,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl GetTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -70,8 +111,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::VerifyRequest>,
-        PaymentData<F>,
+        BoxedOperation<'a, api::VerifyRequest>,
+        PaymentData,
         Option<payments::CustomerDetails>,
     )> {
         let db = &state.store;
@@ -132,7 +173,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         Ok((
             Box::new(self),
             PaymentData {
-                flow: PhantomData,
                 payment_intent,
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
@@ -163,19 +203,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl UpdateTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
+        mut payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
-    where
-        F: 'b + Send,
-    {
+    ) -> RouterResult<(BoxedOperation<'b, api::VerifyRequest>, PaymentData)> {
         // There is no fsm involved in this operation all the change of states must happen in a single request
         let status = Some(storage_enums::IntentStatus::Processing);
 
@@ -205,22 +242,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
 }
 
 #[async_trait]
-impl<F, Op> Domain<F, api::VerifyRequest> for Op
+impl<Op> Domain<api::VerifyRequest> for Op
 where
-    F: Clone + Send,
-    Op: Send + Sync + Operation<F, api::VerifyRequest>,
-    for<'a> &'a Op: Operation<F, api::VerifyRequest>,
+    Op: Send + Sync + Operation<api::VerifyRequest>,
+    for<'a> &'a Op: Operation<api::VerifyRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
-        payment_data: &mut PaymentData<F>,
+        payment_data: &mut PaymentData,
         request: Option<payments::CustomerDetails>,
         merchant_id: &str,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::VerifyRequest>,
+            BoxedOperation<'a, api::VerifyRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -239,10 +275,10 @@ where
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_data: &mut PaymentData<F>,
+        payment_data: &mut PaymentData,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::VerifyRequest>,
+        BoxedOperation<'a, api::VerifyRequest>,
         Option<api::PaymentMethod>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await

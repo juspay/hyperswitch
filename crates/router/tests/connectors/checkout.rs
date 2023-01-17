@@ -15,7 +15,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .expect("Missing Checkout connector authentication configuration");
 
     types::RouterData {
-        flow: PhantomData,
+        ,
         merchant_id: "checkout".to_string(),
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -62,7 +62,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         .expect("Missing Checkout connector authentication configuration");
 
     types::RouterData {
-        flow: PhantomData,
+        ,
         connector_meta_data: None,
         merchant_id: "checkout".to_string(),
         connector: "checkout".to_string(),

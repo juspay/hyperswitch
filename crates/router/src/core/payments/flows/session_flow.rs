@@ -16,7 +16,7 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for PaymentData<api::Session>
+    for PaymentData
 {
     async fn construct_router_data<'a>(
         &self,

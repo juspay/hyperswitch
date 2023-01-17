@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
+use api_models::payments::PaymentsRequest;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -28,12 +28,53 @@ use crate::{
     },
     utils::OptionExt,
 };
-#[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[derive(Debug, Clone, Copy)]
 pub struct PaymentCreate;
 
+impl Operation<PaymentsRequest> for &PaymentCreate {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<PaymentsRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, PaymentsRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<PaymentsRequest>)> {
+        Ok(*self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl Operation<PaymentsRequest> for PaymentCreate {
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<PaymentsRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<PaymentData, PaymentsRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_domain(&self) -> RouterResult<&dyn Domain<PaymentsRequest>> {
+        Ok(self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsRequest> + Send + Sync)> {
+        Ok(self)
+    }
+}
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
+impl GetTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -43,8 +84,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
-        PaymentData<F>,
+        BoxedOperation<'a, api::PaymentsRequest>,
+        PaymentData,
         Option<CustomerDetails>,
     )> {
         let db = &*state.store;
@@ -163,16 +204,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
-        let operation = payments::if_not_create_change_operation::<_, F>(
-            payment_intent.status,
-            request.confirm,
-            self,
-        );
+        let operation =
+            payments::if_not_create_change_operation(payment_intent.status, request.confirm, self);
 
         Ok((
             operation,
             PaymentData {
-                flow: PhantomData,
                 payment_intent,
                 payment_attempt,
                 currency,
@@ -205,17 +242,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
+impl Domain<api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
-        payment_data: &mut PaymentData<F>,
+        payment_data: &mut PaymentData,
         request: Option<CustomerDetails>,
         merchant_id: &str,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
+            BoxedOperation<'a, api::PaymentsRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -234,10 +271,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
-        payment_data: &mut PaymentData<F>,
+        payment_data: &mut PaymentData,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
@@ -263,19 +300,16 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
+impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
+        mut payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
-    where
-        F: 'b + Send,
-    {
+    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsRequest>, PaymentData)> {
         let status = match payment_data.payment_intent.status {
             IntentStatus::RequiresPaymentMethod => match payment_data.payment_method_data {
                 Some(_) => Some(IntentStatus::RequiresConfirmation),
@@ -335,14 +369,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
+impl ValidateRequest<api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
+        BoxedOperation<'b, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
         let given_payment_id = match &request.payment_id {
