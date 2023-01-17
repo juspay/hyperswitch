@@ -31,3 +31,7 @@ api_key = "MyApiKey"
 key1 = "MerchantID"
 api_secret = "MySecretKey"
 
+[worldline]
+key1 = "Merchant Id"
+api_key = "API Key"
+api_secret = "API Secret Key"
