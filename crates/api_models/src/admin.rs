@@ -33,7 +33,7 @@ pub struct CreateMerchantAccount {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = "round_robin")]
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"})]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
