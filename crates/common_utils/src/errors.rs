@@ -55,7 +55,7 @@ pub enum ValidationError {
     InvalidValue { message: String },
 }
 
-/// Cryptograpic algorithm errors
+/// Cryptographic algorithm errors
 #[derive(Debug, thiserror::Error)]
 pub enum CryptoError {
     /// The cryptographic algorithm was unable to encode the message

@@ -137,7 +137,7 @@ where
     /// Constructor of `FormattingLayer`.
     ///
     /// A `name` will be attached to all records during formatting.
-    /// A `dst_writer` to forward all recrods.
+    /// A `dst_writer` to forward all records.
     ///
     /// ## Example
     /// ```rust
@@ -357,7 +357,7 @@ where
     where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
-        // Get value of ket "message" or "target" if does not exist.
+        // Get value of kept "message" or "target" if does not exist.
         let mut message = storage
             .values
             .get("message")
