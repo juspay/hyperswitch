@@ -103,6 +103,9 @@ pub enum ApplicationError {
     #[error("Application configuration error: {0}")]
     ConfigurationError(ConfigError),
 
+    #[error("Invalid configuration value provided: {0}")]
+    InvalidConfigurationValueError(String),
+
     #[error("Metrics error: {0}")]
     MetricsError(MetricsError),
 
@@ -144,9 +147,10 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
 impl ResponseError for ApplicationError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::MetricsError(_) | Self::IoError(_) | Self::ConfigurationError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            Self::MetricsError(_)
+            | Self::IoError(_)
+            | Self::ConfigurationError(_)
+            | Self::InvalidConfigurationValueError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

@@ -21,6 +21,7 @@ thiserror = "1.0.38"
 tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
 
 # First Party Crates
+common_utils = { version = "0.1.0", path = "../common_utils" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
