@@ -126,8 +126,8 @@ impl ConnectorData {
         let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
         Ok(Self {
             connector,
             connector_name,
