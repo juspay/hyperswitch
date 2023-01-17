@@ -131,9 +131,11 @@ pub struct Connectors {
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub payu: ConnectorParams,
+    pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
+    pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
 }
 

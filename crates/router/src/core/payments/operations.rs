@@ -189,11 +189,11 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, None).await
+        helpers::get_connector_default(state, None).await
     }
 
     #[instrument(skip_all)]
@@ -255,11 +255,11 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, None).await
+        helpers::get_connector_default(state, None).await
     }
 }
 
@@ -309,10 +309,10 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, None).await
+        helpers::get_connector_default(state, None).await
     }
 }

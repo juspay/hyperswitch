@@ -1,7 +1,6 @@
 pub(crate) mod custom_serde;
 pub(crate) mod db_utils;
 mod ext_traits;
-mod fp_utils;
 
 #[cfg(feature = "kv_store")]
 pub(crate) mod storage_partitioning;
@@ -9,14 +8,12 @@ pub(crate) mod storage_partitioning;
 pub(crate) use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
+    fp_utils::when,
     validation::validate_email,
 };
 use nanoid::nanoid;
 
-pub(crate) use self::{
-    ext_traits::{OptionExt, ValidateCall},
-    fp_utils::when,
-};
+pub(crate) use self::ext_traits::{OptionExt, ValidateCall};
 use crate::consts;
 
 pub mod error_parser {

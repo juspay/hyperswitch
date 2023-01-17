@@ -13,6 +13,11 @@ key1 = "MyTransactionKey"
 api_key = "Bearer MyApiKey"
 key1 = "MyProcessingChannelId"
 
+[cybersource]
+api_key = "Bearer MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"
+
 [shift4]
 api_key = "Bearer MyApiKey"
 
@@ -26,8 +31,16 @@ key1 = "MerchantPosId"
 [globalpay]
 api_key = "Bearer MyApiKey"
 
+[rapyd]
+api_key = "access_key"
+key1 = "secret_key"
+
 [fiserv]
 api_key = "MyApiKey"
 key1 = "MerchantID"
 api_secret = "MySecretKey"
 
+[worldline]
+key1 = "Merchant Id"
+api_key = "API Key"
+api_secret = "API Secret Key"

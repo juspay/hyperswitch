@@ -1890,7 +1890,7 @@
                                     "responseBodyTests": [
                                         {
                                             "key": "message",
-                                            "value": "Refund is not allowed for unsuccessfull payment"
+                                            "value": "Refund is not allowed for unsuccessful payment"
                                         }
                                     ]
                                 }
@@ -3623,7 +3623,7 @@
                 "openApiResponse": "400",
                 "variations": [
                     {
-                        "name": "Update Succeded payment",
+                        "name": "Update Succeeded payment",
                         "overwrites": [
                             {
                                 "overwriteRequestPathVariables": [

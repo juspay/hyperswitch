@@ -102,10 +102,13 @@ where
         .get_connector(&merchant_account, state, &req)
         .await?;
 
-    if let api::ConnectorCallType::Single(ref connector) = connector_details {
-        payment_data.payment_attempt.connector =
-            Some(connector.connector_name.to_owned().to_string());
-    }
+    let connector_details = route_connector(
+        state,
+        &merchant_account,
+        &mut payment_data,
+        connector_details,
+    )
+    .await?;
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
@@ -146,6 +149,34 @@ where
                     &operation,
                     payment_data,
                     &customer,
+                )
+                .await?
+            }
+            api::ConnectorCallType::Routing => {
+                let connector = payment_data
+                    .payment_attempt
+                    .connector
+                    .clone()
+                    .get_required_value("connector")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("No connector selected for routing")?;
+
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector,
+                    api::GetToken::Connector,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                call_connector_service(
+                    state,
+                    &merchant_account,
+                    &validate_result.payment_id,
+                    connector_data,
+                    &operation,
+                    payment_data,
+                    &customer,
+                    call_connector_action,
                 )
                 .await?
             }
@@ -604,4 +635,49 @@ pub async fn add_process_sync_task(
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
+}
+
+pub async fn route_connector<F>(
+    state: &AppState,
+    merchant_account: &storage::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+    connector_call_type: api::ConnectorCallType,
+) -> RouterResult<api::ConnectorCallType>
+where
+    F: Send + Clone,
+{
+    match connector_call_type {
+        api::ConnectorCallType::Single(connector) => {
+            payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
+
+            Ok(api::ConnectorCallType::Single(connector))
+        }
+
+        api::ConnectorCallType::Routing => {
+            let routing_algorithm: api::RoutingAlgorithm = merchant_account
+                .routing_algorithm
+                .clone()
+                .parse_value("RoutingAlgorithm")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode merchant routing rules")?;
+
+            let connector_name = match routing_algorithm {
+                api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            };
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Routing algorithm gave invalid connector")?;
+
+            payment_data.payment_attempt.connector = Some(connector_name);
+
+            Ok(api::ConnectorCallType::Single(connector_data))
+        }
+
+        call_type @ api::ConnectorCallType::Multiple(_) => Ok(call_type),
+    }
 }
