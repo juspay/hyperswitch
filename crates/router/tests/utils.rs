@@ -20,7 +20,7 @@ static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let (server, _state) = router::start_oltp_server(conf)
+    let (server, _state) = router::start_server(conf)
         .await
         .expect("failed to create server");
 
@@ -49,7 +49,7 @@ pub async fn mk_service(
     }
 
     let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock).await;
-    actix_web::test::init_service(router::mk_oltp_app(app_state, request_body_limit)).await
+    actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }
 
 pub struct Guest;

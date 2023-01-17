@@ -1,10 +1,12 @@
-use diesel::associations::HasTable;
+use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
     configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal},
-    errors, PgPooledConn, StorageResult,
+    errors,
+    schema::configs::dsl,
+    PgPooledConn, StorageResult,
 };
 
 impl ConfigNew {
@@ -45,5 +47,11 @@ impl Config {
             },
             result => result,
         }
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn delete_by_key(conn: &PgPooledConn, key: &str) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::key.eq(key.to_owned()))
+            .await
     }
 }

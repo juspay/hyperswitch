@@ -280,7 +280,7 @@ async fn test_checkout_refund_failure() {
         _ => panic!("Connector transaction id not found"),
     };
 
-    // Higher amout than that of payment
+    // Higher amount than that of payment
     refund_request.request.refund_amount = 696969;
     let response = services::api::execute_connector_processing_step(
         &state,

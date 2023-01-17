@@ -7,6 +7,7 @@ pub mod crypto;
 pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
+pub mod fp_utils;
 pub mod pii;
 pub mod validation;
 
@@ -26,6 +27,11 @@ pub mod date_time {
     /// Convert from OffsetDateTime to PrimitiveDateTime
     pub fn convert_to_pdt(offset_time: OffsetDateTime) -> PrimitiveDateTime {
         PrimitiveDateTime::new(offset_time.date(), offset_time.time())
+    }
+
+    /// Return the UNIX timestamp of the current date and time in UTC
+    pub fn now_unix_timestamp() -> i64 {
+        OffsetDateTime::now_utc().unix_timestamp()
     }
 }
 

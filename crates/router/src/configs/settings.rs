@@ -129,11 +129,17 @@ pub struct Connectors {
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub payu: ConnectorParams,
+    pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
+    pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+
+    // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
 }
 
