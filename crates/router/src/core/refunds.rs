@@ -506,31 +506,6 @@ pub async fn refund_list(
     ))
 }
 
-impl<F> TryFrom<types::RefundsRouterData<F>> for refunds::RefundResponse {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::RefundsRouterData<F>) -> RouterResult<Self> {
-        let refund_id = data.request.refund_id.to_string();
-        let response = data.response;
-
-        let (status, error_message) = match response {
-            Ok(response) => (response.refund_status.foreign_into(), None),
-            Err(error_response) => (api::RefundStatus::Pending, Some(error_response.message)),
-        };
-
-        Ok(Self {
-            payment_id: data.payment_id,
-            refund_id,
-            amount: data.request.amount / 100,
-            currency: data.request.currency.to_string(),
-            reason: data.request.reason,
-            status,
-            metadata: None,
-            error_message,
-        })
-    }
-}
-
 impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
     fn from(refund: Foreign<storage::Refund>) -> Self {
         let refund = refund.0;
@@ -543,6 +518,8 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
             status: refund.refund_status.foreign_into(),
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
+            created_at: Some(refund.created_at),
+            updated_at: Some(refund.updated_at),
         }
         .into()
     }

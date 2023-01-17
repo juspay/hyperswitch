@@ -33,7 +33,7 @@ async fn drainer_handler(
     let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
 
     if let Err(_e) = drainer_result {
-        //TODO: LOG ERRORs
+        //TODO: LOG errors
     }
 
     let flag_stream_name = utils::get_stream_key_flag(store.clone(), stream_index);
