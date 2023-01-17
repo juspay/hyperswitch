@@ -687,7 +687,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         .customer_id
                         .ne(&payment_data.payment_intent.customer_id),
                     || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
                     },
                 )?;
                 payment_data.token = Some(token.to_string());
@@ -706,6 +706,37 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         Some(updated_pm)
                     }
                     (_, _) => pm,
+                }
+            } else if payment_method_type == Some(storage_enums::PaymentMethodType::Wallet) {
+                let (pm, supplementary_data) =
+                    vault::Vault::get_payment_method_data_from_locker(state, &token).await?;
+
+                utils::when(
+                    supplementary_data
+                        .customer_id
+                        .ne(&payment_data.payment_intent.customer_id),
+                    || {
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
+                    },
+                )?;
+                payment_data.token = Some(token.to_string());
+                match pm.clone() {
+                    Some(api::PaymentMethod::Wallet(wallet_data)) => {
+                        if wallet_data.token.is_some() {
+                            let updated_pm = api::PaymentMethod::Wallet(wallet_data);
+                            vault::Vault::store_payment_method_data_in_locker(
+                                state,
+                                Some(token),
+                                &updated_pm,
+                                payment_data.payment_intent.customer_id.to_owned(),
+                            )
+                            .await?;
+                            Some(updated_pm)
+                        } else {
+                            pm
+                        }
+                    }
+                    _ => pm,
                 }
             } else {
                 utils::when(payment_method_type.is_none(), || {
