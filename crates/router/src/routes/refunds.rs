@@ -92,7 +92,7 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
-        &auth::ApiKeyAuth,
+        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
     )
     .await
 }

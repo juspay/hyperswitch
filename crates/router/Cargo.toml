@@ -53,6 +53,7 @@ nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.17.0"
 rand = "0.8.5"
+regex = "1.7.1"
 reqwest = { version = "0.11.13", features = ["json", "native-tls", "gzip"] }
 ring = "0.16.20"
 serde = { version = "1.0.152", features = ["derive"] }
@@ -66,7 +67,8 @@ thiserror = "1.0.38"
 time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
-utoipa = { git = "https://github.com/SanchithHegde/utoipa", branch = "retain-property-order" }
+# Switch to the crates.io release of `utoipa` when the `preserve_order` feature is available in the release
+utoipa = { git = "https://github.com/juhaku/utoipa", rev = "2a5c09d953f14dc78af655bbcfd016ce9a71baa0", features = ["preserve_order"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 
 # First party crates

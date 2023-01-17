@@ -405,6 +405,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
         })?;
 
+        helpers::validate_payment_method_fields_present(request)?;
+
         let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 

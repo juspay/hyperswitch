@@ -39,7 +39,7 @@ pub struct Settings {
     pub replica_database: Database,
     pub redis: RedisSettings,
     pub log: Log,
-    pub keys: Keys, //remove this during refactoring
+    pub secrets: Secrets,
     pub locker: Locker,
     pub connectors: Connectors,
     pub refund: Refund,
@@ -51,12 +51,7 @@ pub struct Settings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Keys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-    pub temp_card_key: String,
+pub struct Secrets {
     pub jwt_secret: String,
     pub admin_api_key: String,
 }
@@ -127,17 +122,21 @@ pub struct SupportedConnectors {
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+    pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
-    pub klarna: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub fiserv: ConnectorParams,
+    pub globalpay: ConnectorParams,
+    pub klarna: ConnectorParams,
+    pub payu: ConnectorParams,
+    pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub supported: SupportedConnectors,
-    pub globalpay: ConnectorParams,
+    pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub applepay: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone)]
