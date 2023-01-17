@@ -322,7 +322,7 @@
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "$ref": "#/components/schemas/serde_json.Value"
+            "type": "object"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -621,7 +621,7 @@
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "$ref": "#/components/schemas/serde_json.Value"
+            "type": "object"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -905,7 +905,7 @@
         ],
         "properties": {
           "connector_type": {
-            "$ref": "#/components/schemas/api_enums.ConnectorType"
+            "$ref": "#/components/schemas/ConnectorType"
           },
           "connector_name": {
             "type": "string",
@@ -1078,7 +1078,9 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodSubType"
             },
-            "example": "[credit]"
+            "example": [
+              "credit"
+            ]
           },
           "payment_method_issuers": {
             "type": "array",
@@ -1086,7 +1088,9 @@
               "type": "string",
               "description": "List of payment method issuers to be enabled for this payment method"
             },
-            "example": "[HDFC]"
+            "example": [
+              "HDFC"
+            ]
           },
           "payment_schemes": {
             "type": "array",
@@ -1101,7 +1105,11 @@
             "items": {
               "$ref": "#/components/schemas/Currency"
             },
-            "example": "[USD,EUR,AED]"
+            "example": [
+              "USD",
+              "EUR",
+              "AED"
+            ]
           },
           "accepted_countries": {
             "type": "array",
@@ -1109,7 +1117,10 @@
               "type": "string",
               "description": "List of Countries accepted or has the processing capabilities of the processor"
             },
-            "example": "[US,IN]"
+            "example": [
+              "US",
+              "IN"
+            ]
           },
           "minimum_amount": {
             "type": "integer",
@@ -1140,7 +1151,9 @@
             "items": {
               "$ref": "#/components/schemas/PaymentExperience"
             },
-            "example": "[redirect_to_url]"
+            "example": [
+              "redirect_to_url"
+            ]
           }
         }
       },

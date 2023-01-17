@@ -33,6 +33,7 @@ pub struct CreateMerchantAccount {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
+    #[schema(value_type = Option<Object>,example = "round_robin,min_cost")]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -169,25 +170,25 @@ pub struct MerchantConnectorId {
 #[serde(deny_unknown_fields)]
 pub struct PaymentConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
-    #[schema(example = "payment_processor,payment_vas")]
+    #[schema(value_type = ConnectorType, example = "payment_processor,payment_vas")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
-    #[schema(value_type = String,example = "stripe,adyen")]
+    #[schema(example = "stripe,adyen")]
     pub connector_name: String,
     /// Unique ID of the connector
-    #[schema(value_type = Option<i32>,example = 42)]
+    #[schema(example = 42)]
     pub merchant_connector_id: Option<i32>,
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<Secret<serde_json::Value>>,
     /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(value_type = Option<bool>,default = false, example = false)]
+    #[schema(default = false, example = false)]
     pub test_mode: Option<bool>,
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(value_type = Option<bool>,default = false, example = false)]
+    #[schema(default = false, example = false)]
     pub disabled: Option<bool>,
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(value_type = Option<Vec<PaymentMethods>>,example = json!([
+    #[schema(example = json!([
         {
             "payment_method": "wallet",
             "payment_method_types": [
@@ -229,35 +230,35 @@ pub struct PaymentMethods {
     #[schema(value_type = PaymentMethodType,example = "card,bank_transfer")]
     pub payment_method: api_enums::PaymentMethodType,
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = "[credit]")]
+    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
     /// List of payment method issuers to be enabled for this payment method
-    #[schema(value_type = Option<Vec<String>>,example = "[HDFC]")]
+    #[schema(example = json!(["HDFC"]))]
     pub payment_method_issuers: Option<Vec<String>>,
     /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<String>>,example = "[MASTER,VISA,DINERS]")]
+    #[schema(example = "[MASTER,VISA,DINERS]")]
     pub payment_schemes: Option<Vec<String>>,
     /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<Currency>>,example = "[USD,EUR,AED]")]
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     ///  List of Countries accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<String>>,example = "[US,IN]")]
+    #[schema(example = json!(["US","IN"]))]
     pub accepted_countries: Option<Vec<String>>,
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
-    #[schema(value_type = Option<i32>,example = 1)]
+    #[schema(example = 1)]
     pub minimum_amount: Option<i32>,
     /// Maximum amount supported by the processor. To be represented in the lowest denomination of
     /// the target currency (For example, for USD it should be in cents)
-    #[schema(value_type = Option<i32>,example = 1313)]
+    #[schema(example = 1313)]
     pub maximum_amount: Option<i32>,
     /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, value_type = bool,example = false)]
+    #[schema(default = true, example = false)]
     pub recurring_enabled: bool,
     /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, value_type = bool,example = false)]
+    #[schema(default = true, example = false)]
     pub installment_payment_enabled: bool,
     /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = "[redirect_to_url]")]
+    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<payment_methods::PaymentExperience>>,
 }
 
