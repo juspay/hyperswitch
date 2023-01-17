@@ -167,7 +167,7 @@ pub async fn merchant_account_update(
 
         parent_merchant_id: get_parent_merchant(
             db,
-            &req.sub_merchants_enabled
+            req.sub_merchants_enabled
                 .or(merchant_account.sub_merchants_enabled),
             req.parent_merchant_id
                 .or_else(|| merchant_account.parent_merchant_id.clone()),

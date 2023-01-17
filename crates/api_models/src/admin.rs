@@ -21,6 +21,7 @@ pub struct CreateMerchantAccount {
     pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
+    #[schema(value_type = Option<MerchantDetails>)]
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -28,9 +29,11 @@ pub struct CreateMerchantAccount {
     pub return_url: Option<String>,
 
     /// Webhook related details
+    #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -80,7 +83,7 @@ pub struct MerchantAccountResponse {
     pub api_key: Option<StrongSecret<String>>,
 
     /// The URL to redirect after the completion of the operation
-    #[schema(max_length = 255, example = "www.example.com/success")]
+    #[schema(max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
@@ -96,9 +99,11 @@ pub struct MerchantAccountResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Merchant related details
+    #[schema(value_type = Option<MerchantDetails>)]
     pub merchant_details: Option<serde_json::Value>,
 
     /// Webhook related details
+    #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<serde_json::Value>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
