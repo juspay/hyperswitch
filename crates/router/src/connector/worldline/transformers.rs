@@ -303,7 +303,7 @@ impl From<PaymentStatus> for enums::AttemptStatus {
             PaymentStatus::Cancelled => Self::Voided,
             PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
             PaymentStatus::CaptureRequested => Self::CaptureInitiated,
-            PaymentStatus::PendingApproval => Self::Authorizing,
+            PaymentStatus::PendingApproval => Self::Authorized,
             _ => Self::Pending,
         }
     }
@@ -359,6 +359,15 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
             }),
             ..item.data
         })
+    }
+}
+#[derive(Default, Debug, Serialize)]
+pub struct ApproveRequest {}
+
+impl TryFrom<&types::PaymentsCaptureData> for ApproveRequest {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(_item: &types::PaymentsCaptureData) -> Result<Self, Self::Error> {
+        Ok(Self {})
     }
 }
 
