@@ -277,17 +277,31 @@ impl Vault {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encode payment method as mock tokenize db value")?;
 
-        let config = storage::ConfigNew {
-            key: lookup_key.clone(),
-            config: value_string,
-        };
+        let already_present = state.store.find_config_by_key(&lookup_key).await;
 
-        state
-            .store
-            .insert_config(config)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Mock tokenization save to db failed")?;
+        if already_present.is_err() {
+            let config = storage::ConfigNew {
+                key: lookup_key.clone(),
+                config: value_string,
+            };
+
+            state
+                .store
+                .insert_config(config)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Mock tokenization save to db failed insert")?;
+        } else {
+            let config_update = storage::ConfigUpdate::Update {
+                config: Some(value_string),
+            };
+            state
+                .store
+                .update_config_by_key(&lookup_key, config_update)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Mock tokenization save to db failed update")?;
+        }
 
         Ok(lookup_key)
     }
