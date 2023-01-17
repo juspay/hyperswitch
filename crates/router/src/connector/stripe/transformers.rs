@@ -151,7 +151,7 @@ pub enum StripePaymentMethodType {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
@@ -204,13 +204,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 billing_country: None,
                             }),
                             _ => Err(error_stack::report!(
-                                errors::ApiErrorResponse::NotImplemented
-                            )
-                            .attach_printable(
-                                "Stripe does not support payment through provided payment method"
-                                    .to_string(),
-                            )
-                            .change_context(errors::ParsingError))?,
+                                errors::ConnectorError::NotImplemented(String::from("Stripe does not support payment through provided payment method"))
+                            ))?,
                         },
                         api::PaymentMethod::Wallet(_) => StripePaymentMethodData::Wallet,
                         api::PaymentMethod::Paypal => StripePaymentMethodData::Paypal,
@@ -273,7 +268,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 }
 
 impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
@@ -785,7 +780,7 @@ pub struct StripeWebhookObjectId {
 }
 
 impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType),
     ) -> Result<Self, Self::Error> {
@@ -817,14 +812,11 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     billing_email,
                     billing_country: Some(billing_country),
                 })),
-                _ => Err(
-                    error_stack::report!(errors::ApiErrorResponse::NotImplemented)
-                        .attach_printable(
-                            "Stripe does not support payment through provided payment method"
-                                .to_string(),
-                        )
-                        .change_context(errors::ParsingError),
-                )?,
+                _ => Err(error_stack::report!(
+                    errors::ConnectorError::NotImplemented(String::from(
+                        "Stripe does not support payment through provided payment method"
+                    ))
+                )),
             },
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),

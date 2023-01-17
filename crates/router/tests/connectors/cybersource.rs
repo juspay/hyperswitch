@@ -70,7 +70,8 @@ async fn should_only_authorize_payment() {
             get_default_payment_authorize_data(),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
 
@@ -87,14 +88,15 @@ async fn should_authorize_and_capture_payment() {
         .sync_payment(
             Some(types::PaymentsSyncData {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    utils::get_connector_transaction_id(response).unwrap(),
+                    utils::get_connector_transaction_id(response.unwrap()).unwrap(),
                 ),
                 encoded_data: None,
                 capture_method: None,
             }),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     //cybersource takes sometime to settle the transaction,so it will be in pending for long time
     assert_eq!(sync_response.status, enums::AttemptStatus::Pending);
 }
@@ -112,7 +114,8 @@ async fn should_sync_capture_payment() {
             }),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(sync_response.status, enums::AttemptStatus::Charged);
 }
 
@@ -124,7 +127,8 @@ async fn should_capture_already_authorized_payment() {
             get_default_payment_authorize_data(),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -132,6 +136,7 @@ async fn should_capture_already_authorized_payment() {
             connector
                 .capture_payment(transaction_id, None, get_default_payment_info())
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -147,7 +152,8 @@ async fn should_void_already_authorized_payment() {
             get_default_payment_authorize_data(),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -155,6 +161,7 @@ async fn should_void_already_authorized_payment() {
             connector
                 .void_payment(transaction_id, None, get_default_payment_info())
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -170,13 +177,15 @@ async fn should_refund_succeeded_payment() {
             get_default_payment_authorize_data(),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
 
     //try refund for previous payment
     let transaction_id = utils::get_connector_transaction_id(response).unwrap();
     let response = connector
         .refund_payment(transaction_id, None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Pending, //cybersource takes sometime to refund the transaction,so it will be in pending state for long time
@@ -192,7 +201,8 @@ async fn should_sync_refund() {
             None,
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Pending, //cybersource takes sometime to refund the transaction,so it will be in pending state for long time
@@ -212,7 +222,8 @@ async fn should_fail_payment_for_incorrect_card_number() {
             }),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Failure);
     let x = response.response.unwrap_err();
     assert_eq!(x.message, "Decline - Invalid account number".to_string(),);
@@ -233,7 +244,7 @@ async fn should_fail_payment_for_incorrect_exp_month() {
             get_default_payment_info(),
         )
         .await;
-    let x = response.response.unwrap_err();
+    let x = response.unwrap().response.unwrap_err();
     assert_eq!(
         x.message,
         r#"[{"field":"paymentInformation.card.expirationMonth","reason":"INVALID_DATA"}]"#

@@ -132,8 +132,26 @@ pub enum ApiErrorResponse {
     AddressNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "RE_03", message = "Mandate Validation Failed" )]
     MandateValidationFailed { reason: String },
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
-    NotImplemented,
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "{message:?}")]
+    NotImplemented { message: NotImplementedMessage },
+}
+
+#[derive(Clone)]
+pub enum NotImplementedMessage {
+    Reason(String),
+    Default,
+}
+
+impl std::fmt::Debug for NotImplementedMessage {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            Self::Reason(m) => format!("{} is not implemented", m),
+            Self::Default => {
+                "This API is under development and will be made available soon.".to_string()
+            }
+        };
+        write!(fmt, "{message}")
+    }
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -200,7 +218,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
-            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,           // 501
+            Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
         }
     }
 

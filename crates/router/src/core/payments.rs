@@ -275,7 +275,9 @@ where
     .await;
 
     let payments_response =
-        match response.change_context(errors::ApiErrorResponse::NotImplemented)? {
+        match response.change_context(errors::ApiErrorResponse::NotImplemented {
+            message: errors::api_error_response::NotImplementedMessage::Default,
+        })? {
             services::ApplicationResponse::Json(response) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
