@@ -60,6 +60,42 @@
         "deprecated": false
       }
     },
+    "/payments": {
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Create",
+        "description": "Payments - Create\n\nTo create a new payment, against a merchant API key",
+        "operationId": "payments_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -99,6 +135,24 @@
   },
   "components": {
     "schemas": {
+      "AcceptanceType": {
+        "type": "string",
+        "enum": [
+          "online",
+          "offline"
+        ]
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/AddressDetails"
+          },
+          "phone": {
+            "$ref": "#/components/schemas/PhoneDetails"
+          }
+        }
+      },
       "AddressDetails": {
         "type": "object",
         "properties": {
@@ -158,6 +212,79 @@
           }
         }
       },
+      "AuthenticationType": {
+        "type": "string",
+        "enum": [
+          "three_ds",
+          "no_three_ds"
+        ]
+      },
+      "CCard": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          }
+        }
+      },
+      "CaptureMethod": {
+        "type": "string",
+        "enum": [
+          "automatic",
+          "manual",
+          "manual_multiple",
+          "scheduled"
+        ]
+      },
+      "Connector": {
+        "type": "string",
+        "enum": [
+          "aci",
+          "adyen",
+          "applepay",
+          "authorizedotnet",
+          "braintree",
+          "checkout",
+          "cybersource",
+          "dummy",
+          "fiserv",
+          "globalpay",
+          "klarna",
+          "payu",
+          "shift4",
+          "stripe",
+          "worldpay"
+        ]
+      },
       "CreateMerchantAccount": {
         "type": "object",
         "required": [
@@ -186,7 +313,7 @@
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
-            "example": "www.example.com/success",
+            "example": "https://www.example.com/success",
             "maxLength": 255
           },
           "webhook_details": {
@@ -520,6 +647,117 @@
           }
         }
       },
+      "CustomerAcceptance": {
+        "type": "object",
+        "required": [
+          "acceptance_type"
+        ],
+        "properties": {
+          "acceptance_type": {
+            "$ref": "#/components/schemas/AcceptanceType"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Specifying when the customer acceptance was provided",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "online": {
+            "$ref": "#/components/schemas/OnlineMandate"
+          }
+        }
+      },
+      "FutureUsage": {
+        "type": "string",
+        "enum": [
+          "off_session",
+          "on_session"
+        ]
+      },
+      "IntentStatus": {
+        "type": "string",
+        "enum": [
+          "succeeded",
+          "failed",
+          "cancelled",
+          "processing",
+          "requires_customer_action",
+          "requires_payment_method",
+          "requires_confirmation",
+          "requires_capture"
+        ]
+      },
+      "KlarnaRedirectIssuer": {
+        "type": "string",
+        "enum": [
+          "stripe"
+        ]
+      },
+      "KlarnaSdkIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna"
+        ]
+      },
+      "MandateAmountData": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The maximum amount to be debited for the mandate transaction",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "MandateData": {
+        "type": "object",
+        "required": [
+          "customer_acceptance",
+          "mandate_type"
+        ],
+        "properties": {
+          "customer_acceptance": {
+            "$ref": "#/components/schemas/CustomerAcceptance"
+          },
+          "mandate_type": {
+            "$ref": "#/components/schemas/MandateType"
+          }
+        }
+      },
+      "MandateType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "single_use"
+            ],
+            "properties": {
+              "single_use": {
+                "$ref": "#/components/schemas/MandateAmountData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multi_use"
+            ],
+            "properties": {
+              "multi_use": {
+                "$ref": "#/components/schemas/MandateAmountData"
+              }
+            }
+          }
+        ]
+      },
       "MerchantAccountResponse": {
         "type": "object",
         "required": [
@@ -548,7 +786,7 @@
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
-            "example": "www.example.com/success",
+            "example": "https://www.example.com/success",
             "maxLength": 255
           },
           "webhook_details": {
@@ -678,6 +916,213 @@
           }
         }
       },
+      "Metadata": {
+        "allOf": [
+          {
+            "type": "object"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "order_details": {
+                "$ref": "#/components/schemas/OrderDetails"
+              }
+            }
+          }
+        ]
+      },
+      "NextAction": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/NextActionType"
+          },
+          "redirect_to_url": {
+            "type": "string",
+            "description": "Contains the url for redirection flow",
+            "example": "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj"
+          }
+        }
+      },
+      "NextActionType": {
+        "type": "string",
+        "enum": [
+          "redirect_to_url",
+          "display_qr_code",
+          "invoke_sdk_client",
+          "trigger_api"
+        ]
+      },
+      "OnlineMandate": {
+        "type": "object",
+        "required": [
+          "ip_address",
+          "user_agent"
+        ],
+        "properties": {
+          "ip_address": {
+            "type": "string",
+            "description": "Ip address of the customer machine from which the mandate was created",
+            "example": "123.32.25.123"
+          },
+          "user_agent": {
+            "type": "string",
+            "description": "The user-agent of the customer's browser"
+          }
+        }
+      },
+      "OrderDetails": {
+        "type": "object",
+        "required": [
+          "product_name",
+          "quantity"
+        ],
+        "properties": {
+          "product_name": {
+            "type": "string",
+            "description": "Name of the product that is being purchased",
+            "example": "shirt",
+            "maxLength": 255
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The quantity of the product to be purchased",
+            "example": 1
+          }
+        }
+      },
+      "PayLaterData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "klarna_redirect"
+            ],
+            "properties": {
+              "klarna_redirect": {
+                "type": "object",
+                "description": "For KlarnaRedirect as PayLater Option",
+                "required": [
+                  "issuer_name",
+                  "billing_email",
+                  "billing_country"
+                ],
+                "properties": {
+                  "issuer_name": {
+                    "$ref": "#/components/schemas/KlarnaRedirectIssuer"
+                  },
+                  "billing_email": {
+                    "type": "string",
+                    "description": "The billing email"
+                  },
+                  "billing_country": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "klarna_sdk"
+            ],
+            "properties": {
+              "klarna_sdk": {
+                "type": "object",
+                "description": "For Klarna Sdk as PayLater Option",
+                "required": [
+                  "issuer_name",
+                  "token"
+                ],
+                "properties": {
+                  "issuer_name": {
+                    "$ref": "#/components/schemas/KlarnaSdkIssuer"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "The token for the sdk workflow"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "affirm_redirect"
+            ],
+            "properties": {
+              "affirm_redirect": {
+                "type": "object",
+                "description": "For Affirm redirect flow",
+                "required": [
+                  "billing_email"
+                ],
+                "properties": {
+                  "billing_email": {
+                    "type": "string",
+                    "description": "The billing email address"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethod": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Card"
+            ],
+            "properties": {
+              "Card": {
+                "$ref": "#/components/schemas/CCard"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "BankTransfer"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "Wallet"
+            ],
+            "properties": {
+              "Wallet": {
+                "$ref": "#/components/schemas/WalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "PayLater"
+            ],
+            "properties": {
+              "PayLater": {
+                "$ref": "#/components/schemas/PayLaterData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Paypal"
+            ]
+          }
+        ]
+      },
       "PaymentMethodSubType": {
         "type": "string",
         "enum": [
@@ -705,6 +1150,359 @@
           "klarna",
           "paypal"
         ]
+      },
+      "PaymentsRequest": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
+            "example": "merchant_1668273825",
+            "maxLength": 255
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540
+          },
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "$ref": "#/components/schemas/CaptureMethod"
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,\nIf not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540
+          },
+          "capture_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment should be captured.\nProviding this field will automatically set `capture` to true",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Whether to confirm the payment (if applicable)",
+            "default": false,
+            "example": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "description: The customer's email address",
+            "example": "johntest@test.com",
+            "maxLength": 255
+          },
+          "name": {
+            "type": "string",
+            "description": "description: The customer's name",
+            "example": "John Test",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "3141592653",
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number",
+            "example": "+1",
+            "maxLength": 255
+          },
+          "off_session": {
+            "type": "boolean",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.",
+            "example": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A description of the payment",
+            "example": "It's my first payment request"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://hyperswitch.io"
+          },
+          "setup_future_usage": {
+            "$ref": "#/components/schemas/FutureUsage"
+          },
+          "authentication_type": {
+            "$ref": "#/components/schemas/AuthenticationType"
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Provide a reference to a stored payment method",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432"
+          },
+          "card_cvc": {
+            "type": "string"
+          },
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "statement_descriptor_name": {
+            "type": "string",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "example": "Juspay Router",
+            "maxLength": 255
+          },
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "example": "Payment for shoes purchase",
+            "maxLength": 255
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification.",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "mandate_data": {
+            "$ref": "#/components/schemas/MandateData"
+          },
+          "mandate_id": {
+            "type": "string",
+            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "example": "mandate_iwer89rnjef349dni3",
+            "maxLength": 255
+          },
+          "browser_info": {
+            "type": "object"
+          }
+        }
+      },
+      "PaymentsResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "amount",
+          "currency",
+          "payment_method"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
+            "example": "merchant_1668273825",
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 100
+          },
+          "amount_capturable": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The maximum amount that could be captured from the payment",
+            "example": 6540,
+            "minimum": 100.0
+          },
+          "amount_received": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount which is already captured from the payment",
+            "example": 6540,
+            "minimum": 100.0
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the payment",
+            "example": "stripe"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification.",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payment was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "A description of the payment",
+            "example": "It's my first payment request"
+          },
+          "refunds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundResponse"
+            }
+          },
+          "mandate_id": {
+            "type": "string",
+            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "example": "mandate_iwer89rnjef349dni3",
+            "maxLength": 255
+          },
+          "mandate_data": {
+            "$ref": "#/components/schemas/MandateData"
+          },
+          "setup_future_usage": {
+            "$ref": "#/components/schemas/FutureUsage"
+          },
+          "off_session": {
+            "type": "boolean",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.",
+            "example": true
+          },
+          "capture_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment should be captured.\nProviding this field will automatically set `capture` to true",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "capture_method": {
+            "$ref": "#/components/schemas/CaptureMethod"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Provide a reference to a stored payment method",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432"
+          },
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "email": {
+            "type": "string",
+            "description": "description: The customer's email address",
+            "example": "johntest@test.com",
+            "maxLength": 255
+          },
+          "name": {
+            "type": "string",
+            "description": "description: The customer's name",
+            "example": "John Test",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "3141592653",
+            "maxLength": 255
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://hyperswitch.io"
+          },
+          "authentication_type": {
+            "$ref": "#/components/schemas/AuthenticationType"
+          },
+          "statement_descriptor_name": {
+            "type": "string",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "example": "Juspay Router",
+            "maxLength": 255
+          },
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.",
+            "example": "Payment for shoes purchase",
+            "maxLength": 255
+          },
+          "next_action": {
+            "$ref": "#/components/schemas/NextAction"
+          },
+          "cancellation_reason": {
+            "type": "string",
+            "description": "If the payment was cancelled the reason provided here"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "example": "E0001"
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "example": "Failed while verifying the card"
+          }
+        }
+      },
+      "PhoneDetails": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The contact number",
+            "example": "9999999999"
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code attached to the number",
+            "example": "+1"
+          }
+        }
       },
       "RefundRequest": {
         "type": "object",
@@ -816,6 +1614,29 @@
           "custom"
         ],
         "example": "custom"
+      },
+      "WalletData": {
+        "type": "object",
+        "required": [
+          "issuer_name"
+        ],
+        "properties": {
+          "issuer_name": {
+            "$ref": "#/components/schemas/WalletIssuer"
+          },
+          "token": {
+            "type": "string",
+            "description": "Token generated for the wallet"
+          }
+        }
+      },
+      "WalletIssuer": {
+        "type": "string",
+        "enum": [
+          "googlepay",
+          "applepay",
+          "paypal"
+        ]
       },
       "WebhookDetails": {
         "type": "object",
