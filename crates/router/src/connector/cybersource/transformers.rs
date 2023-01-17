@@ -4,6 +4,8 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::{self, AddressDetailsData, PaymentsRequestData, PhoneDetailsData},
+    consts,
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
@@ -18,8 +20,17 @@ pub struct CybersourcePaymentsRequest {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
     capture: bool,
+    capture_options: Option<CaptureOptions>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptureOptions {
+    capture_sequence_number: u32,
+    total_capture_count: u32,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -72,35 +83,25 @@ pub struct BillTo {
 
 // for cybersource each item in Billing is mandatory
 fn build_bill_to(
-    address_details: payments::Address,
+    address_details: &payments::Address,
     email: Secret<String, pii::Email>,
     phone_number: Secret<String>,
-) -> Option<BillTo> {
-    if let Some(api_models::payments::AddressDetails {
-        first_name: Some(f_name),
-        last_name: Some(last_name),
-        line1: Some(address1),
-        city: Some(city),
-        line2: Some(administrative_area),
-        zip: Some(postal_code),
-        country: Some(country),
-        ..
-    }) = address_details.address
-    {
-        Some(BillTo {
-            first_name: f_name,
-            last_name,
-            address1,
-            locality: city,
-            administrative_area,
-            postal_code,
-            country,
-            email,
-            phone_number,
-        })
-    } else {
-        None
-    }
+) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
+    let address = address_details
+        .address
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("billing.address"))?;
+    Ok(BillTo {
+        first_name: address.get_first_name()?.to_owned(),
+        last_name: address.get_last_name()?.to_owned(),
+        address1: address.get_line1()?.to_owned(),
+        locality: address.get_city()?.to_owned(),
+        administrative_area: address.get_line2()?.to_owned(),
+        postal_code: address.get_zip()?.to_owned(),
+        country: address.get_country()?.to_owned(),
+        email,
+        phone_number,
+    })
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
@@ -108,30 +109,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let address = item
-                    .address
-                    .billing
-                    .clone()
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                let phone = address
-                    .clone()
-                    .phone
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                let phone_number = phone
-                    .number
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                let country_code = phone
-                    .country_code
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                let phone = item.get_billing_phone()?;
+                let phone_number = phone.get_number()?;
+                let country_code = phone.get_country_code()?;
                 let number_with_code =
                     Secret::new(format!("{}{}", country_code, phone_number.peek()));
                 let email = item
                     .request
                     .email
                     .clone()
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                let bill_to = build_bill_to(address, email, number_with_code)
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                    .ok_or_else(utils::missing_field_err("email"))?;
+                let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
 
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {
@@ -155,6 +143,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                         item.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
+                    capture_options: None,
                 };
 
                 Ok(Self {
@@ -165,6 +154,49 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
+    }
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            processing_information: ProcessingInformation {
+                capture_options: Some(CaptureOptions {
+                    capture_sequence_number: 1,
+                    total_capture_count: 1,
+                }),
+                ..Default::default()
+            },
+            order_information: OrderInformationWithBill {
+                amount_details: Amount {
+                    total_amount: value
+                        .request
+                        .amount_to_capture
+                        .map(|amount| amount.to_string())
+                        .ok_or_else(utils::missing_field_err("amount_to_capture"))?,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    }
+}
+
+impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::RefundExecuteRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            order_information: OrderInformationWithBill {
+                amount_details: Amount {
+                    total_amount: value.request.refund_amount.to_string(),
+                    currency: value.request.currency.to_string(),
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
     }
 }
 
@@ -199,6 +231,11 @@ pub enum CybersourcePaymentStatus {
     Authorized,
     Succeeded,
     Failed,
+    Voided,
+    Reversed,
+    Pending,
+    Declined,
+    Transmitted,
     #[default]
     Processing,
 }
@@ -207,28 +244,110 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
     fn from(item: CybersourcePaymentStatus) -> Self {
         match item {
             CybersourcePaymentStatus::Authorized => Self::Authorized,
-            CybersourcePaymentStatus::Succeeded => Self::Charged,
-            CybersourcePaymentStatus::Failed => Self::Failure,
+            CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
+                Self::Charged
+            }
+            CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
+            CybersourcePaymentStatus::Failed | CybersourcePaymentStatus::Declined => Self::Failure,
             CybersourcePaymentStatus::Processing => Self::Authorizing,
+            CybersourcePaymentStatus::Pending => Self::Pending,
+        }
+    }
+}
+
+impl From<CybersourcePaymentStatus> for enums::RefundStatus {
+    fn from(item: CybersourcePaymentStatus) -> Self {
+        match item {
+            CybersourcePaymentStatus::Succeeded => Self::Success,
+            CybersourcePaymentStatus::Failed => Self::Failure,
+            _ => Self::Pending,
         }
     }
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
+    error_information: Option<CybersourceErrorInformation>,
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<CybersourcePaymentsResponse>>
-    for types::PaymentsAuthorizeRouterData
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+pub struct CybersourceErrorInformation {
+    reason: String,
+    message: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::PaymentsResponseRouterData<CybersourcePaymentsResponse>,
+        item: types::ResponseRouterData<
+            F,
+            CybersourcePaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: item.response.status.into(),
+            response: match item.response.error_information {
+                Some(error) => Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error.message,
+                    reason: Some(error.reason),
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    redirection_data: None,
+                    redirect: false,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                }),
+            },
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceTransactionResponse {
+    id: String,
+    application_information: ApplicationInformation,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplicationInformation {
+    status: CybersourcePaymentStatus,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            CybersourceTransactionResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            CybersourceTransactionResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: item.response.application_information.status.into(),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
@@ -247,6 +366,7 @@ pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: String,
     pub message: Option<String>,
+    pub details: serde_json::Value,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -256,12 +376,13 @@ pub struct ErrorInformation {
 }
 
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CybersourceRefundRequest {
     order_information: OrderInformation,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             order_information: OrderInformation {
@@ -274,42 +395,37 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            self::RefundStatus::Succeeded => Self::Success,
-            self::RefundStatus::Failed => Self::Failure,
-            self::RefundStatus::Processing => Self::Pending,
-        }
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourcePaymentsResponse>>
+    for types::RefundsRouterData<api::Execute>
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::Execute, CybersourcePaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
-pub struct CybersourceRefundResponse {
-    pub id: String,
-    pub status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceTransactionResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, CybersourceRefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, CybersourceTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(
+                    item.response.application_information.status,
+                ),
             }),
             ..item.data
         })
