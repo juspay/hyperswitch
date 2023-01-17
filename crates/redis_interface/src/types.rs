@@ -2,6 +2,12 @@
 //! Data types and type conversions
 //! from `fred`'s internal data-types to custom data-types
 //!
+
+use common_utils::errors::CustomResult;
+use error_stack::IntoReport;
+
+use crate::errors;
+
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct RedisSettings {
     pub host: String,
@@ -16,6 +22,27 @@ pub struct RedisSettings {
     /// TTL in seconds
     pub default_ttl: u32,
     pub stream_read_count: u64,
+}
+
+impl RedisSettings {
+    /// Validates the Redis configuration provided.
+    pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
+        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+
+        when(self.host.is_default_or_empty(), || {
+            Err(errors::RedisError::InvalidConfiguration(
+                "Redis `host` must be specified".into(),
+            ))
+            .into_report()
+        })?;
+
+        when(self.cluster_enabled && self.cluster_urls.is_empty(), || {
+            Err(errors::RedisError::InvalidConfiguration(
+                "Redis `cluster_urls` must be specified if `cluster_enabled` is `true`".into(),
+            ))
+            .into_report()
+        })
+    }
 }
 
 impl Default for RedisSettings {

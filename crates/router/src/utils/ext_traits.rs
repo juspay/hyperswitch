@@ -6,7 +6,7 @@ use crate::{
     utils::when,
 };
 
-pub(crate) trait OptionExt<T> {
+pub trait OptionExt<T> {
     fn check_value_present(&self, field_name: &str) -> RouterResult<()>;
 
     fn get_required_value(self, field_name: &str) -> RouterResult<T>;
