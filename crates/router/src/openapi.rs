@@ -53,7 +53,6 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::refunds::RefundResponse,
         crate::types::api::refunds::RefundStatus,
         crate::types::api::admin::CreateMerchantAccount,
-        crate::types::api::admin::CustomRoutingRules,
         api_models::enums::RoutingAlgorithm,
         api_models::enums::PaymentMethodType,
         api_models::enums::PaymentMethodSubType,
