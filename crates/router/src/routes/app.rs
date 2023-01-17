@@ -1,10 +1,10 @@
 use actix_web::{web, Scope};
 
+#[cfg(feature = "olap")]
+use super::admin::*;
 use super::health::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{customers::*, mandates::*, payments::*, payouts::*, refunds::*};
-#[cfg(feature = "olap")]
-use super::admin::*;
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
