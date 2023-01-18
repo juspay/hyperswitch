@@ -3,11 +3,10 @@ use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub use self::CreateMerchantAccount as MerchantAccountResponse;
 use super::payments::AddressDetails;
 use crate::{enums as api_enums, payment_methods};
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CreateMerchantAccount {
     /// The identifier for the Merchant Account
@@ -33,6 +32,7 @@ pub struct CreateMerchantAccount {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -61,6 +61,69 @@ pub struct CreateMerchantAccount {
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
+
+    /// An identifier for the vault used to store payment method information.
+    #[schema(example = "locker_abc123")]
+    pub locker_id: Option<String>,
+}
+
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct MerchantAccountResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: String,
+
+    /// Name of the Merchant Account
+    #[schema(example = "NewAge Retailer")]
+    pub merchant_name: Option<String>,
+
+    /// API key that will be used for server side API access
+    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
+    pub api_key: Option<StrongSecret<String>>,
+
+    /// The URL to redirect after the completion of the operation
+    #[schema(max_length = 255, example = "https://www.example.com/success")]
+    pub return_url: Option<String>,
+
+    /// A boolean value to indicate if payment response hash needs to be enabled
+    #[schema(default = false, example = true)]
+    pub enable_payment_response_hash: bool,
+
+    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    pub payment_response_hash_key: Option<String>,
+
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    #[schema(default = false, example = true)]
+    pub redirect_to_merchant_with_http_post: bool,
+
+    /// Merchant related details
+    #[schema(value_type = Option<MerchantDetails>)]
+    pub merchant_details: Option<serde_json::Value>,
+
+    /// Webhook related details
+    #[schema(value_type = Option<WebhookDetails>)]
+    pub webhook_details: Option<serde_json::Value>,
+
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
+    pub routing_algorithm: Option<serde_json::Value>,
+
+    /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub sub_merchants_enabled: Option<bool>,
+
+    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    pub parent_merchant_id: Option<String>,
+
+    /// API key that will be used for server side API access
+    #[schema(example = "AH3423bkjbkjdsfbkj")]
+    pub publishable_key: Option<String>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<serde_json::Value>,
 
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
@@ -163,33 +226,101 @@ pub struct MerchantConnectorId {
     pub merchant_id: String,
     pub merchant_connector_id: i32,
 }
-//Merchant Connector Account CRUD
-#[derive(Debug, Clone, Serialize, Deserialize)]
+
+/// Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentConnectorCreate {
+    /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+    /// Name of the Connector
+    #[schema(example = "stripe")]
     pub connector_name: String,
+    /// Unique ID of the connector
+    #[schema(example = 42)]
     pub merchant_connector_id: Option<i32>,
+    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<Secret<serde_json::Value>>,
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
     pub test_mode: Option<bool>,
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
     pub disabled: Option<bool>,
+    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    #[schema(example = json!([
+        {
+            "payment_method": "wallet",
+            "payment_method_types": [
+                "upi_collect",
+                "upi_intent"
+            ],
+            "payment_method_issuers": [
+                "labore magna ipsum",
+                "aute"
+            ],
+            "payment_schemes": [
+                "Discover",
+                "Discover"
+            ],
+            "accepted_currencies": [
+                "AED",
+                "AED"
+            ],
+            "accepted_countries": [
+                "in",
+                "us"
+            ],
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+        }
+    ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethods>>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Details of all the payment methods enabled for the connector for the given merchant account
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethods {
+    /// Type of payment method.
+    #[schema(value_type = PaymentMethodType,example = "card")]
     pub payment_method: api_enums::PaymentMethodType,
+    /// Subtype of payment method
+    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
+    /// List of payment method issuers to be enabled for this payment method
+    #[schema(example = json!(["HDFC"]))]
     pub payment_method_issuers: Option<Vec<String>>,
+    /// List of payment schemes accepted or has the processing capabilities of the processor
+    #[schema(example = json!(["MASTER","VISA","DINERS"]))]
     pub payment_schemes: Option<Vec<String>>,
+    /// List of currencies accepted or has the processing capabilities of the processor
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+    ///  List of Countries accepted or has the processing capabilities of the processor
+    #[schema(example = json!(["US","IN"]))]
     pub accepted_countries: Option<Vec<String>>,
+    /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
+    #[schema(example = 1)]
     pub minimum_amount: Option<i32>,
+    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
+    /// the target currency (For example, for USD it should be in cents)
+    #[schema(example = 1313)]
     pub maximum_amount: Option<i32>,
+    /// Boolean to enable recurring payments / mandates. Default is true.
+    #[schema(default = true, example = false)]
     pub recurring_enabled: bool,
+    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
+    #[schema(default = true, example = false)]
     pub installment_payment_enabled: bool,
+    /// Type of payment experience enabled with the connector
+    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<payment_methods::PaymentExperience>>,
 }
 

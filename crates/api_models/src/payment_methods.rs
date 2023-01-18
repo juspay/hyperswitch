@@ -2,6 +2,7 @@ use std::collections;
 
 use common_utils::pii;
 use serde::de;
+use utoipa::ToSchema;
 
 use crate::enums as api_enums;
 
@@ -238,15 +239,22 @@ pub struct CustomerPaymentMethod {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PaymentExperience {
+    /// The URL to which the customer needs to be redirected for completing the payment.The URL to
+    /// which the customer needs to be redirected for completing the payment.
     RedirectToUrl,
+    /// Contains the data for invoking the sdk client for completing the payment.
     InvokeSdkClient,
+    /// The QR code data to be displayed to the customer.
     DisplayQrCode,
+    /// Contains data to finish one click payment.
     OneClick,
+    /// Redirect customer to link wallet
     LinkWallet,
+    /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
 }
 

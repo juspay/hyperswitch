@@ -48,7 +48,8 @@ where
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .connector_account_details
         .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     payment_method = payment_data
         .payment_attempt
@@ -445,6 +446,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
                 None => types::ResponseId::NoResponseId,
             },
             encoded_data: payment_data.connector_response.encoded_data,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }

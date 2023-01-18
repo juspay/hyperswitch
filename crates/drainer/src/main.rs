@@ -9,6 +9,9 @@ async fn main() -> DrainerResult<()> {
     #[allow(clippy::expect_used)]
     let conf = settings::Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
+    #[allow(clippy::expect_used)]
+    conf.validate()
+        .expect("Failed to validate drainer configuration");
 
     let store = services::Store::new(&conf, false).await;
     let store = std::sync::Arc::new(store);

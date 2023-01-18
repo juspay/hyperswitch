@@ -122,6 +122,7 @@ pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone)]

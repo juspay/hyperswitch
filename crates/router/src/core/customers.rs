@@ -54,7 +54,8 @@ pub async fn create_customer(
             ..Default::default()
         })
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while inserting new address")?;
     };
 
     let new_customer = storage::CustomerNew {
@@ -74,9 +75,17 @@ pub async fn create_customer(
             if error.current_context().is_db_unique_violation() {
                 db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed while fetching Customer, customer_id: {}",
+                            customer_id
+                        )
+                    })?
             } else {
-                Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?
+                Err(error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while inserting new customer"))?
             }
         }
     };
@@ -252,7 +261,11 @@ pub async fn update_customer(
             update_address,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed while updating address: merchant_id: {}, customer_id: {}",
+            merchant_account.merchant_id, update_customer.customer_id
+        ))?;
     };
 
     let response = db
