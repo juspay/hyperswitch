@@ -434,12 +434,11 @@ pub async fn update_payment_connector(
         .into_report()
         .attach_printable("Failed to get payments method enabled")?
         .into_iter()
-        .map(|pm_value| {
+        .flat_map(|pm_value| {
             ValueExt::<api_models::admin::PaymentMethods>::parse_value(pm_value, "PaymentMethods")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to convert serde json value to PaymentMethods")
         })
-        .flatten()
         .collect::<Vec<api_models::admin::PaymentMethods>>();
 
     let response = api::PaymentConnectorCreate {
