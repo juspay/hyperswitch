@@ -55,7 +55,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         .await
     }
 
-    async fn update_connector_auth<'a>(
+    async fn add_access_token<'a>(
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
@@ -64,7 +64,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         Result<Option<types::AccessToken>, types::ErrorResponse>,
         bool,
     )> {
-        services::update_connector_auth(state, connector, merchant_account, self).await
+        services::add_access_token(state, connector, merchant_account, self).await
     }
 }
 
