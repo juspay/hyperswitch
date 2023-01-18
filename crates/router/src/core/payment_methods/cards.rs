@@ -345,7 +345,7 @@ pub async fn list_payment_methods(
     db: &dyn db::StorageInterface,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
-) -> errors::RouterResponse<collections::HashSet<api::ListPaymentMethodResponse>> {
+) -> errors::RouterResponse<api::ListPaymentMethodResponse> {
     let payment_intent = helpers::verify_client_secret(
         db,
         merchant_account.storage_scheme,
@@ -383,8 +383,7 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut response: collections::HashSet<api::ListPaymentMethodResponse> =
-        collections::HashSet::new();
+    let mut response: collections::HashSet<api::ListPaymentMethod> = collections::HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -405,20 +404,25 @@ pub async fn list_payment_methods(
     response
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
-        .unwrap_or(Ok(services::ApplicationResponse::Json(response)))
+        .unwrap_or(Ok(services::ApplicationResponse::Json(
+            api::ListPaymentMethodResponse {
+                redirect_url: merchant_account.return_url,
+                payment_methods: response,
+            },
+        )))
 }
 
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
-    resp: &mut collections::HashSet<api::ListPaymentMethodResponse>,
+    resp: &mut collections::HashSet<api::ListPaymentMethod>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         if let Ok(payment_method_object) =
-            serde_json::from_value::<api::ListPaymentMethodResponse>(payment_method)
+            serde_json::from_value::<api::ListPaymentMethod>(payment_method)
         {
             if filter_recurring_based(&payment_method_object, req.recurring_enabled)
                 && filter_installment_based(&payment_method_object, req.installment_payment_enabled)
@@ -482,10 +486,7 @@ fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
     }
 }
 
-fn filter_amount_based(
-    payment_method: &api::ListPaymentMethodResponse,
-    amount: Option<i64>,
-) -> bool {
+fn filter_amount_based(payment_method: &api::ListPaymentMethod, amount: Option<i64>) -> bool {
     let min_check = amount
         .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
         .unwrap_or(true);
@@ -504,14 +505,14 @@ fn filter_amount_based(
 }
 
 fn filter_recurring_based(
-    payment_method: &api::ListPaymentMethodResponse,
+    payment_method: &api::ListPaymentMethod,
     recurring_enabled: Option<bool>,
 ) -> bool {
     recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
 }
 
 fn filter_installment_based(
-    payment_method: &api::ListPaymentMethodResponse,
+    payment_method: &api::ListPaymentMethod,
     installment_payment_enabled: Option<bool>,
 ) -> bool {
     installment_payment_enabled.map_or(true, |enabled| {
@@ -520,7 +521,7 @@ fn filter_installment_based(
 }
 
 async fn filter_payment_country_based(
-    pm: &api::ListPaymentMethodResponse,
+    pm: &api::ListPaymentMethod,
     address: Option<&storage::Address>,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
@@ -534,7 +535,7 @@ async fn filter_payment_country_based(
 
 fn filter_payment_currency_based(
     payment_intent: &storage::PaymentIntent,
-    pm: &api::ListPaymentMethodResponse,
+    pm: &api::ListPaymentMethod,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies
@@ -545,7 +546,7 @@ fn filter_payment_currency_based(
 
 fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
-    pm: &api::ListPaymentMethodResponse,
+    pm: &api::ListPaymentMethod,
 ) -> bool {
     let amount = payment_intent.amount;
     pm.maximum_amount.map_or(true, |amt| amount < amt)
@@ -554,7 +555,7 @@ fn filter_payment_amount_based(
 
 async fn filter_payment_mandate_based(
     payment_attempt: Option<&storage::PaymentAttempt>,
-    pm: &api::ListPaymentMethodResponse,
+    pm: &api::ListPaymentMethod,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     let recurring_filter = if !pm.recurring_enabled {
         payment_attempt.map_or(true, |pa| pa.mandate_id.is_none())
@@ -577,7 +578,7 @@ pub async fn list_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut enabled_methods: collections::HashSet<api::ListPaymentMethodResponse> =
+    let mut enabled_methods: collections::HashSet<api::ListPaymentMethod> =
         collections::HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
@@ -587,7 +588,7 @@ pub async fn list_customer_payment_method(
 
         for payment_method in payment_methods.into_iter() {
             if let Ok(payment_method_object) =
-                serde_json::from_value::<api::ListPaymentMethodResponse>(payment_method)
+                serde_json::from_value::<api::ListPaymentMethod>(payment_method)
             {
                 enabled_methods.insert(payment_method_object);
             }
