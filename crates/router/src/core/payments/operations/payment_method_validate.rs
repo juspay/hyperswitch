@@ -83,7 +83,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         let payment_id = payment_id
             .get_payment_intent_id()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while getting payment_intent_id from PaymentIdType")?;
 
         payment_attempt = match db
             .insert_payment_attempt(
@@ -250,11 +251,11 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, None).await
+        helpers::get_connector_default(state, None).await
     }
 }
 

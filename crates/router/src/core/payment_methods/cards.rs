@@ -18,7 +18,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{BytesExt, OptionExt},
+    utils::{BytesExt, ConnectorResponseExt, OptionExt},
 };
 
 #[instrument(skip_all)]
@@ -300,21 +300,15 @@ pub async fn get_card_from_legacy_locker<'a>(
     let get_card_result = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while executing call_connector_api for get_card");
 
-        match response {
-            Ok(card) => card
-                .response
-                .parse_struct("AddCardResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding failed for AddCardResponse"),
-            Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(format!("Got 4xx from the locker: {err:?}"))),
-        }?
+        response.get_response_inner("AddCardResponse")?
     } else {
         let (get_card_response, _) = mock_get_card(&*state.store, card_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while fetching card from mock_locker")?;
         get_card_response
     };
 
@@ -331,18 +325,17 @@ pub async fn delete_card<'a>(
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
+
+    let card_delete_failure_message = "Failed while deleting card from card_locker";
     let delete_card_resp = if !locker.mock_locker {
         services::call_connector_api(state, request)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
-            .response
-            .parse_struct("DeleteCardResponse")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .get_response_inner("DeleteCardResponse")?
     } else {
         mock_delete_card(&*state.store, card_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(card_delete_failure_message)?
     };
 
     Ok(delete_card_resp)
@@ -805,7 +798,8 @@ pub async fn retrieve_payment_method(
         let get_card_resp =
             get_card_from_legacy_locker(state, &locker_id, &pm.payment_method_id).await?;
         let card_detail = payment_methods::get_card_detail(&pm, get_card_resp.card)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while getting card details from locker")?;
         Some(card_detail)
     } else {
         None

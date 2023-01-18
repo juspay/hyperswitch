@@ -24,7 +24,7 @@ use router_env::{instrument, logger, tracing};
 use crate::{errors, PgPooledConn, StorageResult};
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
+pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static,
     V: Debug + Insertable<T>,
@@ -53,7 +53,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_update<T, V, P>(
+pub async fn generic_update<T, V, P>(
     conn: &PgPooledConn,
     predicate: P,
     values: V,
@@ -82,7 +82,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_update_with_results<T, V, P, R>(
+pub async fn generic_update_with_results<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
     values: V,
@@ -112,7 +112,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_update_by_id<T, V, Pk, R>(
+pub async fn generic_update_by_id<T, V, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
     values: V,
@@ -160,7 +160,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
+pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output: IntoUpdateTarget,
@@ -191,7 +191,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_delete_one_with_result<T, P, R>(
+pub async fn generic_delete_one_with_result<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
 ) -> StorageResult<R>
@@ -247,7 +247,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -260,7 +260,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_by_id_optional<T, Pk, R>(
+pub async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
 ) -> StorageResult<Option<R>>
@@ -302,7 +302,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
+pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     <T as FilterDsl<P>>::Output:
@@ -313,7 +313,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_find_one_optional<T, P, R>(
+pub async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
 ) -> StorageResult<Option<R>>
@@ -327,7 +327,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_filter<T, P, R>(
+pub async fn generic_filter<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,

@@ -23,7 +23,6 @@ use crate::{
     scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
-        self,
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -468,7 +467,8 @@ where
         )
         .await
         .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting process schedule time")?;
 
         match schedule_time {
             Some(stime) => {
@@ -477,6 +477,7 @@ where
                     .await
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
             }
             None => Ok(()),
         }
@@ -594,7 +595,6 @@ pub async fn get_customer_from_details(
 }
 
 pub async fn get_connector_default(
-    merchant_account: &storage::MerchantAccount,
     state: &AppState,
     request_connector: Option<api_enums::Connector>,
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
@@ -607,41 +607,7 @@ pub async fn get_connector_default(
         )?;
         Ok(api::ConnectorCallType::Single(connector_data))
     } else {
-        let vec_val: Vec<serde_json::Value> = merchant_account
-            .custom_routing_rules
-            .clone()
-            .parse_value("CustomRoutingRulesVec")
-            .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let custom_routing_rules: api::CustomRoutingRules = vec_val
-            .into_iter()
-            .next()
-            .parse_value("CustomRoutingRules")
-            .change_context(errors::ConnectorError::RoutingRulesParsingError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let connector_names = custom_routing_rules
-            .connectors_pecking_order
-            .unwrap_or_else(|| vec!["stripe".to_string()]);
-
-        //use routing rules if configured by merchant else query MCA as per PM
-        let connector_list: types::ConnectorsList = types::ConnectorsList {
-            connectors: connector_names,
-        };
-
-        let connector_name = connector_list
-            .connectors
-            .first()
-            .get_required_value("connectors")
-            .change_context(errors::ConnectorError::FailedToObtainPreferredConnector)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .as_str();
-
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
+        Ok(api::ConnectorCallType::Routing)
     }
 }
 
@@ -723,7 +689,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         .customer_id
                         .ne(&payment_data.payment_intent.customer_id),
                     || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer payment method and customer passed in payment are not same".into() })
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
                     },
                 )?;
                 payment_data.token = Some(token.to_string());
@@ -742,6 +708,37 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         Some(updated_pm)
                     }
                     (_, _) => pm,
+                }
+            } else if payment_method_type == Some(storage_enums::PaymentMethodType::Wallet) {
+                let (pm, supplementary_data) =
+                    vault::Vault::get_payment_method_data_from_locker(state, &token).await?;
+
+                utils::when(
+                    supplementary_data
+                        .customer_id
+                        .ne(&payment_data.payment_intent.customer_id),
+                    || {
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
+                    },
+                )?;
+                payment_data.token = Some(token.to_string());
+                match pm.clone() {
+                    Some(api::PaymentMethod::Wallet(wallet_data)) => {
+                        if wallet_data.token.is_some() {
+                            let updated_pm = api::PaymentMethod::Wallet(wallet_data);
+                            vault::Vault::store_payment_method_data_in_locker(
+                                state,
+                                Some(token),
+                                &updated_pm,
+                                payment_data.payment_intent.customer_id.to_owned(),
+                            )
+                            .await?;
+                            Some(updated_pm)
+                        } else {
+                            pm
+                        }
+                    }
+                    _ => pm,
                 }
             } else {
                 utils::when(payment_method_type.is_none(), || {

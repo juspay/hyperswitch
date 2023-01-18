@@ -120,8 +120,9 @@ pub struct ConnectorData {
 }
 
 pub enum ConnectorCallType {
-    Single(ConnectorData),
+    Routing,
     Multiple(Vec<ConnectorData>),
+    Single(ConnectorData),
 }
 
 impl ConnectorCallType {
@@ -140,8 +141,8 @@ impl ConnectorData {
         let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
         Ok(Self {
             connector,
             connector_name,
@@ -165,6 +166,7 @@ impl ConnectorData {
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "payu" => Ok(Box::new(&connector::Payu)),
+            "rapyd" => Ok(Box::new(&connector::Rapyd)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
             "stripe" => Ok(Box::new(&connector::Stripe)),
             "worldline" => Ok(Box::new(&connector::Worldline)),

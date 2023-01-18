@@ -1,23 +1,26 @@
-pub(crate) mod custom_serde;
-pub(crate) mod db_utils;
-mod ext_traits;
-mod fp_utils;
+pub mod custom_serde;
+pub mod db_utils;
+pub mod ext_traits;
 
 #[cfg(feature = "kv_store")]
-pub(crate) mod storage_partitioning;
+pub mod storage_partitioning;
 
-pub(crate) use common_utils::{
+pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
+    fp_utils::when,
     validation::validate_email,
 };
+use error_stack::{IntoReport, ResultExt};
 use nanoid::nanoid;
+use serde::de::DeserializeOwned;
 
-pub(crate) use self::{
-    ext_traits::{OptionExt, ValidateCall},
-    fp_utils::when,
+pub use self::ext_traits::{OptionExt, ValidateCall};
+use crate::{
+    consts,
+    core::errors::{self, RouterResult},
+    logger, types,
 };
-use crate::consts;
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -69,4 +72,51 @@ pub mod error_parser {
 #[inline]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
+}
+
+pub trait ConnectorResponseExt: Sized {
+    fn get_response(self) -> RouterResult<types::Response>;
+    fn get_error_response(self) -> RouterResult<types::Response>;
+    fn get_response_inner<T: DeserializeOwned>(self, type_name: &str) -> RouterResult<T> {
+        self.get_response()?
+            .response
+            .parse_struct(type_name)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+}
+
+impl<E> ConnectorResponseExt
+    for Result<Result<types::Response, types::Response>, error_stack::Report<E>>
+{
+    fn get_error_response(self) -> RouterResult<types::Response> {
+        self.change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while receiving response")
+            .and_then(|inner| match inner {
+                Ok(res) => {
+                    logger::error!(response=?res);
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .into_report()
+                        .attach_printable(format!(
+                            "Expecting error response, received response: {res:?}"
+                        ))
+                }
+                Err(err_res) => Ok(err_res),
+            })
+    }
+
+    fn get_response(self) -> RouterResult<types::Response> {
+        self.change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while receiving response")
+            .and_then(|inner| match inner {
+                Err(err_res) => {
+                    logger::error!(error_response=?err_res);
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .into_report()
+                        .attach_printable(format!(
+                            "Expecting response, received error response: {err_res:?}"
+                        ))
+                }
+                Ok(res) => Ok(res),
+            })
+    }
 }
