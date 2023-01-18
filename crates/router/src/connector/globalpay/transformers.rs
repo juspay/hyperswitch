@@ -202,7 +202,6 @@ impl<F, T>
         item: types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Pending, //FIXME: use the previous status of routerdata
             response: Ok(types::AccessToken {
                 token: item.response.token,
                 expires: item.response.seconds_to_expire,
