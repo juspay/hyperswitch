@@ -1,4 +1,4 @@
-use std::collections;
+use std::collections::HashSet;
 
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
@@ -383,7 +383,7 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut response: collections::HashSet<api::ListPaymentMethod> = collections::HashSet::new();
+    let mut response: HashSet<api::ListPaymentMethod> = HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -415,7 +415,7 @@ pub async fn list_payment_methods(
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
-    resp: &mut collections::HashSet<api::ListPaymentMethod>,
+    resp: &mut HashSet<api::ListPaymentMethod>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
@@ -474,8 +474,8 @@ fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
 ) -> (Option<Vec<T>>, Option<Vec<T>>, bool) {
     match (left, right) {
         (Some(ref l), Some(ref r)) => {
-            let a: collections::HashSet<&T> = collections::HashSet::from_iter(l.iter());
-            let b: collections::HashSet<&T> = collections::HashSet::from_iter(r.iter());
+            let a: HashSet<&T> = HashSet::from_iter(l.iter());
+            let b: HashSet<&T> = HashSet::from_iter(r.iter());
 
             let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
             (Some(y), Some(r.to_vec()), true)
@@ -578,8 +578,7 @@ pub async fn list_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut enabled_methods: collections::HashSet<api::ListPaymentMethod> =
-        collections::HashSet::new();
+    let mut enabled_methods: HashSet<api::ListPaymentMethod> = HashSet::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,

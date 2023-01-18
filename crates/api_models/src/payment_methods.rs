@@ -1,4 +1,4 @@
-use std::collections;
+use std::collections::HashSet;
 
 use common_utils::pii;
 use serde::de;
@@ -171,7 +171,7 @@ fn set_or_reject_duplicate<T, E: de::Error>(
 #[derive(Debug, serde::Serialize)]
 pub struct ListPaymentMethodResponse {
     pub redirect_url: Option<String>,
-    pub payment_methods: collections::HashSet<ListPaymentMethod>,
+    pub payment_methods: HashSet<ListPaymentMethod>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize)]
@@ -218,7 +218,7 @@ impl serde::Serialize for ListPaymentMethod {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ListCustomerPaymentMethodsResponse {
-    pub enabled_payment_methods: collections::HashSet<ListPaymentMethod>,
+    pub enabled_payment_methods: HashSet<ListPaymentMethod>,
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
