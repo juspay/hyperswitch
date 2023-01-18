@@ -90,6 +90,7 @@ async fn should_authorize_and_capture_payment() {
                     utils::get_connector_transaction_id(response).unwrap(),
                 ),
                 encoded_data: None,
+                capture_method: None,
             }),
             get_default_payment_info(),
         )
@@ -107,6 +108,7 @@ async fn should_sync_capture_payment() {
                     "6736046645576085004953".to_string(),
                 ),
                 encoded_data: None,
+                capture_method: None,
             }),
             get_default_payment_info(),
         )
