@@ -40,16 +40,13 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = vec![
+        Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string(),
             ),
             ("X-GP-Version".to_string(), "2021-03-22".to_string()),
-        ];
-        // let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        // headers.append(&mut api_key);
-        Ok(headers)
+        ])
     }
 }
 
@@ -68,12 +65,8 @@ impl ConnectorCommon for Globalpay {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        _auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: globalpay::GlobalpayAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        // Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
         Ok(vec![])
     }
 
@@ -112,7 +105,7 @@ impl ConnectorIntegration<api::UpdateAuth, types::RefreshTokenRequestData, types
 
     fn get_url(
         &self,
-        req: &types::RefreshTokenRouterData,
+        _req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "accesstoken"))
@@ -190,7 +183,19 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let access_token_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(access_token_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -271,7 +276,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let access_token_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(access_token_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -342,7 +359,19 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let access_token_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(access_token_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -433,7 +462,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let access_token_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(access_token_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -517,7 +558,19 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let access_token_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(access_token_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -597,7 +650,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let access_token_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(access_token_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
