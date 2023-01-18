@@ -52,6 +52,7 @@ async fn should_authorize_card_payment() {
                         transaction_id.clone(),
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
@@ -81,6 +82,7 @@ async fn should_authorize_gpay_payment() {
                         transaction_id.clone(),
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
@@ -111,6 +113,7 @@ async fn should_capture_already_authorized_payment() {
                         transaction_id.clone(),
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
@@ -127,6 +130,7 @@ async fn should_capture_already_authorized_payment() {
                         transaction_id,
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
@@ -159,6 +163,7 @@ async fn should_sync_payment() {
                         transaction_id,
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
@@ -197,6 +202,7 @@ async fn should_void_already_authorized_payment() {
                         transaction_id,
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
@@ -234,6 +240,7 @@ async fn should_refund_succeeded_payment() {
                         transaction_id.clone(),
                     ),
                     encoded_data: None,
+                    capture_method: None,
                 }),
                 None,
             )
