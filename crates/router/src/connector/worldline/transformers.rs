@@ -393,9 +393,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
 #[derive(Default, Debug, Serialize)]
 pub struct ApproveRequest {}
 
-impl TryFrom<&types::PaymentsCaptureData> for ApproveRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::PaymentsCaptureData) -> Result<Self, Self::Error> {
+impl TryFrom<&types::PaymentsCaptureRouterData> for ApproveRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {})
     }
 }
@@ -406,7 +406,7 @@ pub struct WorldlineRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_of_money: AmountOfMoney {
