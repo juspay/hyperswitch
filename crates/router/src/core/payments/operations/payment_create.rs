@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::PaymentsRequest;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
@@ -121,17 +119,17 @@ impl Operation<PaymentsRequest> for PaymentCreate {
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
+impl GetTracker<PaymentData, PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsRequest>,
+        BoxedOperation<'a, PaymentsRequest>,
         PaymentData,
         Option<CustomerDetails>,
     )> {
@@ -289,7 +287,7 @@ impl GetTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
 }
 
 #[async_trait]
-impl Domain<api::PaymentsRequest> for PaymentCreate {
+impl Domain<PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -299,7 +297,7 @@ impl Domain<api::PaymentsRequest> for PaymentCreate {
         merchant_id: &str,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, api::PaymentsRequest>,
+            BoxedOperation<'a, PaymentsRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -321,7 +319,7 @@ impl Domain<api::PaymentsRequest> for PaymentCreate {
         payment_data: &mut PaymentData,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsRequest>,
+        BoxedOperation<'a, PaymentsRequest>,
         Option<api::PaymentMethod>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
@@ -340,14 +338,14 @@ impl Domain<api::PaymentsRequest> for PaymentCreate {
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.connector).await
     }
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
+impl UpdateTracker<PaymentData, PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -356,7 +354,7 @@ impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
         mut payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsRequest>, PaymentData)> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsRequest>, PaymentData)> {
         let status = match payment_data.payment_intent.status {
             IntentStatus::RequiresPaymentMethod => match payment_data.payment_method_data {
                 Some(_) => Some(IntentStatus::RequiresConfirmation),
@@ -416,14 +414,14 @@ impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentCreate {
     }
 }
 
-impl ValidateRequest<api::PaymentsRequest> for PaymentCreate {
+impl ValidateRequest<PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsRequest>,
+        BoxedOperation<'b, PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
         let given_payment_id = match &request.payment_id {
@@ -489,7 +487,7 @@ impl PaymentCreate {
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethodType>,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
         browser_info: Option<serde_json::Value>,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
@@ -521,7 +519,7 @@ impl PaymentCreate {
         payment_id: &str,
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
     ) -> RouterResult<storage::PaymentIntentNew> {
@@ -581,7 +579,7 @@ impl PaymentCreate {
 
 #[instrument(skip_all)]
 pub fn payments_create_request_validation(
-    req: &api::PaymentsRequest,
+    req: &PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
     let currency = req
         .currency
@@ -605,7 +603,7 @@ where
     operations::payment_response::PaymentResponse: operations::EndOperation<api::Authorize, FData>,
     FData: Send,
 {
-    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+    fn should_call_connector(&self, _payment_data: &PaymentData) -> bool {
         false
     }
 }

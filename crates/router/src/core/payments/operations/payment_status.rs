@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::PaymentsRetrieveRequest;
 use async_trait::async_trait;
 use error_stack::ResultExt;
@@ -256,7 +254,7 @@ impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentStatus {
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::PaymentsRetrieveRequest> for PaymentStatus {
+impl UpdateTracker<PaymentData, PaymentsRetrieveRequest> for PaymentStatus {
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
@@ -264,26 +262,23 @@ impl UpdateTracker<PaymentData, api::PaymentsRetrieveRequest> for PaymentStatus 
         payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsRetrieveRequest>,
-        PaymentData,
-    )> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsRetrieveRequest>, PaymentData)> {
         Ok((Box::new(self), payment_data))
     }
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::PaymentsRetrieveRequest> for PaymentStatus {
+impl GetTracker<PaymentData, PaymentsRetrieveRequest> for PaymentStatus {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsRetrieveRequest,
+        request: &PaymentsRetrieveRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsRetrieveRequest>,
+        BoxedOperation<'a, PaymentsRetrieveRequest>,
         PaymentData,
         Option<CustomerDetails>,
     )> {
@@ -299,18 +294,15 @@ impl GetTracker<PaymentData, api::PaymentsRetrieveRequest> for PaymentStatus {
     }
 }
 
-async fn get_tracker_for_sync<
-    'a,
-    Op: Operation<api::PaymentsRetrieveRequest> + 'a + Send + Sync,
->(
+async fn get_tracker_for_sync<'a, Op: Operation<PaymentsRetrieveRequest> + 'a + Send + Sync>(
     payment_id: &api::PaymentIdType,
     merchant_id: &str,
     db: &dyn StorageInterface,
-    request: &api::PaymentsRetrieveRequest,
+    request: &PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<(
-    BoxedOperation<'a, api::PaymentsRetrieveRequest>,
+    BoxedOperation<'a, PaymentsRetrieveRequest>,
     PaymentData,
     Option<CustomerDetails>,
 )> {
@@ -391,13 +383,13 @@ async fn get_tracker_for_sync<
     ))
 }
 
-impl ValidateRequest<api::PaymentsRetrieveRequest> for PaymentStatus {
+impl ValidateRequest<PaymentsRetrieveRequest> for PaymentStatus {
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsRetrieveRequest,
+        request: &PaymentsRetrieveRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsRetrieveRequest>,
+        BoxedOperation<'b, PaymentsRetrieveRequest>,
         operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = request.merchant_id.as_deref();

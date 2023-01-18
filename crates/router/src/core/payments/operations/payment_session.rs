@@ -1,4 +1,4 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
 
 use api_models::payments::PaymentsSessionRequest;
 use async_trait::async_trait;
@@ -119,17 +119,17 @@ impl Operation<PaymentsSessionRequest> for PaymentSession {
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession {
+impl GetTracker<PaymentData, PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsSessionRequest,
+        request: &PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsSessionRequest>,
+        BoxedOperation<'a, PaymentsSessionRequest>,
         PaymentData,
         Option<payments::CustomerDetails>,
     )> {
@@ -242,7 +242,7 @@ impl GetTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession {
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession {
+impl UpdateTracker<PaymentData, PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -251,7 +251,7 @@ impl UpdateTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession 
         mut payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsSessionRequest>, PaymentData)> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsSessionRequest>, PaymentData)> {
         let metadata = payment_data.payment_intent.metadata.clone();
         payment_data.payment_intent = match metadata {
             Some(metadata) => db
@@ -271,14 +271,14 @@ impl UpdateTracker<PaymentData, api::PaymentsSessionRequest> for PaymentSession 
     }
 }
 
-impl ValidateRequest<api::PaymentsSessionRequest> for PaymentSession {
+impl ValidateRequest<PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsSessionRequest,
+        request: &PaymentsSessionRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
@@ -302,10 +302,9 @@ pub struct PaymentMethodEnabled {
 }
 
 #[async_trait]
-impl<Op: Send + Sync + Operation<api::PaymentsSessionRequest>> Domain<api::PaymentsSessionRequest>
-    for Op
+impl<Op: Send + Sync + Operation<PaymentsSessionRequest>> Domain<PaymentsSessionRequest> for Op
 where
-    for<'a> &'a Op: Operation<api::PaymentsSessionRequest>,
+    for<'a> &'a Op: Operation<PaymentsSessionRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -316,7 +315,7 @@ where
         merchant_id: &str,
     ) -> errors::CustomResult<
         (
-            BoxedOperation<'a, api::PaymentsSessionRequest>,
+            BoxedOperation<'a, PaymentsSessionRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -338,7 +337,7 @@ where
         _payment_data: &mut PaymentData,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, PaymentsSessionRequest>,
         Option<api::PaymentMethod>,
     )> {
         //No payment method data for this operation
@@ -349,7 +348,7 @@ where
         &'a self,
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request: &api::PaymentsSessionRequest,
+        request: &PaymentsSessionRequest,
     ) -> RouterResult<api::ConnectorCallType> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
@@ -462,7 +461,7 @@ where
     operations::payment_response::PaymentResponse: operations::EndOperation<api::Session, FData>,
     FData: Send,
 {
-    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+    fn should_call_connector(&self, _payment_data: &PaymentData) -> bool {
         true
     }
 }

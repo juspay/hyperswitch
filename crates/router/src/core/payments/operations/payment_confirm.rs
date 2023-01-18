@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::PaymentsRequest;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
@@ -118,17 +116,17 @@ impl Operation<PaymentsRequest> for PaymentConfirm {
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::PaymentsRequest> for PaymentConfirm {
+impl GetTracker<PaymentData, PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsRequest>,
+        BoxedOperation<'a, PaymentsRequest>,
         PaymentData,
         Option<CustomerDetails>,
     )> {
@@ -283,7 +281,7 @@ impl GetTracker<PaymentData, api::PaymentsRequest> for PaymentConfirm {
 }
 
 #[async_trait]
-impl Domain<api::PaymentsRequest> for PaymentConfirm {
+impl Domain<PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -293,7 +291,7 @@ impl Domain<api::PaymentsRequest> for PaymentConfirm {
         merchant_id: &str,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, api::PaymentsRequest>,
+            BoxedOperation<'a, PaymentsRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -315,7 +313,7 @@ impl Domain<api::PaymentsRequest> for PaymentConfirm {
         payment_data: &mut PaymentData,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsRequest>,
+        BoxedOperation<'a, PaymentsRequest>,
         Option<api::PaymentMethod>,
     )> {
         let (op, payment_method_data) =
@@ -341,14 +339,14 @@ impl Domain<api::PaymentsRequest> for PaymentConfirm {
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.connector).await
     }
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentConfirm {
+impl UpdateTracker<PaymentData, PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -357,7 +355,7 @@ impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentConfirm {
         mut payment_data: PaymentData,
         customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsRequest>, PaymentData)> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsRequest>, PaymentData)> {
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
 
@@ -427,14 +425,14 @@ impl UpdateTracker<PaymentData, api::PaymentsRequest> for PaymentConfirm {
     }
 }
 
-impl ValidateRequest<api::PaymentsRequest> for PaymentConfirm {
+impl ValidateRequest<PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsRequest,
+        request: &PaymentsRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsRequest>,
+        BoxedOperation<'b, PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
         let given_payment_id = match &request.payment_id {
@@ -485,7 +483,7 @@ where
     operations::payment_response::PaymentResponse: operations::EndOperation<api::Authorize, FData>,
     FData: Send,
 {
-    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+    fn should_call_connector(&self, _payment_data: &PaymentData) -> bool {
         true
     }
 

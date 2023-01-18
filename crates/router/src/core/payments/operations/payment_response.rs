@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use router_derive;
 
-use super::{EndOperation, Operation, PostUpdateTracker};
+use super::{EndOperation, PostUpdateTracker};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},

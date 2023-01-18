@@ -45,7 +45,7 @@ pub type BoxedOperation<'a, T> = Box<dyn Operation<T> + Send + Sync + 'a>;
 pub type BoxedEndOperation<'a, F, T> = Box<dyn EndOperation<F, T> + Send + Sync + 'a>;
 
 #[async_trait]
-pub trait Operation<T>: Send + std::fmt::Debug {
+pub trait Operation<T>: Send + Sync + std::fmt::Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
@@ -65,15 +65,16 @@ pub trait Operation<T>: Send + std::fmt::Debug {
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn calling_connector(
         &self,
-        state: &AppState,
-        merchant_account: &storage::MerchantAccount,
+        _state: &AppState,
+        _merchant_account: &storage::MerchantAccount,
         payment_data: PaymentData,
-        customer: &Option<storage::Customer>,
-        call_connector_action: CallConnectorAction,
-        connector_details: api::ConnectorCallType,
-        validate_result: ValidateResult<'_>,
+        _customer: &Option<storage::Customer>,
+        _call_connector_action: CallConnectorAction,
+        _connector_details: api::ConnectorCallType,
+        _validate_result: ValidateResult<'_>,
     ) -> RouterResult<PaymentData> {
         Ok(payment_data)
     }
@@ -101,6 +102,7 @@ where
 {
     fn should_call_connector(&self, payment_data: &PaymentData) -> bool;
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_connector(
         &self,
         state: &AppState,

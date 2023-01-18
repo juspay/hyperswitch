@@ -3,11 +3,7 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{
-    fmt::{self, Debug},
-    marker::PhantomData,
-    time::Instant,
-};
+use std::{fmt::Debug, time::Instant};
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
@@ -21,13 +17,10 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    operations::{BoxedOperation, DeriveFlow, EndOperation, Operation},
+    operations::{BoxedOperation, EndOperation, Operation},
 };
 use crate::{
-    core::{
-        errors::{self, RouterResponse, RouterResult},
-        payment_methods::vault,
-    },
+    core::errors::{self, RouterResponse, RouterResult},
     db::StorageInterface,
     logger, pii,
     routes::AppState,
@@ -144,6 +137,7 @@ where
     Ok((payment_data, req, customer))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn connector_specific_call_connector<Op, F, Req>(
     operation: &Op,
     state: &AppState,
@@ -168,12 +162,12 @@ where
         api::ConnectorCallType::Single(connector) => {
             call_connector_service::<F, _, Req>(
                 state,
-                &merchant_account,
+                merchant_account,
                 &validate_result.payment_id,
                 connector,
                 &operation,
                 payment_data,
-                &customer,
+                customer,
                 call_connector_action,
             )
             .await?
@@ -181,11 +175,11 @@ where
         api::ConnectorCallType::Multiple(connectors) => {
             call_multiple_connectors_service(
                 state,
-                &merchant_account,
+                merchant_account,
                 connectors,
                 &operation,
                 payment_data,
-                &customer,
+                customer,
             )
             .await?
         }
@@ -207,12 +201,12 @@ where
 
             call_connector_service(
                 state,
-                &merchant_account,
+                merchant_account,
                 &validate_result.payment_id,
                 connector_data,
                 &operation,
                 payment_data,
-                &customer,
+                customer,
                 call_connector_action,
             )
             .await?

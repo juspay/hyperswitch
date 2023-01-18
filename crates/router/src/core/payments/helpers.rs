@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use super::{
-    operations::{BoxedEndOperation, BoxedOperation, EndOperation, Operation, PaymentResponse},
+    operations::{BoxedEndOperation, BoxedOperation, EndOperation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
 use crate::{

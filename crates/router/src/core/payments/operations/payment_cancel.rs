@@ -1,9 +1,6 @@
-use std::marker::PhantomData;
-
 use api_models::payments::PaymentsCancelRequest;
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use router_derive;
 use router_env::{instrument, tracing};
 
 use super::{
@@ -12,10 +9,7 @@ use super::{
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{
-            self, connector_specific_call_connector, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData,
-        },
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -120,17 +114,17 @@ impl Operation<PaymentsCancelRequest> for PaymentCancel {
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
+impl GetTracker<PaymentData, PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsCancelRequest,
+        request: &PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsCancelRequest>,
+        BoxedOperation<'a, PaymentsCancelRequest>,
         PaymentData,
         Option<CustomerDetails>,
     )> {
@@ -230,7 +224,7 @@ impl GetTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
+impl UpdateTracker<PaymentData, PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -239,7 +233,7 @@ impl UpdateTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
         mut payment_data: PaymentData,
         _customer: Option<Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsCancelRequest>, PaymentData)> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsCancelRequest>, PaymentData)> {
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
         payment_data.payment_attempt = db
             .update_payment_attempt(
@@ -257,14 +251,14 @@ impl UpdateTracker<PaymentData, api::PaymentsCancelRequest> for PaymentCancel {
     }
 }
 
-impl ValidateRequest<api::PaymentsCancelRequest> for PaymentCancel {
+impl ValidateRequest<PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCancelRequest,
+        request: &PaymentsCancelRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsCancelRequest>,
+        BoxedOperation<'b, PaymentsCancelRequest>,
         operations::ValidateResult<'a>,
     )> {
         Ok((

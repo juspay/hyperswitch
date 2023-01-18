@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::PaymentsCaptureRequest;
 use async_trait::async_trait;
 use error_stack::ResultExt;
@@ -114,18 +112,18 @@ impl Operation<PaymentsCaptureRequest> for PaymentCapture {
 }
 
 #[async_trait]
-impl GetTracker<payments::PaymentData, api::PaymentsCaptureRequest> for PaymentCapture {
+impl GetTracker<PaymentData, PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsCaptureRequest,
+        request: &PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsCaptureRequest>,
-        payments::PaymentData,
+        BoxedOperation<'a, PaymentsCaptureRequest>,
+        PaymentData,
         Option<payments::CustomerDetails>,
     )> {
         let db = &*state.store;
@@ -205,7 +203,7 @@ impl GetTracker<payments::PaymentData, api::PaymentsCaptureRequest> for PaymentC
 
         Ok((
             Box::new(self),
-            payments::PaymentData {
+            PaymentData {
                 payment_intent,
                 payment_attempt,
                 currency,
@@ -232,31 +230,28 @@ impl GetTracker<payments::PaymentData, api::PaymentsCaptureRequest> for PaymentC
 }
 
 #[async_trait]
-impl UpdateTracker<payments::PaymentData, api::PaymentsCaptureRequest> for PaymentCapture {
+impl UpdateTracker<PaymentData, PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        payment_data: payments::PaymentData,
+        payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsCaptureRequest>,
-        payments::PaymentData,
-    )> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsCaptureRequest>, PaymentData)> {
         Ok((Box::new(self), payment_data))
     }
 }
 
-impl ValidateRequest<api::PaymentsCaptureRequest> for PaymentCapture {
+impl ValidateRequest<PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCaptureRequest,
+        request: &PaymentsCaptureRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, PaymentsCaptureRequest>,
         operations::ValidateResult<'a>,
     )> {
         let payment_id = request

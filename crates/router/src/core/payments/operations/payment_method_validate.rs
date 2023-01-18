@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::VerifyRequest;
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult};
@@ -72,14 +70,14 @@ impl Operation<VerifyRequest> for PaymentMethodValidate {
     }
 }
 
-impl ValidateRequest<api::VerifyRequest> for PaymentMethodValidate {
+impl ValidateRequest<VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::VerifyRequest,
+        request: &VerifyRequest,
         merchant_account: &'a types::storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::VerifyRequest>,
+        BoxedOperation<'b, VerifyRequest>,
         operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = request.merchant_id.as_deref();
@@ -102,17 +100,17 @@ impl ValidateRequest<api::VerifyRequest> for PaymentMethodValidate {
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
+impl GetTracker<PaymentData, VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::VerifyRequest,
+        request: &VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::VerifyRequest>,
+        BoxedOperation<'a, VerifyRequest>,
         PaymentData,
         Option<payments::CustomerDetails>,
     )> {
@@ -204,7 +202,7 @@ impl GetTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
+impl UpdateTracker<PaymentData, VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -213,7 +211,7 @@ impl UpdateTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
         mut payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, api::VerifyRequest>, PaymentData)> {
+    ) -> RouterResult<(BoxedOperation<'b, VerifyRequest>, PaymentData)> {
         // There is no fsm involved in this operation all the change of states must happen in a single request
         let status = Some(storage_enums::IntentStatus::Processing);
 
@@ -243,10 +241,10 @@ impl UpdateTracker<PaymentData, api::VerifyRequest> for PaymentMethodValidate {
 }
 
 #[async_trait]
-impl<Op> Domain<api::VerifyRequest> for Op
+impl<Op> Domain<VerifyRequest> for Op
 where
-    Op: Send + Sync + Operation<api::VerifyRequest>,
-    for<'a> &'a Op: Operation<api::VerifyRequest>,
+    Op: Send + Sync + Operation<VerifyRequest>,
+    for<'a> &'a Op: Operation<VerifyRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -256,10 +254,7 @@ where
         request: Option<payments::CustomerDetails>,
         merchant_id: &str,
     ) -> CustomResult<
-        (
-            BoxedOperation<'a, api::VerifyRequest>,
-            Option<storage::Customer>,
-        ),
+        (BoxedOperation<'a, VerifyRequest>, Option<storage::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -279,7 +274,7 @@ where
         payment_data: &mut PaymentData,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::VerifyRequest>,
+        BoxedOperation<'a, VerifyRequest>,
         Option<api::PaymentMethod>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
@@ -289,7 +284,7 @@ where
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        _request: &api::VerifyRequest,
+        _request: &VerifyRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -301,7 +296,7 @@ impl PaymentMethodValidate {
         payment_id: &str,
         merchant_id: &str,
         payment_method: Option<api_enums::PaymentMethodType>,
-        _request: &api::VerifyRequest,
+        _request: &VerifyRequest,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = storage_enums::AttemptStatus::Pending;
@@ -327,7 +322,7 @@ impl PaymentMethodValidate {
     fn make_payment_intent(
         payment_id: &str,
         merchant_id: &str,
-        request: &api::VerifyRequest,
+        request: &VerifyRequest,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));

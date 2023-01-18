@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::PaymentsStartRequest;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
@@ -118,17 +116,17 @@ impl Operation<PaymentsStartRequest> for PaymentStart {
 }
 
 #[async_trait]
-impl GetTracker<PaymentData, api::PaymentsStartRequest> for PaymentStart {
+impl GetTracker<PaymentData, PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        _request: &api::PaymentsStartRequest,
+        _request: &PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsStartRequest>,
+        BoxedOperation<'a, PaymentsStartRequest>,
         PaymentData,
         Option<CustomerDetails>,
     )> {
@@ -239,7 +237,7 @@ impl GetTracker<PaymentData, api::PaymentsStartRequest> for PaymentStart {
 }
 
 #[async_trait]
-impl UpdateTracker<PaymentData, api::PaymentsStartRequest> for PaymentStart {
+impl UpdateTracker<PaymentData, PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -248,19 +246,19 @@ impl UpdateTracker<PaymentData, api::PaymentsStartRequest> for PaymentStart {
         payment_data: PaymentData,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'b, api::PaymentsStartRequest>, PaymentData)> {
+    ) -> RouterResult<(BoxedOperation<'b, PaymentsStartRequest>, PaymentData)> {
         Ok((Box::new(self), payment_data))
     }
 }
 
-impl ValidateRequest<api::PaymentsStartRequest> for PaymentStart {
+impl ValidateRequest<PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsStartRequest,
+        request: &PaymentsStartRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, api::PaymentsStartRequest>,
+        BoxedOperation<'b, PaymentsStartRequest>,
         operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = Some(&request.merchant_id[..]);
@@ -285,10 +283,9 @@ impl ValidateRequest<api::PaymentsStartRequest> for PaymentStart {
 }
 
 #[async_trait]
-impl<Op: Send + Sync + Operation<api::PaymentsStartRequest>> Domain<api::PaymentsStartRequest>
-    for Op
+impl<Op: Send + Sync + Operation<PaymentsStartRequest>> Domain<PaymentsStartRequest> for Op
 where
-    for<'a> &'a Op: Operation<api::PaymentsStartRequest>,
+    for<'a> &'a Op: Operation<PaymentsStartRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -299,7 +296,7 @@ where
         merchant_id: &str,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, api::PaymentsStartRequest>,
+            BoxedOperation<'a, PaymentsStartRequest>,
             Option<storage::Customer>,
         ),
         errors::StorageError,
@@ -321,7 +318,7 @@ where
         payment_data: &mut PaymentData,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, api::PaymentsStartRequest>,
+        BoxedOperation<'a, PaymentsStartRequest>,
         Option<api::PaymentMethod>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
@@ -331,7 +328,7 @@ where
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        _request: &api::PaymentsStartRequest,
+        _request: &PaymentsStartRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
