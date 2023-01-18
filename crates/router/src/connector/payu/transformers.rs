@@ -279,7 +279,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            grant_type: "client_credentails".to_string(),
+            grant_type: "client_credentials".to_string(),
             client_id: item.request.id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "item.request.id".to_string(),
@@ -293,7 +293,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
 pub struct PayuAuthUpdateResponse {
     pub access_token: String,
     pub token_type: String,
-    pub expires_in: String,
+    pub expires_in: i64,
     pub grant_type: String,
 }
 
@@ -306,16 +306,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::AccessToken {
-                token: format!(
-                    "{} {}",
-                    item.response.token_type, item.response.access_token
-                ),
-                expires: item
-                    .response
-                    .expires_in
-                    .parse::<i64>()
-                    .into_report()
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                token: format!("Bearer {}", item.response.access_token),
+                expires: item.response.expires_in,
             }),
             ..item.data
         })
@@ -616,4 +608,10 @@ pub struct PayuErrorData {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayuErrorResponse {
     pub status: PayuErrorData,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PayuAccessTokenErrorResponse {
+    pub error: String,
+    pub error_description: String,
 }

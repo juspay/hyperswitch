@@ -30,16 +30,13 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
+        Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        )])
     }
 }
 
@@ -65,10 +62,12 @@ impl ConnectorCommon for Payu {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
+
     fn build_error_response(
         &self,
         res: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(payu_error_response=?res);
         let response: payu::PayuErrorResponse = res
             .parse_struct("Payu ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -178,39 +177,64 @@ impl
         _req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("https://secure.payu.com/pl/standard/user/oauth/authorize".to_string())
+        Ok("https://secure.snd.payu.com/pl/standard/user/oauth/authorize".to_string())
     }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_headers(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefreshTokenType::get_content_type(self).to_string(),
+        )])
+    }
+
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let payu_req = utils::Encode::<payu::PayuAuthUpdateRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        logger::debug!(payu_access_token_request=?payu_req);
         Ok(Some(payu_req))
     }
+
     fn build_request(
         &self,
         req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+        let req = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
                 .build(),
-        ))
+        );
+
+        logger::debug!(hola_req=?req);
+
+        Ok(req)
     }
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
         res: Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
+        logger::debug!(access_token_response=?res);
         let response: payu::PayuAuthUpdateResponse = res
             .response
             .parse_struct("payu PayuAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payments_create_response=?response);
+
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -218,6 +242,22 @@ impl
         }
         .try_into()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(access_token_error_response=?res);
+        let response: payu::PayuAccessTokenErrorResponse = res
+            .parse_struct("Payu AccessTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            code: response.error,
+            message: response.error_description,
+            reason: None,
+        })
     }
 }
 
@@ -409,7 +449,16 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_header = (headers::AUTHORIZATION.to_string(), access_token.token);
+
+        headers.push(auth_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -495,7 +544,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_header = (headers::AUTHORIZATION.to_string(), access_token.token);
+
+        headers.push(auth_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -576,7 +634,16 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_header = (headers::AUTHORIZATION.to_string(), access_token.token);
+
+        headers.push(auth_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {

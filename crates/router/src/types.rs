@@ -65,7 +65,7 @@ pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
 pub type RefreshTokenType =
-    dyn services::ConnectorIntegration<api::UpdateAuth, RefreshTokenRequestData, AccessToken>;
+    dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 

@@ -15,7 +15,7 @@ use crate::{
 
 pub fn connector_supports_access_token(connector: &api_types::ConnectorData) -> bool {
     match connector.connector_name {
-        api_models::enums::Connector::Globalpay => true,
+        api_models::enums::Connector::Globalpay | api_models::enums::Connector::Payu => true,
         api_models::enums::Connector::Stripe => false,
         _ => false,
     }
