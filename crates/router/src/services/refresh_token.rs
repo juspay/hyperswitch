@@ -76,11 +76,11 @@ pub async fn add_access_token<
             None => {
                 let cloned_router_data = router_data.clone();
                 let refresh_token_request_data =
-                    types::RefreshTokenRequestData::from(router_data.connector_auth_type.clone());
+                    types::AccessTokenRequestData::from(router_data.connector_auth_type.clone());
                 let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
                     Err(types::ErrorResponse::default());
                 let refresh_token_router_data =
-                    router_data_type_conversion::<_, api_types::UpdateAuth, _, _, _, _>(
+                    router_data_type_conversion::<_, api_types::AccessTokenAuth, _, _, _, _>(
                         cloned_router_data,
                         refresh_token_request_data,
                         refresh_token_response_data,
@@ -123,15 +123,15 @@ pub async fn refresh_connector_auth(
     connector: &api_types::ConnectorData,
     _merchant_account: &storage::MerchantAccount,
     router_data: &types::RouterData<
-        api_types::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api_types::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     >,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
-        api_types::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api_types::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 

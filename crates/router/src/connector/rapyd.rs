@@ -73,12 +73,12 @@ impl ConnectorCommon for Rapyd {
     }
 }
 
-impl api::ConnectorUpdateAuth for Rapyd {}
+impl api::ConnectorAccessToken for Rapyd {}
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Rapyd
 {

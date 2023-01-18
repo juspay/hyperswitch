@@ -23,10 +23,10 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct UpdateAuth;
+pub struct AccessTokenAuth;
 
-pub trait ConnectorUpdateAuth:
-    ConnectorIntegration<UpdateAuth, types::RefreshTokenRequestData, types::AccessToken>
+pub trait ConnectorAccessToken:
+    ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
 }
 
@@ -84,7 +84,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorUpdateAuth
+    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken
 {
 }
 
@@ -99,7 +99,7 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
-            + ConnectorUpdateAuth,
+            + ConnectorAccessToken,
     > Connector for T
 {
 }

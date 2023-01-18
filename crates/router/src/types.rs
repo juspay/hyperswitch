@@ -32,7 +32,8 @@ pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 
-pub type RefreshTokenRouterData = RouterData<api::UpdateAuth, RefreshTokenRequestData, AccessToken>;
+pub type RefreshTokenRouterData =
+    RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -154,7 +155,7 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct RefreshTokenRequestData {
+pub struct AccessTokenRequestData {
     pub app_id: String,
     pub id: Option<String>,
     // Add more keys if required
@@ -308,7 +309,7 @@ impl ErrorResponse {
     }
 }
 
-impl From<ConnectorAuthType> for RefreshTokenRequestData {
+impl From<ConnectorAuthType> for AccessTokenRequestData {
     fn from(connector_auth: ConnectorAuthType) -> Self {
         match connector_auth {
             ConnectorAuthType::HeaderKey { api_key } => Self {

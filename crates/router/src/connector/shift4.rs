@@ -94,9 +94,9 @@ impl ConnectorCommon for Shift4 {
 }
 
 impl api::Payment for Shift4 {}
-impl api::ConnectorUpdateAuth for Shift4 {}
+impl api::ConnectorAccessToken for Shift4 {}
 
-impl ConnectorIntegration<api::UpdateAuth, types::RefreshTokenRequestData, types::AccessToken>
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Shift4
 {
     // Not Implemented (R)
