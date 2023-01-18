@@ -1,4 +1,4 @@
-# HyperSwitch
+HyperSwitch
 
 [![Build Status][actions-badge]][actions-url]
 [![Apache 2.0 license][license-badge]][license-url]
@@ -23,22 +23,20 @@ Using HyperSwitch, you can:
 _hyperswitch is wire-compatible with top processors like Stripe making it easy to integrate._
 
 <p align="center">
-<img src= "./docs/imgs/HyperSwitch-product.png" alt="HyperSwitch-product" width="40%" />
+<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-product" width="40%" />
 </p>
 
-## Table of Contents
+**Table of Contents**
 
-- [HyperSwitch](#hyperswitch)
-  - [Table of Contents](#table-of-contents)
-  - [Quick Start Guide](#quick-start-guide)
-  - [Fast Integration for Stripe Users](#fast-integration-for-stripe-users)
-  - [Supported Features](#supported-features)
-  - [What's Included](#whats-included)
-  - [Join us in building HyperSwitch](#join-us-in-building-hyperswitch)
-  - [Community](#community)
-  - [Bugs and feature requests](#bugs-and-feature-requests)
-  - [Versioning](#versioning)
-  - [Copyright and License](#copyright-and-license)
+- [Quick Start Guide](#quick-start-guide)
+- [Fast Integration for Stripe Users](#fast-integration-for-stripe-users)
+- [Supported Features](#supported-features)
+- [What's Included](#whats-included)
+- [Join us in building HyperSwitch](#join-us-in-building-hyperswitch)
+- [Community](#community)
+- [Bugs and feature requests](#bugs-and-feature-requests)
+- [Versioning](#versioning)
+- [Copyright and License](#copyright-and-license)
 
 ## Quick Start Guide
 
