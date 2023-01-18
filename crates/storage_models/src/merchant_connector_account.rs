@@ -44,6 +44,7 @@ pub enum MerchantConnectorAccountUpdate {
         disabled: Option<bool>,
         merchant_connector_id: Option<i32>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
+        metadata: Option<serde_json::Value>,
     },
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -57,6 +58,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     disabled: Option<bool>,
     merchant_connector_id: Option<i32>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    metadata: Option<serde_json::Value>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -71,6 +73,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 disabled,
                 merchant_connector_id,
                 payment_methods_enabled,
+                metadata,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -80,6 +83,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 disabled,
                 merchant_connector_id,
                 payment_methods_enabled,
+                metadata,
             },
         }
     }

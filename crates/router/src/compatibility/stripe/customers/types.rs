@@ -1,5 +1,6 @@
 use std::{convert::From, default::Default};
 
+use api_models::payment_methods as api_types;
 use common_utils::date_time;
 use masking;
 use serde::{Deserialize, Serialize};
@@ -117,6 +118,66 @@ impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
         Self {
             id: cust.customer_id,
             deleted: cust.customer_deleted,
+        }
+    }
+}
+
+#[derive(Default, Serialize, PartialEq, Eq)]
+pub struct CustomerPaymentMethodListResponse {
+    pub object: &'static str,
+    pub data: Vec<PaymentMethodData>,
+}
+
+#[derive(Default, Serialize, PartialEq, Eq)]
+pub struct PaymentMethodData {
+    pub id: String,
+    pub object: &'static str,
+    pub card: Option<CardDetails>,
+    pub created: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Default, Serialize, PartialEq, Eq)]
+pub struct CardDetails {
+    pub country: Option<String>,
+    pub last4: Option<String>,
+    pub exp_month: Option<masking::Secret<String>>,
+    pub exp_year: Option<masking::Secret<String>>,
+    pub fingerprint: Option<masking::Secret<String>>,
+}
+
+impl From<api::ListCustomerPaymentMethodsResponse> for CustomerPaymentMethodListResponse {
+    fn from(item: api::ListCustomerPaymentMethodsResponse) -> Self {
+        let customer_payment_methods = item.customer_payment_methods;
+        let data = customer_payment_methods
+            .into_iter()
+            .map(From::from)
+            .collect();
+        Self {
+            object: "list",
+            data,
+        }
+    }
+}
+
+impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
+    fn from(item: api_types::CustomerPaymentMethod) -> Self {
+        Self {
+            id: item.payment_token,
+            object: "payment_method",
+            card: item.card.map(From::from),
+            created: item.created,
+        }
+    }
+}
+
+impl From<api_types::CardDetailFromLocker> for CardDetails {
+    fn from(item: api_types::CardDetailFromLocker) -> Self {
+        Self {
+            country: item.issuer_country,
+            last4: item.last4_digits,
+            exp_month: item.expiry_month,
+            exp_year: item.expiry_year,
+            fingerprint: item.card_fingerprint,
         }
     }
 }

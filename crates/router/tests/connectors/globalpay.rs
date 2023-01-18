@@ -109,6 +109,7 @@ async fn should_sync_payment() {
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
+                capture_method: None,
             }),
             None,
         )
