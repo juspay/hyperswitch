@@ -103,7 +103,7 @@ pub async fn update_connector_auth<
                 .async_map(|access_token| async {
                     //Store the access token in db
                     let db = &*state.store;
-                    // This error should not be propogated, we don't want payments to fail once we have
+                    // This error should not be propagated, we don't want payments to fail once we have
                     // the access token
                     let _ = db
                         .set_access_token(
