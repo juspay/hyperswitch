@@ -6,7 +6,6 @@ use router::{
     core::errors::{self, CustomResult},
     logger, routes, scheduler,
 };
-use structopt::StructOpt;
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 
@@ -14,7 +13,7 @@ const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     // console_subscriber::init();
 
-    let cmd_line = CmdLineConf::from_args();
+    let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
