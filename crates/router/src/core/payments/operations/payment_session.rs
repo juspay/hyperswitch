@@ -6,7 +6,9 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{
+    BoxedOperation, DeriveFlow, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest,
+};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -16,7 +18,9 @@ use crate::{
     pii,
     pii::Secret,
     routes::AppState,
+    services,
     types::{
+        self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
@@ -27,7 +31,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 // #[operation(ops = "all", flow = "session")]
 pub struct PaymentSession;
-
+#[async_trait]
 impl Operation<PaymentsSessionRequest> for &PaymentSession {
     fn to_validate_request(
         &self,
@@ -47,8 +51,30 @@ impl Operation<PaymentsSessionRequest> for &PaymentSession {
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsSessionRequest> + Send + Sync)> {
         Ok(*self)
     }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage_models::customers::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
+    }
 }
-#[automatically_derived]
+#[async_trait]
 impl Operation<PaymentsSessionRequest> for PaymentSession {
     fn to_validate_request(
         &self,
@@ -67,6 +93,28 @@ impl Operation<PaymentsSessionRequest> for PaymentSession {
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsSessionRequest> + Send + Sync)> {
         Ok(self)
+    }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage_models::customers::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
     }
 }
 
@@ -397,5 +445,24 @@ where
         };
 
         Ok(api::ConnectorCallType::Multiple(connectors_data))
+    }
+}
+
+impl<FData> DeriveFlow<api::Session, FData> for PaymentSession
+where
+    PaymentData: payments::flows::ConstructFlowSpecificData<
+        api::Session,
+        FData,
+        crate::types::PaymentsResponseData,
+    >,
+    types::RouterData<api::Session, FData, crate::types::PaymentsResponseData>:
+        payments::flows::Feature<api::Session, FData>,
+    (dyn api::Connector + 'static):
+        services::api::ConnectorIntegration<api::Session, FData, types::PaymentsResponseData>,
+    operations::payment_response::PaymentResponse: operations::EndOperation<api::Session, FData>,
+    FData: Send,
+{
+    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+        true
     }
 }

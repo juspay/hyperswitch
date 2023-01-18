@@ -29,6 +29,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentMethodValidate;
 
+#[async_trait]
 impl Operation<VerifyRequest> for &PaymentMethodValidate {
     fn to_validate_request(
         &self,
@@ -49,7 +50,7 @@ impl Operation<VerifyRequest> for &PaymentMethodValidate {
         Ok(*self)
     }
 }
-#[automatically_derived]
+#[async_trait]
 impl Operation<VerifyRequest> for PaymentMethodValidate {
     fn to_validate_request(
         &self,

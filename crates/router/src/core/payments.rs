@@ -3,7 +3,11 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, time::Instant};
+use std::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+    time::Instant,
+};
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
@@ -74,7 +78,7 @@ where
             state,
             &validate_result.payment_id,
             &req,
-            validate_result.mandate_type,
+            validate_result.mandate_type.clone(),
             &merchant_account,
         )
         .await?;
@@ -126,64 +130,95 @@ where
         .add_task_to_process_tracker(state, &payment_data.payment_attempt)
         .await?;
 
-    if should_call_connector(&operation, &payment_data) {
-        payment_data = match connector_details {
-            api::ConnectorCallType::Single(connector) => {
-                call_connector_service(
-                    state,
-                    &merchant_account,
-                    &validate_result.payment_id,
-                    connector,
-                    &operation,
-                    payment_data,
-                    &customer,
-                    call_connector_action,
-                )
-                .await?
-            }
-            api::ConnectorCallType::Multiple(connectors) => {
-                call_multiple_connectors_service(
-                    state,
-                    &merchant_account,
-                    connectors,
-                    &operation,
-                    payment_data,
-                    &customer,
-                )
-                .await?
-            }
-            api::ConnectorCallType::Routing => {
-                let connector = payment_data
-                    .payment_attempt
-                    .connector
-                    .clone()
-                    .get_required_value("connector")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("No connector selected for routing")?;
-
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &connector,
-                    api::GetToken::Connector,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-                call_connector_service(
-                    state,
-                    &merchant_account,
-                    &validate_result.payment_id,
-                    connector_data,
-                    &operation,
-                    payment_data,
-                    &customer,
-                    call_connector_action,
-                )
-                .await?
-            }
-        };
-        vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
-    }
+    payment_data = operation
+        .calling_connector(
+            state,
+            &merchant_account,
+            payment_data,
+            &customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await?;
     Ok((payment_data, req, customer))
+}
+
+pub async fn connector_specific_call_connector<Op, F, Req>(
+    operation: &Op,
+    state: &AppState,
+    merchant_account: &storage::MerchantAccount,
+    payment_data: PaymentData,
+    customer: &Option<storage::Customer>,
+    call_connector_action: CallConnectorAction,
+    connector_details: api::ConnectorCallType,
+    validate_result: operations::ValidateResult<'_>,
+) -> RouterResult<PaymentData>
+where
+    Op: Debug,
+    F: Send + Clone,
+    Req: Send,
+    PaymentData: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+    (dyn types::api::Connector + 'static):
+        services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
+    PaymentResponse: EndOperation<F, Req>,
+{
+    let payment_data = match connector_details {
+        api::ConnectorCallType::Single(connector) => {
+            call_connector_service::<F, _, Req>(
+                state,
+                &merchant_account,
+                &validate_result.payment_id,
+                connector,
+                &operation,
+                payment_data,
+                &customer,
+                call_connector_action,
+            )
+            .await?
+        }
+        api::ConnectorCallType::Multiple(connectors) => {
+            call_multiple_connectors_service(
+                state,
+                &merchant_account,
+                connectors,
+                &operation,
+                payment_data,
+                &customer,
+            )
+            .await?
+        }
+        api::ConnectorCallType::Routing => {
+            let connector = payment_data
+                .payment_attempt
+                .connector
+                .clone()
+                .get_required_value("connector")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("No connector selected for routing")?;
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector,
+                api::GetToken::Connector,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            call_connector_service(
+                state,
+                &merchant_account,
+                &validate_result.payment_id,
+                connector_data,
+                &operation,
+                payment_data,
+                &customer,
+                call_connector_action,
+            )
+            .await?
+        }
+    };
+    Ok(payment_data)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -626,15 +661,12 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
-pub async fn route_connector<F>(
+pub async fn route_connector(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    payment_data: &mut PaymentData<F>,
+    payment_data: &mut PaymentData,
     connector_call_type: api::ConnectorCallType,
-) -> RouterResult<api::ConnectorCallType>
-where
-    F: Send + Clone,
-{
+) -> RouterResult<api::ConnectorCallType> {
     match connector_call_type {
         api::ConnectorCallType::Single(connector) => {
             payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());

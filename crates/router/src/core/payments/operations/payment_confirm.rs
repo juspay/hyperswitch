@@ -11,11 +11,13 @@ use super::{
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payment_methods::vault,
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, PaymentIdTypeExt},
@@ -28,6 +30,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentConfirm;
 
+#[async_trait]
 impl Operation<PaymentsRequest> for &PaymentConfirm {
     fn to_validate_request(
         &self,
@@ -47,8 +50,30 @@ impl Operation<PaymentsRequest> for &PaymentConfirm {
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsRequest> + Send + Sync)> {
         Ok(*self)
     }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage_models::customers::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
+    }
 }
-#[automatically_derived]
+#[async_trait]
 impl Operation<PaymentsRequest> for PaymentConfirm {
     fn to_validate_request(
         &self,
@@ -67,6 +92,28 @@ impl Operation<PaymentsRequest> for PaymentConfirm {
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsRequest> + Send + Sync)> {
         Ok(self)
+    }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage_models::customers::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
     }
 }
 
@@ -420,5 +467,64 @@ impl ValidateRequest<api::PaymentsRequest> for PaymentConfirm {
                 storage_scheme: merchant_account.storage_scheme,
             },
         ))
+    }
+}
+
+#[async_trait]
+impl<FData> DeriveFlow<api::Authorize, FData> for PaymentConfirm
+where
+    PaymentData: payments::flows::ConstructFlowSpecificData<
+        api::Authorize,
+        FData,
+        crate::types::PaymentsResponseData,
+    >,
+    types::RouterData<api::Authorize, FData, crate::types::PaymentsResponseData>:
+        payments::flows::Feature<api::Authorize, FData>,
+    (dyn api::Connector + 'static):
+        services::api::ConnectorIntegration<api::Authorize, FData, types::PaymentsResponseData>,
+    operations::payment_response::PaymentResponse: operations::EndOperation<api::Authorize, FData>,
+    FData: Send,
+{
+    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+        true
+    }
+
+    async fn call_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage::Customer>,
+        call_connector_action: crate::core::payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        let payment_data = if payment_data.payment_attempt.amount == 0 {
+            payments::connector_specific_call_connector::<_, api::Verify, _>(
+                &self,
+                state,
+                merchant_account,
+                payment_data,
+                customer,
+                call_connector_action,
+                connector_details,
+                validate_result,
+            )
+            .await
+        } else {
+            payments::connector_specific_call_connector::<_, api::Authorize, _>(
+                &self,
+                state,
+                merchant_account,
+                payment_data,
+                customer,
+                call_connector_action,
+                connector_details,
+                validate_result,
+            )
+            .await
+        }?;
+        vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await;
+        Ok(payment_data)
     }
 }

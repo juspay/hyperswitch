@@ -22,11 +22,18 @@ pub use self::{
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate,
 };
-use super::{helpers, CallConnectorAction, CustomerDetails, PaymentData};
+use super::{
+    connector_specific_call_connector, flows, helpers, CallConnectorAction, CustomerDetails,
+    PaymentData,
+};
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResult},
+        payment_methods::vault,
+    },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self, api,
         storage::{self, enums},
@@ -37,6 +44,7 @@ use crate::{
 pub type BoxedOperation<'a, T> = Box<dyn Operation<T> + Send + Sync + 'a>;
 pub type BoxedEndOperation<'a, F, T> = Box<dyn EndOperation<F, T> + Send + Sync + 'a>;
 
+#[async_trait]
 pub trait Operation<T>: Send + std::fmt::Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
@@ -56,6 +64,19 @@ pub trait Operation<T>: Send + std::fmt::Debug {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage::Customer>,
+        call_connector_action: CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        Ok(payment_data)
+    }
 }
 
 pub trait EndOperation<F: Clone, T>: Send + std::fmt::Debug {
@@ -69,17 +90,43 @@ pub trait EndOperation<F: Clone, T>: Send + std::fmt::Debug {
 }
 
 #[async_trait::async_trait]
-pub trait DeriveFlow<F, FData>: fmt::Debug + Send + Sync {
+pub trait DeriveFlow<F, FData>: fmt::Debug + Send + Sync
+where
+    PaymentData: flows::ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    types::RouterData<F, FData, PaymentsResponseData>: flows::Feature<F, FData>,
+    (dyn api::Connector + 'static): services::ConnectorIntegration<F, FData, PaymentsResponseData>,
+    PaymentResponse: EndOperation<F, FData>,
+    F: Clone + Send,
+    FData: Send,
+{
+    fn should_call_connector(&self, payment_data: &PaymentData) -> bool;
+
     async fn call_connector(
         &self,
-        db: &AppState,
+        state: &AppState,
         merchant_account: &storage::MerchantAccount,
-        payment_id: &api::PaymentIdType,
-        connector: api::ConnectorData,
         payment_data: PaymentData,
         customer: &Option<storage::Customer>,
         call_connector_action: CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: ValidateResult<'_>,
     ) -> RouterResult<PaymentData> {
+        let payment_data = if self.should_call_connector(&payment_data) {
+            connector_specific_call_connector(
+                &self,
+                state,
+                merchant_account,
+                payment_data,
+                customer,
+                call_connector_action,
+                connector_details,
+                validate_result,
+            )
+            .await
+        } else {
+            Ok(payment_data)
+        }?;
+        vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await;
         Ok(payment_data)
     }
 }

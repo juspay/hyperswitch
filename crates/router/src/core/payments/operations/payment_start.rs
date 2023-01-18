@@ -5,17 +5,21 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{
+    BoxedOperation, DeriveFlow, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest,
+};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     pii,
     pii::Secret,
     routes::AppState,
+    services,
     types::{
+        self,
         api::{self, PaymentIdTypeExt},
         storage::{self, enums},
         transformers::ForeignInto,
@@ -26,7 +30,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 // #[operation(ops = "all", flow = "start")]
 pub struct PaymentStart;
-
+#[async_trait]
 impl Operation<PaymentsStartRequest> for &PaymentStart {
     fn to_validate_request(
         &self,
@@ -46,8 +50,30 @@ impl Operation<PaymentsStartRequest> for &PaymentStart {
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsStartRequest> + Send + Sync)> {
         Ok(*self)
     }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage_models::customers::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
+    }
 }
-#[automatically_derived]
+#[async_trait]
 impl Operation<PaymentsStartRequest> for PaymentStart {
     fn to_validate_request(
         &self,
@@ -66,6 +92,28 @@ impl Operation<PaymentsStartRequest> for PaymentStart {
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsStartRequest> + Send + Sync)> {
         Ok(self)
+    }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<storage_models::customers::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
     }
 }
 
@@ -286,5 +334,31 @@ where
         _request: &api::PaymentsStartRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
+    }
+}
+
+impl<FData> DeriveFlow<api::Authorize, FData> for PaymentStart
+where
+    PaymentData: payments::flows::ConstructFlowSpecificData<
+        api::Authorize,
+        FData,
+        crate::types::PaymentsResponseData,
+    >,
+    types::RouterData<api::Authorize, FData, crate::types::PaymentsResponseData>:
+        payments::flows::Feature<api::Authorize, FData>,
+    (dyn api::Connector + 'static):
+        services::api::ConnectorIntegration<api::Authorize, FData, types::PaymentsResponseData>,
+    operations::payment_response::PaymentResponse: operations::EndOperation<api::Authorize, FData>,
+    FData: Send,
+{
+    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+        !matches!(
+            payment_data.payment_intent.status,
+            storage_models::enums::IntentStatus::Failed
+                | storage_models::enums::IntentStatus::Succeeded
+        ) && payment_data
+            .connector_response
+            .authentication_data
+            .is_none()
     }
 }

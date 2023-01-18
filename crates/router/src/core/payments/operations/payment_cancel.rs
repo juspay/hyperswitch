@@ -12,10 +12,14 @@ use super::{
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, connector_specific_call_connector, helpers, operations, CustomerDetails,
+            PaymentAddress, PaymentData,
+        },
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
@@ -28,6 +32,7 @@ use crate::{
 // #[operation(ops = "all", flow = "cancel")]
 pub struct PaymentCancel;
 
+#[async_trait]
 impl Operation<PaymentsCancelRequest> for &PaymentCancel {
     fn to_validate_request(
         &self,
@@ -47,8 +52,30 @@ impl Operation<PaymentsCancelRequest> for &PaymentCancel {
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsCancelRequest> + Send + Sync)> {
         Ok(*self)
     }
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
+    }
 }
 #[automatically_derived]
+#[async_trait]
 impl Operation<PaymentsCancelRequest> for PaymentCancel {
     fn to_validate_request(
         &self,
@@ -67,6 +94,28 @@ impl Operation<PaymentsCancelRequest> for PaymentCancel {
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<PaymentData, PaymentsCancelRequest> + Send + Sync)> {
         Ok(self)
+    }
+
+    async fn calling_connector(
+        &self,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+        payment_data: PaymentData,
+        customer: &Option<Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_details: api::ConnectorCallType,
+        validate_result: operations::ValidateResult<'_>,
+    ) -> RouterResult<PaymentData> {
+        self.call_connector(
+            state,
+            merchant_account,
+            payment_data,
+            customer,
+            call_connector_action,
+            connector_details,
+            validate_result,
+        )
+        .await
     }
 }
 
@@ -227,5 +276,26 @@ impl ValidateRequest<api::PaymentsCancelRequest> for PaymentCancel {
                 storage_scheme: merchant_account.storage_scheme,
             },
         ))
+    }
+}
+
+impl<FData: Send> DeriveFlow<api::Void, FData> for PaymentCancel
+where
+    PaymentData: payments::flows::ConstructFlowSpecificData<
+        api::Void,
+        FData,
+        crate::types::PaymentsResponseData,
+    >,
+    crate::types::RouterData<api::Void, FData, crate::types::PaymentsResponseData>:
+        payments::flows::Feature<api::Void, FData>,
+    (dyn api::Connector + 'static):
+        services::api::ConnectorIntegration<api::Void, FData, crate::types::PaymentsResponseData>,
+    operations::payment_response::PaymentResponse: operations::EndOperation<api::Void, FData>,
+{
+    fn should_call_connector(&self, payment_data: &PaymentData) -> bool {
+        matches!(
+            payment_data.payment_intent.status,
+            storage_models::enums::IntentStatus::RequiresCapture
+        )
     }
 }
