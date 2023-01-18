@@ -60,7 +60,8 @@ impl MandateResponseExt for MandateResponse {
             .await?;
             let card_detail =
                 payment_methods::transformers::get_card_detail(&payment_method, get_card_resp.card)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while getting card details")?;
             Some(MandateCardDetails::from(card_detail).into_inner())
         } else {
             None

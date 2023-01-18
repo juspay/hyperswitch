@@ -123,7 +123,8 @@ impl GetTracker<PaymentData, VerifyRequest> for PaymentMethodValidate {
 
         let payment_id = payment_id
             .get_payment_intent_id()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while getting payment_intent_id from PaymentIdType")?;
 
         payment_attempt = match db
             .insert_payment_attempt(
