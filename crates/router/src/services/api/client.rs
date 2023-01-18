@@ -80,9 +80,11 @@ pub(super) fn create_client(
                 ProxyType::Https
                     .get_proxy_url(proxy)
                     .map(|url| (ProxyType::Https, url))
-                    .or_else(|| ProxyType::Http
-                        .get_proxy_url(proxy)
-                        .map(|url| (ProxyType::Http, url))),
+                    .or_else(|| {
+                        ProxyType::Http
+                            .get_proxy_url(proxy)
+                            .map(|url| (ProxyType::Http, url))
+                    }),
             ),
         };
     }
