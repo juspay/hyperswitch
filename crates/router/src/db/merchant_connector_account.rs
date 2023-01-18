@@ -1,4 +1,5 @@
-use error_stack::IntoReport;
+use common_utils::ext_traits::ByteSliceExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 
 use super::{MockDb, Store};
@@ -36,17 +37,27 @@ impl ConnectorAccessToken for Store {
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
         let key = format!("{}{}", merchant_id, connector_name);
-        let token = self
+        let maybe_token = self
             .redis_conn
-            .get_and_deserialize_key::<Option<types::AccessToken>>(&key, "AccessToken")
-            .await;
-        match token {
-            Ok(token) => Ok(token),
-            Err(error) => {
-                logger::error!(access_token_kv_error=?error);
-                Err(errors::StorageError::KVError).into_report()
-            }
-        }
+            .get_key::<Option<Vec<u8>>>(&key)
+            .await
+            .change_context(errors::StorageError::KVError)
+            .attach_printable("DB error when getting access token")?;
+
+        let access_token: Option<types::AccessToken> = maybe_token
+            .map(|token| token.parse_struct("AccessToken"))
+            .transpose()
+            .change_context(errors::ParsingError)
+            .change_context(errors::StorageError::SerializationFailed)?;
+        //FIXME: add deserialization failed
+        // match token {
+        //     Ok(token) => Ok(token),
+        //     Err(error) => {
+        //         logger::error!(access_token_kv_error=?error);
+        //         Err(errors::StorageError::KVError).into_report()
+        //     }
+        // }
+        Ok(access_token)
     }
 
     async fn set_access_token(
