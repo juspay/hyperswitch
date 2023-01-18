@@ -183,6 +183,15 @@ where
                             )
                         })?;
                 };
+            } else if resp.request.get_setup_future_usage().is_some() {
+                helpers::call_payment_method(
+                    state,
+                    merchant_account,
+                    Some(&resp.request.get_payment_method_data()),
+                    Some(resp.payment_method),
+                    maybe_customer,
+                )
+                .await?;
             }
         }
     }
