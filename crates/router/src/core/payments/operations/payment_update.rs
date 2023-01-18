@@ -180,7 +180,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "You cannot update this Payment because the status of this payment is {}",
-                        payment_intent.status.to_string()
+                        payment_intent.status
                     )
                 }))
             }
