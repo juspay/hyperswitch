@@ -55,12 +55,15 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
     }
 
     async fn update_connector_auth<'a>(
-        &mut self,
+        &self,
         state: &AppState,
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<()> {
-        Ok(services::update_connector_auth(state, connector, merchant_account, self).await?)
+    ) -> RouterResult<(
+        Result<Option<types::AccessToken>, types::ErrorResponse>,
+        bool,
+    )> {
+        services::update_connector_auth(state, connector, merchant_account, self).await
     }
 }
 

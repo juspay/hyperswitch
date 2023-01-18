@@ -55,12 +55,15 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     }
 
     async fn update_connector_auth<'a>(
-        &mut self,
+        &self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<()> {
-        Ok(services::update_connector_auth(state, connector, merchant_account, self).await?)
+    ) -> RouterResult<(
+        Result<Option<types::AccessToken>, types::ErrorResponse>,
+        bool,
+    )> {
+        services::update_connector_auth(state, connector, merchant_account, self).await
     }
 }
 
