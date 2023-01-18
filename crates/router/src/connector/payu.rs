@@ -164,12 +164,12 @@ impl
     }
 }
 
-impl api::ConnectorUpdateAuth for Payu {}
+impl api::ConnectorAccessToken for Payu {}
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Payu
 {

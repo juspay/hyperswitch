@@ -43,7 +43,7 @@ impl api::PaymentSync for Authorizedotnet {}
 impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
 impl api::PaymentSession for Authorizedotnet {}
-impl api::ConnectorUpdateAuth for Authorizedotnet {}
+impl api::ConnectorAccessToken for Authorizedotnet {}
 
 impl
     services::ConnectorIntegration<
@@ -57,8 +57,8 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Authorizedotnet
 {

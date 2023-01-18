@@ -52,12 +52,12 @@ impl api::PaymentSync for Klarna {}
 impl api::PaymentVoid for Klarna {}
 impl api::PaymentCapture for Klarna {}
 impl api::PaymentSession for Klarna {}
-impl api::ConnectorUpdateAuth for Klarna {}
+impl api::ConnectorAccessToken for Klarna {}
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Klarna
 {

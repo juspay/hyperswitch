@@ -64,12 +64,12 @@ impl api::ConnectorCommon for Fiserv {
     }
 }
 
-impl api::ConnectorUpdateAuth for Fiserv {}
+impl api::ConnectorAccessToken for Fiserv {}
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Fiserv
 {

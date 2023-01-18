@@ -345,7 +345,7 @@ where
         .await?;
 
     let (access_token_result, connector_supports_access_token) = router_data
-        .update_connector_auth(state, &connector, merchant_account)
+        .add_access_token(state, &connector, merchant_account)
         .await?;
 
     match access_token_result {
