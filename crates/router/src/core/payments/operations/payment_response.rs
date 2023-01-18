@@ -275,5 +275,12 @@ async fn payment_response_update_tracker<F: Clone, T>(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
+    router_data.response.map_err(|error_response| {
+        errors::ApiErrorResponse::ExternalConnectorError {
+            message: error_response.message,
+            status_code: 500,
+        }
+    })?;
+
     Ok(payment_data)
 }

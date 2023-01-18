@@ -2,7 +2,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -141,13 +140,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(klarna_session_error_logs=?res);
         let response: klarna::KlarnaErrorResponse = res
+            .response
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.error_messages.join(" & "),
             reason: None,
@@ -284,13 +285,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(klarna_error_response=?res);
         let response: klarna::KlarnaErrorResponse = res
+            .response
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.error_messages.join(" & "),
             reason: None,
