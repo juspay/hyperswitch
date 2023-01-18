@@ -1,10 +1,36 @@
 pub use api_models::admin::{
-    CreateMerchantAccount, DeleteMcaResponse, DeleteResponse, MerchantConnectorId, MerchantDetails,
-    MerchantId, PaymentConnectorCreate, PaymentMethods, RoutingAlgorithm, WebhookDetails,
+    CreateMerchantAccount, DeleteMcaResponse, DeleteResponse, MerchantAccountResponse,
+    MerchantConnectorId, MerchantDetails, MerchantId, PaymentConnectorCreate, PaymentMethods,
+    RoutingAlgorithm, WebhookDetails,
 };
 
+use crate::types::{storage, transformers::Foreign};
+
+impl From<Foreign<storage::MerchantAccount>> for Foreign<MerchantAccountResponse> {
+    fn from(value: Foreign<storage::MerchantAccount>) -> Self {
+        let item = value.0;
+        MerchantAccountResponse {
+            merchant_id: item.merchant_id,
+            merchant_name: item.merchant_name,
+            api_key: item.api_key,
+            return_url: item.return_url,
+            enable_payment_response_hash: item.enable_payment_response_hash,
+            payment_response_hash_key: item.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+            merchant_details: item.merchant_details,
+            webhook_details: item.webhook_details,
+            routing_algorithm: item.routing_algorithm,
+            sub_merchants_enabled: item.sub_merchants_enabled,
+            parent_merchant_id: item.parent_merchant_id,
+            publishable_key: item.publishable_key,
+            metadata: item.metadata,
+            locker_id: item.locker_id,
+        }
+        .into()
+    }
+}
+
 //use serde::{Serialize, Deserialize};
-pub use self::CreateMerchantAccount as MerchantAccountResponse;
 
 //use crate::newtype;
 
