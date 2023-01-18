@@ -1,5 +1,3 @@
-use core::time::Duration;
-
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 
@@ -37,7 +35,6 @@ impl ProxyType {
 pub(super) fn create_client(
     proxy: &Proxy,
     should_bypass_proxy: bool,
-    request_time_out: u64,
     client_certificate: Option<String>,
     client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
@@ -93,9 +90,6 @@ pub(super) fn create_client(
         }
         _ => client_builder,
     };
-
-    let duration = Duration::from_secs(request_time_out);
-    client_builder = client_builder.timeout(duration);
 
     client_builder
         .build()
