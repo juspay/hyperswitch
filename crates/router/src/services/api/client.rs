@@ -36,32 +36,33 @@ impl ProxyType {
 }
 
 fn create_base_client(
-   proxy: Option<(ProxyType, String)> 
+    proxy: Option<(ProxyType, String)>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
-
-   Ok(match proxy {
+    Ok(match proxy {
         None => &PLAIN_CLIENT,
         Some((ProxyType::Http, _)) => &HTTP_PROXY_CLIENT,
         Some((ProxyType::Https, _)) => &HTTPS_PROXY_CLIENT,
-    }.get_or_try_init(|| {
-        let mut cb = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none());
+    }
+    .get_or_try_init(|| {
+        let mut cb = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
         cb = match proxy {
             None => cb,
             Some((proxy_type, url)) => cb.proxy(
-                    match proxy_type {
-                        ProxyType::Http => reqwest::Proxy::http(url),
-                        ProxyType::Https => reqwest::Proxy::https(url),
-                    }.into_report()
-                    .change_context(errors::ApiClientError::InvalidProxyConfiguration)
-                    .attach_printable("HTTP proxy configuration error")?
-                )
+                match proxy_type {
+                    ProxyType::Http => reqwest::Proxy::http(url),
+                    ProxyType::Https => reqwest::Proxy::https(url),
+                }
+                .into_report()
+                .change_context(errors::ApiClientError::InvalidProxyConfiguration)
+                .attach_printable("HTTP proxy configuration error")?,
+            ),
         };
         cb.build()
             .into_report()
             .change_context(errors::ApiClientError::ClientConstructionFailed)
-            .attach_printable( "Error with client library")
-    })?.clone())
+            .attach_printable("Error with client library")
+    })?
+    .clone())
 }
 
 // We may need to use outbound proxy to connect to external world.
@@ -76,9 +77,13 @@ pub(super) fn create_client(
         return match should_bypass_proxy {
             true => create_base_client(None),
             false => create_base_client(
-                        ProxyType::Https.get_proxy_url(proxy).map(|url| (ProxyType::Https, url))
-                        .or(ProxyType::Http.get_proxy_url(proxy).map(|url| (ProxyType::Http, url)))
-                    )
+                ProxyType::Https
+                    .get_proxy_url(proxy)
+                    .map(|url| (ProxyType::Https, url))
+                    .or_else(|| ProxyType::Http
+                        .get_proxy_url(proxy)
+                        .map(|url| (ProxyType::Http, url))),
+            ),
         };
     }
     let mut client_builder = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
