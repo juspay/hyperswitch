@@ -68,6 +68,18 @@ pub struct Action {
     pub action_type: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayRefreshTokenResponse {
+    pub token: String,
+    pub seconds_to_expire: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayRefreshTokenErrorResponse {
+    pub error_code: String,
+    pub detailed_error_description: String,
+}
+
 /// Information relating to a currency conversion.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CurrencyConversion {

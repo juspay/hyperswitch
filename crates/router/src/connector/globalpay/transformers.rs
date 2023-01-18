@@ -1,9 +1,16 @@
+use common_utils::{
+    crypto::{self, GenerateDigest},
+    date_time,
+};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    requests::{self, GlobalpayPaymentsRequest},
-    response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse},
+    requests::{self, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
+    response::{
+        GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
+        GlobalpayRefreshTokenResponse,
+    },
 };
 use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
@@ -72,18 +79,67 @@ impl TryFrom<&types::PaymentsCancelRouterData> for GlobalpayPaymentsRequest {
 }
 
 pub struct GlobalpayAuthType {
-    pub api_key: String,
+    pub app_id: String,
+    pub key: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                app_id: api_key.to_string(),
+                key: key1.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
+    }
+}
+
+impl From<GlobalpayRefreshTokenErrorResponse> for types::ErrorResponse {
+    fn from(item: GlobalpayRefreshTokenErrorResponse) -> Self {
+        Self {
+            code: item.error_code,
+            message: item.detailed_error_description,
+            reason: None,
+        }
+    }
+}
+
+impl TryFrom<GlobalpayRefreshTokenResponse> for types::AccessToken {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(item: GlobalpayRefreshTokenResponse) -> Result<Self, Self::Error> {
+        Ok(Self {
+            token: item.token,
+            expires: item.seconds_to_expire,
+        })
+    }
+}
+
+impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let globalpay_auth = GlobalpayAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)
+            .attach_printable("Could not convert connector_auth to globalpay_auth")?;
+
+        let current_time = date_time::now().to_string();
+        let nonce_with_api_key = format!("{}{}", current_time, globalpay_auth.key);
+        let secret_vec = crypto::Sha512
+            .generate_digest(nonce_with_api_key.as_bytes())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("error creating request nonce")?;
+
+        let secret = hex::encode(secret_vec);
+
+        Ok(Self {
+            app_id: globalpay_auth.app_id,
+            nonce: current_time,
+            secret,
+            grant_type: "client_credentials".to_string(),
+        })
     }
 }
 
@@ -131,6 +187,25 @@ impl<F, T>
                 redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::Pending, //FIXME: use the previous status of routerdata
+            response: Ok(types::AccessToken {
+                token: item.response.token,
+                expires: item.response.seconds_to_expire,
             }),
             ..item.data
         })
