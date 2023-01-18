@@ -106,6 +106,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GpayTransactionInfo,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
+        api_models::payments::PaymentListResponse,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,

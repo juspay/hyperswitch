@@ -524,7 +524,7 @@ pub struct PaymentsCaptureRequest {
     pub payment_id: Option<String>,
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
-    /// The Amount to be captured/ debited from the users payment method.
+    /// The Amount to be captured/ debited from the user's payment method.
     pub amount_to_capture: Option<i64>,
     /// Decider to refund the uncaptured amount
     pub refund_uncaptured_amount: Option<bool>,
@@ -712,11 +712,11 @@ pub struct PaymentListConstraints {
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {
-    // The size of the payment list
+    /// The number of payments included in the list
     pub size: usize,
-    // The list of payment response
+    // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
 
@@ -1007,9 +1007,10 @@ pub struct Metadata {
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment
     pub payment_id: String,
-    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: String,
     /// The list of the supported wallets
+    #[schema(value_type = Vec<SupportedWallets>)]
     pub wallets: Vec<api_enums::SupportedWallets>,
 }
 
@@ -1034,7 +1035,7 @@ pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
     pub token_specification_type: String,
-    /// The parameters for the token specification gpay
+    /// The parameters for the token specification Google Pay
     pub parameters: GpayTokenParameters,
 }
 
@@ -1043,9 +1044,9 @@ pub struct GpayAllowedPaymentMethods {
     /// The type of payment method
     #[serde(rename = "type")]
     pub payment_method_type: String,
-    /// The parameters gpay requires
+    /// The parameters Google Pay requires
     pub parameters: GpayAllowedMethodsParameters,
-    /// The tokenization specification for gpay
+    /// The tokenization specification for Google Pay
     pub tokenization_specification: GpayTokenizationSpecification,
 }
 
@@ -1055,7 +1056,7 @@ pub struct GpayTransactionInfo {
     pub country_code: String,
     /// The currency code
     pub currency_code: String,
-    /// The total price status (Ex: 'FINAL')
+    /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
     pub total_price: i64,
@@ -1084,27 +1085,27 @@ pub struct GpaySessionTokenData {
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
-    /// The session response structure for gpay
+    /// The session response structure for Google Pay
     Gpay {
-        /// The data gpay requires
+        /// The data Google Pay requires
         #[serde(flatten)]
         data: GpayMetadata,
-        /// The transaction info gpay requires
+        /// The transaction info Google Pay requires
         transaction_info: GpayTransactionInfo,
     },
-    /// The session response structure for klarna
+    /// The session response structure for Klarna
     Klarna {
-        /// The session token for klarna
+        /// The session token for Klarna
         session_token: String,
         /// The identifier for the session
         session_id: String,
     },
-    /// The session response structure for paypal
+    /// The session response structure for PayPal
     Paypal {
-        /// The session token for paypal
+        /// The session token for PayPal
         session_token: String,
     },
-    /// The session response structure for applepay
+    /// The session response structure for Apple Pay
     Applepay {
         /// Timestamp at which session is requested
         epoch_timestamp: u64,
@@ -1116,15 +1117,15 @@ pub enum SessionToken {
         nonce: String,
         /// The identifier for the merchant
         merchant_identifier: String,
-        /// The domain name of the merchant which is registered in applepay
+        /// The domain name of the merchant which is registered in Apple Pay
         domain_name: String,
-        /// The name to be displayed on applepay button
+        /// The name to be displayed on Apple Pay button
         display_name: String,
         /// A string which represents the properties of a payment
         signature: String,
         /// The identifier for the operational analytics
         operational_analytics_identifier: String,
-        /// The number of retries to get the session repsonse
+        /// The number of retries to get the session response
         retries: u8,
         /// The identifier for the connector transaction
         psp_id: String,
@@ -1135,7 +1136,8 @@ pub enum SessionToken {
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
     pub payment_id: String,
-    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
+    #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
@@ -1165,7 +1167,7 @@ pub struct PaymentsStartRequest {
     /// The identifier for the Merchant Account.
     pub merchant_id: String,
     /// The identifier for the payment transaction
-    pub txn_id: String,
+    pub attempt_id: String,
 }
 
 mod payment_id_type {

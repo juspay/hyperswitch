@@ -639,7 +639,7 @@
           },
           "total_price_status": {
             "type": "string",
-            "description": "The total price status (Ex: 'FINAL')"
+            "description": "The total price status (ex: 'FINAL')"
           },
           "total_price": {
             "type": "integer",
@@ -1217,6 +1217,25 @@
           }
         }
       },
+      "PaymentListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of payments included in the list"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentsResponse"
+            }
+          }
+        }
+      },
       "PaymentMethod": {
         "oneOf": [
           {
@@ -1430,7 +1449,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the users payment method."
+            "description": "The Amount to be captured/ debited from the user's payment method."
           },
           "refund_uncaptured_amount": {
             "type": "boolean",
@@ -1826,12 +1845,12 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK"
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
           },
           "wallets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/api_enums.SupportedWallets"
+              "$ref": "#/components/schemas/SupportedWallets"
             }
           }
         }
@@ -1849,7 +1868,8 @@
             "description": "The identifier for the payment"
           },
           "client_secret": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
           },
           "session_token": {
             "type": "array",
@@ -1864,7 +1884,7 @@
         "required": [
           "payment_id",
           "merchant_id",
-          "txn_id"
+          "attempt_id"
         ],
         "properties": {
           "payment_id": {
@@ -1875,7 +1895,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account."
           },
-          "txn_id": {
+          "attempt_id": {
             "type": "string",
             "description": "The identifier for the payment transaction"
           }
@@ -2017,6 +2037,7 @@
       },
       "SupportedWallets": {
         "type": "string",
+        "description": "Wallets which support obtaining session object",
         "enum": [
           "paypal",
           "apple_pay",
