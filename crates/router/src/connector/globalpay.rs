@@ -8,8 +8,8 @@ use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 
 use self::{
-    requests::GlobalpayPaymentsRequest, requests::GlobalpayRefreshTokenRequest,
-    response::GlobalpayPaymentsResponse, response::GlobalpayRefreshTokenResponse,
+    requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
+    response::{GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
     transformers as globalpay,
 };
 use crate::{
