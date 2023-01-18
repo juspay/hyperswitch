@@ -174,11 +174,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             };
 
         match payment_intent.status {
-            enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
+            enums::IntentStatus::Succeeded
+            | enums::IntentStatus::Failed
+            | enums::IntentStatus::RequiresCapture => {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "You cannot update this Payment because it has already succeeded/failed."
-                            .into()
+                    message: format!(
+                        "You cannot update this Payment because the status of this payment is {}",
+                        payment_intent.status
+                    )
                 }))
             }
             _ => Ok((
