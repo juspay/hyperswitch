@@ -89,7 +89,7 @@ body:
     attributes:
       label: Have you read the Contributing Guidelines?
       options:
-        - label: I have read the [Contributing Guidelines](https://github.com/juspay/hyperswitch/blob/main/contrib/CONTRIBUTING.md)
+        - label: I have read the [Contributing Guidelines](https://github.com/juspay/hyperswitch/blob/main/docs/CONTRIBUTING.md)
           required: true
 
   - type: dropdown

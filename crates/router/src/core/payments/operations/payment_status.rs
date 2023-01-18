@@ -98,11 +98,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, None).await
+        helpers::get_connector_default(state, None).await
     }
 }
 
@@ -234,7 +234,13 @@ async fn get_tracker_for_sync<
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while getting refund list for, payment_id: {}, merchant_id: {}",
+                &payment_id_str, merchant_id
+            )
+        })?;
 
     Ok((
         Box::new(operation),

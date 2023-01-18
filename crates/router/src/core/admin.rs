@@ -1,3 +1,4 @@
+use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, ResultExt};
 use uuid::Uuid;
 
@@ -12,11 +13,11 @@ use crate::{
         storage::{self, MerchantAccount},
         transformers::{ForeignInto, ForeignTryInto},
     },
-    utils::{self, OptionExt, ValueExt},
+    utils::{self, OptionExt},
 };
 
 #[inline]
-fn create_merchant_api_key() -> String {
+pub fn create_merchant_api_key() -> String {
     let id = Uuid::new_v4().simple();
     match env::which() {
         Env::Development => format!("dev_{id}"),
@@ -29,56 +30,67 @@ pub async fn create_merchant_account(
     db: &dyn StorageInterface,
     req: api::CreateMerchantAccount,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let publishable_key = &format!("pk_{}", create_merchant_api_key());
-    let api_key = create_merchant_api_key();
-    let mut response = req.clone();
-    response.api_key = Some(api_key.to_owned().into());
-    response.publishable_key = Some(publishable_key.to_owned());
-    let merchant_details =
+    let publishable_key = Some(format!("pk_{}", create_merchant_api_key()));
+
+    let api_key = Some(create_merchant_api_key().into());
+
+    let merchant_details = Some(
         utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
-            })?;
-    let webhook_details =
+            })?,
+    );
+
+    let webhook_details = Some(
         utils::Encode::<api::WebhookDetails>::encode_to_value(&req.webhook_details)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "webhook details",
-            })?;
-    let custom_routing_rules =
-        utils::Encode::<api::CustomRoutingRules>::encode_to_value(&req.custom_routing_rules)
+            })?,
+    );
+
+    if let Some(ref routing_algorithm) = req.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "custom routing rules",
-            })?;
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
 
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
-        api_key: Some(api_key.to_string().into()),
-        merchant_details: Some(merchant_details),
+        api_key,
+        merchant_details,
         return_url: req.return_url,
-        webhook_details: Some(webhook_details),
-        routing_algorithm: req.routing_algorithm.map(ForeignInto::foreign_into),
-        custom_routing_rules: Some(custom_routing_rules),
+        webhook_details,
+        routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
         parent_merchant_id: get_parent_merchant(
             db,
-            &req.sub_merchants_enabled,
+            req.sub_merchants_enabled,
             req.parent_merchant_id,
         )
         .await?,
         enable_payment_response_hash: req.enable_payment_response_hash,
         payment_response_hash_key: req.payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
-        publishable_key: Some(publishable_key.to_owned()),
+        publishable_key,
         locker_id: req.locker_id,
+        metadata: req.metadata,
     };
 
-    db.insert_merchant(merchant_account)
+    let merchant_account = db
+        .insert_merchant(merchant_account)
         .await
         .map_err(|error| {
             error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
         })?;
-    Ok(service_api::ApplicationResponse::Json(response))
+
+    Ok(service_api::ApplicationResponse::Json(
+        merchant_account.foreign_into(),
+    ))
 }
 
 pub async fn get_merchant_account(
@@ -91,44 +103,10 @@ pub async fn get_merchant_account(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
-    let merchant_details = merchant_account
-        .merchant_details
-        .parse_value("MerchantDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let webhook_details = merchant_account
-        .webhook_details
-        .parse_value("WebhookDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let vec_val = merchant_account
-        .custom_routing_rules
-        .parse_value("CustomRoutingRulesVector")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let custom_routing_rules = serde_json::Value::Array(vec_val)
-        .parse_value("CustomRoutingRules")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let response = api::MerchantAccountResponse {
-        merchant_id: req.merchant_id,
-        merchant_name: merchant_account.merchant_name,
-        api_key: merchant_account.api_key,
-        merchant_details,
-        return_url: merchant_account.return_url,
-        webhook_details,
-        routing_algorithm: merchant_account
-            .routing_algorithm
-            .map(ForeignInto::foreign_into),
-        custom_routing_rules,
-        sub_merchants_enabled: merchant_account.sub_merchants_enabled,
-        parent_merchant_id: merchant_account.parent_merchant_id,
-        enable_payment_response_hash: Some(merchant_account.enable_payment_response_hash),
-        payment_response_hash_key: merchant_account.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: Some(
-            merchant_account.redirect_to_merchant_with_http_post,
-        ),
-        metadata: None,
-        publishable_key: merchant_account.publishable_key,
-        locker_id: merchant_account.locker_id,
-    };
-    Ok(service_api::ApplicationResponse::Json(response))
+
+    Ok(service_api::ApplicationResponse::Json(
+        merchant_account.foreign_into(),
+    ))
 }
 
 pub async fn merchant_account_update(
@@ -142,6 +120,7 @@ pub async fn merchant_account_update(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
+
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
             field_name: "parent_merchant_id"
@@ -153,80 +132,67 @@ pub async fn merchant_account_update(
             field_name: "parent_merchant_id",
         }))?;
     }
-    let mut response = req.clone();
+
+    if let Some(ref routing_algorithm) = req.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
-        merchant_id: merchant_id.to_string(),
-        merchant_name: req
-            .merchant_name
-            .or_else(|| merchant_account.merchant_name.to_owned()),
-        api_key: merchant_account.api_key.clone(),
-        merchant_details: if req.merchant_details.is_some() {
-            Some(
-                utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-        } else {
-            merchant_account.merchant_details.to_owned()
-        },
-        return_url: req
-            .return_url
-            .or_else(|| merchant_account.return_url.to_owned()),
-        webhook_details: if req.webhook_details.is_some() {
-            Some(
-                utils::Encode::<api::WebhookDetails>::encode_to_value(&req.webhook_details)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-        } else {
-            merchant_account.webhook_details.to_owned()
-        },
-        routing_algorithm: req
-            .routing_algorithm
-            .map(ForeignInto::foreign_into)
-            .or(merchant_account.routing_algorithm),
-        custom_routing_rules: if req.custom_routing_rules.is_some() {
-            Some(
-                utils::Encode::<api::CustomRoutingRules>::encode_to_value(
-                    &req.custom_routing_rules,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-        } else {
-            merchant_account.custom_routing_rules.to_owned()
-        },
-        sub_merchants_enabled: req
-            .sub_merchants_enabled
-            .or(merchant_account.sub_merchants_enabled),
+        merchant_name: req.merchant_name,
+
+        merchant_details: req
+            .merchant_details
+            .as_ref()
+            .map(utils::Encode::<api::MerchantDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+
+        return_url: req.return_url,
+
+        webhook_details: req
+            .webhook_details
+            .as_ref()
+            .map(utils::Encode::<api::WebhookDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+
+        routing_algorithm: req.routing_algorithm,
+        sub_merchants_enabled: req.sub_merchants_enabled,
+
         parent_merchant_id: get_parent_merchant(
             db,
-            &req.sub_merchants_enabled
+            req.sub_merchants_enabled
                 .or(merchant_account.sub_merchants_enabled),
             req.parent_merchant_id
                 .or_else(|| merchant_account.parent_merchant_id.clone()),
         )
         .await?,
-        enable_payment_response_hash: req
-            .enable_payment_response_hash
-            .or(Some(merchant_account.enable_payment_response_hash)),
-        payment_response_hash_key: req
-            .payment_response_hash_key
-            .or_else(|| merchant_account.payment_response_hash_key.to_owned()),
-        redirect_to_merchant_with_http_post: req
-            .redirect_to_merchant_with_http_post
-            .or(Some(merchant_account.redirect_to_merchant_with_http_post)),
-        publishable_key: req
-            .publishable_key
-            .or_else(|| merchant_account.publishable_key.clone()),
-        locker_id: req
-            .locker_id
-            .or_else(|| merchant_account.locker_id.to_owned()),
+        enable_payment_response_hash: req.enable_payment_response_hash,
+        payment_response_hash_key: req.payment_response_hash_key,
+        redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
+        locker_id: req.locker_id,
+        metadata: req.metadata,
+        merchant_id: merchant_account.merchant_id.to_owned(),
+        api_key: None,
+        publishable_key: None,
     };
-    response.merchant_id = merchant_id.to_string();
-    response.api_key = merchant_account.api_key.to_owned();
 
-    db.update_merchant(merchant_account, updated_merchant_account)
+    let response = db
+        .update_merchant(merchant_account, updated_merchant_account)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(service_api::ApplicationResponse::Json(response))
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        response.foreign_into(),
+    ))
 }
 
 pub async fn merchant_account_delete(
@@ -248,7 +214,7 @@ pub async fn merchant_account_delete(
 
 async fn get_parent_merchant(
     db: &dyn StorageInterface,
-    sub_merchants_enabled: &Option<bool>,
+    sub_merchants_enabled: Option<bool>,
     parent_merchant: Option<String>,
 ) -> RouterResult<Option<String>> {
     Ok(match sub_merchants_enabled {
@@ -302,7 +268,10 @@ pub async fn create_payment_connector(
         Some(val) => {
             for pm in val.into_iter() {
                 let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed while encoding to serde_json::Value, PaymentMethod",
+                    )?;
                 vec.push(pm_value)
             }
             Some(vec)
@@ -440,18 +409,23 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
         merchant_connector_id: Some(merchant_connector_id),
-        connector_account_details: req
-            .connector_account_details
-            .or_else(|| Some(Secret::new(mca.connector_account_details.to_owned()))),
+        connector_account_details: req.connector_account_details,
         payment_methods_enabled,
         test_mode: mca.test_mode,
         disabled: req.disabled.or(mca.disabled),
+        metadata: req.metadata,
     };
 
     let updated_mca = db
         .update_merchant_connector_account(mca, payment_connector)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating MerchantConnectorAccount: id: {}",
+                merchant_connector_id
+            )
+        })?;
     let response = api::PaymentConnectorCreate {
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
@@ -460,7 +434,7 @@ pub async fn update_payment_connector(
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
         payment_methods_enabled: req.payment_methods_enabled,
-        metadata: req.metadata,
+        metadata: updated_mca.metadata,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

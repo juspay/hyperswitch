@@ -291,6 +291,7 @@ impl Default for PaymentSyncType {
                 "12345".to_string(),
             ),
             encoded_data: None,
+            capture_method: None,
         };
         Self(data)
     }

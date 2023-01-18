@@ -6,6 +6,7 @@ use base64::Engine;
 use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
+use storage_models::enums;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
@@ -17,7 +18,7 @@ use crate::{
     services::{self, ConnectorIntegration},
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
     utils::{self, BytesExt, OptionExt},
@@ -63,6 +64,33 @@ impl Worldline {
             .format(&format)
             .into_report()
             .change_context(errors::ConnectorError::InvalidDateFormat)
+    }
+}
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldline
+where
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
+    fn build_headers(
+        &self,
+        req: &types::RouterData<Flow, Request, Response>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let base_url = self.base_url(connectors);
+        let url = Self::get_url(self, req, connectors)?;
+        let endpoint = url.replace(base_url, "");
+        let http_method = Self::get_http_method(self);
+        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
+        let date = Self::get_current_date_time()?;
+        let content_type = Self::get_content_type(self);
+        let signed_data: String =
+            self.generate_authorization_token(auth, &http_method, content_type, &date, &endpoint)?;
+
+        Ok(vec![
+            (headers::DATE.to_string(), date),
+            (headers::AUTHORIZATION.to_string(), signed_data),
+            (headers::CONTENT_TYPE.to_string(), content_type.to_string()),
+        ])
     }
 }
 
@@ -120,25 +148,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let url = &types::PaymentsVoidType::get_url(self, req, connectors)?;
-        let endpoint = url.clone().replace(base_url, "");
-        let http_method = services::Method::Post;
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = Self::get_current_date_time()?;
-        let content_type = types::PaymentsAuthorizeType::get_content_type(self);
-        let signed_data: String =
-            self.generate_authorization_token(auth, &http_method, content_type, &date, &endpoint)?;
-
-        Ok(vec![
-            (headers::DATE.to_string(), date),
-            (headers::AUTHORIZATION.to_string(), signed_data),
-            (headers::CONTENT_TYPE.to_string(), content_type.to_string()),
-        ])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.build_headers(req, connectors)
     }
 
     fn get_url(
@@ -148,10 +158,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         let payment_id: &str = req.request.connector_transaction_id.as_ref();
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}/cancel"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/cancel"
         ))
     }
 
@@ -162,7 +172,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(types::PaymentsVoidType::get_http_method(self))
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .build(),
@@ -176,7 +186,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: worldline::PaymentResponse = res
             .response
-            .parse_struct("PaymentResponse")
+            .parse_struct("Worldline PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(payments_cancel_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -199,22 +209,20 @@ impl api::PaymentSync for Worldline {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Worldline
 {
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Get
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        ""
+    }
+
     fn get_headers(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let url = &types::PaymentsSyncType::get_url(self, req, connectors)?;
-        let endpoint = url.clone().replace(base_url, "");
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = Self::get_current_date_time()?;
-        let signed_data: String =
-            self.generate_authorization_token(auth, &services::Method::Get, "", &date, &endpoint)?;
-        Ok(vec![
-            (headers::DATE.to_string(), date),
-            (headers::AUTHORIZATION.to_string(), signed_data),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_url(
@@ -229,9 +237,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}"
         ))
     }
 
@@ -242,7 +250,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Get)
+                .method(types::PaymentsSyncType::get_http_method(self))
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
@@ -262,10 +270,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: worldline::Payment = res
+        let mut response: worldline::Payment = res
             .response
-            .parse_struct("Payment")
+            .parse_struct("Worldline Payment")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        response.capture_method = data.request.capture_method.unwrap_or_default();
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -279,7 +288,109 @@ impl api::PaymentCapture for Worldline {}
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Worldline
 {
-    // Not Implemented
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_id = req.request.connector_transaction_id.clone();
+        let base_url = self.base_url(connectors);
+        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id;
+        Ok(format!(
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/approve"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = worldline::ApproveRequest::try_from(req)?;
+        let worldline_req =
+            utils::Encode::<worldline::ApproveRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(worldline_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(types::PaymentsCaptureType::get_http_method(self))
+                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+        res: Response,
+    ) -> CustomResult<
+        types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::Capture: Clone,
+        types::PaymentsCaptureData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
+        logger::debug!(payment_capture_response=?res);
+        let mut response: worldline::PaymentResponse = res
+            .response
+            .parse_struct("Worldline PaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        response.payment.capture_method = enums::CaptureMethod::Manual;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl api::PaymentSession for Worldline {}
@@ -304,29 +415,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let url = &types::PaymentsAuthorizeType::get_url(self, req, connectors)?;
-        let endpoint = url.clone().replace(base_url, "");
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = Self::get_current_date_time()?;
-        let content_type = types::PaymentsAuthorizeType::get_content_type(self);
-        let signed_data: String = self.generate_authorization_token(
-            auth,
-            &services::Method::Post,
-            content_type,
-            &date,
-            &endpoint,
-        )?;
-
-        Ok(vec![
-            (headers::DATE.to_string(), date),
-            (headers::AUTHORIZATION.to_string(), signed_data),
-            (headers::CONTENT_TYPE.to_string(), content_type.to_string()),
-        ])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.build_headers(req, connectors)
     }
 
     fn get_url(
@@ -336,16 +425,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
-        Ok(format!("{base_url}v1/{merchat_account_id}/payments"))
+        let merchant_account_id = auth.merchant_account_id;
+        Ok(format!("{base_url}v1/{merchant_account_id}/payments"))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let worldline_req = utils::Encode::<worldline::PaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = worldline::PaymentsRequest::try_from(req)?;
+        let worldline_req =
+            utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldline_req))
     }
 
@@ -360,7 +451,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(types::PaymentsAuthorizeType::get_http_method(self))
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -376,11 +467,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: worldline::PaymentResponse = res
+        logger::debug!(payment_authorize_response=?res);
+        let mut response: worldline::PaymentResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("Worldline PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(worldlinepayments_create_response=?response);
+        response.payment.capture_method = data.request.capture_method.unwrap_or_default();
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -410,29 +502,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let url = &types::RefundExecuteType::get_url(self, req, connectors)?;
-        let endpoint = url.clone().replace(base_url, "");
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = Self::get_current_date_time()?;
-        let content_type = types::RefundExecuteType::get_content_type(self);
-        let signed_data: String = self.generate_authorization_token(
-            auth,
-            &services::Method::Post,
-            content_type,
-            &date,
-            &endpoint,
-        )?;
-
-        Ok(vec![
-            (headers::DATE.to_string(), date),
-            (headers::AUTHORIZATION.to_string(), signed_data),
-            (headers::CONTENT_TYPE.to_string(), content_type.to_string()),
-        ])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.build_headers(req, connectors)
     }
 
     fn get_url(
@@ -443,9 +513,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/payments/{payment_id}/refund"
+            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/refund"
         ))
     }
 
@@ -453,9 +523,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = worldline::WorldlineRefundRequest::try_from(req)?;
         let refund_req =
-            utils::Encode::<worldline::WorldlineRefundRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<worldline::WorldlineRefundRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(refund_req))
     }
 
@@ -465,7 +538,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+            .method(types::RefundExecuteType::get_http_method(self))
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
@@ -483,7 +556,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         logger::debug!(target: "router::connector::worldline", response=?res);
         let response: worldline::RefundResponse = res
             .response
-            .parse_struct("worldline RefundResponse")
+            .parse_struct("Worldline RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
@@ -505,23 +578,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Worldline
 {
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Get
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        ""
+    }
+
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let url = &types::RefundSyncType::get_url(self, req, connectors)?;
-        let endpoint = url.clone().replace(base_url, "");
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let date = Self::get_current_date_time()?;
-        let signed_data: String =
-            self.generate_authorization_token(auth, &services::Method::Get, "", &date, &endpoint)?;
-
-        Ok(vec![
-            (headers::DATE.to_string(), date),
-            (headers::AUTHORIZATION.to_string(), signed_data),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_url(
@@ -539,9 +609,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .clone();
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchat_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id;
         Ok(format!(
-            "{base_url}v1/{merchat_account_id}/refunds/{refund_id}/"
+            "{base_url}v1/{merchant_account_id}/refunds/{refund_id}/"
         ))
     }
 
@@ -552,7 +622,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Get)
+                .method(types::RefundSyncType::get_http_method(self))
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
@@ -567,7 +637,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         logger::debug!(target: "router::connector::worldline", response=?res);
         let response: worldline::RefundResponse = res
             .response
-            .parse_struct("worldline RefundResponse")
+            .parse_struct("Worldline RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,

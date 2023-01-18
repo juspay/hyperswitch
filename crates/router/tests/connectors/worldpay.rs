@@ -135,6 +135,7 @@ async fn should_sync_payment() {
                     "112233".to_string(),
                 ),
                 encoded_data: None,
+                capture_method: None,
             }),
             None,
         )
