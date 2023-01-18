@@ -69,7 +69,7 @@ pub async fn payments_start(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<payment_types::PaymentsResponse, _, _>(
                 state,
                 merchant_account,
                 payments::operations::PaymentStart,
@@ -108,7 +108,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<payment_types::PaymentsResponse, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -223,7 +223,7 @@ pub async fn payments_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<payment_types::PaymentsResponse, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -250,13 +250,7 @@ pub async fn payments_connector_session(
         &req,
         sessions_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<
-                api_types::Session,
-                payment_types::PaymentsSessionResponse,
-                _,
-                _,
-                _,
-            >(
+            payments::payments_core::<payment_types::PaymentsSessionResponse, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentSession,
@@ -319,7 +313,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<payment_types::PaymentsResponse, _, _>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,
@@ -374,24 +368,20 @@ where
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
     match req.amount.as_ref() {
-        Some(api_types::Amount::Value(_)) | None => payments::payments_core::<
-            api_types::Authorize,
-            payment_types::PaymentsResponse,
-            _,
-            _,
-            _,
-        >(
-            state,
-            merchant_account,
-            operation,
-            req,
-            auth_flow,
-            payments::CallConnectorAction::Trigger,
-        )
-        .await,
+        Some(api_types::Amount::Value(_)) | None => {
+            payments::payments_core::<payment_types::PaymentsResponse, _, _>(
+                state,
+                merchant_account,
+                operation,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+            )
+            .await
+        }
 
         Some(api_types::Amount::Zero) => {
-            payments::payments_core::<api_types::Verify, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<payment_types::PaymentsResponse, _, _>(
                 state,
                 merchant_account,
                 operation,

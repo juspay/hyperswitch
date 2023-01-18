@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn payments_operation_core<F, Req, Op, FData>(
+pub async fn payments_operation_core<Req, Op>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
@@ -42,20 +42,12 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
     Op: Operation<Req> + Send + Sync,
-
     // To create connector flow specific interface data
-    PaymentData: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn types::api::Connector:
-        services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: EndOperation<F, FData>,
-    FData: Send,
 {
     let operation: BoxedOperation<'_, Req> = Box::new(operation);
 
@@ -216,7 +208,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<F, Res, Req, Op, FData>(
+pub async fn payments_core<Res, Req, Op>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
@@ -225,21 +217,14 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
-    FData: Send,
     Op: Operation<Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData, Op> + TryFrom<Req>,
     // To create connector flow specific interface data
-    PaymentData: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn types::api::Connector:
-        services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: EndOperation<F, FData>,
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -327,7 +312,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
     req: api::PaymentsRetrieveRequest,
     flow_type: CallConnectorAction,
 ) -> RouterResponse<api::PaymentsResponse> {
-    payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+    payments_core::<api::PaymentsResponse, _, _>(
         state,
         merchant_account,
         PaymentStatus,
