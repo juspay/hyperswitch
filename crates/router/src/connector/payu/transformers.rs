@@ -268,6 +268,64 @@ impl<F, T>
     }
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayuAuthUpdateRequest {
+    grant_type: String,
+    client_id: String,
+    client_secret: String
+}
+
+impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            grant_type: "client_credentails".to_string(),
+            client_id: item.request.id.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "item.request.id".to_string(),
+                },
+            )?,
+            client_secret: item.request.app_id.clone()
+        })
+    }
+}
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+pub struct PayuAuthUpdateResponse {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: String,
+    pub grant_type: String
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>,
+    > for types::RouterData<F, T, types::AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PayuAuthUpdateResponse,
+            T,
+            types::AccessToken,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::AccessToken {
+                token: format!("{} {}", item.response.token_type, item.response.access_token),
+                expires: item.response.expires_in
+                    .parse::<i64>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+            }),
+            ..item.data
+        })
+    }
+}
+
+
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsCancelResponse {

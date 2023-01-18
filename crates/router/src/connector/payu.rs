@@ -173,6 +173,52 @@ impl
         types::AccessToken,
     > for Payu
 {
+    fn get_url(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok("https://secure.payu.com/pl/standard/user/oauth/authorize".to_string())
+    }
+    fn get_request_body(
+        &self,
+        req: &types::RefreshTokenRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let payu_req = utils::Encode::<payu::PayuAuthUpdateRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(payu_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::RefreshTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::RefreshTokenRouterData,
+        res: Response,
+    ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
+        let response: payu::PayuAuthUpdateResponse = res
+            .response
+            .parse_struct("payu PayuAuthUpdateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(payments_create_response=?response);
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
 }
 
 impl api::PaymentSync for Payu {}
