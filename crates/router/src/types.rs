@@ -162,7 +162,7 @@ pub struct RefreshTokenRequestData {
     // Add more keys if required
 }
 
-#[derive(serde::Deserialize, Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: String,
     pub expires: i64,

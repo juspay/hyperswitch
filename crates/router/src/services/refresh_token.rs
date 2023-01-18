@@ -1,12 +1,13 @@
-use error_stack::ResultExt;
 use std::fmt::Debug;
+
+use common_utils::ext_traits::AsyncExt;
+use error_stack::ResultExt;
 
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments,
     },
-    logger,
     routes::AppState,
     services,
     types::{self, api as api_types, storage},
@@ -64,51 +65,77 @@ pub async fn update_connector_auth<
     state: &AppState,
     connector: &api_types::ConnectorData,
     merchant_account: &storage::MerchantAccount,
-    router_data: &mut types::RouterData<F, Req, Res>,
-) -> RouterResult<()> {
+    router_data: &types::RouterData<F, Req, Res>,
+) -> RouterResult<(
+    Result<Option<types::AccessToken>, types::ErrorResponse>,
+    bool,
+)> {
     if connector_supports_access_token(connector) {
         let merchant_id = &merchant_account.merchant_id;
         let db = &*state.store;
         let old_access_token = db
             .get_access_token(merchant_id, connector.connector.id())
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("DB error when accessing the access token")?;
 
-        match old_access_token {
-            Some(access_token) => router_data.access_token = Some(access_token),
+        let res = match old_access_token {
+            Some(access_token) => Ok(Some(access_token)),
             None => {
-                refresh_connector_auth(state, connector, merchant_account, router_data).await?;
+                let cloned_router_data = router_data.clone();
+                let refresh_token_request_data =
+                    types::RefreshTokenRequestData::from(router_data.connector_auth_type.clone());
+                let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
+                    Err(types::ErrorResponse::default());
+                let (refresh_token_router_data, _previous_request, _previous_response) =
+                    router_data_type_conversion::<_, api_types::UpdateAuth, _, _, _, _>(
+                        cloned_router_data,
+                        refresh_token_request_data,
+                        refresh_token_response_data,
+                    );
+                refresh_connector_auth(
+                    state,
+                    connector,
+                    merchant_account,
+                    &refresh_token_router_data,
+                )
+                .await?
+                .async_map(|access_token| async {
+                    //Store the access token in db
+                    let db = &*state.store;
+                    // This error should not be propogated, we don't want payments to fail once we have
+                    // the access token
+                    let _ = db
+                        .set_access_token(
+                            merchant_id,
+                            connector.connector.id(),
+                            access_token.clone(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("DB error when setting the access token");
+                    Some(access_token)
+                })
+                .await
             }
-        }
-        Ok(())
+        };
+
+        Ok((res, true))
     } else {
-        Ok(())
+        Ok((Err(types::ErrorResponse::default()), false))
     }
 }
 
-pub async fn refresh_connector_auth<F, Req, Res>(
+pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,
     _merchant_account: &storage::MerchantAccount,
-    original_router_data: &mut types::RouterData<F, Req, Res>,
-) -> RouterResult<()>
-where
-    F: Clone + 'static,
-    Req: Debug + Clone + 'static,
-    Res: Debug + Clone + 'static,
-{
-    let router_data = original_router_data.clone();
-    let refresh_token_request_data =
-        types::RefreshTokenRequestData::from(router_data.connector_auth_type.clone());
-    let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
-        Err(types::ErrorResponse::default());
-    let (refresh_token_router_data, _previous_request, previous_response) =
-        router_data_type_conversion::<_, api_types::UpdateAuth, _, _, _, _>(
-            router_data,
-            refresh_token_request_data,
-            refresh_token_response_data,
-        );
-
+    router_data: &types::RouterData<
+        api_types::UpdateAuth,
+        types::RefreshTokenRequestData,
+        types::AccessToken,
+    >,
+) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api_types::UpdateAuth,
@@ -119,25 +146,12 @@ where
     let access_token_router_data = services::execute_connector_processing_step(
         state,
         connector_integration,
-        &refresh_token_router_data,
+        router_data,
         payments::CallConnectorAction::Trigger,
     )
     .await
-    .map_err(|_err| errors::ApiErrorResponse::InternalServerError)?; //FIXME: return appropriate error
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Could not refresh access token")?;
 
-    match access_token_router_data.response.clone() {
-        Ok(access_token) => {
-            // Set access token field of routerdata
-            original_router_data.access_token = Some(access_token);
-        }
-        Err(connector_error) => {
-            // set error response field of routerdata
-            let new_response = previous_response.map_err(|_previous_error| connector_error);
-            original_router_data.response = new_response;
-        }
-    }
-
-    logger::debug!(?access_token_router_data);
-
-    Ok(())
+    Ok(access_token_router_data.response)
 }
