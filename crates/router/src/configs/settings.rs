@@ -5,26 +5,25 @@ use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::Deserialize;
-use structopt::StructOpt;
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
 
-#[derive(StructOpt, Default)]
-#[structopt(version = router_env::version!())]
+#[derive(clap::Parser, Default)]
+#[command(version = router_env::version!())]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
-    #[structopt(short = "f", long, parse(from_os_str))]
+    #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
 
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     pub subcommand: Option<Subcommand>,
 }
 
-#[derive(StructOpt)]
+#[derive(clap::Parser)]
 pub enum Subcommand {
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,

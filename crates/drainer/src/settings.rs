@@ -6,16 +6,15 @@ use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
-use structopt::StructOpt;
 
 use crate::errors;
 
-#[derive(StructOpt, Default)]
-#[structopt(version = router_env::version!())]
+#[derive(clap::Parser, Default)]
+#[command(version = router_env::version!())]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
-    #[structopt(short = "f", long, parse(from_os_str))]
+    #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
 }
 
