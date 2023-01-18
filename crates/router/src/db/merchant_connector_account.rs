@@ -48,8 +48,8 @@ impl ConnectorAccessToken for Store {
             .map(|token| token.parse_struct("AccessToken"))
             .transpose()
             .change_context(errors::ParsingError)
-            .change_context(errors::StorageError::SerializationFailed)?;
-        //FIXME: add deserialization failed
+            .change_context(errors::StorageError::DeserializationFailed)?;
+
         Ok(access_token)
     }
 
