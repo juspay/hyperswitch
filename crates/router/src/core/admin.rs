@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, FutureExt, ResultExt};
+use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use uuid::Uuid;
 
 use crate::{
@@ -393,6 +393,7 @@ pub async fn update_payment_connector(
 
     let payment_methods_enabled = match req.payment_methods_enabled.clone() {
         Some(val) => {
+            vec.clear();
             for pm in val.into_iter() {
                 let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -411,7 +412,7 @@ pub async fn update_payment_connector(
         merchant_connector_id: Some(merchant_connector_id),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
-        test_mode: mca.test_mode,
+        test_mode: req.test_mode.or(mca.test_mode),
         disabled: req.disabled.or(mca.disabled),
         metadata: req.metadata,
     };
@@ -426,6 +427,21 @@ pub async fn update_payment_connector(
                 merchant_connector_id
             )
         })?;
+
+    let updated_pm_enabled = updated_mca
+        .payment_methods_enabled
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to get payments method enabled")?
+        .into_iter()
+        .map(|pm_value| {
+            ValueExt::<api_models::admin::PaymentMethods>::parse_value(pm_value, "PaymentMethods")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert serde json value to PaymentMethods")
+        })
+        .flatten()
+        .collect::<Vec<api_models::admin::PaymentMethods>>();
+
     let response = api::PaymentConnectorCreate {
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
@@ -433,7 +449,7 @@ pub async fn update_payment_connector(
         connector_account_details: Some(Secret::new(updated_mca.connector_account_details)),
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
-        payment_methods_enabled: req.payment_methods_enabled,
+        payment_methods_enabled: Some(updated_pm_enabled),
         metadata: updated_mca.metadata,
     };
     Ok(service_api::ApplicationResponse::Json(response))
