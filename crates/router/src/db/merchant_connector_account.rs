@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::ext_traits::{ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 
@@ -50,13 +50,6 @@ impl ConnectorAccessToken for Store {
             .change_context(errors::ParsingError)
             .change_context(errors::StorageError::SerializationFailed)?;
         //FIXME: add deserialization failed
-        // match token {
-        //     Ok(token) => Ok(token),
-        //     Err(error) => {
-        //         logger::error!(access_token_kv_error=?error);
-        //         Err(errors::StorageError::KVError).into_report()
-        //     }
-        // }
         Ok(access_token)
     }
 
@@ -67,8 +60,11 @@ impl ConnectorAccessToken for Store {
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         let conn = self.redis_conn.clone();
-        let access_token_key = format!("{}{}", merchant_id, connector_name);
-        conn.set_key_with_expiry(&access_token_key, access_token.token, access_token.expires)
+        let key = format!("{}{}", merchant_id, connector_name);
+        let serialized_access_token =
+            Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
+                .change_context(errors::StorageError::SerializationFailed)?;
+        conn.set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
             .map_err(|error| {
                 logger::error!(access_token_kv_error=?error);
