@@ -9,7 +9,6 @@ pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
-use bytes::Bytes;
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{admin::*, customers::*, payment_methods::*, payments::*, refunds::*, webhooks::*};
@@ -49,9 +48,10 @@ pub trait ConnectorCommon {
     /// common error response for a connector if it is same in all case
     fn build_error_response(
         &self,
-        _res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,

@@ -25,7 +25,7 @@ Use the following base URLs when making requests to the APIs:
 
 | Environment   |  Base URL                                            |
 |---------------|------------------------------------------------------|
-| Sandbox       | <https://sandbox-router.juspay.io>                   |
+| Sandbox       | <https://sandbox.hyperswitch.io>                   |
 | Production    | <https://router.juspay.io>                           |
 
 ## Authentication
@@ -39,7 +39,7 @@ Never share your secret api keys. Keep them guarded and secure.
 "#,
     ),
     servers(
-        (url = "https://sandbox-router.juspay.io", description = "Sandbox Environment"),
+        (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment"),
         (url = "https://router.juspay.io", description = "Production Environment")
     ),
     paths(
@@ -53,6 +53,11 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::refunds::RefundResponse,
         crate::types::api::refunds::RefundStatus,
         crate::types::api::admin::CreateMerchantAccount,
+        crate::types::api::admin::DeleteResponse,
+        crate::types::api::admin::DeleteMcaResponse,
+        crate::types::api::customers::CustomerRequest,
+        crate::types::api::customers::CustomerDeleteResponse,
+        api_models::customers::CustomerResponse,
         api_models::enums::RoutingAlgorithm,
         api_models::enums::PaymentMethodType,
         api_models::enums::PaymentMethodSubType,
