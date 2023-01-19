@@ -4,8 +4,10 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
+use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{consumer, metrics, process_data, workflows};
@@ -259,7 +261,8 @@ pub async fn consumer_operation_handler<E>(
     let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
     logger::debug!("Time taken to execute consumer_operation: {}s", duration);
 
-    consumer_operation_counter.fetch_sub(1, atomic::Ordering::Relaxed);
+    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::Relaxed);
+    logger::info!("Current tasks being executed: {}", current_count);
 }
 
 pub fn runner_from_task(
@@ -354,4 +357,25 @@ where
         Ok(())
     };
     result
+}
+
+pub(crate) async fn signal_handler(
+    mut sig: signal_hook_tokio::Signals,
+    sender: oneshot::Sender<()>,
+) {
+    while let Some(signal) = sig.next().await {
+        logger::debug!("Requested a force shutdown");
+        match signal {
+            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
+                Ok(_) => {}
+                Err(_) => {
+                    logger::error!(
+                        "The receiver is closed, a termination call might already be sent"
+                    )
+                }
+            },
+            _ => {}
+        }
+        break;
+    }
 }

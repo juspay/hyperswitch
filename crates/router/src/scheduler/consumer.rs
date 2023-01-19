@@ -5,11 +5,12 @@ use std::{
     sync::{self, atomic},
 };
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{
@@ -20,7 +21,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    logger::{error, info},
+    logger::{self, error, info},
     routes::AppState,
     scheduler::utils as pt_utils,
     types::storage::{self, enums, ProcessTrackerExt},
@@ -48,10 +49,24 @@ pub async fn start_consumer(
         tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
+    let signal = signal_hook_tokio::Signals::new(&[
+        signal_hook::consts::SIGTERM,
+        signal_hook::consts::SIGINT,
+    ])
+    .map_err(|error| {
+        logger::error!("Signal Handler Error: {:?}", error);
+        errors::ProcessTrackerError::ConfigurationError
+    })
+    .into_report()
+    .attach_printable("Failed while creating a signals handler")?;
+    let (sx, mut rx) = oneshot::channel();
+    let handle = signal.handle();
+    let task_handle = tokio::spawn(pt_utils::signal_handler(signal, sx));
+    let mut is_ready = options.readiness.is_ready;
+
     loop {
         interval.tick().await;
 
-        let is_ready = options.readiness.is_ready;
         if is_ready {
             tokio::task::spawn(pt_utils::consumer_operation_handler(
                 state.clone(),
@@ -62,6 +77,13 @@ pub async fn start_consumer(
                 },
                 sync::Arc::clone(&consumer_operation_counter),
             ));
+
+            match rx.try_recv() {
+                Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+                    is_ready = false;
+                }
+                Err(oneshot::error::TryRecvError::Empty) => {}
+            }
         } else {
             tokio::time::interval(Duration::from_millis(
                 options.readiness.graceful_termination_duration.milliseconds,
@@ -79,6 +101,11 @@ pub async fn start_consumer(
             }
         }
     }
+    handle.close();
+    task_handle
+        .await
+        .into_report()
+        .change_context(errors::ProcessTrackerError::UnexpectedFlow)?;
 
     Ok(())
 }
@@ -106,6 +133,7 @@ pub async fn consumer_operations(
         .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
         .await?;
 
+    logger::info!("{} picked {} tasks", consumer_name, tasks.len());
     let mut handler = vec![];
 
     for task in tasks.iter_mut() {
