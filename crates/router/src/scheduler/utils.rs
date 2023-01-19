@@ -250,7 +250,7 @@ pub async fn consumer_operation_handler<E>(
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
 {
-    consumer_operation_counter.fetch_add(1, atomic::Ordering::Relaxed);
+    consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
 
     match consumer::consumer_operations(&state, &options, &settings).await {
@@ -261,7 +261,7 @@ pub async fn consumer_operation_handler<E>(
     let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
     logger::debug!("Time taken to execute consumer_operation: {}s", duration);
 
-    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::Relaxed);
+    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::Release);
     logger::info!("Current tasks being executed: {}", current_count);
 }
 
@@ -364,10 +364,15 @@ pub(crate) async fn signal_handler(
     sender: oneshot::Sender<()>,
 ) {
     if let Some(signal) = sig.next().await {
-        logger::debug!("Requested a force shutdown");
+        logger::debug!(
+            "Received singal: {:?}",
+            signal_hook::low_level::signal_name(signal)
+        );
         match signal {
             signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
-                Ok(_) => {}
+                Ok(_) => {
+                    logger::debug!("Request for force shutdown received")
+                }
                 Err(_) => {
                     logger::error!(
                         "The receiver is closed, a termination call might already be sent"

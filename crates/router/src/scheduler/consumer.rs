@@ -48,6 +48,10 @@ pub async fn start_consumer(
     let mut interval =
         tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
 
+    let mut shutdown_interval = tokio::time::interval(Duration::from_millis(
+        options.readiness.graceful_termination_duration.milliseconds,
+    ));
+
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = signal_hook_tokio::Signals::new([
         signal_hook::consts::SIGTERM,
@@ -62,42 +66,33 @@ pub async fn start_consumer(
     let (sx, mut rx) = oneshot::channel();
     let handle = signal.handle();
     let task_handle = tokio::spawn(pt_utils::signal_handler(signal, sx));
-    let mut is_ready = options.readiness.is_ready;
 
     loop {
-        interval.tick().await;
-
-        if is_ready {
-            tokio::task::spawn(pt_utils::consumer_operation_handler(
-                state.clone(),
-                options.clone(),
-                settings.clone(),
-                |err| {
-                    error!(%err);
-                },
-                sync::Arc::clone(&consumer_operation_counter),
-            ));
-
-            match rx.try_recv() {
-                Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
-                    is_ready = false;
-                }
-                Err(oneshot::error::TryRecvError::Empty) => {}
+        match rx.try_recv() {
+            Err(oneshot::error::TryRecvError::Empty) => {
+                interval.tick().await;
+                tokio::task::spawn(pt_utils::consumer_operation_handler(
+                    state.clone(),
+                    options.clone(),
+                    settings.clone(),
+                    |err| {
+                        error!(%err);
+                    },
+                    sync::Arc::clone(&consumer_operation_counter),
+                ));
             }
-        } else {
-            tokio::time::interval(Duration::from_millis(
-                options.readiness.graceful_termination_duration.milliseconds,
-            ))
-            .tick()
-            .await;
-            let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
+            Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+                logger::debug!("Awaiting shutdown!");
+                shutdown_interval.tick().await;
+                let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
 
-            match active_tasks {
-                0 => {
-                    info!("Terminating consumer");
-                    break;
+                match active_tasks {
+                    0 => {
+                        info!("Terminating consumer");
+                        break;
+                    }
+                    _ => continue,
                 }
-                _ => continue,
             }
         }
     }
