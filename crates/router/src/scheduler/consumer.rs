@@ -21,7 +21,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    logger::{self, error, info},
+    logger,
     routes::AppState,
     scheduler::utils as pt_utils,
     types::storage::{self, enums, ProcessTrackerExt},
@@ -76,7 +76,7 @@ pub async fn start_consumer(
                     options.clone(),
                     settings.clone(),
                     |err| {
-                        error!(%err);
+                        logger::error!(%err);
                     },
                     sync::Arc::clone(&consumer_operation_counter),
                 ));
@@ -88,7 +88,7 @@ pub async fn start_consumer(
 
                 match active_tasks {
                     0 => {
-                        info!("Terminating consumer");
+                        logger::info!("Terminating consumer");
                         break;
                     }
                     _ => continue,
@@ -120,7 +120,7 @@ pub async fn consumer_operations(
         .consumer_group_create(&stream_name, &group_name, &RedisEntryId::AfterLastID)
         .await;
     if group_created.is_err() {
-        info!("Consumer group already exists");
+        logger::info!("Consumer group already exists");
     }
 
     let mut tasks = state
@@ -213,14 +213,14 @@ pub async fn run_executor<'a>(
         Err(error) => match operation.error_handler(state, process.clone(), error).await {
             Ok(_) => (),
             Err(error) => {
-                error!("Failed while handling error");
-                error!(%error);
+                logger::error!("Failed while handling error");
+                logger::error!(%error);
                 let status = process
                     .finish_with_status(&*state.store, "GLOBAL_FAILURE".to_string())
                     .await;
                 if let Err(err) = status {
-                    error!("Failed while performing database operation: GLOBAL_FAILURE");
-                    error!(%err)
+                    logger::error!("Failed while performing database operation: GLOBAL_FAILURE");
+                    logger::error!(%err)
                 }
             }
         },
@@ -234,9 +234,9 @@ pub async fn some_error_handler<E: fmt::Display>(
     process: storage::ProcessTracker,
     error: E,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    error!(%process.id, "Failed while executing workflow");
-    error!(%error);
-    error!(
+    logger::error!(%process.id, "Failed while executing workflow");
+    logger::error!(%error);
+    logger::error!(
         pt.name = ?process.name,
         pt.id = %process.id,
         "Some error occurred"

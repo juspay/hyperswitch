@@ -364,14 +364,14 @@ pub(crate) async fn signal_handler(
     sender: oneshot::Sender<()>,
 ) {
     if let Some(signal) = sig.next().await {
-        logger::debug!(
+        logger::info!(
             "Received signal: {:?}",
             signal_hook::low_level::signal_name(signal)
         );
         match signal {
             signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
                 Ok(_) => {
-                    logger::debug!("Request for force shutdown received")
+                    logger::info!("Request for force shutdown received")
                 }
                 Err(_) => {
                     logger::error!(
