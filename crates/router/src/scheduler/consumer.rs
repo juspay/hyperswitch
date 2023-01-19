@@ -213,14 +213,12 @@ pub async fn run_executor<'a>(
         Err(error) => match operation.error_handler(state, process.clone(), error).await {
             Ok(_) => (),
             Err(error) => {
-                logger::error!("Failed while handling error");
-                logger::error!(%error);
+                logger::error!(%error, "Failed while handling error");
                 let status = process
                     .finish_with_status(&*state.store, "GLOBAL_FAILURE".to_string())
                     .await;
                 if let Err(err) = status {
-                    logger::error!("Failed while performing database operation: GLOBAL_FAILURE");
-                    logger::error!(%err)
+                    logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
                 }
             }
         },
@@ -234,13 +232,7 @@ pub async fn some_error_handler<E: fmt::Display>(
     process: storage::ProcessTracker,
     error: E,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    logger::error!(%process.id, "Failed while executing workflow");
-    logger::error!(%error);
-    logger::error!(
-        pt.name = ?process.name,
-        pt.id = %process.id,
-        "Some error occurred"
-    );
+    logger::error!(pt.name = ?process.name, pt.id = %process.id, %error, "Failed while executing workflow");
 
     let db: &dyn StorageInterface = &*state.store;
     db.process_tracker_update_process_status_by_ids(
