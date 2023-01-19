@@ -502,9 +502,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             refund: PayuRefundRequestData {
-                description: item.description.clone().ok_or(
+                description: item.request.reason.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "item.description".to_string(),
+                        field_name: "item.request.reason".to_string(),
                     },
                 )?,
                 amount: None,
