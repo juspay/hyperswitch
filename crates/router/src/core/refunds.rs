@@ -12,7 +12,7 @@ use crate::{
     db, logger,
     routes::AppState,
     scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
-    services,
+    services::{self, add_access_token},
     types::{
         self,
         api::{self, refunds},
@@ -114,7 +114,7 @@ pub async fn trigger_refund_to_gateway(
 
     validator::validate_for_valid_refunds(payment_attempt)?;
 
-    let router_data = core_utils::construct_refund_router_data(
+    let mut router_data = core_utils::construct_refund_router_data(
         state,
         &connector_id,
         merchant_account,
@@ -125,23 +125,37 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    logger::debug!(?router_data);
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        api::Execute,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > = connector.connector.get_connector_integration();
-    let router_data = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .map_err(|error| error.to_refund_failed_response())?;
+    let (access_token_result, connector_supports_access_token) =
+        add_access_token(state, &connector, merchant_account, &router_data).await?;
 
-    let refund_update = match router_data.response {
+    logger::debug!(refund_router_data=?router_data);
+
+    match access_token_result {
+        Ok(access_token) => router_data.access_token = access_token,
+        Err(connector_error) => router_data.response = Err(connector_error),
+    }
+
+    let router_data_res =
+        if !(connector_supports_access_token && router_data.access_token.is_none()) {
+            let connector_integration: services::BoxedConnectorIntegration<
+                '_,
+                api::Execute,
+                types::RefundsData,
+                types::RefundsResponseData,
+            > = connector.connector.get_connector_integration();
+            services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+            )
+            .await
+            .map_err(|error| error.to_refund_failed_response())?
+        } else {
+            router_data.clone()
+        };
+
+    let refund_update = match router_data_res.response {
         Err(err) => storage::RefundUpdate::ErrorUpdate {
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: Some(err.message),
