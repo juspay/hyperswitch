@@ -161,6 +161,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
+    let connector = router_data.connector.clone();
     let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -277,8 +278,9 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
     router_data.response.map_err(|error_response| {
         errors::ApiErrorResponse::ExternalConnectorError {
-            message: error_response.message,
-            status_code: 500,
+            message: format!("{}: {}", error_response.code, error_response.message),
+            status_code: error_response.status_code,
+            connector,
         }
     })?;
 
