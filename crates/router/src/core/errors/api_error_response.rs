@@ -11,6 +11,7 @@ pub enum ErrorType {
     ServerNotAvailable,
     DuplicateRequest,
     ValidationError,
+    ConnectorError,
 }
 
 #[allow(dead_code)]
@@ -72,7 +73,12 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid JWT token was used"
     )]
     InvalidJwtToken,
-
+    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{message}", ignore = "status_code")]
+    ExternalConnectorError {
+        message: String,
+        connector: String,
+        status_code: u16,
+    },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed during authorization with connector. Retry payment")]
     PaymentAuthorizationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_02", message = "Payment failed during authentication with connector. Retry payment")]
@@ -152,6 +158,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::Unauthorized | Self::InvalidEphemeralKey | Self::InvalidJwtToken => {
                 StatusCode::UNAUTHORIZED
             } // 401
+            Self::ExternalConnectorError { status_code, .. } => {
+                StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            }
             Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {

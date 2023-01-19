@@ -4,7 +4,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use storage_models::enums;
 use transformers as worldpay;
@@ -73,12 +72,14 @@ impl ConnectorCommon for Worldpay {
 
     fn build_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: WorldpayErrorResponse = res
+            .response
             .parse_struct("WorldpayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.error_name,
             message: response.message,
             reason: None,
@@ -172,7 +173,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -228,7 +229,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -332,7 +333,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -421,7 +422,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -510,7 +511,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -576,7 +577,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
