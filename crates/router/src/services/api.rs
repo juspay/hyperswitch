@@ -583,13 +583,6 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
     }
 }
 
-pub async fn refresh_connector_access_token(
-    _state: &AppState,
-    _connector_name: String,
-) -> CustomResult<String, errors::ConnectorError> {
-    Ok(String::new())
-}
-
 #[cfg(test)]
 mod tests {
     #[test]
