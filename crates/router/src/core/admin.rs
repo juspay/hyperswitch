@@ -406,8 +406,8 @@ pub async fn update_payment_connector(
         merchant_connector_id: Some(merchant_connector_id),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
-        test_mode: req.test_mode.or(mca.test_mode),
-        disabled: req.disabled.or(mca.disabled),
+        test_mode: req.test_mode,
+        disabled: req.disabled,
         metadata: req.metadata,
     };
 
