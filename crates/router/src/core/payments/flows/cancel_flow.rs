@@ -58,10 +58,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         state: &AppState,
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<(
-        Result<Option<types::AccessToken>, types::ErrorResponse>,
-        bool,
-    )> {
+    ) -> RouterResult<types::AddAccessTokenResult> {
         services::add_access_token(state, connector, merchant_account, self).await
     }
 }

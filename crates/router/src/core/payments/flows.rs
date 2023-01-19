@@ -44,10 +44,7 @@ pub trait Feature<F, T> {
         state: &AppState,
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<(
-        Result<Option<types::AccessToken>, types::ErrorResponse>,
-        bool,
-    )>
+    ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
         Self: Sized,

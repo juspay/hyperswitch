@@ -344,29 +344,30 @@ where
         .construct_router_data(state, connector.connector.id(), merchant_account)
         .await?;
 
-    let (access_token_result, connector_supports_access_token) = router_data
+    let add_access_token_result = router_data
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    match access_token_result {
+    match add_access_token_result.access_token_result {
         Ok(access_token) => router_data.access_token = access_token,
         Err(connector_error) => router_data.response = Err(connector_error),
     }
 
-    let router_data_res =
-        if !(connector_supports_access_token && router_data.access_token.is_none()) {
-            router_data
-                .decide_flows(
-                    state,
-                    &connector,
-                    customer,
-                    call_connector_action,
-                    merchant_account,
-                )
-                .await
-        } else {
-            Ok(router_data)
-        };
+    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+        && router_data.access_token.is_none())
+    {
+        router_data
+            .decide_flows(
+                state,
+                &connector,
+                customer,
+                call_connector_action,
+                merchant_account,
+            )
+            .await
+    } else {
+        Ok(router_data)
+    };
 
     let response = router_data_res
         .async_and_then(|response| async {

@@ -161,6 +161,11 @@ pub struct AccessTokenRequestData {
     // Add more keys if required
 }
 
+pub struct AddAccessTokenResult {
+    pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
+    pub connector_supports_access_token: bool,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: String,

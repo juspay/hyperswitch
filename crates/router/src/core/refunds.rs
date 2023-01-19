@@ -125,35 +125,36 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let (access_token_result, connector_supports_access_token) =
+    let add_access_token_result =
         add_access_token(state, &connector, merchant_account, &router_data).await?;
 
     logger::debug!(refund_router_data=?router_data);
 
-    match access_token_result {
+    match add_access_token_result.access_token_result {
         Ok(access_token) => router_data.access_token = access_token,
         Err(connector_error) => router_data.response = Err(connector_error),
     }
 
-    let router_data_res =
-        if !(connector_supports_access_token && router_data.access_token.is_none()) {
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
-                api::Execute,
-                types::RefundsData,
-                types::RefundsResponseData,
-            > = connector.connector.get_connector_integration();
-            services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &router_data,
-                payments::CallConnectorAction::Trigger,
-            )
-            .await
-            .map_err(|error| error.to_refund_failed_response())?
-        } else {
-            router_data.clone()
-        };
+    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+        && router_data.access_token.is_none())
+    {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Execute,
+            types::RefundsData,
+            types::RefundsResponseData,
+        > = connector.connector.get_connector_integration();
+        services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_refund_failed_response())?
+    } else {
+        router_data.clone()
+    };
 
     let refund_update = match router_data_res.response {
         Err(err) => storage::RefundUpdate::ErrorUpdate {
