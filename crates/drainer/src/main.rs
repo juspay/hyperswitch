@@ -1,10 +1,9 @@
 use drainer::{errors::DrainerResult, services, settings, start_drainer};
-use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
     // Get configuration
-    let cmd_line = settings::CmdLineConf::from_args();
+    let cmd_line = <settings::CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
     let conf = settings::Settings::with_config_path(cmd_line.config_path)
