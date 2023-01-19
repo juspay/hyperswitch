@@ -92,7 +92,7 @@ pub async fn add_access_token<
                     //Store the access token in db
                     let db = &*state.store;
                     // This error should not be propagated, we don't want payments to fail once we have
-                    // the access token
+                    // the access token, the next request will create new access token
                     let _ = db
                         .set_access_token(
                             merchant_id,
