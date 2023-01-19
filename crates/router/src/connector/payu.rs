@@ -30,13 +30,22 @@ where
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![(
+        let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-        )])
+        )];
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_header = (headers::AUTHORIZATION.to_string(), format!("Bearer {}", access_token.token));
+
+        headers.push(auth_header);
+        Ok(headers)
     }
 }
 
@@ -449,16 +458,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = self.build_headers(req, connectors)?;
-        let access_token = req
-            .access_token
-            .clone()
-            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let auth_header = (headers::AUTHORIZATION.to_string(), access_token.token);
-
-        headers.push(auth_header);
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -544,16 +544,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = self.build_headers(req, connectors)?;
-        let access_token = req
-            .access_token
-            .clone()
-            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let auth_header = (headers::AUTHORIZATION.to_string(), access_token.token);
-
-        headers.push(auth_header);
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -634,16 +625,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut headers = self.build_headers(req, connectors)?;
-        let access_token = req
-            .access_token
-            .clone()
-            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let auth_header = (headers::AUTHORIZATION.to_string(), access_token.token);
-
-        headers.push(auth_header);
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {

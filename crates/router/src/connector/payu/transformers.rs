@@ -306,7 +306,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::AccessToken {
-                token: format!("Bearer {}", item.response.access_token),
+                token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
             ..item.data
