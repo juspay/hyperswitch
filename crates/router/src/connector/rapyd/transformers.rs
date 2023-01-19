@@ -34,7 +34,7 @@ pub struct PaymentMethod {
     #[serde(rename = "type")]
     pub pm_type: String,
     pub fields: Option<PaymentFields>,
-    pub address: Option<String>,
+    pub address: Option<Address>,
     pub digital_wallet: Option<RapydWallet>,
 }
 
@@ -45,6 +45,19 @@ pub struct PaymentFields {
     pub expiration_year: Secret<String>,
     pub name: Secret<String>,
     pub cvv: Secret<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct Address {
+    name: String,
+    line_1: String,
+    line_2: Option<String>,
+    line_3: Option<String>,
+    city: Option<String>,
+    state: Option<String>,
+    country: Option<String>,
+    zip: Option<String>,
+    phone_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
