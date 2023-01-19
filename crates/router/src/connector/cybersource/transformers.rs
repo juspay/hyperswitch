@@ -306,6 +306,7 @@ impl<F, T>
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: error.message,
                     reason: Some(error.reason),
+                    status_code: item.http_code,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
