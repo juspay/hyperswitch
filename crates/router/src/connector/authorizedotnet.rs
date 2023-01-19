@@ -3,7 +3,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as authorizedotnet;
 
@@ -160,7 +159,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         get_error_response(res)
     }
@@ -263,7 +262,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(authorizedotnetpayments_create_error_response=?res);
         get_error_response(res)
@@ -356,7 +355,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         get_error_response(res)
     }
@@ -452,7 +451,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         get_error_response(res)
     }
@@ -541,7 +540,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         get_error_response(res)
     }
@@ -574,8 +573,13 @@ impl api::IncomingWebhook for Authorizedotnet {
 impl services::ConnectorRedirectResponse for Authorizedotnet {}
 
 #[inline]
-fn get_error_response(bytes: Bytes) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-    let response: authorizedotnet::AuthorizedotnetPaymentsResponse = bytes
+fn get_error_response(
+    types::Response {
+        response,
+        status_code,
+    }: types::Response,
+) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    let response: authorizedotnet::AuthorizedotnetPaymentsResponse = response
         .parse_struct("AuthorizedotnetPaymentsResponse")
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -589,11 +593,13 @@ fn get_error_response(bytes: Bytes) -> CustomResult<types::ErrorResponse, errors
                 code: error.error_code,
                 message: error.error_text,
                 reason: None,
+                status_code,
             })
         })
         .unwrap_or_else(|| types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
+            status_code,
         }))
 }

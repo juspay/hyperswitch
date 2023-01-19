@@ -1,10 +1,15 @@
 mod client;
 pub(crate) mod request;
 
-use std::{collections::HashMap, fmt::Debug, future::Future, str, time::Instant};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    future::Future,
+    str,
+    time::{Duration, Instant},
+};
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
-use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing, Tag};
@@ -101,7 +106,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse::get_not_implemented())
     }
@@ -164,8 +169,7 @@ where
                             let response = match body {
                                 Ok(body) => connector_integration.handle_response(req, body)?,
                                 Err(body) => {
-                                    let error =
-                                        connector_integration.get_error_response(body.response)?;
+                                    let error = connector_integration.get_error_response(body)?;
                                     router_data.response = Err(error);
 
                                     router_data
@@ -210,17 +214,16 @@ async fn send_request(
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
-        crate::consts::REQUEST_TIME_OUT,
         request.certificate,
         request.certificate_key,
     )?;
     let headers = request.headers.construct_header_map()?;
     match request.method {
-        Method::Get => client.get(url).add_headers(headers).send().await,
+        Method::Get => client.get(url),
         Method::Post => {
-            let client = client.post(url).add_headers(headers);
+            let client = client.post(url);
             match request.content_type {
-                Some(ContentType::Json) => client.json(&request.payload).send(),
+                Some(ContentType::Json) => client.json(&request.payload),
 
                 // Currently this is not used remove this if not required
                 // If using this then handle the serde_part
@@ -236,26 +239,24 @@ async fn send_request(
                         })?;
 
                     logger::debug!(?url_encoded_payload);
-                    client.body(url_encoded_payload).send()
+                    client.body(url_encoded_payload)
                 }
                 // If payload needs processing the body cannot have default
-                None => client
-                    .body(request.payload.expose_option().unwrap_or_default())
-                    .send(),
+                None => client.body(request.payload.expose_option().unwrap_or_default()),
             }
-            .await
         }
 
         Method::Put => {
             client
                 .put(url)
-                .add_headers(headers)
                 .body(request.payload.expose_option().unwrap_or_default()) // If payload needs processing the body cannot have default
-                .send()
-                .await
         }
-        Method::Delete => client.delete(url).add_headers(headers).send().await,
+        Method::Delete => client.delete(url),
     }
+    .add_headers(headers)
+    .timeout(Duration::from_secs(crate::consts::REQUEST_TIME_OUT))
+    .send()
+    .await
     .map_err(|error| match error {
         error if error.is_timeout() => errors::ApiClientError::RequestTimeoutReceived,
         _ => errors::ApiClientError::RequestNotSent(error.to_string()),

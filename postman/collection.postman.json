@@ -8342,7 +8342,7 @@
   "variable": [
     {
       "type": "string",
-      "value": "https://sandbox-router.juspay.io",
+      "value": "https://sandbox.hyperswitch.io",
       "key": "baseUrl"
     }
   ],
@@ -8351,7 +8351,7 @@
     "name": "Juspay Router - API Documentation",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "## Get started\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes</a>.\nYou can consume the APIs directly using your favorite HTTP/REST library.\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n### Base URLs\nUse the following base URLs when making requests to the APIs:\n\n  | Environment   |      Base URL                                        |\n  |---------------|------------------------------------------------------|\n  | Sandbox       | <https://sandbox-router.juspay.io>                   |\n  | Production    | <https://router.juspay.io>                           |\n\n# Authentication\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.\nNever share your secret api keys. Keep them guarded and secure.\n\n\nContact Support:\n Name: Juspay Support\n Email: support@juspay.in",
+      "content": "## Get started\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes</a>.\nYou can consume the APIs directly using your favorite HTTP/REST library.\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n### Base URLs\nUse the following base URLs when making requests to the APIs:\n\n  | Environment   |      Base URL                                        |\n  |---------------|------------------------------------------------------|\n  | Sandbox       | <https://sandbox.hyperswitch.io>                   |\n  | Production    | <https://router.juspay.io>                           |\n\n# Authentication\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.\nNever share your secret api keys. Keep them guarded and secure.\n\n\nContact Support:\n Name: Juspay Support\n Email: support@juspay.in",
       "type": "text/plain"
     }
   }

@@ -279,6 +279,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
                         code: item.response.status.error_code,
+                        status_code: item.http_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
                     }),
@@ -288,6 +289,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -296,6 +298,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -457,6 +460,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                         code: item.response.status.error_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
+                        status_code: item.http_code,
                     }),
                 ),
             },
@@ -466,6 +470,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     code: item.response.status.error_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
+                    status_code: item.http_code,
                 }),
             ),
             _ => (
@@ -474,6 +479,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     code: item.response.status.error_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
+                    status_code: item.http_code,
                 }),
             ),
         };
@@ -509,6 +515,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
                         code: item.response.status.error_code,
+                        status_code: item.http_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
                     }),
@@ -518,6 +525,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -526,6 +534,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
