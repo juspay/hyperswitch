@@ -247,12 +247,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(cybersourcepayments_create_response=?response);
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            true,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
@@ -328,12 +330,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(cybersourcepayments_create_response=?response);
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
+        let is_auto_capture =
+            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_auto_capture,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
@@ -412,12 +418,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(cybersourcepayments_create_response=?response);
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
+        let is_auto_capture =
+            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_auto_capture,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -489,12 +499,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(cybersourcepayments_create_response=?response);
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            false,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -641,7 +653,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourceTransactionResponse = res
             .response
-            .parse_struct("Cybersource PaymentSyncResponse")
+            .parse_struct("Cybersource RefundsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(cybersourcepayments_create_response=?response);
         types::ResponseRouterData {
