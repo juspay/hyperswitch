@@ -11,6 +11,7 @@ pub enum ErrorType {
     ServerNotAvailable,
     DuplicateRequest,
     ValidationError,
+    ConnectorError,
 }
 
 #[allow(dead_code)]
@@ -134,6 +135,12 @@ pub enum ApiErrorResponse {
     MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon.")]
     NotImplemented,
+    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{message}", ignore = "status_code")]
+    ExternalConnectorError {
+        message: String,
+        connector: String,
+        status_code: u16,
+    },
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -154,6 +161,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::Unauthorized | Self::InvalidEphermeralKey | Self::InvalidJwtToken => {
                 StatusCode::UNAUTHORIZED
             } // 401
+            Self::ExternalConnectorError { status_code, .. } => {
+                StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            }
             Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {

@@ -25,7 +25,7 @@ Use the following base URLs when making requests to the APIs:
 
 | Environment   |  Base URL                                            |
 |---------------|------------------------------------------------------|
-| Sandbox       | <https://sandbox-router.juspay.io>                   |
+| Sandbox       | <https://sandbox.hyperswitch.io>                   |
 | Production    | <https://router.juspay.io>                           |
 
 ## Authentication
@@ -39,7 +39,7 @@ Never share your secret api keys. Keep them guarded and secure.
 "#,
     ),
     servers(
-        (url = "https://sandbox-router.juspay.io", description = "Sandbox Environment"),
+        (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment"),
         (url = "https://router.juspay.io", description = "Production Environment")
     ),
     paths(
@@ -54,6 +54,11 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::refunds::RefundStatus,
         crate::types::api::refunds::RefundUpdateRequest,
         crate::types::api::admin::CreateMerchantAccount,
+        crate::types::api::admin::DeleteResponse,
+        crate::types::api::admin::DeleteMcaResponse,
+        crate::types::api::customers::CustomerRequest,
+        crate::types::api::customers::CustomerDeleteResponse,
+        api_models::customers::CustomerResponse,
         api_models::enums::RoutingAlgorithm,
         api_models::enums::PaymentMethodType,
         api_models::enums::PaymentMethodSubType,
@@ -66,6 +71,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::WalletIssuer,
         api_models::enums::Connector,
         api_models::enums::PaymentMethodType,
+        api_models::enums::SupportedWallets,
         api_models::admin::PaymentConnectorCreate,
         api_models::admin::PaymentMethods,
         api_models::payments::AddressDetails,
@@ -90,6 +96,23 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsResponse,
         api_models::payment_methods::PaymentExperience,
+        api_models::payments::PaymentsStartRequest,
+        api_models::payments::PaymentRetrieveBody,
+        api_models::payments::PaymentsRetrieveRequest,
+        api_models::payments::PaymentIdType,
+        api_models::payments::PaymentsCaptureRequest,
+        api_models::payments::PaymentsSessionRequest,
+        api_models::payments::PaymentsSessionResponse,
+        api_models::payments::SessionToken,
+        api_models::payments::GpayMerchantInfo,
+        api_models::payments::GpayAllowedPaymentMethods,
+        api_models::payments::GpayAllowedMethodsParameters,
+        api_models::payments::GpayTokenizationSpecification,
+        api_models::payments::GpayTokenParameters,
+        api_models::payments::GpayTransactionInfo,
+        api_models::payments::PaymentsCancelRequest,
+        api_models::payments::PaymentListConstraints,
+        api_models::payments::PaymentListResponse,
         api_models::refunds::RefundListRequest,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,

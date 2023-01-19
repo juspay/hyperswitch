@@ -3,7 +3,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use bytes::Bytes;
 use error_stack::ResultExt;
 use ring::hmac;
 use time::OffsetDateTime;
@@ -200,9 +199,10 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: fiserv::ErrorResponse = res
+            .response
             .parse_struct("Fiserv ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -223,6 +223,7 @@ impl
         };
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message,
             reason: None,
@@ -347,9 +348,10 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: fiserv::ErrorResponse = res
+            .response
             .parse_struct("Fiserv ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -369,6 +371,7 @@ impl
             (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message,
             reason: None,
