@@ -82,22 +82,30 @@ async fn should_authorize_and_capture_payment() {
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Fiserv {};
-    let authorize_response = connector.authorize_payment(Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethod::Card(api::CCard {
-            card_number: Secret::new("4005550000000019".to_string()),
-            card_exp_month: Secret::new("02".to_string()),
-            card_exp_year: Secret::new("2035".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
-            card_cvc: Secret::new("123".to_string()),
-        }),
-        capture_method: Some(storage_models::enums::CaptureMethod::Manual),
-        ..utils::PaymentAuthorizeType::default().0
-    }), None).await;
+    let authorize_response = connector
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("4005550000000019".to_string()),
+                    card_exp_month: Secret::new("02".to_string()),
+                    card_exp_year: Secret::new("2035".to_string()),
+                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_cvc: Secret::new("123".to_string()),
+                }),
+                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await;
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
-            connector.capture_payment(transaction_id, None, None).await.status
+            connector
+                .capture_payment(transaction_id, None, None)
+                .await
+                .status
         })
         .into();
     assert_eq!(response.await, Some(enums::AttemptStatus::Charged));
@@ -105,22 +113,23 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 async fn should_fail_payment_for_missing_cvc() {
-    let response = Fiserv {}.make_payment(Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethod::Card(api::CCard {
-            card_number: Secret::new("4005550000000019".to_string()),
-            card_exp_month: Secret::new("02".to_string()),
-            card_exp_year: Secret::new("2035".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
-            card_cvc: Secret::new("".to_string()),
-        }),
-        ..utils::PaymentAuthorizeType::default().0
-    }), None)
+    let response = Fiserv {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                    card_number: Secret::new("4005550000000019".to_string()),
+                    card_exp_month: Secret::new("02".to_string()),
+                    card_exp_year: Secret::new("2035".to_string()),
+                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_cvc: Secret::new("".to_string()),
+                }),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
         .await;
     let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "Invalid or Missing Field Data".to_string(),
-    );
+    assert_eq!(x.message, "Invalid or Missing Field Data".to_string(),);
 }
 
 #[ignore]
@@ -139,4 +148,3 @@ async fn should_refund_succeeded_payment() {
         );
     }
 }
-
