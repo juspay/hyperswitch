@@ -36,7 +36,7 @@ impl ConnectorAccessToken for Store {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
-        let key = format!("{}_{}", merchant_id, connector_name);
+        let key = format!("{merchant_id}_{connector_name}");
         let maybe_token = self
             .redis_conn
             .get_key::<Option<Vec<u8>>>(&key)
@@ -60,7 +60,7 @@ impl ConnectorAccessToken for Store {
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         let conn = self.redis_conn.clone();
-        let key = format!("{}_{}", merchant_id, connector_name);
+        let key = format!("{merchant_id}_{connector_name}");
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
