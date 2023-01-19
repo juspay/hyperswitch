@@ -347,6 +347,8 @@ Once you're done with configuring the application, proceed with
 
    - Pay special attention to the `connector_name` and
      `connector_account_details` fields and update them.
+     You can find connector-specific details to be included in this
+     [spreadsheet][connector-specific-details].
 
    Click on the "Send" button to create a payment connector account.
    You should obtain a response containing most of the data included in the
@@ -407,3 +409,4 @@ To explore more of our APIs, please check the remaining folders in the
 [payments-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-11995c9b-8a34-4afd-a6ce-e8645693929b
 [refunds-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-5b15d068-db9e-48a5-9ee9-3a70c0aac944
 [refunds-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-c50c32af-5ceb-4ab6-aca7-85f6b32df9d3
+[connector-specific-details]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=748960791&single=true
