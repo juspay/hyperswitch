@@ -13,6 +13,13 @@ use crate::{
     types::{self, api as api_types, storage},
 };
 
+/// This function replaces the request and response type of routerdata with the
+/// request and response type passed
+/// # Arguments
+///
+/// * `router_data` - original router data
+/// * `request` - new request
+/// * `response` - new response
 pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     router_data: types::RouterData<F1, Req1, Res1>,
     request: Req2,
