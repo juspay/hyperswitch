@@ -365,7 +365,7 @@ pub(crate) async fn signal_handler(
 ) {
     if let Some(signal) = sig.next().await {
         logger::debug!(
-            "Received singal: {:?}",
+            "Received signal: {:?}",
             signal_hook::low_level::signal_name(signal)
         );
         match signal {
