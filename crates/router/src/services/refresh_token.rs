@@ -60,8 +60,8 @@ pub async fn add_access_token<
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector.connector_name.supports_access_token() {
         let merchant_id = &merchant_account.merchant_id;
-        let db = &*state.store;
-        let old_access_token = db
+        let store = &*state.store;
+        let old_access_token = store
             .get_access_token(merchant_id, connector.connector.id())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -90,10 +90,10 @@ pub async fn add_access_token<
                 .await?
                 .async_map(|access_token| async {
                     //Store the access token in db
-                    let db = &*state.store;
+                    let store = &*state.store;
                     // This error should not be propagated, we don't want payments to fail once we have
                     // the access token, the next request will create new access token
-                    let _ = db
+                    let _ = store
                         .set_access_token(
                             merchant_id,
                             connector.connector.id(),
