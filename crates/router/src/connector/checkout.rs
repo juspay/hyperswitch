@@ -4,7 +4,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as checkout;
@@ -165,12 +164,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -262,12 +263,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -364,13 +367,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(checkout_error_response=?res);
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -463,12 +468,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -572,12 +579,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -671,12 +680,14 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
