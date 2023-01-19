@@ -32,7 +32,8 @@ pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 
-pub type RefreshTokenRouterData = RouterData<api::UpdateAuth, RefreshTokenRequestData, AccessToken>;
+pub type RefreshTokenRouterData =
+    RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -129,6 +130,7 @@ pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,10 +159,15 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct RefreshTokenRequestData {
+pub struct AccessTokenRequestData {
     pub app_id: String,
     pub id: Option<String>,
     // Add more keys if required
+}
+
+pub struct AddAccessTokenResult {
+    pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
+    pub connector_supports_access_token: bool,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -311,7 +318,7 @@ impl ErrorResponse {
     }
 }
 
-impl From<ConnectorAuthType> for RefreshTokenRequestData {
+impl From<ConnectorAuthType> for AccessTokenRequestData {
     fn from(connector_auth: ConnectorAuthType) -> Self {
         match connector_auth {
             ConnectorAuthType::HeaderKey { api_key } => Self {
@@ -327,7 +334,7 @@ impl From<ConnectorAuthType> for RefreshTokenRequestData {
                 id: Some(key1),
             },
             ConnectorAuthType::NoKey => Self {
-                app_id: "".to_string(),
+                app_id: String::new(),
                 id: None,
             },
         }

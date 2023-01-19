@@ -52,12 +52,12 @@ impl api::PaymentVoid for Braintree {}
 impl api::PaymentCapture for Braintree {}
 
 impl api::PaymentSession for Braintree {}
-impl api::ConnectorUpdateAuth for Braintree {}
+impl api::ConnectorAccessToken for Braintree {}
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Braintree
 {
@@ -163,7 +163,7 @@ impl
         logger::debug!(payment_session_response_braintree=?res);
         let response: braintree::BraintreeSessionTokenResponse = res
             .response
-            .parse_struct("braintree SessionTokenReponse")
+            .parse_struct("braintree SessionTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

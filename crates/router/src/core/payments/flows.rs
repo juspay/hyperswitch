@@ -39,15 +39,12 @@ pub trait Feature<F, T> {
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
-    async fn update_connector_auth<'a>(
+    async fn add_access_token<'a>(
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<(
-        Result<Option<types::AccessToken>, types::ErrorResponse>,
-        bool,
-    )>
+    ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
         Self: Sized,

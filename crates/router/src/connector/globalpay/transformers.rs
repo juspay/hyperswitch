@@ -16,7 +16,6 @@ use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
     core::errors,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -25,8 +24,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
         let metadata = item
             .connector_meta_data
             .to_owned()
-            .get_required_value("connector_meta_data")
-            .change_context(errors::ConnectorError::NoConnectorMetaData)?;
+            .ok_or_else(utils::missing_field_err("connector_meta"))?;
         let account_name = metadata
             .as_object()
             .and_then(|o| o.get("account_name"))

@@ -45,15 +45,6 @@ where
     }
 }
 
-pub trait AccessTokenRefresh {
-    fn get_headers(&self) -> CustomResult<Vec<(String, String)>, errors::ConnectorError>;
-    fn get_content_type(&self) -> &'static str;
-    fn get_url(&self) -> CustomResult<String, errors::ConnectorError>;
-    fn get_request_body(&self) -> CustomResult<Option<String>, errors::ConnectorError>;
-    fn build_request(&self) -> CustomResult<Option<Request>, errors::ConnectorError>;
-    fn handle_response_token(&self) -> CustomResult<String, errors::ConnectorError>;
-}
-
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
     fn get_headers(
         &self,
@@ -65,6 +56,11 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
+    }
+
+    /// primarily used when creating signature based on request method of payment flow
+    fn get_http_method(&self) -> Method {
+        Method::Post
     }
 
     fn get_url(
@@ -585,13 +581,6 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
             }
         }
     }
-}
-
-pub async fn refresh_connector_access_token(
-    _state: &AppState,
-    _connector_name: String,
-) -> CustomResult<String, errors::ConnectorError> {
-    Ok(String::new())
 }
 
 #[cfg(test)]

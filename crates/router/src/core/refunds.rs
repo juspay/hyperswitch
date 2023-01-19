@@ -12,7 +12,7 @@ use crate::{
     db, logger,
     routes::AppState,
     scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
-    services,
+    services::{self, add_access_token},
     types::{
         self,
         api::{self, refunds},
@@ -114,7 +114,7 @@ pub async fn trigger_refund_to_gateway(
 
     validator::validate_for_valid_refunds(payment_attempt)?;
 
-    let router_data = core_utils::construct_refund_router_data(
+    let mut router_data = core_utils::construct_refund_router_data(
         state,
         &connector_id,
         merchant_account,
@@ -125,23 +125,38 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    logger::debug!(?router_data);
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        api::Execute,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > = connector.connector.get_connector_integration();
-    let router_data = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .map_err(|error| error.to_refund_failed_response())?;
+    let add_access_token_result =
+        add_access_token(state, &connector, merchant_account, &router_data).await?;
 
-    let refund_update = match router_data.response {
+    logger::debug!(refund_router_data=?router_data);
+
+    match add_access_token_result.access_token_result {
+        Ok(access_token) => router_data.access_token = access_token,
+        Err(connector_error) => router_data.response = Err(connector_error),
+    }
+
+    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+        && router_data.access_token.is_none())
+    {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Execute,
+            types::RefundsData,
+            types::RefundsResponseData,
+        > = connector.connector.get_connector_integration();
+        services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_refund_failed_response())?
+    } else {
+        router_data.clone()
+    };
+
+    let refund_update = match router_data_res.response {
         Err(err) => storage::RefundUpdate::ErrorUpdate {
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: Some(err.message),
@@ -163,7 +178,13 @@ pub async fn trigger_refund_to_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating refund: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 
@@ -256,7 +277,7 @@ pub async fn sync_refund_with_gateway(
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
-    let router_data = core_utils::construct_refund_router_data::<api::RSync>(
+    let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
         state,
         &connector_id,
         merchant_account,
@@ -267,22 +288,38 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        api::RSync,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > = connector.connector.get_connector_integration();
-    let router_data = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-    )
-    .await
-    .map_err(|error| error.to_refund_failed_response())?;
+    let add_access_token_result =
+        add_access_token(state, &connector, merchant_account, &router_data).await?;
 
-    let refund_update = match router_data.response {
+    logger::debug!(refund_retrieve_router_data=?router_data);
+
+    match add_access_token_result.access_token_result {
+        Ok(access_token) => router_data.access_token = access_token,
+        Err(connector_error) => router_data.response = Err(connector_error),
+    }
+
+    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+        && router_data.access_token.is_none())
+    {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        > = connector.connector.get_connector_integration();
+        services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_refund_failed_response())?
+    } else {
+        router_data.clone()
+    };
+
+    let refund_update = match router_data_res.response {
         Err(error_message) => storage::RefundUpdate::ErrorUpdate {
             refund_status: None,
             refund_error_message: Some(error_message.message),
@@ -304,7 +341,13 @@ pub async fn sync_refund_with_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unable to update refund with refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 
@@ -335,7 +378,10 @@ pub async fn refund_update_core(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Unable to update refund with refund_id: {}", refund_id)
+        })?;
 
     Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
@@ -382,8 +428,13 @@ pub async fn validate_and_create_refund(
         merchant_account.storage_scheme,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?
-    {
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Unique violation while checking refund_id: {} against merchant_id: {}",
+            refund_id, merchant_account.merchant_id
+        )
+    })? {
         Some(refund) => refund,
         None => {
             let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
@@ -556,7 +607,8 @@ pub async fn schedule_refund_execution(
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_execute_task(db, &refund, runner)
                                 .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.refund_id))?;
 
                             Ok(refund)
                         }
@@ -579,7 +631,8 @@ pub async fn schedule_refund_execution(
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_sync_task(db, &refund, runner)
                                 .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.refund_id))?;
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
@@ -797,7 +850,13 @@ pub async fn add_refund_sync_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 
@@ -832,7 +891,13 @@ pub async fn add_refund_execute_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: refund_id: {}",
+                refund.refund_id
+            )
+        })?;
     Ok(response)
 }
 

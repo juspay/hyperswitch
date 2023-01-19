@@ -188,7 +188,7 @@ if [[ ! -x "`command -v psql`" ]] || [[ ! -x "`command -v redis-server`" ]] ; th
        install_dep postgresql-contrib # not needed for macos?
        install_dep postgresql-devel # needed for diesel_cli in some linux distributions
        install_dep postgresql-libs # needed for diesel_cli in some linux distributions 
-       init_start_postgres # installling libpq messes with initdb creating two copies. better to run it better libpq.
+       init_start_postgres # installing libpq messes with initdb creating two copies. better to run it better libpq.
        install_dep libpq-dev || install_dep libpq
     else
         print_info "Postgres found. skipping..."

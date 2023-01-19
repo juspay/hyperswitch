@@ -54,16 +54,13 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         .await
     }
 
-    async fn update_connector_auth<'a>(
+    async fn add_access_token<'a>(
         &self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<(
-        Result<Option<types::AccessToken>, types::ErrorResponse>,
-        bool,
-    )> {
-        services::update_connector_auth(state, connector, merchant_account, self).await
+    ) -> RouterResult<types::AddAccessTokenResult> {
+        services::add_access_token(state, connector, merchant_account, self).await
     }
 }
 
@@ -77,7 +74,7 @@ fn create_gpay_session_token(
         .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorMetaData)
         .attach_printable(format!(
-            "cannnot parse gpay metadata from the given value {:?}",
+            "cannot parse gpay metadata from the given value {:?}",
             connector_metadata
         ))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {

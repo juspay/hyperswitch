@@ -57,7 +57,7 @@ impl api::PaymentSync for Checkout {}
 impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
-impl api::ConnectorUpdateAuth for Checkout {}
+impl api::ConnectorAccessToken for Checkout {}
 
 impl
     services::ConnectorIntegration<
@@ -71,8 +71,8 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Checkout
 {

@@ -52,7 +52,7 @@ impl api::PaymentSync for Aci {}
 impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
 impl api::PaymentSession for Aci {}
-impl api::ConnectorUpdateAuth for Aci {}
+impl api::ConnectorAccessToken for Aci {}
 
 impl
     services::ConnectorIntegration<
@@ -66,8 +66,8 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::UpdateAuth,
-        types::RefreshTokenRequestData,
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
         types::AccessToken,
     > for Aci
 {
