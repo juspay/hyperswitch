@@ -9,6 +9,7 @@ use error_stack::IntoReport;
 use crate::errors;
 
 #[derive(Debug, serde::Deserialize, Clone)]
+#[serde(default)]
 pub struct RedisSettings {
     pub host: String,
     pub port: u16,

@@ -389,22 +389,16 @@ pub async fn update_payment_connector(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
-    let mut vec = mca.payment_methods_enabled.to_owned().unwrap_or_default();
 
-    let payment_methods_enabled = match req.payment_methods_enabled.clone() {
-        Some(val) => {
-            vec.clear();
-            for pm in val.into_iter() {
-                let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment method",
-                    })?;
-                vec.push(pm_value)
-            }
-            Some(vec)
-        }
-        None => Some(vec),
-    };
+    let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
+        pm_enabled
+            .iter()
+            .flat_map(|payment_method| {
+                utils::Encode::<api::PaymentMethods>::encode_to_value(payment_method)
+            })
+            .collect::<Vec<serde_json::Value>>()
+    });
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -436,8 +430,6 @@ pub async fn update_payment_connector(
         .into_iter()
         .flat_map(|pm_value| {
             ValueExt::<api_models::admin::PaymentMethods>::parse_value(pm_value, "PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to convert serde json value to PaymentMethods")
         })
         .collect::<Vec<api_models::admin::PaymentMethods>>();
 
