@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
 use common_utils::pii;
 use serde::de;
+use utoipa::ToSchema;
 
 use crate::enums as api_enums;
 
@@ -165,8 +168,14 @@ fn set_or_reject_duplicate<T, E: de::Error>(
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct ListPaymentMethodResponse {
+    pub redirect_url: Option<String>,
+    pub payment_methods: HashSet<ListPaymentMethod>,
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize)]
+pub struct ListPaymentMethod {
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
     pub payment_method_issuers: Option<Vec<String>>,
@@ -181,9 +190,36 @@ pub struct ListPaymentMethodResponse {
     pub payment_experience: Option<Vec<PaymentExperience>>,
 }
 
+/// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
+/// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
+/// and `payment_method_issuers`. Otherwise only consider
+/// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.
+impl serde::Serialize for ListPaymentMethod {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
+        state.serialize_field("payment_method", &self.payment_method)?;
+        state.serialize_field("payment_experience", &self.payment_experience)?;
+        match self.payment_method {
+            api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
+                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
+            }
+            _ => {
+                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
+                state.serialize_field("payment_method_types", &self.payment_method_types)?;
+                state.serialize_field("payment_schemes", &self.payment_schemes)?;
+            }
+        }
+        state.end()
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct ListCustomerPaymentMethodsResponse {
-    pub enabled_payment_methods: Vec<ListPaymentMethodResponse>,
+    pub enabled_payment_methods: HashSet<ListPaymentMethod>,
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
@@ -210,15 +246,22 @@ pub struct CustomerPaymentMethod {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PaymentExperience {
+    /// The URL to which the customer needs to be redirected for completing the payment.The URL to
+    /// which the customer needs to be redirected for completing the payment.
     RedirectToUrl,
+    /// Contains the data for invoking the sdk client for completing the payment.
     InvokeSdkClient,
+    /// The QR code data to be displayed to the customer.
     DisplayQrCode,
+    /// Contains data to finish one click payment.
     OneClick,
+    /// Redirect customer to link wallet
     LinkWallet,
+    /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
 }
 
@@ -286,4 +329,15 @@ pub struct TokenizedCardValue2 {
     pub external_id: Option<String>,
     pub customer_id: Option<String>,
     pub payment_method_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue1 {
+    pub issuer: String,
+    pub token: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue2 {
+    pub customer_id: Option<String>,
 }

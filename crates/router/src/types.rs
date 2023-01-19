@@ -112,8 +112,8 @@ pub struct PaymentsAuthorizeData {
 #[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
-    pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
+    pub connector_transaction_id: String,
     pub amount: i64,
 }
 
@@ -122,6 +122,7 @@ pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone)]

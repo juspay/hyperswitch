@@ -260,11 +260,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request.connector).await
+        helpers::get_connector_default(state, request.connector).await
     }
 }
 
@@ -373,6 +373,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_payment_method_fields_present(request)?;
+
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         let mandate_type = helpers::validate_mandate(request)?;
@@ -383,6 +385,13 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 &request.payment_method_data,
                 &mandate_type,
                 &request.payment_token,
+            )?;
+
+            helpers::validate_customer_id_mandatory_cases(
+                request.shipping.is_some(),
+                request.billing.is_some(),
+                request.setup_future_usage.is_some(),
+                &request.customer_id,
             )?;
         }
 

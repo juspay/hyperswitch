@@ -1,6 +1,6 @@
 use crate::{core::errors, logger};
 
-pub(crate) trait StorageErrorExt {
+pub trait StorageErrorExt {
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
@@ -18,9 +18,13 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
         not_found_response: errors::ApiErrorResponse,
     ) -> error_stack::Report<errors::ApiErrorResponse> {
         if self.current_context().is_db_not_found() {
-            self.change_context(not_found_response)
-        } else {
-            self.change_context(errors::ApiErrorResponse::InternalServerError)
+            return self.change_context(not_found_response);
+        }
+        match self.current_context() {
+            errors::StorageError::CustomerRedacted => {
+                self.change_context(errors::ApiErrorResponse::CustomerRedacted)
+            }
+            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
 
@@ -36,13 +40,12 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
     }
 }
 
-pub(crate) trait ConnectorErrorExt {
+pub trait ConnectorErrorExt {
     fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
-// FIXME: The implementation can be improved by handling BOM maybe?
 impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
         let data = match self.current_context() {
@@ -84,6 +87,9 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
             errors::ConnectorError::RequestEncodingFailedWithReason(reason) => {
                 Some(serde_json::json!(reason))
             }
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                Some(serde_json::json!({ "missing_field": field_name }))
+            }
             _ => None,
         };
         self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
@@ -109,7 +115,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     }
 }
 
-pub(crate) trait RedisErrorExt {
+pub trait RedisErrorExt {
     fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
 }
 

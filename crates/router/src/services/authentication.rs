@@ -55,7 +55,7 @@ impl AuthenticateAndFetch<()> for AdminApiAuth {
     ) -> RouterResult<()> {
         let admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        if admin_api_key != state.conf.keys.admin_api_key {
+        if admin_api_key != state.conf.secrets.admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -106,6 +106,25 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for PublishableKeyAuth {
 pub struct JWTAuth;
 
 #[derive(serde::Deserialize)]
+struct JwtAuthPayloadFetchUnit {
+    #[serde(rename(deserialize = "exp"))]
+    _exp: u64,
+}
+
+#[async_trait]
+impl AuthenticateAndFetch<()> for JWTAuth {
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &AppState,
+    ) -> RouterResult<()> {
+        let mut token = get_jwt(request_headers)?;
+        token = strip_jwt_token(token)?;
+        decode_jwt::<JwtAuthPayloadFetchUnit>(token, state).map(|_| ())
+    }
+}
+
+#[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchMerchantAccount {
     merchant_id: String,
 }
@@ -144,17 +163,17 @@ impl ClientSecretFetch for ListPaymentMethodRequest {
     }
 }
 
-pub fn jwt_auth_or<T>(
+pub fn jwt_auth_or<'a, T>(
+    default_auth: &'a dyn AuthenticateAndFetch<T>,
     headers: &HeaderMap,
-    default_auth: Box<dyn AuthenticateAndFetch<T>>,
-) -> Box<dyn AuthenticateAndFetch<T>>
+) -> Box<&'a dyn AuthenticateAndFetch<T>>
 where
     JWTAuth: AuthenticateAndFetch<T>,
 {
     if is_jwt_auth(headers) {
-        return Box::new(JWTAuth);
+        return Box::new(&JWTAuth);
     }
-    default_auth
+    Box::new(default_auth)
 }
 
 pub fn get_auth_type_and_flow(
@@ -231,7 +250,7 @@ pub fn decode_jwt<T>(token: &str, state: &AppState) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    let secret = state.conf.keys.jwt_secret.as_bytes();
+    let secret = state.conf.secrets.jwt_secret.as_bytes();
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)

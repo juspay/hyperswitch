@@ -11,7 +11,7 @@ use actix_web::{
     test::{call_and_read_body_json, TestRequest},
 };
 use derive_deref::Deref;
-use router::{configs::settings::Settings, routes::AppState, start_server};
+use router::{configs::settings::Settings, routes::AppState};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{json, Value};
 use tokio::sync::OnceCell;
@@ -20,7 +20,9 @@ static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let (server, _state) = start_server(conf).await.expect("failed to create server");
+    let (server, _state) = router::start_server(conf)
+        .await
+        .expect("failed to create server");
 
     let _server = tokio::spawn(server);
     true
@@ -211,143 +213,10 @@ fn mk_merchant_account(merchant_id: Option<String>) -> Value {
         "payment_succeeded_enabled": true,
         "payment_failed_enabled": true
       },
-      "routing_algorithm": "custom",
-      "custom_routing_rules": [
-        {
-          "payment_methods_incl": [
-            "card",
-            "card"
-          ],
-          "payment_methods_excl": [
-            "card",
-            "card"
-          ],
-          "payment_method_types_incl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_types_excl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_issuers_incl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "payment_method_issuers_excl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "countries_incl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "countries_excl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "currencies_incl": [
-            "USD",
-            "EUR"
-          ],
-          "currencies_excl": [
-            "AED",
-            "SGD"
-          ],
-          "metadata_filters_keys": [
-            "payments.udf1",
-            "payments.udf2"
-          ],
-          "metadata_filters_values": [
-            "android",
-            "Category_Electronics"
-          ],
-          "connectors_pecking_order": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_key": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_value": [
-            50,
-            30,
-            20
-          ]
-        },
-        {
-          "payment_methods_incl": [
-            "card",
-            "card"
-          ],
-          "payment_methods_excl": [
-            "card",
-            "card"
-          ],
-          "payment_method_types_incl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_types_excl": [
-            "credit",
-            "credit"
-          ],
-          "payment_method_issuers_incl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "payment_method_issuers_excl": [
-            "Citibank",
-            "JPMorgan"
-          ],
-          "countries_incl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "countries_excl": [
-            "US",
-            "UK",
-            "IN"
-          ],
-          "currencies_incl": [
-            "USD",
-            "EUR"
-          ],
-          "currencies_excl": [
-            "AED",
-            "SGD"
-          ],
-          "metadata_filters_keys": [
-            "payments.udf1",
-            "payments.udf2"
-          ],
-          "metadata_filters_values": [
-            "android",
-            "Category_Electronics"
-          ],
-          "connectors_pecking_order": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_key": [
-            "stripe",
-            "adyen",
-            "brain_tree"
-          ],
-          "connectors_traffic_weightage_value": [
-            50,
-            30,
-            20
-          ]
-        }
-      ],
+      "routing_algorithm": {
+        "type": "single",
+        "data": "stripe"
+      },
       "sub_merchants_enabled": false,
       "metadata": {
         "city": "NY",

@@ -9,6 +9,18 @@ use crate::{
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
+/// Payments - Create
+///
+/// To create a new payment, against a merchant API key
+#[utoipa::path(
+    post,
+    path = "/payments",
+    request_body=PaymentsRequest,
+    responses(
+        (status = 200, description = "Payment created", body = PaymentsResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
 pub async fn payments_create(
@@ -322,6 +334,7 @@ pub async fn payments_cancel(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
 // #[get("/list")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
@@ -336,7 +349,7 @@ pub async fn payments_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        &auth::ApiKeyAuth,
+        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
     )
     .await
 }

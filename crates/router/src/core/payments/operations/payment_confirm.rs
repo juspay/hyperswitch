@@ -106,6 +106,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
+        helpers::validate_customer_id_mandatory_cases(
+            request.shipping.is_some(),
+            request.billing.is_some(),
+            request.setup_future_usage.is_some(),
+            &payment_intent
+                .customer_id
+                .clone()
+                .or_else(|| request.customer_id.clone()),
+        )?;
+
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
@@ -123,6 +133,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
+        connector_response = db
+            .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                &payment_attempt.payment_id,
+                &payment_attempt.merchant_id,
+                &payment_attempt.attempt_id,
+                storage_scheme,
+            )
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
         let is_address_mandatory = matches!(
             request.payment_method_data,
             Some(api_models::payments::PaymentMethod::PayLater(
@@ -139,31 +161,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .attach_printable("Address field missing"))
             },
         )?;
-
-        helpers::validate_customer_id_mandatory_cases_storage(
-            &shipping_address,
-            &billing_address,
-            &payment_intent
-                .setup_future_usage
-                .or_else(|| request.setup_future_usage.map(ForeignInto::foreign_into)),
-            &payment_intent
-                .customer_id
-                .clone()
-                .or_else(|| request.customer_id.clone()),
-        )?;
-
-        connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
-
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.clone();
@@ -269,11 +266,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(merchant_account, state, request.connector).await
+        helpers::get_connector_default(state, request.connector).await
     }
 }
 
@@ -385,6 +382,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
+
+        helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type = helpers::validate_mandate(request)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;

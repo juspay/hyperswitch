@@ -3,7 +3,10 @@ use error_stack::IntoReport;
 use super::{MockDb, Store};
 use crate::{
     connection::pg_connection,
-    core::errors::{self, CustomResult},
+    core::{
+        customers::REDACTED,
+        errors::{self, CustomResult},
+    },
     types::storage,
 };
 
@@ -48,10 +51,22 @@ impl CustomerInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let maybe_customer = storage::Customer::find_optional_by_customer_id_merchant_id(
+            &conn,
+            customer_id,
+            merchant_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()?;
+        maybe_customer.map_or(Ok(None), |customer| {
+            // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
+            // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
+            match customer.name {
+                Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+                _ => Ok(Some(customer)),
+            }
+        })
     }
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -78,10 +93,15 @@ impl CustomerInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let customer =
+            storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()?;
+        match customer.name {
+            Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+            _ => Ok(customer),
+        }
     }
 
     async fn insert_customer(

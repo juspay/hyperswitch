@@ -48,7 +48,8 @@ where
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .connector_account_details
         .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     payment_method = payment_data
         .payment_attempt
@@ -210,7 +211,7 @@ where
                 .payment_method_data
                 .map(api::PaymentMethodDataResponse::from),
             payment_token: data.token,
-            error_code: None,
+            error_code: data.payment_attempt.error_code,
             error_message: data.payment_attempt.error_message,
         }))
     }
@@ -315,6 +316,7 @@ where
                         )
                         .set_payment_token(payment_attempt.payment_token)
                         .set_error_message(payment_attempt.error_message)
+                        .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
                         .to_owned()
@@ -444,6 +446,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
                 None => types::ResponseId::NoResponseId,
             },
             encoded_data: payment_data.connector_response.encoded_data,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }
@@ -454,11 +457,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: payment_data.payment_attempt.amount_to_capture,
+            currency: payment_data.currency,
             connector_transaction_id: payment_data
                 .payment_attempt
                 .connector_transaction_id
                 .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?,
-            currency: payment_data.currency,
             amount: payment_data.amount.into(),
         })
     }

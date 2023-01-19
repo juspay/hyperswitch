@@ -1,35 +1,36 @@
 use std::path::PathBuf;
 
-use config::{Environment, File, FileFormat};
+use common_utils::ext_traits::ConfigExt;
+use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::Deserialize;
-use structopt::StructOpt;
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
 
-#[derive(StructOpt, Default)]
-#[structopt(version = router_env::version!())]
+#[derive(clap::Parser, Default)]
+#[command(version = router_env::version!())]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
-    #[structopt(short = "f", long, parse(from_os_str))]
+    #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
 
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     pub subcommand: Option<Subcommand>,
 }
 
-#[derive(StructOpt)]
+#[derive(clap::Parser)]
 pub enum Subcommand {
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Settings {
     pub server: Server,
     pub proxy: Proxy,
@@ -39,7 +40,7 @@ pub struct Settings {
     pub replica_database: Database,
     pub redis: RedisSettings,
     pub log: Log,
-    pub keys: Keys, //remove this during refactoring
+    pub secrets: Secrets,
     pub locker: Locker,
     pub connectors: Connectors,
     pub refund: Refund,
@@ -51,17 +52,14 @@ pub struct Settings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Keys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-    pub temp_card_key: String,
+#[serde(default)]
+pub struct Secrets {
     pub jwt_secret: String,
     pub admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
@@ -69,17 +67,20 @@ pub struct Locker {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Refund {
     pub max_attempts: usize,
     pub max_age: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct EphemeralConfig {
     pub validity: i64,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Jwekey {
     #[cfg(feature = "kms")]
     pub aws_key_id: String,
@@ -93,22 +94,25 @@ pub struct Jwekey {
     pub locker_decryption_key2: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Server {
     pub port: u16,
-    pub workers: Option<usize>,
+    pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
     pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Database {
     pub username: String,
     pub password: String,
@@ -119,33 +123,43 @@ pub struct Database {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+    pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
-    pub klarna: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub fiserv: ConnectorParams,
+    pub globalpay: ConnectorParams,
+    pub klarna: ConnectorParams,
+    pub payu: ConnectorParams,
+    pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
-    pub supported: SupportedConnectors,
-    pub globalpay: ConnectorParams,
+    pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub applepay: ConnectorParams,
+
+    // Keep this field separate from the remaining fields
+    pub supported: SupportedConnectors,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct SchedulerSettings {
     pub stream: String,
     pub consumer_group: String,
@@ -153,6 +167,7 @@ pub struct SchedulerSettings {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct ProducerSettings {
     pub upper_fetch_limit: i64,
     pub lower_fetch_limit: i64,
@@ -164,6 +179,7 @@ pub struct ProducerSettings {
 
 #[cfg(feature = "kv_store")]
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
@@ -176,23 +192,23 @@ impl Settings {
     }
 
     pub fn with_config_path(config_path: Option<PathBuf>) -> ApplicationResult<Self> {
+        // Configuration values are picked up in the following priority order (1 being least
+        // priority):
+        // 1. Defaults from the implementation of the `Default` trait.
+        // 2. Values from config file. The config file accessed depends on the environment
+        //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
+        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/Development.toml` file is read.
+        // 3. Environment variables prefixed with `ROUTER` and each level separated by double
+        //    underscores.
+        //
+        // Values in config file override the defaults in `Default` trait, and the values set using
+        // environment variables override both the defaults and the config file values.
+
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
-        // println!("config_path : {:?}", config_path);
-        // println!("current_dir : {:?}", std::env::current_dir());
-
         let config = router_env::Config::builder(&environment.to_string())?
-            // FIXME: consider embedding of textual file into bin files has several disadvantages
-            // 1. larger bin file
-            // 2. slower initialization of program
-            // 3. too late ( run-time ) information about broken toml file
-            // Consider embedding all defaults into code.
-            // Example: https://github.com/instrumentisto/medea/blob/medea-0.2.0/src/conf/mod.rs#L60-L102
-            .add_source(File::from_str(
-                include_str!("defaults.toml"),
-                FileFormat::Toml,
-            ))
             .add_source(File::from(config_path).required(true))
             .add_source(
                 Environment::with_prefix("ROUTER")
@@ -209,5 +225,42 @@ impl Settings {
             eprintln!("Unable to deserialize application configuration: {error}");
             ApplicationError::from(error.into_inner())
         })
+    }
+
+    pub fn validate(&self) -> ApplicationResult<()> {
+        self.server.validate()?;
+        self.master_database.validate()?;
+        #[cfg(feature = "olap")]
+        self.replica_database.validate()?;
+        self.redis.validate().map_err(|error| {
+            println!("{error}");
+            ApplicationError::InvalidConfigurationValueError("Redis configuration".into())
+        })?;
+        if self.log.file.enabled {
+            if self.log.file.file_name.is_default_or_empty() {
+                return Err(ApplicationError::InvalidConfigurationValueError(
+                    "log file name must not be empty".into(),
+                ));
+            }
+
+            if self.log.file.path.is_default_or_empty() {
+                return Err(ApplicationError::InvalidConfigurationValueError(
+                    "log directory path must not be empty".into(),
+                ));
+            }
+        }
+        self.secrets.validate()?;
+        self.locker.validate()?;
+        self.connectors.validate()?;
+
+        self.scheduler
+            .as_ref()
+            .map(|scheduler_settings| scheduler_settings.validate())
+            .transpose()?;
+        #[cfg(feature = "kv_store")]
+        self.drainer.validate()?;
+        self.jwekey.validate()?;
+
+        Ok(())
     }
 }

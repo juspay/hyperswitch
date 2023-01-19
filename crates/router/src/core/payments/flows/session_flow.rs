@@ -65,7 +65,7 @@ fn create_gpay_session_token(
         .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorMetaData)
         .attach_printable(format!(
-            "cannnot parse gpay metadata from the given value {:?}",
+            "cannot parse gpay metadata from the given value {:?}",
             connector_metadata
         ))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -84,7 +84,7 @@ fn create_gpay_session_token(
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Gpay {
-                allowed_payment_methods: gpay_data.gpay.allowed_payment_methods,
+                data: gpay_data.data,
                 transaction_info,
             },
         }),

@@ -1,6 +1,7 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
+use storage_models::errors as storage_errors;
 
 use crate::{
     core::{
@@ -16,6 +17,8 @@ use crate::{
         storage::{self, enums},
     },
 };
+
+pub const REDACTED: &str = "Redacted";
 
 #[instrument(skip(db))]
 pub async fn create_customer(
@@ -51,7 +54,8 @@ pub async fn create_customer(
             ..Default::default()
         })
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while inserting new address")?;
     };
 
     let new_customer = storage::CustomerNew {
@@ -71,9 +75,17 @@ pub async fn create_customer(
             if error.current_context().is_db_unique_violation() {
                 db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed while fetching Customer, customer_id: {}",
+                            customer_id
+                        )
+                    })?
             } else {
-                Err(error.change_context(errors::ApiErrorResponse::InternalServerError))?
+                Err(error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while inserting new customer"))?
             }
         }
     };
@@ -105,13 +117,9 @@ pub async fn delete_customer(
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
-    let cust = db
-        .find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
+    db.find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
         .await
         .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
-    if cust.name == Some("Redacted".to_string()) {
-        Err(errors::ApiErrorResponse::CustomerRedacted)?
-    }
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
@@ -124,56 +132,76 @@ pub async fn delete_customer(
         }
     }
 
-    let customer_payment_methods = db
+    match db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
         )
         .await
-        .map_err(|err| {
-            err.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
-    for pm in customer_payment_methods.into_iter() {
-        if pm.payment_method == enums::PaymentMethodType::Card {
-            cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id).await?;
+    {
+        Ok(customer_payment_methods) => {
+            for pm in customer_payment_methods.into_iter() {
+                if pm.payment_method == enums::PaymentMethodType::Card {
+                    cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id)
+                        .await?;
+                }
+                db.delete_payment_method_by_merchant_id_payment_method_id(
+                    &merchant_account.merchant_id,
+                    &pm.payment_method_id,
+                )
+                .await
+                .map_err(|error| {
+                    error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })?;
+            }
         }
-        db.delete_payment_method_by_merchant_id_payment_method_id(
-            &merchant_account.merchant_id,
-            &pm.payment_method_id,
-        )
-        .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
-    }
+        Err(error) => match error.current_context() {
+            errors::StorageError::DatabaseError(err) => match err.current_context() {
+                storage_errors::DatabaseError::NotFound => Ok(()),
+                _ => Err(errors::ApiErrorResponse::InternalServerError),
+            },
+            _ => Err(errors::ApiErrorResponse::InternalServerError),
+        }?,
+    };
 
     let update_address = storage::AddressUpdate::Update {
-        city: Some("Redacted".to_string()),
-        country: Some("Redacted".to_string()),
-        line1: Some("Redacted".to_string().into()),
-        line2: Some("Redacted".to_string().into()),
-        line3: Some("Redacted".to_string().into()),
-        state: Some("Redacted".to_string().into()),
-        zip: Some("Redacted".to_string().into()),
-        first_name: Some("Redacted".to_string().into()),
-        last_name: Some("Redacted".to_string().into()),
-        phone_number: Some("Redacted".to_string().into()),
-        country_code: Some("Redacted".to_string()),
+        city: Some(REDACTED.to_string()),
+        country: Some(REDACTED.to_string()),
+        line1: Some(REDACTED.to_string().into()),
+        line2: Some(REDACTED.to_string().into()),
+        line3: Some(REDACTED.to_string().into()),
+        state: Some(REDACTED.to_string().into()),
+        zip: Some(REDACTED.to_string().into()),
+        first_name: Some(REDACTED.to_string().into()),
+        last_name: Some(REDACTED.to_string().into()),
+        phone_number: Some(REDACTED.to_string().into()),
+        country_code: Some(REDACTED.to_string()),
     };
-    db.update_address_by_merchant_id_customer_id(
-        &req.customer_id,
-        &merchant_account.merchant_id,
-        update_address,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+
+    match db
+        .update_address_by_merchant_id_customer_id(
+            &req.customer_id,
+            &merchant_account.merchant_id,
+            update_address,
+        )
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(error) => match error.current_context() {
+            errors::StorageError::DatabaseError(err) => match err.current_context() {
+                storage_errors::DatabaseError::NotFound => Ok(()),
+                _ => Err(errors::ApiErrorResponse::InternalServerError),
+            },
+            _ => Err(errors::ApiErrorResponse::InternalServerError),
+        },
+    }?;
 
     let updated_customer = storage::CustomerUpdate::Update {
-        name: Some("Redacted".to_string()),
-        email: Some("Redacted".to_string().into()),
-        phone: Some("Redacted".to_string().into()),
-        description: Some("Redacted".to_string()),
-        phone_country_code: Some("Redacted".to_string()),
+        name: Some(REDACTED.to_string()),
+        email: Some(REDACTED.to_string().into()),
+        phone: Some(REDACTED.to_string().into()),
+        description: Some(REDACTED.to_string()),
+        phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
     };
     db.update_customer_by_customer_id_merchant_id(
@@ -200,6 +228,13 @@ pub async fn update_customer(
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let update_customer = update_customer.validate()?;
+    //Add this in update call if customer can be updated anywhere else
+    db.find_customer_by_customer_id_merchant_id(
+        &update_customer.customer_id,
+        &merchant_account.merchant_id,
+    )
+    .await
+    .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
     if let Some(addr) = &update_customer.address {
         let customer_address: api_models::payments::AddressDetails = addr
@@ -226,7 +261,11 @@ pub async fn update_customer(
             update_address,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed while updating address: merchant_id: {}, customer_id: {}",
+            merchant_account.merchant_id, update_customer.customer_id
+        ))?;
     };
 
     let response = db

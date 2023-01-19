@@ -138,12 +138,12 @@ impl MerchantAccountInterface for MockDb {
             merchant_details: merchant_account.merchant_details,
             webhook_details: merchant_account.webhook_details,
             routing_algorithm: merchant_account.routing_algorithm,
-            custom_routing_rules: merchant_account.custom_routing_rules,
             sub_merchants_enabled: merchant_account.sub_merchants_enabled,
             parent_merchant_id: merchant_account.parent_merchant_id,
             publishable_key: merchant_account.publishable_key,
             storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             locker_id: merchant_account.locker_id,
+            metadata: merchant_account.metadata,
         };
         accounts.push(account.clone());
         Ok(account)
