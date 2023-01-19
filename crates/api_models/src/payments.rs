@@ -96,7 +96,7 @@ pub struct PaymentsRequest {
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
-
+    /// This is used when payment is confirm and the card is not saved
     #[schema(value_type = Option<String>)]
     pub card_cvc: Option<Secret<String>>,
     /// The shipping address for the payment
