@@ -280,21 +280,27 @@ pub struct CybersourceErrorInformation {
 }
 
 impl<F, T>
-    TryFrom<
+    TryFrom<(
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        bool,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CybersourcePaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        data: (
+            types::ResponseRouterData<
+                F,
+                CybersourcePaymentsResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
+        let item = data.0;
+        let is_capture = data.1;
         Ok(Self {
-            status: item.response.status.into(),
+            status: get_payment_status(is_capture, item.response.status.into()),
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -328,27 +334,44 @@ pub struct ApplicationInformation {
     status: CybersourcePaymentStatus,
 }
 
+fn get_payment_status(is_capture: bool, status: enums::AttemptStatus) -> enums::AttemptStatus {
+    let is_authorized = matches!(status, enums::AttemptStatus::Authorized);
+    if is_capture && is_authorized {
+        return enums::AttemptStatus::Pending;
+    }
+    status
+}
+
 impl<F, T>
-    TryFrom<
+    TryFrom<(
         types::ResponseRouterData<
             F,
             CybersourceTransactionResponse,
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        bool,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CybersourceTransactionResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        data: (
+            types::ResponseRouterData<
+                F,
+                CybersourceTransactionResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
+        let item = data.0;
+        let is_capture = data.1;
         Ok(Self {
-            status: item.response.application_information.status.into(),
+            status: get_payment_status(
+                is_capture,
+                item.response.application_information.status.into(),
+            ),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
