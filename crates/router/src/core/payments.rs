@@ -350,9 +350,7 @@ where
 
     match access_token_result {
         Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => {
-            router_data.response = router_data.response.clone().map_err(|_err| connector_error);
-        }
+        Err(connector_error) => router_data.response = Err(connector_error),
     }
 
     let router_data_res =
