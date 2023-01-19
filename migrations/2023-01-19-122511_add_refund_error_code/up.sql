@@ -1,0 +1,2 @@
+ALTER TABLE refund
+ADD IF NOT EXISTS refund_error_code VARCHAR(255) DEFAULT NULL;
