@@ -8,8 +8,19 @@ use crate::{
     types::api::customers,
 };
 
+/// Create Customer
+///
+/// Create a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.
+#[utoipa::path(
+    post,
+    path = "/customers",
+    request_body = CustomerRequest,
+    responses(
+        (status = 200, description = "Customer Created", body = CustomerResponse),
+        (status = 400, description = "Invalid data")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
-// #[post("")]
 pub async fn customers_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -25,8 +36,19 @@ pub async fn customers_create(
     .await
 }
 
+/// Retrieve Customer
+///
+/// Retrieve a customer's details.
+#[utoipa::path(
+    get,
+    path = "/customers/{customer_id}",
+    params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
+    responses(
+        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 404, description = "Customer was not found")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
-// #[get("/{customer_id}")]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -53,8 +75,20 @@ pub async fn customers_retrieve(
     .await
 }
 
+/// Update Customer
+///
+/// Updates the customer's details in a customer object.
+#[utoipa::path(
+    post,
+    path = "/customers/{customer_id}",
+    request_body = CustomerRequest,
+    params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
+    responses(
+        (status = 200, description = "Customer was Updated", body = CustomerResponse),
+        (status = 404, description = "Customer was not found")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
-// #[post("/{customer_id}")]
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -73,8 +107,19 @@ pub async fn customers_update(
     .await
 }
 
+/// Delete Customer
+///
+/// Delete a customer record.
+#[utoipa::path(
+    delete,
+    path = "/customers/{customer_id}",
+    params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
+    responses(
+        (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
+        (status = 404, description = "Customer was not found")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
-// #[delete("/{customer_id}")]
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -88,7 +133,6 @@ pub async fn customers_delete(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
-// #[get("/{customer_id}/mandates")]
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
     req: HttpRequest,

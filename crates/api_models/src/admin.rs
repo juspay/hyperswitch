@@ -210,9 +210,13 @@ pub struct WebhookDetails {
     pub payment_failed_enabled: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DeleteResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
+    /// If the connector is deleted or not
+    #[schema(example = false)]
     pub deleted: bool,
 }
 
@@ -324,9 +328,15 @@ pub struct PaymentMethods {
     pub payment_experience: Option<Vec<payment_methods::PaymentExperience>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DeleteMcaResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
+    /// Unique ID of the connector
+    #[schema(example = 42)]
     pub merchant_connector_id: i32,
+    /// If the connector is deleted or not
+    #[schema(example = false)]
     pub deleted: bool,
 }
