@@ -260,32 +260,16 @@ pub(super) fn get_unused_fields(
     let fields = match fields {
         syn::Fields::Unit => Vec::new(),
         syn::Fields::Unnamed(_) => Vec::new(),
-        syn::Fields::Named(fields) => fields
-            .named
-            .iter()
-            .filter(|field| {
-                field
-                    .ident
-                    .as_ref()
-                    .map_or(true, |idn| ignore.contains(&idn.to_string()))
-            })
-            .cloned()
-            .collect(),
+        syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),
     };
-
     fields
         .iter()
         .filter(|&field| {
             // Safety: Named fields are guaranteed to have an identifier.
             #[allow(clippy::unwrap_used)]
             let field_name = format!("{}", field.ident.as_ref().unwrap());
-            !message.contains(&field_name)
+            !message.contains(&field_name) && !ignore.contains(&field_name)
         })
         .cloned()
         .collect()
 }
-
-// fn allow_field(ident: &Ident) -> bool {
-//     // This will allow fields with underscore at the end to be hidden during serialization
-//     !ident.to_string().ends_with("_")
-// }
