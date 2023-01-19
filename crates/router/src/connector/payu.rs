@@ -42,7 +42,10 @@ where
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_header = (headers::AUTHORIZATION.to_string(), format!("Bearer {}", access_token.token));
+        let auth_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
 
         headers.push(auth_header);
         Ok(headers)

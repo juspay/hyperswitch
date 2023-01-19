@@ -6,7 +6,7 @@ use router::{
     core::payments,
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, PaymentAddress},
+    types::{self, api, storage::enums, AccessToken, PaymentAddress},
 };
 use wiremock::{Mock, MockServer};
 
@@ -23,6 +23,7 @@ pub trait Connector {
 pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
+    pub access_token: Option<AccessToken>,
 }
 
 #[async_trait]
@@ -119,7 +120,7 @@ pub trait ConnectorActions: Connector {
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
                 connector_metadata: None,
-                reason: None,
+                reason: Some("Customer returned product".to_string()),
             }),
             payment_info,
         );
@@ -174,10 +175,15 @@ pub trait ConnectorActions: Connector {
             request: req,
             response: Err(types::ErrorResponse::default()),
             payment_method_id: None,
-            address: info.map_or(PaymentAddress::default(), |a| a.address.unwrap()),
+            address: info
+                .clone()
+                .and_then(|a| a.address)
+                .map(|a| a)
+                .or_else(|| Some(PaymentAddress::default()))
+                .unwrap(),
             connector_meta_data: self.get_connector_meta(),
             amount_captured: None,
-            access_token: None,
+            access_token: info.map_or(None, |a| a.access_token),
         }
     }
 }
