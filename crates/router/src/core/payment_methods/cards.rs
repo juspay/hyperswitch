@@ -18,7 +18,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{BytesExt, ConnectorResponseExt, OptionExt},
+    utils::{self, BytesExt, ConnectorResponseExt, OptionExt},
 };
 
 #[instrument(skip_all)]
@@ -699,24 +699,72 @@ impl BasiliskCardSupport {
             .clone()
             .expose_option()
             .unwrap_or_default();
-        let card_detail = api::CardDetail {
-            card_number: card_number.into(),
-            card_exp_month: card_exp_month.into(),
-            card_exp_year: card_exp_year.into(),
-            card_holder_name: Some(card_holder_name.into()),
-        };
-        let db = &*state.store;
-        mock_add_card(
-            db,
-            payment_token,
-            &card_detail,
+        let value1 = payment_methods::mk_card_value1(
+            card_number,
+            card_exp_year,
+            card_exp_month,
+            Some(card_holder_name),
             None,
-            Some(pm.payment_method_id.to_string()),
-            Some(&pm.customer_id),
+            None,
+            None,
         )
-        .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed")?;
+        .attach_printable("Error getting Value1 for locker")?;
+        let value2 = payment_methods::mk_card_value2(
+            None,
+            None,
+            None,
+            Some(pm.customer_id.to_string()),
+            Some(pm.payment_method_id.to_string()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value2 for locker")?;
+
+        let value1 = vault::VaultPaymentMethod::Card(value1);
+        let value2 = vault::VaultPaymentMethod::Card(value2);
+
+        let value1 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value1)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
+
+        let value2 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value2)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
+
+        let db_value = vault::MockTokenizeDBValue { value1, value2 };
+
+        let value_string =
+            utils::Encode::<vault::MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Mock tokenize value construction failed when saving card to locker",
+                )?;
+
+        let db = &*state.store;
+
+        let already_present = db.find_config_by_key(payment_token).await;
+
+        if already_present.is_err() {
+            let config = storage::ConfigNew {
+                key: payment_token.to_string(),
+                config: value_string,
+            };
+
+            db.insert_config(config)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Mock tokenization save to db failed")?;
+        } else {
+            let config_update = storage::ConfigUpdate::Update {
+                config: Some(value_string),
+            };
+
+            db.update_config_by_key(payment_token, config_update)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Mock tokenization db update failed")?;
+        }
+
         Ok(card)
     }
 }
@@ -775,6 +823,18 @@ impl BasiliskCardSupport {
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Value2 for locker")?;
+
+        let value1 = vault::VaultPaymentMethod::Card(value1);
+        let value2 = vault::VaultPaymentMethod::Card(value2);
+
+        let value1 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value1)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
+
+        let value2 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value2)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
+
         vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
         Ok(card)
     }
