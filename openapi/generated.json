@@ -1747,7 +1747,8 @@
             "example": "187282ab-40ef-47a9-9206-5099ba31e432"
           },
           "card_cvc": {
-            "type": "string"
+            "type": "string",
+            "description": "This is used when payment is confirm and the card is not saved"
           },
           "shipping": {
             "$ref": "#/components/schemas/Address"
