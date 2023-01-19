@@ -10,7 +10,6 @@ use std::{
 };
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
-use bytes::Bytes;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing, Tag};
@@ -107,7 +106,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse::get_not_implemented())
     }
@@ -170,8 +169,7 @@ where
                             let response = match body {
                                 Ok(body) => connector_integration.handle_response(req, body)?,
                                 Err(body) => {
-                                    let error =
-                                        connector_integration.get_error_response(body.response)?;
+                                    let error = connector_integration.get_error_response(body)?;
                                     router_data.response = Err(error);
 
                                     router_data

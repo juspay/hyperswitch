@@ -123,7 +123,7 @@ impl
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -220,7 +220,7 @@ impl
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -299,7 +299,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Bytes) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
@@ -357,7 +357,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Bytes) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
@@ -407,7 +407,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Bytes) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
