@@ -325,7 +325,7 @@ impl From<ConnectorAuthType> for AccessTokenRequestData {
                 id: Some(key1),
             },
             ConnectorAuthType::NoKey => Self {
-                app_id: "".to_string(),
+                app_id: String::new(),
                 id: None,
             },
         }
