@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use uuid::Uuid;
 
 use crate::{
