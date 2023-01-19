@@ -1068,28 +1068,28 @@ pub struct GpayMerchantInfo {
     pub merchant_name: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GpayMetadata {
-    /// The merchant info
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayMetaData {
     pub merchant_info: GpayMerchantInfo,
-    /// List of the allowed payment meythods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    pub data: GpayMetadata,
+    #[serde(rename = "gpay")]
+    pub data: GpayMetaData,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
     Gpay {
-        /// The data Google Pay requires
-        #[serde(flatten)]
-        data: GpayMetadata,
+        /// The merchant info
+        merchant_info: GpayMerchantInfo,
+        /// List of the allowed payment meythods
+        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
         /// The transaction info Google Pay requires
         transaction_info: GpayTransactionInfo,
     },

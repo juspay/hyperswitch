@@ -97,7 +97,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsCaptureRequest,
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
-        api_models::payments::GpayMetadata,
+        api_models::payments::SessionToken,
         api_models::payments::GpayMerchantInfo,
         api_models::payments::GpayAllowedPaymentMethods,
         api_models::payments::GpayAllowedMethodsParameters,

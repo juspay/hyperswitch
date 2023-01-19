@@ -569,24 +569,6 @@
           }
         }
       },
-      "GpayMetadata": {
-        "type": "object",
-        "required": [
-          "merchant_info",
-          "allowed_payment_methods"
-        ],
-        "properties": {
-          "merchant_info": {
-            "$ref": "#/components/schemas/GpayMerchantInfo"
-          },
-          "allowed_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
-            }
-          }
-        }
-      },
       "GpayTokenParameters": {
         "type": "object",
         "required": [
@@ -735,7 +717,9 @@
       "MerchantAccountResponse": {
         "type": "object",
         "required": [
-          "merchant_id"
+          "merchant_id",
+          "enable_payment_response_hash",
+          "redirect_to_merchant_with_http_post"
         ],
         "properties": {
           "merchant_id": {
@@ -754,20 +738,38 @@
             "description": "API key that will be used for server side API access",
             "example": "Ah2354543543523"
           },
-          "merchant_details": {
-            "$ref": "#/components/schemas/MerchantDetails"
-          },
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
             "example": "https://www.example.com/success",
             "maxLength": 255
           },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
           "webhook_details": {
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "type": "object"
+            "$ref": "#/components/schemas/RoutingAlgorithm"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -781,29 +783,13 @@
             "example": "xkkdf909012sdjki2dkh5sdf",
             "maxLength": 255
           },
-          "enable_payment_response_hash": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if payment response hash needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "payment_response_hash_key": {
-            "type": "string",
-            "description": "Refers to the hash key used for payment response"
-          },
-          "redirect_to_merchant_with_http_post": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "metadata": {
-            "type": "object"
-          },
           "publishable_key": {
             "type": "string",
             "description": "API key that will be used for server side API access",
             "example": "AH3423bkjbkjdsfbkj"
+          },
+          "metadata": {
+            "type": "object"
           },
           "locker_id": {
             "type": "string",
@@ -2034,6 +2020,161 @@
           "custom"
         ],
         "example": "custom"
+      },
+      "SessionToken": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The session response structure for Google Pay",
+            "required": [
+              "merchant_info",
+              "allowed_payment_methods",
+              "transaction_info",
+              "wallet_name"
+            ],
+            "properties": {
+              "merchant_info": {
+                "$ref": "#/components/schemas/GpayMerchantInfo"
+              },
+              "allowed_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+                }
+              },
+              "transaction_info": {
+                "$ref": "#/components/schemas/GpayTransactionInfo"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "gpay"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The session response structure for Klarna",
+            "required": [
+              "session_token",
+              "session_id",
+              "wallet_name"
+            ],
+            "properties": {
+              "session_token": {
+                "type": "string",
+                "description": "The session token for Klarna"
+              },
+              "session_id": {
+                "type": "string",
+                "description": "The identifier for the session"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "klarna"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The session response structure for PayPal",
+            "required": [
+              "session_token",
+              "wallet_name"
+            ],
+            "properties": {
+              "session_token": {
+                "type": "string",
+                "description": "The session token for PayPal"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "paypal"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The session response structure for Apple Pay",
+            "required": [
+              "epoch_timestamp",
+              "expires_at",
+              "merchant_session_identifier",
+              "nonce",
+              "merchant_identifier",
+              "domain_name",
+              "display_name",
+              "signature",
+              "operational_analytics_identifier",
+              "retries",
+              "psp_id",
+              "wallet_name"
+            ],
+            "properties": {
+              "epoch_timestamp": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Timestamp at which session is requested"
+              },
+              "expires_at": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Timestamp at which session expires"
+              },
+              "merchant_session_identifier": {
+                "type": "string",
+                "description": "The identifier for the merchant session"
+              },
+              "nonce": {
+                "type": "string",
+                "description": "Applepay generates unique ID (UUID) value"
+              },
+              "merchant_identifier": {
+                "type": "string",
+                "description": "The identifier for the merchant"
+              },
+              "domain_name": {
+                "type": "string",
+                "description": "The domain name of the merchant which is registered in Apple Pay"
+              },
+              "display_name": {
+                "type": "string",
+                "description": "The name to be displayed on Apple Pay button"
+              },
+              "signature": {
+                "type": "string",
+                "description": "A string which represents the properties of a payment"
+              },
+              "operational_analytics_identifier": {
+                "type": "string",
+                "description": "The identifier for the operational analytics"
+              },
+              "retries": {
+                "type": "integer",
+                "format": "int32",
+                "description": "The number of retries to get the session response"
+              },
+              "psp_id": {
+                "type": "string",
+                "description": "The identifier for the connector transaction"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "applepay"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "wallet_name"
+        }
       },
       "SupportedWallets": {
         "type": "string",

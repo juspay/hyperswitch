@@ -446,6 +446,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
                 None => types::ResponseId::NoResponseId,
             },
             encoded_data: payment_data.connector_response.encoded_data,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }

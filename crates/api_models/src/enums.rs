@@ -552,6 +552,7 @@ pub enum RoutableConnectors {
     Globalpay,
     Klarna,
     Payu,
+    Rapyd,
     Shift4,
     Stripe,
     Worldline,
