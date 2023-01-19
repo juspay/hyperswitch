@@ -520,6 +520,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Finalized,
+    Completed,
     Canceled,
     #[default]
     Pending,
@@ -528,7 +529,7 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Finalized => Self::Success,
+            RefundStatus::Finalized | RefundStatus::Completed => Self::Success,
             RefundStatus::Canceled => Self::Failure,
             RefundStatus::Pending => Self::Pending,
         }
