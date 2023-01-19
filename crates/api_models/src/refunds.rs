@@ -82,22 +82,29 @@ pub struct RefundResponse {
     pub updated_at: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListRequest {
+    /// The identifier for the payment
     pub payment_id: Option<String>,
+    /// Limit on the number of objects to return
     pub limit: Option<i64>,
+    /// The time at which refund is created
     #[serde(default, with = "custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
+    /// Time less than the refund created time
     #[serde(default, rename = "created.lt", with = "custom_serde::iso8601::option")]
     pub created_lt: Option<PrimitiveDateTime>,
+    /// Time greater than the refund created time
     #[serde(default, rename = "created.gt", with = "custom_serde::iso8601::option")]
     pub created_gt: Option<PrimitiveDateTime>,
+    /// Time less than or equals to the refund created time
     #[serde(
         default,
         rename = "created.lte",
         with = "custom_serde::iso8601::option"
     )]
     pub created_lte: Option<PrimitiveDateTime>,
+    /// Time greater than or equals to the refund created time
     #[serde(
         default,
         rename = "created.gte",

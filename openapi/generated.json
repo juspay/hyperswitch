@@ -601,7 +601,9 @@
       "MerchantAccountResponse": {
         "type": "object",
         "required": [
-          "merchant_id"
+          "merchant_id",
+          "enable_payment_response_hash",
+          "redirect_to_merchant_with_http_post"
         ],
         "properties": {
           "merchant_id": {
@@ -620,20 +622,38 @@
             "description": "API key that will be used for server side API access",
             "example": "Ah2354543543523"
           },
-          "merchant_details": {
-            "$ref": "#/components/schemas/MerchantDetails"
-          },
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
             "example": "https://www.example.com/success",
             "maxLength": 255
           },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
           "webhook_details": {
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "type": "object"
+            "$ref": "#/components/schemas/RoutingAlgorithm"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -647,29 +667,13 @@
             "example": "xkkdf909012sdjki2dkh5sdf",
             "maxLength": 255
           },
-          "enable_payment_response_hash": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if payment response hash needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "payment_response_hash_key": {
-            "type": "string",
-            "description": "Refers to the hash key used for payment response"
-          },
-          "redirect_to_merchant_with_http_post": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "metadata": {
-            "type": "object"
-          },
           "publishable_key": {
             "type": "string",
             "description": "API key that will be used for server side API access",
             "example": "AH3423bkjbkjdsfbkj"
+          },
+          "metadata": {
+            "type": "object"
           },
           "locker_id": {
             "type": "string",
@@ -1526,6 +1530,45 @@
           }
         }
       },
+      "RefundListRequest": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Limit on the number of objects to return"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which refund is created"
+          },
+          "created.lt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time less than the refund created time"
+          },
+          "created.gt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time greater than the refund created time"
+          },
+          "created.lte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time less than or equals to the refund created time"
+          },
+          "created.gte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time greater than or equals to the refund created time"
+          }
+        }
+      },
       "RefundRequest": {
         "type": "object",
         "required": [
@@ -1633,6 +1676,20 @@
           "scheduled",
           "instant"
         ]
+      },
+      "RefundUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
+            "example": "Customer returned the product",
+            "maxLength": 255
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
       },
       "RoutingAlgorithm": {
         "type": "string",
