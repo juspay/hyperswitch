@@ -50,10 +50,7 @@ pub async fn add_access_token<
     connector: &api_types::ConnectorData,
     merchant_account: &storage::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
-) -> RouterResult<(
-    Result<Option<types::AccessToken>, types::ErrorResponse>,
-    bool,
-)> {
+) -> RouterResult<types::AddAccessTokenResult> {
     if connector.connector_name.supports_access_token() {
         let merchant_id = &merchant_account.merchant_id;
         let db = &*state.store;
@@ -104,9 +101,15 @@ pub async fn add_access_token<
             }
         };
 
-        Ok((res, true))
+        Ok(types::AddAccessTokenResult {
+            access_token_result: res,
+            connector_supports_access_token: true,
+        })
     } else {
-        Ok((Err(types::ErrorResponse::default()), false))
+        Ok(types::AddAccessTokenResult {
+            access_token_result: Err(types::ErrorResponse::default()),
+            connector_supports_access_token: false,
+        })
     }
 }
 
