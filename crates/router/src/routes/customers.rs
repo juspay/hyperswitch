@@ -81,6 +81,7 @@ pub async fn customers_retrieve(
 #[utoipa::path(
     post,
     path = "/customers/{customer_id}",
+    request_body = CustomerRequest,
     params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
         (status = 200, description = "Customer was Updated", body = CustomerResponse),

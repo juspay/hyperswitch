@@ -72,6 +72,7 @@ pub async fn retrieve_merchant_account(
 #[utoipa::path(
     post,
     path = "/account/{account_id}",
+    request_body = CreateMerchantAccount,
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
@@ -236,6 +237,7 @@ pub async fn payment_connector_list(
 #[utoipa::path(
     post,
     path = "/account/{account_id}/connectors/{connector_id}",
+    request_body = PaymentConnectorCreate,
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("connector_id" = i32, Path, description = "The unique identifier for the payment connector")
