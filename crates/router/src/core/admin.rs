@@ -422,16 +422,16 @@ pub async fn update_payment_connector(
             )
         })?;
 
-    let updated_pm_enabled = updated_mca
-        .payment_methods_enabled
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
-        .attach_printable("Failed to get payments method enabled")?
-        .into_iter()
-        .flat_map(|pm_value| {
-            ValueExt::<api_models::admin::PaymentMethods>::parse_value(pm_value, "PaymentMethods")
-        })
-        .collect::<Vec<api_models::admin::PaymentMethods>>();
+    let updated_pm_enabled = updated_mca.payment_methods_enabled.map(|pm| {
+        pm.into_iter()
+            .flat_map(|pm_value| {
+                ValueExt::<api_models::admin::PaymentMethods>::parse_value(
+                    pm_value,
+                    "PaymentMethods",
+                )
+            })
+            .collect::<Vec<api_models::admin::PaymentMethods>>()
+    });
 
     let response = api::PaymentConnectorCreate {
         connector_type: updated_mca.connector_type.foreign_into(),
@@ -440,7 +440,7 @@ pub async fn update_payment_connector(
         connector_account_details: Some(Secret::new(updated_mca.connector_account_details)),
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
-        payment_methods_enabled: Some(updated_pm_enabled),
+        payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
     };
     Ok(service_api::ApplicationResponse::Json(response))
