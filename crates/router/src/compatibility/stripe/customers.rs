@@ -6,7 +6,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::customers,
+    core::{customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
     types::api::customers as customer_types,
@@ -144,6 +144,33 @@ pub async fn customer_delete(
         &req,
         payload,
         customers::delete_customer,
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+#[get("/{customer_id}/payment_methods")]
+pub async fn list_customer_payment_method_api(
+    state: web::Data<routes::AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let customer_id = path.into_inner();
+
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::CustomerPaymentMethodListResponse,
+        errors::StripeErrorCode,
+    >(
+        &state,
+        &req,
+        customer_id.as_ref(),
+        cards::list_customer_payment_method,
         &auth::ApiKeyAuth,
     )
     .await
