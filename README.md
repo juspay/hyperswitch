@@ -12,13 +12,13 @@ HyperSwitch is an **Open Source Financial Switch** to make payments Fast, Reliab
 Once integrated, you can add new payment processors and route traffic effortlessly.
 Using HyperSwitch, you can:
 
-- **Reduce Dev Efforts** by 90% in adding & maintaining integrations
 - **Reduce dependency** on a single processor like Stripe or Braintree
-- **Control your payment** flow with 100% visibility and customisation
-- **Reduce processing fees** through smart routing
+- **Reduce Dev efforts** by 90% in adding & maintaining integrations
 - **Improve success rates** with auto-retries
+- **Reduce processing fees** through smart routing
+- **Customize your payment** flow with 100% visibility and control
 - **Increase business reach** with local payment methods
-- **Embrace Diversity** in payments
+- **Embrace diversity** in payments
 
 _hyperswitch is wire-compatible with top processors like Stripe making it easy to integrate._
 
@@ -42,53 +42,47 @@ _hyperswitch is wire-compatible with top processors like Stripe making it easy t
 
 You have two options to try out HyperSwitch:
 
-1. [Try out our sandbox environment](/docs/try_sandbox.md): Requires the least
-   effort and does not involve setting up anything on your system.
-2. [Try out HyperSwitch on your local system](/docs/try_local_system.md):
-   Requires comparatively more effort as it involves setting up dependencies on
-   your system.
+1. [Try it in our Sandbox Environment](/docs/try_sandbox.md): Fast and easy to start. No code or setup required in your system.
+2. [Install in your local system](/docs/try_local_system.md): Configurations and setup required in your system. Suitable if you like to customize the core offering.
 
 ## Fast Integration for Stripe Users
 
-If you are already using Stripe, integrating with HyperSwitch is fun, fast & easy.
-Try the steps below to get a feel for how quick the setup is:
+If you are already using Stripe, integrating with HyperSwitch is fun, fast & easy. Try the steps below to get a feel for how quick the setup is:
 
-1. Get API keys from our [dashboard](https://dashboard-HyperSwitch.netlify.app).
-2. Follow the instructions detailed on our [documentation page](https://HyperSwitch.io/docs).
+1. Get API keys from our [dashboard](https://dashboard-hyperswitch.netlify.app).
+2. Follow the instructions detailed on our [documentation page](https://hyperswitch.io/docs/migrateFromStripe).
 
 ## Supported Features
 
-| Features                 | Stripe             | Adyen              | Checkout           | Authorize.net      | ACI                |
-| ------------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ |
-| Payments - CRUD, Confirm | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Customers - CRUD         | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Refunds                  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | WIP                |
-| Mandates                 | :white_check_mark: | WIP                | WIP                | WIP                | WIP                |
-| PCI Compliance           | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+**Supported Payment Processors and Methods**
 
-The **hosted version** provides the following additional features:
+As of Jan 2023, we support 14 payment processors and multiple payment methods. In addition, we are continuously integrating new processors based on their reach and community requests. Our target is to support 100+ processors by H2 2023. You can find the latest list of payment processors, supported methods, and features [here](https://docs.google.com/spreadsheets/u/1/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=0&single=true).
+
+
+**Hosted Version**
+
+In addition to all the features of the open-source product, our hosted version provides features and support to manage your payment infrastructure, compliance, analytics, and operations end-to-end:
 
 - **System Performance & Reliability**
-
   - Scalable to support 50000 tps
-  - System uptime of upto 99.99%
-  - Low latency service
-  - Hosting option with AWS, GCP
+  - System uptime of up to 99.99%
+  - Deployment with very low latency
+  - Hosting option with AWS or GCP
 
 - **Value Added Services**
-
   - Compliance Support incl. PCI, GDPR, Card Valut etc
   - Customise the integration or payment experience
   - Control Center with elaborate analytics and reporting
   - Integration with Risk Management Solutions
-  - Support for Subscription and other custom features
+  - Integration with other platforms like Subscription, E-commerce, Accounting, etc. 
 
 - **Enterprise Support**
-
   - 24x7 Email / On-call Support
   - Dedicated Relationship Manager
-  - Dashboards with deep analytics
-  - Experts team to consult and improve business metrics
+  - Custom dashboards with deep analytics, alerts, and reporting
+  - Expert team to consult and improve business metrics
+
+You can [try the hosted version in our sandbox](https://dashboard-hyperswitch.netlify.app)
 
 <!--
 ## Documentation
