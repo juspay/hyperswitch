@@ -13,14 +13,6 @@ use crate::{
     types::{self, api as api_types, storage},
 };
 
-pub fn connector_supports_access_token(connector: &api_types::ConnectorData) -> bool {
-    match connector.connector_name {
-        api_models::enums::Connector::Globalpay => true,
-        api_models::enums::Connector::Stripe => false,
-        _ => false,
-    }
-}
-
 pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     router_data: types::RouterData<F1, Req1, Res1>,
     request: Req2,
@@ -62,7 +54,7 @@ pub async fn add_access_token<
     Result<Option<types::AccessToken>, types::ErrorResponse>,
     bool,
 )> {
-    if connector_supports_access_token(connector) {
+    if connector.connector_name.supports_access_token() {
         let merchant_id = &merchant_account.merchant_id;
         let db = &*state.store;
         let old_access_token = db

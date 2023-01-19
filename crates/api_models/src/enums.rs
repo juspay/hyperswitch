@@ -527,6 +527,12 @@ pub enum Connector {
     Worldpay,
 }
 
+impl Connector {
+    pub fn supports_access_token(&self) -> bool {
+        matches!(self, Connector::Globalpay)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
