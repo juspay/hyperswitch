@@ -178,12 +178,11 @@ pub trait ConnectorActions: Connector {
             address: info
                 .clone()
                 .and_then(|a| a.address)
-                .map(|a| a)
                 .or_else(|| Some(PaymentAddress::default()))
                 .unwrap(),
             connector_meta_data: self.get_connector_meta(),
             amount_captured: None,
-            access_token: info.map_or(None, |a| a.access_token),
+            access_token: info.and_then(|a| a.access_token),
         }
     }
 }

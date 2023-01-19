@@ -6,7 +6,7 @@ use crate::{
 };
 struct Payu;
 impl ConnectorActions for Payu {}
-impl utils::Connector for Payu {
+impl Connector for Payu {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payu;
         types::api::ConnectorData {
@@ -16,7 +16,7 @@ impl utils::Connector for Payu {
         }
     }
 
-    fn get_auth_token(&self) -> types::ConnectorAuthType {
+    fn get_auth_token(&self) -> ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
                 .payu
