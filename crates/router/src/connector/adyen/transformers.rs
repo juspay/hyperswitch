@@ -466,6 +466,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
 pub fn get_adyen_response(
     response: AdyenResponse,
     is_capture_manual: bool,
+    status_code: u16,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -494,6 +495,7 @@ pub fn get_adyen_response(
                 .refusal_reason
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
+            status_code,
         })
     } else {
         None
@@ -511,6 +513,7 @@ pub fn get_adyen_response(
 
 pub fn get_redirection_response(
     response: AdyenRedirectionResponse,
+    status_code: u16,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -530,6 +533,7 @@ pub fn get_redirection_response(
                 .refusal_reason
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
+            status_code,
         })
     } else {
         None
@@ -585,10 +589,10 @@ impl<F, Req>
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
             AdyenPaymentResponse::AdyenResponse(response) => {
-                get_adyen_response(response, is_manual_capture)?
+                get_adyen_response(response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::AdyenRedirectResponse(response) => {
-                get_redirection_response(response)?
+                get_redirection_response(response, item.http_code)?
             }
         };
 

@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::ResultExt;
 
 use self::transformers as braintree;
@@ -119,13 +118,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
+            .response
             .parse_struct("Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -254,13 +255,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
+            .response
             .parse_struct("Braintree Error Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -387,14 +390,16 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(braintreepayments_create_response=?res);
 
         let response: braintree::ErrorResponse = res
+            .response
             .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -464,13 +469,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: braintree::ErrorResponse = res
+            .response
             .parse_struct("Braintree ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.api_error_response.message,
             reason: None,
@@ -599,7 +606,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
@@ -631,7 +638,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }

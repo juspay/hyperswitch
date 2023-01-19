@@ -21,7 +21,6 @@ use crate::{
     )
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
-// #[post("")]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -37,8 +36,18 @@ pub async fn merchant_account_create(
     .await
 }
 
+/// Merchant Account - Retrieve
+/// Retrieve a merchant account details.
+#[utoipa::path(
+    get,
+    path = "/account/{account_id}",
+    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
+        (status = 404, description = "Merchant account not found")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
-// #[get("/{id}")]
 pub async fn retrieve_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -58,8 +67,19 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
+/// Merchant Account - Update
+/// Update a merchant account details.
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}",
+    request_body = CreateMerchantAccount,
+    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
+        (status = 404, description = "Merchant account not found")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
-// #[post["/{id}"]]
 pub async fn update_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -77,6 +97,17 @@ pub async fn update_merchant_account(
     .await
 }
 
+/// Merchant Account - Delete
+/// Delete a merchant account details.
+#[utoipa::path(
+    delete,
+    path = "/account/{account_id}",
+    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Deleted", body = DeleteResponse),
+        (status = 404, description = "Merchant account not found")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
 // #[delete("/{id}")]
 pub async fn delete_merchant_account(
@@ -128,8 +159,23 @@ pub async fn payment_connector_create(
     .await
 }
 
+/// Payment Connector - Retrieve
+///
+/// Retrieve Payment Connector Details
+#[utoipa::path(
+    get,
+    path = "/account/{account_id}/connectors/{connector_id}",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("connector_id" = i32, Path, description = "The unique identifier for the payment connector")
+    ),
+    responses(
+        (status = 200, description = "Payment Connector retrieved successfully", body = PaymentConnectorCreate),
+        (status = 404, description = "Payment Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsRetrieve))]
-// #[get("/{merchant_id}/connectors/{merchant_connector_id}")]
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -153,8 +199,22 @@ pub async fn payment_connector_retrieve(
     .await
 }
 
+/// Payment Connector - List
+///
+/// List Payment Connector Details for the merchant
+#[utoipa::path(
+    get,
+    path = "/account/{account_id}/connectors",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+    ),
+    responses(
+        (status = 200, description = "Payment Connector list retrieved successfully", body = Vec<PaymentConnectorCreate>),
+        (status = 404, description = "Payment Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsList))]
-
 pub async fn payment_connector_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -171,8 +231,24 @@ pub async fn payment_connector_list(
     .await
 }
 
+/// Payment Connector - Update
+///
+/// To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}/connectors/{connector_id}",
+    request_body = PaymentConnectorCreate,
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("connector_id" = i32, Path, description = "The unique identifier for the payment connector")
+    ),
+    responses(
+        (status = 200, description = "Payment Connector Updated", body = PaymentConnectorCreate),
+        (status = 404, description = "Payment Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsUpdate))]
-// #[post("/{merchant_id}/connectors/{merchant_connector_id}")]
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -192,8 +268,22 @@ pub async fn payment_connector_update(
     .await
 }
 
+/// Payment Connector - Delete
+/// Delete or Detach a Payment Connector from Merchant Account
+#[utoipa::path(
+    delete,
+    path = "/account/{account_id}/connectors/{connector_id}",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("connector_id" = i32, Path, description = "The unique identifier for the payment connector")
+    ),
+    responses(
+        (status = 200, description = "Payment Connector Deleted", body = DeleteMcaResponse),
+        (status = 404, description = "Payment Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsDelete))]
-// #[delete("/{merchant_id}/connectors/{merchant_connector_id}")]
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,

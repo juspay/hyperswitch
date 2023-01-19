@@ -301,6 +301,7 @@ impl<F, T>
                     code: error.error_code,
                     message: error.error_text,
                     reason: None,
+                    status_code: item.http_code,
                 })
             });
 
@@ -431,6 +432,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 code: error.error_code.clone(),
                 message: error.error_text.clone(),
                 reason: None,
+                status_code: item.http_code,
             })
         });
 
