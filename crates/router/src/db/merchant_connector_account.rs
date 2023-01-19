@@ -59,12 +59,12 @@ impl ConnectorAccessToken for Store {
         connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        let conn = self.redis_conn.clone();
         let key = format!("{merchant_id}_{connector_name}");
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
-        conn.set_key_with_expiry(&key, serialized_access_token, access_token.expires)
+        self.redis_conn
+            .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
             .map_err(|error| {
                 logger::error!(access_token_kv_error=?error);
