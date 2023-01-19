@@ -673,30 +673,37 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
-    let payment_method_type = payment_data.payment_attempt.payment_method;
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
     let card_cvc = payment_data.card_cvc.clone();
 
+    // TODO: Handle case where payment method and token both are present in request properly.
     let payment_method = match (request, token) {
-        (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-            if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
-                // TODO: Handle token expiry
-                let (pm, supplementary_data) =
-                    vault::Vault::get_payment_method_data_from_locker(state, &token).await?;
-                utils::when(
-                    supplementary_data
-                        .customer_id
-                        .ne(&payment_data.payment_intent.customer_id),
-                    || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
-                    },
-                )?;
-                payment_data.token = Some(token.to_string());
-                match (pm.clone(), card_cvc) {
-                    (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
+        (_, Some(token)) => {
+            let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(
+                state, &token,
+            )
+            .await
+            .attach_printable(
+                "Payment method for given token not found or there was a problem fetching it",
+            )?;
+
+            utils::when(
+                supplementary_data
+                    .customer_id
+                    .ne(&payment_data.payment_intent.customer_id),
+                || {
+                    Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
+                },
+            )?;
+
+            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm.clone() {
+                Some(api::PaymentMethod::Card(card)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethodType::Card);
+                    if let Some(cvc) = card_cvc {
                         let mut updated_card = card;
-                        updated_card.card_cvc = card_cvc;
+                        updated_card.card_cvc = cvc;
                         let updated_pm = api::PaymentMethod::Card(updated_card);
                         vault::Vault::store_payment_method_data_in_locker(
                             state,
@@ -706,50 +713,39 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         )
                         .await?;
                         Some(updated_pm)
+                    } else {
+                        pm
                     }
-                    (_, _) => pm,
                 }
-            } else if payment_method_type == Some(storage_enums::PaymentMethodType::Wallet) {
-                let (pm, supplementary_data) =
-                    vault::Vault::get_payment_method_data_from_locker(state, &token).await?;
 
-                utils::when(
-                    supplementary_data
-                        .customer_id
-                        .ne(&payment_data.payment_intent.customer_id),
-                    || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
-                    },
-                )?;
-                payment_data.token = Some(token.to_string());
-                match pm.clone() {
-                    Some(api::PaymentMethod::Wallet(wallet_data)) => {
-                        if wallet_data.token.is_some() {
-                            let updated_pm = api::PaymentMethod::Wallet(wallet_data);
-                            vault::Vault::store_payment_method_data_in_locker(
-                                state,
-                                Some(token),
-                                &updated_pm,
-                                payment_data.payment_intent.customer_id.to_owned(),
-                            )
-                            .await?;
-                            Some(updated_pm)
-                        } else {
-                            pm
-                        }
+                Some(api::PaymentMethod::Wallet(wallet_data)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethodType::Wallet);
+                    // TODO: Remove redundant update from wallets.
+                    if wallet_data.token.is_some() {
+                        let updated_pm = api::PaymentMethod::Wallet(wallet_data);
+                        vault::Vault::store_payment_method_data_in_locker(
+                            state,
+                            Some(token),
+                            &updated_pm,
+                            payment_data.payment_intent.customer_id.to_owned(),
+                        )
+                        .await?;
+                        Some(updated_pm)
+                    } else {
+                        pm
                     }
-                    _ => pm,
                 }
-            } else {
-                utils::when(payment_method_type.is_none(), || {
-                    Err(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "payment_method_type".to_owned(),
-                    })
-                })?;
-                // [#195]: Implement token flow for other payment methods
-                None
-            },
-        ),
+
+                Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable(
+                        "Payment method received from locker is unsupported by locker",
+                    )?,
+
+                None => None,
+            })
+        }
         (pm_opt @ Some(pm @ api::PaymentMethod::Card(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -840,7 +836,9 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     utils::when(
-        req.payment_method.is_some() && req.payment_method_data.is_none(),
+        req.payment_method.is_some()
+            && req.payment_method_data.is_none()
+            && req.payment_token.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data".to_string(),
