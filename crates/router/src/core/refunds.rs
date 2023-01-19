@@ -153,7 +153,7 @@ pub async fn trigger_refund_to_gateway(
         .await
         .map_err(|error| error.to_refund_failed_response())?
     } else {
-        router_data.clone()
+        router_data
     };
 
     let refund_update = match router_data_res.response {
@@ -316,7 +316,7 @@ pub async fn sync_refund_with_gateway(
         .await
         .map_err(|error| error.to_refund_failed_response())?
     } else {
-        router_data.clone()
+        router_data
     };
 
     let refund_update = match router_data_res.response {
