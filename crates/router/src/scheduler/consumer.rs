@@ -49,7 +49,7 @@ pub async fn start_consumer(
         tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
-    let signal = signal_hook_tokio::Signals::new(&[
+    let signal = signal_hook_tokio::Signals::new([
         signal_hook::consts::SIGTERM,
         signal_hook::consts::SIGINT,
     ])

@@ -363,7 +363,7 @@ pub(crate) async fn signal_handler(
     mut sig: signal_hook_tokio::Signals,
     sender: oneshot::Sender<()>,
 ) {
-    while let Some(signal) = sig.next().await {
+    if let Some(signal) = sig.next().await {
         logger::debug!("Requested a force shutdown");
         match signal {
             signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
@@ -376,6 +376,5 @@ pub(crate) async fn signal_handler(
             },
             _ => {}
         }
-        break;
     }
 }
