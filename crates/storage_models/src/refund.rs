@@ -63,8 +63,6 @@ pub struct RefundNew {
     pub refund_amount: i64,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
-    pub refund_error_message: Option<String>,
-    pub refund_error_code: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub refund_arn: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
