@@ -254,7 +254,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
-        previously_used_connector: Option<String>,
+        previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, previously_used_connector).await
     }

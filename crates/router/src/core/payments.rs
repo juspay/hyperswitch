@@ -104,7 +104,7 @@ where
             &merchant_account,
             state,
             &req,
-            payment_data.payment_attempt.connector.clone(),
+            payment_data.payment_attempt.connector.as_ref(),
         )
         .await?;
 
