@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Juspay Router - API Documentation",
-    "description": "\n## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                                            |\n|---------------|------------------------------------------------------|\n| Sandbox       | <https://sandbox-router.juspay.io>                   |\n| Production    | <https://router.juspay.io>                           |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant\naccount, you are given a secret key (also referred as api-key).\nYou may authenticate all API requests with Juspay server by providing the appropriate key in the\nrequest Authorization header.\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "description": "\n## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                                            |\n|---------------|------------------------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>                   |\n| Production    | <https://router.juspay.io>                           |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant\naccount, you are given a secret key (also referred as api-key).\nYou may authenticate all API requests with Juspay server by providing the appropriate key in the\nrequest Authorization header.\n\nNever share your secret api keys. Keep them guarded and secure.\n",
     "contact": {
       "name": "Juspay Support",
       "url": "https://juspay.io",
@@ -15,7 +15,7 @@
   },
   "servers": [
     {
-      "url": "https://sandbox-router.juspay.io",
+      "url": "https://sandbox.hyperswitch.io",
       "description": "Sandbox Environment"
     },
     {
