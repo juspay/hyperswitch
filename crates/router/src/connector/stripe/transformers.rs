@@ -367,7 +367,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -422,7 +422,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -516,7 +516,7 @@ pub struct RefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
@@ -569,7 +569,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -586,7 +586,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -649,16 +649,13 @@ pub struct CancelRequest {
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let cancellation_reason = match &item.request.cancellation_reason {
             Some(c) => Some(
                 CancellationReason::from_str(c)
                     .into_report()
-                    .change_context(errors::ParsingError)
-                    .attach_printable_lazy(|| {
-                        "Error while converting string to StripeCancelRequest"
-                    })?,
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             None => None,
         };
@@ -703,7 +700,7 @@ pub struct CaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: item.request.amount_to_capture,

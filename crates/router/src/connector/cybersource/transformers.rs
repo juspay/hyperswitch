@@ -284,7 +284,7 @@ impl<F, T>
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -337,7 +337,7 @@ impl<F, T>
         >,
     > for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -398,7 +398,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourcePaymentsResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, CybersourcePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
@@ -416,7 +416,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourcePaymentsR
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceTransactionResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, CybersourceTransactionResponse>,
     ) -> Result<Self, Self::Error> {

@@ -198,7 +198,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, PayuPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -225,7 +225,7 @@ pub struct PayuPaymentsCaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for PayuPaymentsCaptureRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             order_id: item.request.connector_transaction_id.clone(),
@@ -244,7 +244,7 @@ impl<F, T>
         types::ResponseRouterData<F, PayuPaymentsCaptureResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -281,7 +281,7 @@ impl<F, T>
         types::ResponseRouterData<F, PayuPaymentsCancelResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -511,7 +511,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {

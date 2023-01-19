@@ -445,7 +445,7 @@ impl From<CancelStatus> for storage_enums::AttemptStatus {
 impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     for types::PaymentsCancelRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
@@ -472,7 +472,7 @@ pub fn get_adyen_response(
         Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
-    errors::ParsingError,
+    errors::ConnectorError,
 > {
     let status = match response.result_code {
         AdyenStatus::Authorised => {
@@ -517,7 +517,7 @@ pub fn get_redirection_response(
         Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
-    errors::ParsingError,
+    errors::ConnectorError,
 > {
     let status = response.result_code.into();
 
@@ -537,7 +537,7 @@ pub fn get_redirection_response(
 
     let redirection_url_response = Url::parse(&response.action.url)
         .into_report()
-        .change_context(errors::ParsingError)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
         .attach_printable("Failed to parse redirection url")?;
 
     let form_field_for_redirection = match response.action.data {
@@ -553,7 +553,7 @@ pub fn get_redirection_response(
         url: redirection_url_response.to_string(),
         method: services::Method::from_str(&response.action.method)
             .into_report()
-            .change_context(errors::ParsingError)?,
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
         form_fields: form_field_for_redirection,
     };
 
@@ -574,7 +574,7 @@ impl<F, Req>
         bool,
     )> for types::RouterData<F, Req, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         items: (
             types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
@@ -639,7 +639,7 @@ pub struct AdyenCaptureResponse {
 impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
     for types::PaymentsCaptureRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
     ) -> Result<Self, Self::Error> {
@@ -714,7 +714,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
 impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
     for types::RefundsRouterData<F>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<F, AdyenRefundResponse>,
     ) -> Result<Self, Self::Error> {
