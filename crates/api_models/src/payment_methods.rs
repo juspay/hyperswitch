@@ -19,7 +19,7 @@ pub struct CreatePaymentMethod {
     #[schema(example = "Citibank")]
     pub payment_method_issuer: Option<String>,
     /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "JP_APPLEPAY")]
+    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     /// Card Details
     #[schema(example = json!({
@@ -31,7 +31,7 @@ pub struct CreatePaymentMethod {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
-    /// the unique identifier of the customer.
+    /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
     pub customer_id: Option<String>,
 }
@@ -73,10 +73,10 @@ pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
     #[schema(example = "merchant_1671528864")]
     pub merchant_id: String,
-    /// the unique identifier of the customer.
+    /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
     pub customer_id: Option<String>,
-    /// the unique identifier of the Payment method
+    /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub payment_method_id: String,
     /// The type of payment method use for the payment.
@@ -89,7 +89,7 @@ pub struct PaymentMethodResponse {
     #[schema(example = "Citibank")]
     pub payment_method_issuer: Option<String>,
     /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "JP_APPLEPAY")]
+    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
@@ -140,10 +140,10 @@ pub struct ListPaymentMethodRequest {
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893ein2d")]
     pub client_secret: Option<String>,
     /// The two-letter ISO currency code
-    #[schema(example = json!([["US", "UK", "IN"]]))]
+    #[schema(example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<String>>,
     /// The three-letter ISO currency code
-    #[schema(value_type = Option<Vec<Currency>>,example = json!([["USD", "EUR"]]))]
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     /// Filter by amount
     #[schema(example = 60)]
@@ -251,13 +251,18 @@ pub struct ListPaymentMethodResponse {
     #[schema(example = "https://www.google.com")]
     pub redirect_url: Option<String>,
     /// Information about the payment method
-    #[schema(value_type = Vec<ListPaymentMethod>,example = json!([{
-        "payment_method": "wallet",
+    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
+    [
+        {
+            "payment_method": "wallet",
             "payment_experience": null,
             "payment_method_issuers": [
                 "labore magna ipsum",
                 "aute"
-    ]}]))]
+            ]
+        }
+    ]
+    ))]
     pub payment_methods: HashSet<ListPaymentMethod>,
 }
 
@@ -273,16 +278,16 @@ pub struct ListPaymentMethod {
     #[schema(example = json!(["Citibank"]))]
     pub payment_method_issuers: Option<Vec<String>>,
     /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodIssuerCode>>,example = json!(["JP_APPLEPAY"]))]
+    #[schema(value_type = Option<Vec<PaymentMethodIssuerCode>>,example = json!(["jp_applepay"]))]
     pub payment_method_issuer_code: Option<Vec<api_enums::PaymentMethodIssuerCode>>,
     /// List of payment schemes accepted or has the processing capabilities of the processor
     #[schema(example = json!(["MASTER", "VISA", "DINERS"]))]
     pub payment_schemes: Option<Vec<String>>,
     /// List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!([["US", "UK", "IN"]]))]
+    #[schema(example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<String>>,
     /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<Currency>>,example = json!([["USD", "EUR"]]))]
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of
     /// the target currency (For example, for USD it should be in cents)
@@ -333,15 +338,18 @@ impl serde::Serialize for ListPaymentMethod {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ListCustomerPaymentMethodsResponse {
     /// List of enabled payment methods for a customer
-    #[schema(value_type = Vec<ListPaymentMethod>,example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_experience": null,
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ]
-        }]))]
+    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
+        [
+            {
+                "payment_method": "wallet",
+                "payment_experience": null,
+                "payment_method_issuers": [
+                    "labore magna ipsum",
+                    "aute"
+                ]
+            }
+        ]
+    ))]
     pub enabled_payment_methods: HashSet<ListPaymentMethod>,
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
@@ -349,10 +357,10 @@ pub struct ListCustomerPaymentMethodsResponse {
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct DeletePaymentMethodResponse {
-    /// the unique identifier of the Payment method
+    /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub payment_method_id: String,
-    /// whether payment method was deleted or not
+    /// Whether payment method was deleted or not
     #[schema(example = true)]
     pub deleted: bool,
 }
@@ -362,7 +370,7 @@ pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
     #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
     pub payment_token: String,
-    /// the unique identifier of the customer.
+    /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
     pub customer_id: String,
     /// The type of payment method use for the payment.
@@ -375,7 +383,7 @@ pub struct CustomerPaymentMethod {
     #[schema(example = "Citibank")]
     pub payment_method_issuer: Option<String>,
     /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "JP_APPLEPAY")]
+    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]

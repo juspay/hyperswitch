@@ -84,9 +84,9 @@ pub async fn list_payment_method_api(
     .await
 }
 
-/// List payment methods for a Merchant
+/// List payment methods for a Customer
 ///
-/// To filter and list the applicable payment methods for a particular merchant id.
+/// To filter and list the applicable payment methods for a particular customer id.
 #[utoipa::path(
     get,
     path = "/payment_methods/{customer_id}",
@@ -178,7 +178,7 @@ pub async fn payment_method_retrieve_api(
     ),
     request_body = UpdatePaymentMethod,
     responses(
-        (status = 200, description = "Payment Method Update", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method updated", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     )
 )]
@@ -218,7 +218,7 @@ pub async fn payment_method_update_api(
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method Delete", body = DeletePaymentMethodResponse),
+        (status = 200, description = "Payment Method deleted", body = DeletePaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     )
 )]
