@@ -3,7 +3,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -117,8 +116,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let adyen_req = utils::Encode::<adyen::AdyenCaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = adyen::AdyenCaptureRequest::try_from(req)?;
+        let adyen_req =
+            utils::Encode::<adyen::AdyenCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
     fn build_request(
@@ -156,12 +157,14 @@ impl
     }
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
+            .response
             .parse_struct("adyen::ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -288,12 +291,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -344,8 +349,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
+        let adyen_req =
+            utils::Encode::<adyen::AdyenPaymentRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
 
@@ -397,12 +404,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -451,8 +460,10 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let adyen_req = utils::Encode::<adyen::AdyenCancelRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = adyen::AdyenCancelRequest::try_from(req)?;
+        let adyen_req =
+            utils::Encode::<adyen::AdyenCancelRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
     fn build_request(
@@ -490,13 +501,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::info!(response=?res);
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.message,
             reason: None,
@@ -545,8 +558,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let adyen_req = utils::Encode::<adyen::AdyenRefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = adyen::AdyenRefundRequest::try_from(req)?;
+        let adyen_req =
+            utils::Encode::<adyen::AdyenRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
 
@@ -588,13 +603,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::info!(response=?res);
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.message,
             reason: None,
