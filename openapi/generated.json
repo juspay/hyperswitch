@@ -2086,6 +2086,45 @@
           }
         }
       },
+      "RefundListRequest": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Limit on the number of objects to return"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which refund is created"
+          },
+          "created.lt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time less than the refund created time"
+          },
+          "created.gt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time greater than the refund created time"
+          },
+          "created.lte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time less than or equals to the refund created time"
+          },
+          "created.gte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time greater than or equals to the refund created time"
+          }
+        }
+      },
       "RefundRequest": {
         "type": "object",
         "required": [
@@ -2193,6 +2232,20 @@
           "scheduled",
           "instant"
         ]
+      },
+      "RefundUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
+            "example": "Customer returned the product",
+            "maxLength": 255
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
       },
       "RoutingAlgorithm": {
         "type": "string",

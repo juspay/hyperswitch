@@ -100,7 +100,12 @@ where
 
     let connector_details = operation
         .to_domain()?
-        .get_connector(&merchant_account, state, &req)
+        .get_connector(
+            &merchant_account,
+            state,
+            &req,
+            payment_data.payment_attempt.connector.as_ref(),
+        )
         .await?;
 
     let connector_details = route_connector(
