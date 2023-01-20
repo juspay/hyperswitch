@@ -135,8 +135,9 @@ pub enum ApiErrorResponse {
     MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "{message:?}")]
     NotImplemented { message: NotImplementedMessage },
-    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{message}", ignore = "status_code")]
+    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
+        code: String,
         message: String,
         connector: String,
         status_code: u16,
