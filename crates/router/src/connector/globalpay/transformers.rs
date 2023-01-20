@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     requests::{self, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
-    response::{
-        GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
-        GlobalpayRefreshTokenResponse,
-    },
+    response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
@@ -88,17 +85,6 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
                 key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
-}
-
-impl From<GlobalpayRefreshTokenErrorResponse> for types::ErrorResponse {
-    fn from(item: GlobalpayRefreshTokenErrorResponse) -> Self {
-        Self {
-            status_code: item.status_code,
-            code: item.error_code,
-            message: item.detailed_error_description,
-            reason: None,
         }
     }
 }
