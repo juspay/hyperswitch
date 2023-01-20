@@ -55,7 +55,8 @@ async fn should_only_authorize_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
 
@@ -76,7 +77,7 @@ async fn should_authorize_and_capture_payment() {
             None,
         )
         .await;
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Charged);
 }
 
 #[actix_web::test]

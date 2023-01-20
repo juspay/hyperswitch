@@ -2,7 +2,6 @@ mod transformers;
 
 use std::{collections::HashMap, fmt::Debug};
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -178,13 +177,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code
@@ -277,13 +278,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code
@@ -387,12 +390,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code
@@ -492,12 +497,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code
@@ -617,12 +624,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code
@@ -719,12 +728,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code
@@ -819,12 +830,14 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error
                 .code

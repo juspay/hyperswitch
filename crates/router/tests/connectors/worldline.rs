@@ -2,6 +2,7 @@ use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     connector::Worldline,
+    core::errors,
     types::{self, storage::enums, PaymentAddress},
 };
 
@@ -89,14 +90,14 @@ async fn should_requires_manual_authorization() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
         "10",
-        "2025",
+        "25",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = WorldlineTest {}
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
-    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Authorized);
 }
 
 #[actix_web::test]
@@ -110,8 +111,55 @@ async fn should_auto_authorize_and_request_capture() {
     );
     let response = WorldlineTest {}
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Pending);
+}
+
+#[actix_web::test]
+async fn should_throw_not_implemented_for_unsupported_issuer() {
+    let authorize_data = WorldlineTest::get_payment_authorize_data(
+        "630495060000000000",
+        "10",
+        "25",
+        "123",
+        enums::CaptureMethod::Automatic,
+    );
+    let response = WorldlineTest {}
+        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .await;
+    assert_eq!(
+        *response.unwrap_err().current_context(),
+        errors::ConnectorError::NotImplemented(String::from("Payment Method"))
+    )
+}
+
+#[actix_web::test]
+async fn should_throw_missing_required_field_for_country() {
+    let authorize_data = WorldlineTest::get_payment_authorize_data(
+        "4012000033330026",
+        "10",
+        "2025",
+        "123",
+        enums::CaptureMethod::Automatic,
+    );
+    let response = WorldlineTest {}
+        .make_payment(
+            authorize_data,
+            Some(PaymentInfo {
+                address: Some(PaymentAddress {
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        )
+        .await;
+    assert_eq!(
+        *response.unwrap_err().current_context(),
+        errors::ConnectorError::MissingRequiredField {
+            field_name: String::from("billing.address.country")
+        }
+    )
 }
 
 #[actix_web::test]
@@ -119,13 +167,14 @@ async fn should_fail_payment_for_invalid_cvc() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
         "10",
-        "2025",
+        "25",
         "",
         enums::CaptureMethod::Automatic,
     );
     let response = WorldlineTest {}
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
         "NULL VALUE NOT ALLOWED FOR cardPaymentMethodSpecificInput.card.cvv".to_string(),
@@ -144,7 +193,8 @@ async fn should_sync_manual_auth_payment() {
     );
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let sync_response = connector
@@ -158,7 +208,8 @@ async fn should_sync_manual_auth_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
 }
 
@@ -168,13 +219,14 @@ async fn should_sync_auto_auth_payment() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
         "10",
-        "2025",
+        "25",
         "123",
         enums::CaptureMethod::Automatic,
     );
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Pending);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let sync_response = connector
@@ -188,7 +240,8 @@ async fn should_sync_auto_auth_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(sync_response.status, enums::AttemptStatus::Pending);
 }
 
@@ -204,12 +257,14 @@ async fn should_capture_authorized_payment() {
     );
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let capture_response = WorldlineTest {}
         .capture_payment(connector_payment_id, None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         capture_response.status,
         enums::AttemptStatus::CaptureInitiated
@@ -220,7 +275,8 @@ async fn should_capture_authorized_payment() {
 async fn should_fail_capture_payment() {
     let capture_response = WorldlineTest {}
         .capture_payment("123456789".to_string(), None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
         "UNKNOWN_PAYMENT_ID".to_string()
@@ -233,18 +289,20 @@ async fn should_cancel_unauthorized_payment() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
         "10",
-        "2025",
+        "25",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(cancel_response.status, enums::AttemptStatus::Voided);
 }
 
@@ -260,12 +318,14 @@ async fn should_cancel_uncaptured_payment() {
     );
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Pending);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(cancel_response.status, enums::AttemptStatus::Voided);
 }
 
@@ -273,7 +333,8 @@ async fn should_cancel_uncaptured_payment() {
 async fn should_fail_cancel_with_invalid_payment_id() {
     let response = WorldlineTest {}
         .void_payment("123456789".to_string(), None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
         "UNKNOWN_PAYMENT_ID".to_string(),
@@ -286,18 +347,20 @@ async fn should_fail_refund_with_invalid_payment_status() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
         "10",
-        "2025",
+        "25",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = connector
         .make_payment(authorize_data, WorldlineTest::get_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
     let refund_response = connector
         .refund_payment(connector_payment_id, None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         refund_response.response.unwrap_err().message,
         "ORDER WITHOUT REFUNDABLE PAYMENTS".to_string(),

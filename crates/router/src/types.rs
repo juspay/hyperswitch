@@ -59,6 +59,7 @@ pub type PaymentsSessionType =
     dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
+
 pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncType =
@@ -305,14 +306,45 @@ pub struct ErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+    pub status_code: u16,
 }
 
 impl ErrorResponse {
     pub fn get_not_implemented() -> Self {
         Self {
-            code: errors::ApiErrorResponse::NotImplemented.error_code(),
-            message: errors::ApiErrorResponse::NotImplemented.error_message(),
+            code: errors::ApiErrorResponse::NotImplemented {
+                message: errors::api_error_response::NotImplementedMessage::Default,
+            }
+            .error_code(),
+            message: errors::ApiErrorResponse::NotImplemented {
+                message: errors::api_error_response::NotImplementedMessage::Default,
+            }
+            .error_message(),
             reason: None,
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+        }
+    }
+}
+
+impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
+    type Error = errors::ApiErrorResponse;
+    fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
+        match connector_auth {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                app_id: api_key,
+                id: None,
+            }),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector_account_details",
+            }),
         }
     }
 }
@@ -346,6 +378,10 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
             code: error.error_code(),
             message: error.error_message(),
             reason: None,
+            status_code: match error {
+                errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
+                _ => 500,
+            },
         }
     }
 }

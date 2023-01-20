@@ -37,6 +37,20 @@ pub async fn refunds_create(
     .await
 }
 
+/// Refunds - Retrieve
+///
+/// To retrieve a refund against an already processed payment
+#[utoipa::path(
+    get,
+    path = "/refunds/{refund_id}",
+    params(
+        ("refund_id" = String, Path, description = "The identifier for refund")
+    ),
+    responses(
+        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 404, description = "Refund does not exist in our records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
 // #[get("/{id}")]
 pub async fn refunds_retrieve(
@@ -58,6 +72,21 @@ pub async fn refunds_retrieve(
     .await
 }
 
+/// Refunds - Update
+///
+/// To update a refund against an already processed payment
+#[utoipa::path(
+    post,
+    path = "/refunds/{refund_id}",
+    params(
+        ("refund_id" = String, Path, description = "The identifier for refund")
+    ),
+    request_body=RefundUpdateRequest,
+    responses(
+        (status = 200, description = "Refund updated", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 // #[post("/{id}")]
 pub async fn refunds_update(
@@ -79,6 +108,26 @@ pub async fn refunds_update(
     .await
 }
 
+/// Refunds - List
+///
+/// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
+#[utoipa::path(
+    get,
+    path = "/refunds/list",
+    params(
+        ("payment_id" = String, Query, description = "The identifier for the payment"),
+        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
+        ("created" = PrimitiveDateTime, Query, description = "The time at which refund is created"),
+        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the refund created time"),
+        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the refund created time"),
+        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the refund created time"),
+        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the refund created time")
+    ),
+    responses(
+        (status = 200, description = "List of refunds", body = RefundListResponse),
+        (status = 404, description = "Refund does not exist in our records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
 // #[get("/list")]

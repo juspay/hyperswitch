@@ -1,3 +1,4 @@
+pub mod access_token;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
@@ -100,7 +101,12 @@ where
 
     let connector_details = operation
         .to_domain()?
-        .get_connector(&merchant_account, state, &req)
+        .get_connector(
+            &merchant_account,
+            state,
+            &req,
+            payment_data.payment_attempt.connector.as_ref(),
+        )
         .await?;
 
     let connector_details = route_connector(
@@ -275,7 +281,9 @@ where
     .await;
 
     let payments_response =
-        match response.change_context(errors::ApiErrorResponse::NotImplemented)? {
+        match response.change_context(errors::ApiErrorResponse::NotImplemented {
+            message: errors::api_error_response::NotImplementedMessage::Default,
+        })? {
             services::ApplicationResponse::Json(response) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()

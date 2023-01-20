@@ -2,7 +2,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -108,9 +107,11 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
-        let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let klarna_req =
+            utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         logger::debug!(klarna_session_request_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
@@ -152,13 +153,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(klarna_session_error_logs=?res);
         let response: klarna::KlarnaErrorResponse = res
+            .response
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.error_messages.join(" & "),
             reason: None,
@@ -250,8 +253,11 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = klarna::KlarnaPaymentsRequest::try_from(req)?;
+        let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         logger::debug!(klarna_payment_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
@@ -295,13 +301,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(klarna_error_response=?res);
         let response: klarna::KlarnaErrorResponse = res
+            .response
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.error_messages.join(" & "),
             reason: None,

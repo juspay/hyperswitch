@@ -1,9 +1,10 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use async_trait::async_trait;
+use error_stack::Report;
 use masking::Secret;
 use router::{
-    core::payments,
+    core::{errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress},
@@ -32,7 +33,7 @@ pub trait ConnectorActions: Connector {
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::PaymentsAuthorizeRouterData {
+    ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::PaymentsAuthorizeData {
@@ -47,7 +48,7 @@ pub trait ConnectorActions: Connector {
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::PaymentsAuthorizeRouterData {
+    ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
@@ -60,7 +61,7 @@ pub trait ConnectorActions: Connector {
         &self,
         payment_data: Option<types::PaymentsSyncData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::PaymentsSyncRouterData {
+    ) -> Result<types::PaymentsSyncRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| PaymentSyncType::default().0),
@@ -74,7 +75,7 @@ pub trait ConnectorActions: Connector {
         transaction_id: String,
         payment_data: Option<types::PaymentsCaptureData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::PaymentsCaptureRouterData {
+    ) -> Result<types::PaymentsCaptureRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or(types::PaymentsCaptureData {
@@ -93,7 +94,7 @@ pub trait ConnectorActions: Connector {
         transaction_id: String,
         payment_data: Option<types::PaymentsCancelData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::PaymentsCancelRouterData {
+    ) -> Result<types::PaymentsCancelRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or(types::PaymentsCancelData {
@@ -110,7 +111,7 @@ pub trait ConnectorActions: Connector {
         transaction_id: String,
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::RefundExecuteRouterData {
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
@@ -132,7 +133,7 @@ pub trait ConnectorActions: Connector {
         transaction_id: String,
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
-    ) -> types::RefundSyncRouterData {
+    ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
@@ -194,7 +195,7 @@ async fn call_connector<
 >(
     request: types::RouterData<T, Req, Resp>,
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
-) -> types::RouterData<T, Req, Resp> {
+) -> Result<types::RouterData<T, Req, Resp>, Report<ConnectorError>> {
     use router::configs::settings::Settings;
     let conf = Settings::new().unwrap();
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
@@ -205,7 +206,6 @@ async fn call_connector<
         payments::CallConnectorAction::Trigger,
     )
     .await
-    .unwrap()
 }
 
 pub struct MockConfig {

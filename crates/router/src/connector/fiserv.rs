@@ -3,7 +3,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use bytes::Bytes;
 use error_stack::ResultExt;
 use ring::hmac;
 use time::OffsetDateTime;
@@ -158,8 +157,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let fiserv_req = utils::Encode::<fiserv::FiservCaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = fiserv::FiservCaptureRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(fiserv_req))
     }
 
@@ -212,9 +213,10 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: fiserv::ErrorResponse = res
+            .response
             .parse_struct("Fiserv ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -235,6 +237,7 @@ impl
         };
 
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message,
             reason: None,
@@ -313,8 +316,11 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = fiserv::FiservPaymentsRequest::try_from(req)?;
+        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(fiserv_req))
     }
 
@@ -359,9 +365,10 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: fiserv::ErrorResponse = res
+            .response
             .parse_struct("Fiserv ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -381,6 +388,7 @@ impl
             (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message,
             reason: None,
