@@ -4,7 +4,6 @@ use api_models::{
     self,
     payments::{Address, AddressDetails},
 };
-
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
