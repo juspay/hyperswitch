@@ -165,6 +165,17 @@ impl
     }
 }
 
+impl api::ConnectorAccessToken for Payu {}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+    > for Payu
+{
+}
+
 impl api::PaymentSync for Payu {}
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>

@@ -21,6 +21,14 @@ use crate::{
     types::{self, api::enums as api_enums},
 };
 
+#[derive(Clone, Debug)]
+pub struct AccessTokenAuth;
+
+pub trait ConnectorAccessToken:
+    ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+{
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
@@ -76,7 +84,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook
+    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken
 {
 }
 
@@ -84,8 +92,15 @@ pub struct Re;
 
 pub struct Pe;
 
-impl<T: Refund + Payment + Debug + ConnectorRedirectResponse + Send + IncomingWebhook> Connector
-    for T
+impl<
+        T: Refund
+            + Payment
+            + Debug
+            + ConnectorRedirectResponse
+            + Send
+            + IncomingWebhook
+            + ConnectorAccessToken,
+    > Connector for T
 {
 }
 

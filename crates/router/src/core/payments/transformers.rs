@@ -98,6 +98,7 @@ where
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,
+        access_token: None,
     };
 
     Ok(router_data)

@@ -125,6 +125,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &R,
+        previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
 }
 
@@ -192,8 +193,9 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
+        previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
+        helpers::get_connector_default(state, previously_used_connector).await
     }
 
     #[instrument(skip_all)]
@@ -258,8 +260,9 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
+        previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
+        helpers::get_connector_default(state, previously_used_connector).await
     }
 }
 
@@ -312,7 +315,8 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
+        previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
+        helpers::get_connector_default(state, previously_used_connector).await
     }
 }

@@ -269,6 +269,7 @@ where
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
+        _previously_used_connector: Option<&String>,
     ) -> RouterResult<api::ConnectorCallType> {
         let connectors = &state.conf.connectors;
         let db = &state.store;

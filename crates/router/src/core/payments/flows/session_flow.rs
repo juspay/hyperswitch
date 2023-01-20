@@ -6,7 +6,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, transformers, PaymentData},
+        payments::{self, access_token, transformers, PaymentData},
     },
     routes, services,
     types::{self, api, storage},
@@ -52,6 +52,15 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             call_connector_action,
         )
         .await
+    }
+
+    async fn add_access_token<'a>(
+        &self,
+        state: &routes::AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<types::AddAccessTokenResult> {
+        access_token::add_access_token(state, connector, merchant_account, self).await
     }
 }
 

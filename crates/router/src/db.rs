@@ -42,6 +42,7 @@ pub trait StorageInterface:
     + events::EventInterface
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::MerchantConnectorAccountInterface
+    + merchant_connector_account::ConnectorAccessToken
     + locker_mock_up::LockerMockUpInterface
     + payment_intent::PaymentIntentInterface
     + payment_method::PaymentMethodInterface
