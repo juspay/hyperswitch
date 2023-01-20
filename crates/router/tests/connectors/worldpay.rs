@@ -48,7 +48,7 @@ impl utils::Connector for Worldpay {
 async fn should_authorize_card_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
-    let response = conn.authorize_payment(None, None).await;
+    let response = conn.authorize_payment(None, None).await.unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
         utils::get_connector_transaction_id(response),
@@ -72,7 +72,8 @@ async fn should_authorize_gpay_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
         utils::get_connector_transaction_id(response),
@@ -96,7 +97,8 @@ async fn should_authorize_applepay_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
         utils::get_connector_transaction_id(response),
@@ -109,7 +111,7 @@ async fn should_authorize_applepay_payment() {
 async fn should_capture_already_authorized_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let authorize_response = connector.authorize_payment(None, None).await;
+    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -117,6 +119,7 @@ async fn should_capture_already_authorized_payment() {
             connector
                 .capture_payment(transaction_id, None, None)
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -139,7 +142,8 @@ async fn should_sync_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized,);
 }
 
@@ -148,7 +152,7 @@ async fn should_sync_payment() {
 async fn should_void_already_authorized_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let authorize_response = connector.authorize_payment(None, None).await;
+    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -156,6 +160,7 @@ async fn should_void_already_authorized_payment() {
             connector
                 .void_payment(transaction_id, None, None)
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -167,11 +172,12 @@ async fn should_void_already_authorized_payment() {
 async fn should_fail_capture_for_invalid_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
-    let authorize_response = connector.authorize_payment(None, None).await;
+    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let response = connector
         .capture_payment("12345".to_string(), None, None)
-        .await;
+        .await
+        .unwrap();
     let err = response.response.unwrap_err();
     assert_eq!(
         err.message,
@@ -186,11 +192,14 @@ async fn should_refund_succeeded_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
     //make a successful payment
-    let response = connector.make_payment(None, None).await;
+    let response = connector.make_payment(None, None).await.unwrap();
 
     //try refund for previous payment
     let transaction_id = utils::get_connector_transaction_id(response).unwrap();
-    let response = connector.refund_payment(transaction_id, None, None).await;
+    let response = connector
+        .refund_payment(transaction_id, None, None)
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
@@ -204,7 +213,8 @@ async fn should_sync_refund() {
     let _mock = connector.start_server(get_mock_config()).await;
     let response = connector
         .sync_refund("654321".to_string(), None, None)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,

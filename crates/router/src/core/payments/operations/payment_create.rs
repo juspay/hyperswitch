@@ -257,8 +257,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, request.connector).await
+        let request_connector = request.connector.map(|connector| connector.to_string());
+        helpers::get_connector_default(state, request_connector.as_ref()).await
     }
 }
 

@@ -253,8 +253,16 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, request.connector).await
+        // Use a new connector in the confirm call or use the same one which was passed when
+        // creating the payment or if none is passed then use the routing algorithm
+        let request_connector = request.connector.map(|connector| connector.to_string());
+        helpers::get_connector_default(
+            state,
+            request_connector.as_ref().or(previously_used_connector),
+        )
+        .await
     }
 }
 
