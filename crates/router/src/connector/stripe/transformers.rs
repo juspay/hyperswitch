@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use api_models::{
-    self,
-    payments::{Address, AddressDetails},
-};
+use api_models::{self, payments};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
@@ -159,22 +156,24 @@ pub enum StripePaymentMethodType {
 }
 
 fn validate_shipping_address_against_payment_method(
-    maybe_shipping_address: &Option<Address>,
+    maybe_shipping_address: &Option<payments::Address>,
     payment_method: &Option<StripePaymentMethodData>,
 ) -> Result<(), errors::ConnectorError> {
     match payment_method {
         Some(StripePaymentMethodData::AfterpayClearpay(..)) => {
             let missing_field = match maybe_shipping_address {
                 Some(address) => match address.address {
-                    Some(AddressDetails {
+                    Some(payments::AddressDetails {
                         first_name: None, ..
                     }) => Some("shipping.first_name"),
-                    Some(AddressDetails {
+                    Some(payments::AddressDetails {
                         last_name: None, ..
                     }) => Some("shipping.last_name"),
-                    Some(AddressDetails { line1: None, .. }) => Some("shipping.line1"),
-                    Some(AddressDetails { country: None, .. }) => Some("shipping.country"),
-                    Some(AddressDetails { zip: None, .. }) => Some("shipping.zip"),
+                    Some(payments::AddressDetails { line1: None, .. }) => Some("shipping.line1"),
+                    Some(payments::AddressDetails { country: None, .. }) => {
+                        Some("shipping.country")
+                    }
+                    Some(payments::AddressDetails { zip: None, .. }) => Some("shipping.zip"),
                     _ => None,
                 },
                 None => Some("shipping address"),
