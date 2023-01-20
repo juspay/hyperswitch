@@ -22,7 +22,7 @@ pub enum ApiErrorResponse {
     NotImplemented,
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_01",
-        message = "API key not provided or invalid API key used. Provide API key in the Authorization header using api-key (e.g api-key: API_KEY) or create new API key from dashboard"
+        message = "API key not provided or invalid API key used"
     )]
     Unauthorized,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_02", message = "Unrecognized request URL")]
@@ -126,7 +126,7 @@ pub enum ApiErrorResponse {
     MandateNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Return URL is not configured and not passed in payments request")]
     ReturnUrlUnavailable,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Refunds not possible through Hyperswitch. Please raise Refunds through {connector} dashboard")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard")]
     RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Mandate Validation Failed" )]
     MandateValidationFailed { reason: String },
