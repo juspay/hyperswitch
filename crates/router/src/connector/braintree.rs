@@ -149,7 +149,7 @@ impl
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let braintree_session_request =
-            utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_url_encode(req)
+            utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         logger::debug!(?braintree_session_request);
@@ -369,7 +369,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let braintree_req =
-            utils::Encode::<braintree::BraintreePaymentsRequest>::convert_and_url_encode(req)
+            utils::Encode::<braintree::BraintreePaymentsRequest>::convert_and_encode(req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(braintree_req))
     }
