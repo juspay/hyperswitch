@@ -54,7 +54,7 @@ pub async fn payments_create(
 
 /// Payments - Start
 ///
-/// The entry point for payment which has redirection flow and it redirects to the authentication page
+/// The entry point for a payment which involves the redirection flow. This redirects the user to the authentication page
 #[utoipa::path(
     get,
     path = "/payments/start/{payment_id}/{merchant_id}/{attempt_id}",
@@ -64,7 +64,7 @@ pub async fn payments_create(
         ("attempt_id" = String, Path, description = "The identifier for transaction")
     ),
     responses(
-        (status = 200, description = "Redirects to the authentication page", body = PaymentsResponse),
+        (status = 200, description = "Redirects to the authentication page"),
         (status = 404, description = "No redirection found")
     )
 )]
@@ -165,7 +165,7 @@ pub async fn payments_retrieve(
     request_body=PaymentsRequest,
     responses(
         (status = 200, description = "Payment updated", body = PaymentsResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields")
     )
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
@@ -221,7 +221,7 @@ pub async fn payments_update(
     request_body=PaymentsRequest,
     responses(
         (status = 200, description = "Payment confirmed", body = PaymentsResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields")
     )
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
@@ -268,7 +268,7 @@ pub async fn payments_confirm(
 
 /// Payments - Capture
 ///
-/// To capture payments for a currently uncaptured Payment with its status as requires_capture
+/// To capture payments for a currently uncaptured payment
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/capture",
@@ -278,7 +278,7 @@ pub async fn payments_confirm(
     request_body=PaymentsCaptureRequest,
     responses(
         (status = 200, description = "Payment captured", body = PaymentsResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields")
     )
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
@@ -321,8 +321,8 @@ pub async fn payments_capture(
     path = "/payments/session_tokens",
     request_body=PaymentsSessionRequest,
     responses(
-        (status = 200, description = "Payment session object created or get session token from wallets", body = PaymentsSessionResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
+        (status = 400, description = "Missing mandatory fields")
     )
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
@@ -370,8 +370,8 @@ pub async fn payments_connector_session(
         ("connector" = String, Path, description = "The name of the connector")
     ),
     responses(
-        (status = 200, description = "Recieved payment redirect response"),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 302, description = "Received payment redirect response"),
+        (status = 400, description = "Missing mandatory fields")
     )
 )]
 #[instrument(skip_all)]
@@ -418,7 +418,7 @@ pub async fn payments_redirect_response(
     ),
     responses(
         (status = 200, description = "Payment canceled"),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields")
     )
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
@@ -463,14 +463,14 @@ pub async fn payments_cancel(
         ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
         ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
         ("limit" = i64, Query, description = "Limit on the number of objects to return"),
-        ("created" = PrimitiveDateTime, Query, description = "The time at which refund is created"),
-        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the refund created time"),
-        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the refund created time"),
-        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the refund created time"),
-        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the refund created time")
+        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
+        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
+        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
+        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
+        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
     ),
     responses(
-        (status = 200, description = "Get payment list"),
+        (status = 200, description = "Received payment list"),
         (status = 404, description = "No payments found")
     )
 )]

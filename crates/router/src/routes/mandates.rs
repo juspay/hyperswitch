@@ -10,7 +10,7 @@ use crate::{
 
 /// Mandates - Get mandates
 ///
-/// To get the mandates
+/// Retrieve a mandate given the mandate ID
 #[utoipa::path(
     get,
     path = "/mandates/{mandate_id}",
@@ -18,7 +18,7 @@ use crate::{
         ("mandate_id" = String, Path, description = "The identifier for mandate")
     ),
     responses(
-        (status = 200, description = "Get mandates", body = MandateResponse),
+        (status = 200, description = "The mandate was retrieved successfully", body = MandateResponse),
         (status = 404, description = "Mandate does not exist in our records")
     )
 )]
@@ -44,7 +44,7 @@ pub async fn get_mandate(
 
 /// Mandates - Revoke mandate
 ///
-/// To revoke the mandate
+/// Revoke a mandate given the mandate ID
 #[utoipa::path(
     post,
     path = "/mandates/revoke/{mandate_id}",
@@ -52,7 +52,7 @@ pub async fn get_mandate(
         ("mandate_id" = String, Path, description = "The identifier for mandate")
     ),
     responses(
-        (status = 200, description = "Revoke mandates", body = MandateRevokedResponse),
+        (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
         (status = 400, description = "Mandate does not exist in our records")
     )
 )]
