@@ -378,8 +378,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let worldpay_req = utils::Encode::<WorldpayPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = WorldpayPaymentsRequest::try_from(req)?;
+        let worldpay_req =
+            utils::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldpay_req))
     }
 
@@ -451,7 +453,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundExecuteRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req = utils::Encode::<WorldpayRefundRequest>::convert_and_encode(req)
+        let connector_req = WorldpayRefundRequest::try_from(req)?;
+        let req = utils::Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }

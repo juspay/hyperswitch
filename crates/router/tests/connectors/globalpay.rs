@@ -63,7 +63,8 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
 async fn should_only_authorize_payment() {
     let response = Globalpay {}
         .authorize_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
 
@@ -71,7 +72,8 @@ async fn should_only_authorize_payment() {
 async fn should_authorize_and_capture_payment() {
     let response = Globalpay {}
         .make_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
@@ -80,7 +82,8 @@ async fn should_capture_already_authorized_payment() {
     let connector = Globalpay {};
     let authorize_response = connector
         .authorize_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -88,6 +91,7 @@ async fn should_capture_already_authorized_payment() {
             connector
                 .capture_payment(transaction_id, None, get_default_payment_info())
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -99,7 +103,8 @@ async fn should_sync_payment() {
     let connector = Globalpay {};
     let authorize_response = connector
         .authorize_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     sleep(Duration::from_secs(5)); // to avoid 404 error as globalpay takes some time to process the new transaction
     let response = connector
@@ -113,7 +118,8 @@ async fn should_sync_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized,);
 }
 
@@ -130,7 +136,8 @@ async fn should_fail_payment_for_incorrect_cvc() {
             }),
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     let x = response.status;
     assert_eq!(x, enums::AttemptStatus::Failure);
 }
@@ -141,13 +148,15 @@ async fn should_refund_succeeded_payment() {
     //make a successful payment
     let response = connector
         .make_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
 
     //try refund for previous payment
     let transaction_id = utils::get_connector_transaction_id(response).unwrap();
     let response = connector
         .refund_payment(transaction_id, None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
@@ -159,7 +168,8 @@ async fn should_void_already_authorized_payment() {
     let connector = Globalpay {};
     let authorize_response = connector
         .authorize_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -167,6 +177,7 @@ async fn should_void_already_authorized_payment() {
             connector
                 .void_payment(transaction_id, None, None)
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -178,15 +189,18 @@ async fn should_sync_refund() {
     let connector = Globalpay {};
     let response = connector
         .make_payment(None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     let transaction_id = utils::get_connector_transaction_id(response).unwrap();
     connector
         .refund_payment(transaction_id.clone(), None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     sleep(Duration::from_secs(5)); // to avoid 404 error as globalpay takes some time to process the new transaction
     let response = connector
         .sync_refund(transaction_id, None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,

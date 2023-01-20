@@ -121,9 +121,12 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
         let checkout_req =
-            utils::Encode::<checkout::PaymentCaptureRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
 
@@ -319,8 +322,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let checkout_req = utils::Encode::<checkout::PaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkout::PaymentsRequest::try_from(req)?;
+        let checkout_req =
+            utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -428,8 +433,10 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let checkout_req = utils::Encode::<checkout::PaymentVoidRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkout::PaymentVoidRequest::try_from(req)?;
+        let checkout_req =
+            utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -533,8 +540,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let body = utils::Encode::<checkout::RefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkout::RefundRequest::try_from(req)?;
+        let body =
+            utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 

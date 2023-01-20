@@ -116,8 +116,11 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req = utils::Encode::<applepay::ApplepaySessionRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = applepay::ApplepaySessionRequest::try_from(req)?;
+        let req = utils::Encode::<applepay::ApplepaySessionRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
