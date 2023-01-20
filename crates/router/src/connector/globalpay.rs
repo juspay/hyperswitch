@@ -49,7 +49,7 @@ where
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefreshTokenType::get_content_type(self).to_string(),
+                self.get_content_type().to_string(),
             ),
             ("X-GP-Version".to_string(), "2021-03-22".to_string()),
             (
