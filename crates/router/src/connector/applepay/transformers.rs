@@ -72,7 +72,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, ApplepaySessionResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, ApplepaySessionResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
