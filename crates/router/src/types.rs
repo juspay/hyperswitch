@@ -32,6 +32,9 @@ pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 
+pub type RefreshTokenRouterData =
+    RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
+
 pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
@@ -80,6 +83,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<serde_json::Value>,
     pub amount_captured: Option<i64>,
+    pub access_token: Option<AccessToken>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -151,10 +155,21 @@ pub struct VerifyRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsTransactionResponse {
-    pub resource_id: ResponseId,
-    pub redirection_data: Option<services::RedirectForm>,
-    pub redirect: bool,
+pub struct AccessTokenRequestData {
+    pub app_id: String,
+    pub id: Option<String>,
+    // Add more keys if required
+}
+
+pub struct AddAccessTokenResult {
+    pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
+    pub connector_supports_access_token: bool,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub struct AccessToken {
+    pub token: String,
+    pub expires: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -303,6 +318,29 @@ impl ErrorResponse {
             .error_message(),
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+        }
+    }
+}
+
+impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
+    type Error = errors::ApiErrorResponse;
+    fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
+        match connector_auth {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                app_id: api_key,
+                id: None,
+            }),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector_account_details",
+            }),
         }
     }
 }

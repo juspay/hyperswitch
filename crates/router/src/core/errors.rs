@@ -64,6 +64,8 @@ pub enum StorageError {
     MockDbError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
+    #[error("Deserialization failure")]
+    DeserializationFailed,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
