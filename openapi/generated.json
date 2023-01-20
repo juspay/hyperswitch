@@ -265,6 +265,35 @@
           "scheduled"
         ]
       },
+      "CardDetailFromLocker": {
+        "type": "object",
+        "properties": {
+          "scheme": {
+            "type": "string"
+          },
+          "issuer_country": {
+            "type": "string"
+          },
+          "last4_digits": {
+            "type": "string"
+          },
+          "expiry_month": {
+            "$ref": "#/components/schemas/masking.Secret"
+          },
+          "expiry_year": {
+            "$ref": "#/components/schemas/masking.Secret"
+          },
+          "card_token": {
+            "$ref": "#/components/schemas/masking.Secret"
+          },
+          "card_holder_name": {
+            "$ref": "#/components/schemas/masking.Secret"
+          },
+          "card_fingerprint": {
+            "$ref": "#/components/schemas/masking.Secret"
+          }
+        }
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -966,7 +995,20 @@
         ],
         "properties": {
           "enabled_payment_methods": {
-            "$ref": "#/components/schemas/HashSet"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListPaymentMethod"
+            },
+            "example": [
+              {
+                "payment_method": "wallet",
+                "payment_experience": null,
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ]
+              }
+            ]
           },
           "customer_payment_methods": {
             "type": "array",
@@ -1098,7 +1140,20 @@
             "example": "https://www.google.com"
           },
           "payment_methods": {
-            "$ref": "#/components/schemas/HashSet"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListPaymentMethod"
+            },
+            "example": [
+              {
+                "payment_method": "wallet",
+                "payment_experience": null,
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ]
+              }
+            ]
           }
         }
       },
@@ -1716,6 +1771,21 @@
               "Paypal"
             ]
           }
+        ]
+      },
+      "PaymentMethodIssuerCode": {
+        "type": "string",
+        "enum": [
+          "jp_hdfc",
+          "jp_icici",
+          "jp_googlepay",
+          "jp_applepay",
+          "jp_phonepay",
+          "jp_wechat",
+          "jp_sofort",
+          "jp_giropay",
+          "jp_sepa",
+          "jp_bacs"
         ]
       },
       "PaymentMethodResponse": {

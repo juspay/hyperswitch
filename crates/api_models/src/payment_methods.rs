@@ -112,7 +112,7 @@ pub struct PaymentMethodResponse {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
     pub issuer_country: Option<String>,
@@ -245,7 +245,7 @@ pub struct ListPaymentMethodResponse {
     #[schema(example = "https://www.google.com")]
     pub redirect_url: Option<String>,
     /// Information about the payment method
-    #[schema(example = json!([{
+    #[schema(value_type = Vec<ListPaymentMethod>,example = json!([{
         "payment_method": "wallet",
             "payment_experience": null,
             "payment_method_issuers": [
@@ -327,7 +327,7 @@ impl serde::Serialize for ListPaymentMethod {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ListCustomerPaymentMethodsResponse {
     /// List of enabled payment methods for a customer
-    #[schema(example = json!([
+    #[schema(value_type = Vec<ListPaymentMethod>,example = json!([
         {
             "payment_method": "wallet",
             "payment_experience": null,

@@ -326,6 +326,7 @@ pub enum FutureUsage {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
