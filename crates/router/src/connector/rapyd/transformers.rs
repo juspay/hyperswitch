@@ -138,6 +138,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     }
 }
 
+#[derive(Debug, Deserialize)]
 pub struct RapydAuthType {
     pub access_key: String,
     pub secret_key: String,
@@ -538,4 +539,32 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RapydIncomingWebhook {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub webhook_type: RapydWebhookObjectEventType,
+    pub data: WebhookData,
+    pub trigger_operation_id: Option<String>,
+    pub status: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RapydWebhookObjectEventType {
+    PaymentCompleted,
+    PaymentCaptured,
+    PaymentFailed,
+    RefundCompleted,
+    PaymentRefundRejected,
+    PaymentRefundFailed,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum WebhookData {
+    PaymentData(ResponseData),
+    RefundData(RefundResponseData),
 }

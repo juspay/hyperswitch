@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use bytes::Bytes;
-use common_utils::date_time;
+use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
@@ -11,6 +11,7 @@ use transformers as rapyd;
 
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -22,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::{self, crypto, ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -622,27 +623,108 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     }
 }
 
-#[async_trait::async_trait]
 impl api::IncomingWebhook for Rapyd {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _headers: &actix_web::http::header::HeaderMap,
+        _body: &[u8],
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        headers: &actix_web::http::header::HeaderMap,
+        _body: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let base64_signature = conn_utils::get_header_key_value("signature", headers)?;
+        let signature = consts::BASE64_ENGINE_URL_SAFE
+            .decode(base64_signature.as_bytes())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(signature)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        headers: &actix_web::http::header::HeaderMap,
+        body: &[u8],
+        merchant_id: &str,
+        secret: &[u8],
+    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::ConnectorError> {
+        let host = conn_utils::get_header_key_value("host", headers)?;
+        let connector = self.id();
+        let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
+        let salt = conn_utils::get_header_key_value("salt", headers)?;
+        let timestamp = conn_utils::get_header_key_value("timestamp", headers)?;
+        let stringify_auth = String::from_utf8(secret.to_vec())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Could not convert secret to UTF-8")?;
+        let auth: transformers::RapydAuthType = stringify_auth
+            .parse_struct("RapydAuthType")
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let access_key = auth.access_key;
+        let secret_key = auth.secret_key;
+        let body_string = String::from_utf8(body.to_vec())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Could not convert body to UTF-8")?;
+        let to_sign = format!("{url_path}{salt}{timestamp}{access_key}{secret_key}{body_string}");
+
+        Ok((to_sign.into_bytes(), secret_key.as_bytes().to_vec()))
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        body: &[u8],
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook: transformers::RapydIncomingWebhook = body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(match webhook.data {
+            transformers::WebhookData::PaymentData(payment_data) => payment_data.id,
+            transformers::WebhookData::RefundData(refund_data) => refund_data.id,
+        })
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        body: &[u8],
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook: transformers::RapydIncomingWebhook = body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(match webhook.webhook_type {
+            transformers::RapydWebhookObjectEventType::PaymentCompleted => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            transformers::RapydWebhookObjectEventType::PaymentCaptured => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            transformers::RapydWebhookObjectEventType::PaymentFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        })
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        body: &[u8],
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook: transformers::RapydIncomingWebhook = body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let response = match webhook.data {
+            transformers::WebhookData::PaymentData(payment_data) => Ok(payment_data),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
+        }?;
+        let res_json = serde_json::to_value(response)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(res_json)
     }
 }
 

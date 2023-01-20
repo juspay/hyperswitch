@@ -1,7 +1,8 @@
+use error_stack::IntoReport;
 use masking::Secret;
 
 use crate::{
-    core::errors,
+    core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api},
 };
@@ -160,4 +161,21 @@ impl AddressDetailsData for api::AddressDetails {
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))
     }
+}
+
+pub fn get_header_key_value(
+    key: &str,
+    headers: &actix_web::http::header::HeaderMap,
+) -> CustomResult<String, errors::ConnectorError> {
+    headers
+        .get(key)
+        .map(|header_value| {
+            header_value
+                .to_str()
+                .map(String::from)
+                .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
+                .into_report()
+        })
+        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .into_report()?
 }
