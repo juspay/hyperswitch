@@ -1,8 +1,6 @@
-use common_utils::{
-    crypto::{self, GenerateDigest},
-    date_time,
-};
+use common_utils::crypto::{self, GenerateDigest};
 use error_stack::ResultExt;
+use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -97,6 +95,7 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
 impl From<GlobalpayRefreshTokenErrorResponse> for types::ErrorResponse {
     fn from(item: GlobalpayRefreshTokenErrorResponse) -> Self {
         Self {
+            status_code: item.status_code,
             code: item.error_code,
             message: item.detailed_error_description,
             reason: None,
@@ -123,8 +122,8 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
-        let current_time = date_time::now().to_string();
-        let nonce_with_api_key = format!("{}{}", current_time, globalpay_auth.key);
+        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key);
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())
             .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -134,7 +133,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
 
         Ok(Self {
             app_id: globalpay_auth.app_id,
-            nonce: current_time,
+            nonce,
             secret,
             grant_type: "client_credentials".to_string(),
         })
