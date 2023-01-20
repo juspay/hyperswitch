@@ -1,3 +1,4 @@
+pub mod access_token;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
@@ -330,7 +331,7 @@ pub async fn call_connector_service<F, Op, Req>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<PaymentData<F>>
 where
-    Op: Debug,
+    Op: Debug + Sync,
     F: Send + Clone,
 
     // To create connector flow specific interface data
@@ -347,21 +348,36 @@ where
 
     let stime_connector = Instant::now();
 
-    let router_data = payment_data
+    let mut router_data = payment_data
         .construct_router_data(state, connector.connector.id(), merchant_account)
         .await?;
 
-    let res = router_data
-        .decide_flows(
-            state,
-            &connector,
-            customer,
-            call_connector_action,
-            merchant_account,
-        )
-        .await;
+    let add_access_token_result = router_data
+        .add_access_token(state, &connector, merchant_account)
+        .await?;
 
-    let response = res
+    match add_access_token_result.access_token_result {
+        Ok(access_token) => router_data.access_token = access_token,
+        Err(connector_error) => router_data.response = Err(connector_error),
+    }
+
+    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+        && router_data.access_token.is_none())
+    {
+        router_data
+            .decide_flows(
+                state,
+                &connector,
+                customer,
+                call_connector_action,
+                merchant_account,
+            )
+            .await
+    } else {
+        Ok(router_data)
+    };
+
+    let response = router_data_res
         .async_and_then(|response| async {
             let operation = helpers::response_operation::<F, Req>();
             let payment_data = operation

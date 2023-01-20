@@ -137,7 +137,11 @@ fn make_card_request(
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let card_number = ccard.card_number.peek().as_ref();
     let expiry_year = ccard.card_exp_year.peek().clone();
-    let secret_value = format!("{}{}", ccard.card_exp_month.peek(), &expiry_year[2..]);
+    let secret_value = format!(
+        "{}{}",
+        ccard.card_exp_month.peek(),
+        &expiry_year[expiry_year.len() - 2..]
+    );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),

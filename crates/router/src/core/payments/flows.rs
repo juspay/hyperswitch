@@ -38,4 +38,15 @@ pub trait Feature<F, T> {
         Self: Sized,
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn add_access_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<types::AddAccessTokenResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 }
