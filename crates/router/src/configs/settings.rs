@@ -109,6 +109,7 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub base_url: String,
+    pub shutdown_timeout: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
