@@ -154,7 +154,10 @@ impl std::fmt::Debug for NotImplementedMessage {
         match self {
             Self::Reason(message) => write!(fmt, "{message} is not implemented"),
             Self::Default => {
-                write!(fmt, "This API is under development and will be made available soon.")
+                write!(
+                    fmt,
+                    "This API is under development and will be made available soon."
+                )
             }
         }
     }
