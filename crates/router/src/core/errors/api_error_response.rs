@@ -130,7 +130,7 @@ pub enum ApiErrorResponse {
     RefundNotPossible { connector: String },
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Mandate Validation Failed" )]
     MandateValidationFailed { reason: String },
-    #[error(error_type= ErrorType::ValidationError, code = "HE_04", message = "The payment has not succeeded yet. Please pass a successful payment to initiate refund")]
+    #[error(error_type= ErrorType::ValidationError, code = "HE_03", message = "The payment has not succeeded yet. Please pass a successful payment to initiate refund")]
     PaymentNotSucceeded,
     #[error(error_type= ErrorType::ObjectNotFound, code = "HE_04", message = "Successful payment not found for the given payment id")]
     SuccessfulPaymentNotFound,
