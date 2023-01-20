@@ -80,7 +80,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::admin::DeleteMerchantAccountResponse,
         crate::types::api::admin::DeleteMcaResponse,
         crate::types::api::customers::CustomerRequest,
-        crate::types::api::customers::CustomerDeleteMerchantAccountResponse,
+        crate::types::api::customers::CustomerDeleteResponse,
         crate::types::api::payment_methods::CreatePaymentMethod,
         crate::types::api::payment_methods::PaymentMethodResponse,
         crate::types::api::payment_methods::ListPaymentMethod,

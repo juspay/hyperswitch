@@ -168,7 +168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeleteResponse"
+                  "$ref": "#/components/schemas/DeleteMerchantAccountResponse"
                 }
               }
             }
@@ -726,8 +726,8 @@
         "tags": [
           "crate::routes::payment_methods"
         ],
-        "summary": "List payment methods for a Merchant",
-        "description": "List payment methods for a Merchant\n\nTo filter and list the applicable payment methods for a particular merchant id.",
+        "summary": "List payment methods for a Customer",
+        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular customer id.",
         "operationId": "list_customer_payment_method_api",
         "parameters": [
           {
@@ -898,7 +898,7 @@
         },
         "responses": {
           "200": {
-            "description": "Payment Method Update",
+            "description": "Payment Method updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -934,7 +934,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Method Delete",
+            "description": "Payment Method deleted",
             "content": {
               "application/json": {
                 "schema": {
@@ -1545,7 +1545,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "the unique identifier of the customer.",
+            "description": "The unique identifier of the customer.",
             "example": "cus_meowerunwiuwiwqw"
           }
         }
@@ -1727,7 +1727,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "the unique identifier of the customer.",
+            "description": "The unique identifier of the customer.",
             "example": "cus_meowerunwiuwiwqw"
           },
           "payment_method": {
@@ -1909,26 +1909,7 @@
           }
         }
       },
-      "DeletePaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "payment_method_id",
-          "deleted"
-        ],
-        "properties": {
-          "payment_method_id": {
-            "type": "string",
-            "description": "the unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "whether payment method was deleted or not",
-            "example": true
-          }
-        }
-      },
-      "DeleteResponse": {
+      "DeleteMerchantAccountResponse": {
         "type": "object",
         "required": [
           "merchant_id",
@@ -1945,6 +1926,25 @@
             "type": "boolean",
             "description": "If the connector is deleted or not",
             "example": false
+          }
+        }
+      },
+      "DeletePaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_id",
+          "deleted"
+        ],
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether payment method was deleted or not",
+            "example": true
           }
         }
       },
@@ -2163,7 +2163,7 @@
               "$ref": "#/components/schemas/PaymentMethodIssuerCode"
             },
             "example": [
-              "JP_APPLEPAY"
+              "jp_applepay"
             ]
           },
           "payment_schemes": {
@@ -2185,11 +2185,9 @@
               "description": "List of Countries accepted or has the processing capabilities of the processor"
             },
             "example": [
-              [
-                "US",
-                "UK",
-                "IN"
-              ]
+              "US",
+              "UK",
+              "IN"
             ]
           },
           "accepted_currencies": {
@@ -2198,10 +2196,8 @@
               "$ref": "#/components/schemas/Currency"
             },
             "example": [
-              [
-                "USD",
-                "EUR"
-              ]
+              "USD",
+              "EUR"
             ]
           },
           "minimum_amount": {
@@ -2914,12 +2910,12 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "the unique identifier of the customer.",
+            "description": "The unique identifier of the customer.",
             "example": "cus_meowerunwiuwiwqw"
           },
           "payment_method_id": {
             "type": "string",
-            "description": "the unique identifier of the Payment method",
+            "description": "The unique identifier of the Payment method",
             "example": "card_rGK4Vi5iSW70MY7J2mIy"
           },
           "payment_method": {

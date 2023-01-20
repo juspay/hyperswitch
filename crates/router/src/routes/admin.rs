@@ -104,7 +104,7 @@ pub async fn update_merchant_account(
     path = "/account/{account_id}",
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Deleted", body = DeleteResponse),
+        (status = 200, description = "Merchant Account Deleted", body = DeleteMerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
     )
 )]
