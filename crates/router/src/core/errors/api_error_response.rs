@@ -151,13 +151,12 @@ pub enum NotImplementedMessage {
 
 impl std::fmt::Debug for NotImplementedMessage {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = match self {
-            Self::Reason(m) => format!("{} is not implemented", m),
+        match self {
+            Self::Reason(message) => write!(fmt, "{message} is not implemented"),
             Self::Default => {
-                "This API is under development and will be made available soon.".to_string()
+                write!(fmt, "This API is under development and will be made available soon.")
             }
-        };
-        write!(fmt, "{message}")
+        }
     }
 }
 
