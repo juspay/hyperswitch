@@ -240,7 +240,7 @@ pub struct ResponseData {
 impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsResponseRouterData<RapydPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
@@ -251,7 +251,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                         ("3d_verification", Some(url)) => {
                             let url = Url::parse(&url)
                                 .into_report()
-                                .change_context(errors::ParsingError)?;
+                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                             let mut base_url = url.clone();
                             base_url.set_query(None);
                             Some(services::RedirectForm {
@@ -280,6 +280,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
                         code: item.response.status.error_code,
+                        status_code: item.http_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
                     }),
@@ -289,6 +290,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -297,6 +299,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -319,7 +322,7 @@ pub struct RapydRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             payment: item.request.connector_transaction_id.to_string(),
@@ -370,7 +373,7 @@ pub struct RefundResponseData {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -394,7 +397,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -423,7 +426,7 @@ pub struct CaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.amount_to_capture,
@@ -436,7 +439,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
     for types::PaymentsCaptureRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
@@ -458,6 +461,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                         code: item.response.status.error_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
+                        status_code: item.http_code,
                     }),
                 ),
             },
@@ -467,6 +471,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     code: item.response.status.error_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
+                    status_code: item.http_code,
                 }),
             ),
             _ => (
@@ -475,6 +480,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     code: item.response.status.error_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
+                    status_code: item.http_code,
                 }),
             ),
         };
@@ -510,6 +516,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
                         code: item.response.status.error_code,
+                        status_code: item.http_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
                     }),
@@ -519,6 +526,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -527,6 +535,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),

@@ -145,6 +145,7 @@ pub async fn trigger_refund_to_gateway(
         Err(err) => storage::RefundUpdate::ErrorUpdate {
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: Some(err.message),
+            refund_error_code: Some(err.code),
         },
         Ok(response) => storage::RefundUpdate::Update {
             connector_refund_id: response.connector_refund_id,
@@ -292,6 +293,7 @@ pub async fn sync_refund_with_gateway(
         Err(error_message) => storage::RefundUpdate::ErrorUpdate {
             refund_status: None,
             refund_error_message: Some(error_message.message),
+            refund_error_code: Some(error_message.code),
         },
         Ok(response) => storage::RefundUpdate::Update {
             connector_refund_id: response.connector_refund_id,
@@ -538,6 +540,7 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
             status: refund.refund_status.foreign_into(),
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
+            error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
         }

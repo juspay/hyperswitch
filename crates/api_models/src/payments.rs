@@ -399,10 +399,13 @@ pub enum PaymentMethodDataResponse {
     Paypal,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum PaymentIdType {
+    /// The identifier for payment intent
     PaymentIntentId(String),
+    /// The identifier for connector transaction
     ConnectorTransactionId(String),
+    /// The identifier for payment attempt
     PaymentAttemptId(String),
 }
 
@@ -515,13 +518,19 @@ pub struct PhoneDetails {
     pub country_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
+    /// The unique identifier for the payment
     pub payment_id: Option<String>,
+    /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
+    /// The Amount to be captured/ debited from the user's payment method.
     pub amount_to_capture: Option<i64>,
+    /// Decider to refund the uncaptured amount
     pub refund_uncaptured_amount: Option<bool>,
+    /// Provides information about a card payment that customers see on their statements.
     pub statement_descriptor_suffix: Option<String>,
+    /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
 }
 
@@ -670,33 +679,44 @@ pub struct PaymentsResponse {
     pub error_message: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
+    /// The identifier for customer
     pub customer_id: Option<String>,
+    /// A cursor for use in pagination, fetch the next list after some object
     pub starting_after: Option<String>,
+    /// A cursor for use in pagination, fetch the previous list before some object
     pub ending_before: Option<String>,
+    /// limit on the number of objects to return
     #[serde(default = "default_limit")]
     pub limit: i64,
+    /// The time at which payment is created
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
+    /// Time less than the payment created time
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lt")]
     pub created_lt: Option<PrimitiveDateTime>,
+    /// Time greater than the payment created time
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gt")]
     pub created_gt: Option<PrimitiveDateTime>,
+    /// Time less than or equals to the payment created time
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lte")]
     pub created_lte: Option<PrimitiveDateTime>,
+    /// Time greater than or equals to the payment created time
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gte")]
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {
+    /// The number of payments included in the list
     pub size: usize,
+    // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
 
@@ -949,12 +969,17 @@ pub struct PaymentsResponseForm {
     pub order_id: String,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRetrieveRequest {
+    /// The type of ID (ex: payment intent id, payment attempt id or connector txn id)
     pub resource_id: PaymentIdType,
+    /// The identifier for the Merchant Account.
     pub merchant_id: Option<String>,
+    /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: bool,
+    /// The parameters passed to a retrieve request
     pub param: Option<String>,
+    /// The name of the connector
     pub connector: Option<String>,
 }
 
@@ -978,119 +1003,171 @@ pub struct Metadata {
     pub data: serde_json::Value,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
+    /// The identifier for the payment
     pub payment_id: String,
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: String,
+    /// The list of the supported wallets
+    #[schema(value_type = Vec<SupportedWallets>)]
     pub wallets: Vec<api_enums::SupportedWallets>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayAllowedMethodsParameters {
+    /// The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)
     pub allowed_auth_methods: Vec<String>,
+    /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenParameters {
+    /// The name of the connector
     pub gateway: String,
+    /// The merchant ID registered in the connector associated
     pub gateway_merchant_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenizationSpecification {
+    /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
     pub token_specification_type: String,
+    /// The parameters for the token specification Google Pay
     pub parameters: GpayTokenParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayAllowedPaymentMethods {
+    /// The type of payment method
     #[serde(rename = "type")]
     pub payment_method_type: String,
+    /// The parameters Google Pay requires
     pub parameters: GpayAllowedMethodsParameters,
+    /// The tokenization specification for Google Pay
     pub tokenization_specification: GpayTokenizationSpecification,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
+    /// The country code
     pub country_code: String,
+    /// The currency code
     pub currency_code: String,
+    /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
+    /// The total price
     pub total_price: i64,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayMerchantInfo {
+    /// The name of the merchant
     pub merchant_name: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GpayMetadata {
+pub struct GpayMetaData {
     pub merchant_info: GpayMerchantInfo,
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    pub data: GpayMetadata,
+    #[serde(rename = "gpay")]
+    pub data: GpayMetaData,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
+    /// The session response structure for Google Pay
     Gpay {
-        #[serde(flatten)]
-        data: GpayMetadata,
+        /// The merchant info
+        merchant_info: GpayMerchantInfo,
+        /// List of the allowed payment meythods
+        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+        /// The transaction info Google Pay requires
         transaction_info: GpayTransactionInfo,
     },
+    /// The session response structure for Klarna
     Klarna {
+        /// The session token for Klarna
         session_token: String,
+        /// The identifier for the session
         session_id: String,
     },
+    /// The session response structure for PayPal
     Paypal {
+        /// The session token for PayPal
         session_token: String,
     },
+    /// The session response structure for Apple Pay
     Applepay {
+        /// Timestamp at which session is requested
         epoch_timestamp: u64,
+        /// Timestamp at which session expires
         expires_at: u64,
+        /// The identifier for the merchant session
         merchant_session_identifier: String,
+        /// Applepay generates unique ID (UUID) value
         nonce: String,
+        /// The identifier for the merchant
         merchant_identifier: String,
+        /// The domain name of the merchant which is registered in Apple Pay
         domain_name: String,
+        /// The name to be displayed on Apple Pay button
         display_name: String,
+        /// A string which represents the properties of a payment
         signature: String,
+        /// The identifier for the operational analytics
         operational_analytics_identifier: String,
+        /// The number of retries to get the session response
         retries: u8,
+        /// The identifier for the connector transaction
         psp_id: String,
     },
 }
 
-#[derive(Default, Debug, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
+    /// The identifier for the payment
     pub payment_id: String,
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
+    #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
+    /// The list of session token object
     pub session_token: Vec<SessionToken>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBody {
+    /// The identifier for the Merchant Account.
     pub merchant_id: Option<String>,
+    /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
 }
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
+    /// The identifier for the payment
     #[serde(skip)]
     pub payment_id: String,
+    /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsStartRequest {
+    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     pub payment_id: String,
+    /// The identifier for the Merchant Account.
     pub merchant_id: String,
-    pub txn_id: String,
+    /// The identifier for the payment transaction
+    pub attempt_id: String,
 }
 
 mod payment_id_type {

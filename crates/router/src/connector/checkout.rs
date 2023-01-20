@@ -4,7 +4,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as checkout;
@@ -42,7 +41,10 @@ impl ConnectorCommon for Checkout {
         let auth: checkout::CheckoutAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", auth.api_key),
+        )])
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -119,9 +121,12 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
         let checkout_req =
-            utils::Encode::<checkout::PaymentCaptureRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
 
@@ -162,12 +167,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -259,12 +266,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -313,8 +322,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let checkout_req = utils::Encode::<checkout::PaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkout::PaymentsRequest::try_from(req)?;
+        let checkout_req =
+            utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -361,12 +372,15 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(checkout_error_response=?res);
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -419,8 +433,10 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let checkout_req = utils::Encode::<checkout::PaymentVoidRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkout::PaymentVoidRequest::try_from(req)?;
+        let checkout_req =
+            utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -459,12 +475,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -522,8 +540,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let body = utils::Encode::<checkout::RefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkout::RefundRequest::try_from(req)?;
+        let body =
+            utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 
@@ -568,12 +588,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
@@ -667,12 +689,14 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response
                 .error_codes
                 .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
