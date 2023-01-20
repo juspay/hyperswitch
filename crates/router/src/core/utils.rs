@@ -80,6 +80,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_refund_id: refund.connector_refund_id.clone().unwrap_or_default(),
             refund_status: refund.refund_status,
         }),
+        access_token: None,
     };
 
     Ok(router_data)

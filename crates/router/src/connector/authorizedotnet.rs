@@ -42,12 +42,23 @@ impl api::PaymentSync for Authorizedotnet {}
 impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
 impl api::PaymentSession for Authorizedotnet {}
+impl api::ConnectorAccessToken for Authorizedotnet {}
 
 impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
         types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // Not Implemented (R)
+}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
     > for Authorizedotnet
 {
     // Not Implemented (R)
