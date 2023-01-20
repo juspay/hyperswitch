@@ -314,25 +314,25 @@ impl ErrorResponse {
     }
 }
 
-impl From<ConnectorAuthType> for AccessTokenRequestData {
-    fn from(connector_auth: ConnectorAuthType) -> Self {
+impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
+    type Error = errors::ApiErrorResponse;
+    fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 app_id: api_key,
                 id: None,
-            },
-            ConnectorAuthType::BodyKey { api_key, key1 } => Self {
+            }),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
-            },
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Self {
+            }),
+            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
-            },
-            _ => Self {
-                app_id: String::new(),
-                id: None,
-            },
+            }),
+            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector_account_details",
+            }),
         }
     }
 }
