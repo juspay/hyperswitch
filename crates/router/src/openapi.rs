@@ -25,7 +25,7 @@ Use the following base URLs when making requests to the APIs:
 
 | Environment   |  Base URL                                            |
 |---------------|------------------------------------------------------|
-| Sandbox       | <https://sandbox.hyperswitch.io>                   |
+| Sandbox       | <https://sandbox.hyperswitch.io>                     |
 | Production    | <https://router.juspay.io>                           |
 
 ## Authentication
@@ -80,8 +80,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NextActionType,
         api_models::payments::Metadata,
         api_models::payments::WalletData,
-        api_models::payments::KlarnaRedirectIssuer,
-        api_models::payments::KlarnaSdkIssuer,
+        api_models::payments::KlarnaIssuer,
+        api_models::payments::AffirmIssuer,
+        api_models::payments::AfterpayClearpayIssuer,
         api_models::payments::NextAction,
         api_models::payments::PayLaterData,
         api_models::payments::MandateData,

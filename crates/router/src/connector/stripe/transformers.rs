@@ -815,7 +815,7 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     billing_country: Some(billing_country),
                     billing_name: None,
                 })),
-                api_models::payments::PayLaterData::AffirmRedirect { billing_email } => {
+                api_models::payments::PayLaterData::AffirmRedirect { billing_email, .. } => {
                     Ok(Self::Affirm(StripePayLaterData {
                         payment_method_types: StripePaymentMethodType::Affirm,
                         payment_method_data_type: StripePaymentMethodType::Affirm,
@@ -827,6 +827,7 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                 api_models::payments::PayLaterData::AfterpayClearpayRedirect {
                     billing_email,
                     billing_name,
+                    ..
                 } => Ok(Self::AfterpayClearpay(StripePayLaterData {
                     payment_method_types: StripePaymentMethodType::AfterpayClearpay,
                     payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
