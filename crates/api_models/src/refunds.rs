@@ -114,8 +114,9 @@ pub struct RefundListRequest {
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
+    /// List of Refunds
     pub data: Vec<RefundResponse>,
 }
 

@@ -3639,6 +3639,20 @@
           }
         }
       },
+      "RefundListResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundResponse"
+            }
+          }
+        }
+      },
       "RefundRequest": {
         "type": "object",
         "required": [
@@ -3939,6 +3953,17 @@
           "klarna",
           "gpay"
         ]
+      },
+      "UpdatePaymentMethod": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
       },
       "WalletData": {
         "type": "object",
