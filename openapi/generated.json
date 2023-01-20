@@ -698,6 +698,122 @@
           "on_session"
         ]
       },
+      "GpayAllowedMethodsParameters": {
+        "type": "object",
+        "required": [
+          "allowed_auth_methods",
+          "allowed_card_networks"
+        ],
+        "properties": {
+          "allowed_auth_methods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)"
+            }
+          },
+          "allowed_card_networks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+            }
+          }
+        }
+      },
+      "GpayAllowedPaymentMethods": {
+        "type": "object",
+        "required": [
+          "type",
+          "parameters",
+          "tokenization_specification"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/GpayAllowedMethodsParameters"
+          },
+          "tokenization_specification": {
+            "$ref": "#/components/schemas/GpayTokenizationSpecification"
+          }
+        }
+      },
+      "GpayMerchantInfo": {
+        "type": "object",
+        "required": [
+          "merchant_name"
+        ],
+        "properties": {
+          "merchant_name": {
+            "type": "string",
+            "description": "The name of the merchant"
+          }
+        }
+      },
+      "GpayTokenParameters": {
+        "type": "object",
+        "required": [
+          "gateway",
+          "gateway_merchant_id"
+        ],
+        "properties": {
+          "gateway": {
+            "type": "string",
+            "description": "The name of the connector"
+          },
+          "gateway_merchant_id": {
+            "type": "string",
+            "description": "The merchant ID registered in the connector associated"
+          }
+        }
+      },
+      "GpayTokenizationSpecification": {
+        "type": "object",
+        "required": [
+          "type",
+          "parameters"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/GpayTokenParameters"
+          }
+        }
+      },
+      "GpayTransactionInfo": {
+        "type": "object",
+        "required": [
+          "country_code",
+          "currency_code",
+          "total_price_status",
+          "total_price"
+        ],
+        "properties": {
+          "country_code": {
+            "type": "string",
+            "description": "The country code"
+          },
+          "currency_code": {
+            "type": "string",
+            "description": "The currency code"
+          },
+          "total_price_status": {
+            "type": "string",
+            "description": "The total price status (ex: 'FINAL')"
+          },
+          "total_price": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total price"
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "enum": [
@@ -1184,6 +1300,112 @@
           "invoke_payment_app"
         ]
       },
+      "PaymentIdType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "PaymentIntentId"
+            ],
+            "properties": {
+              "PaymentIntentId": {
+                "type": "string",
+                "description": "The identifier for payment intent"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ConnectorTransactionId"
+            ],
+            "properties": {
+              "ConnectorTransactionId": {
+                "type": "string",
+                "description": "The identifier for connector transaction"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "PaymentAttemptId"
+            ],
+            "properties": {
+              "PaymentAttemptId": {
+                "type": "string",
+                "description": "The identifier for payment attempt"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentListConstraints": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for customer"
+          },
+          "starting_after": {
+            "type": "string",
+            "description": "A cursor for use in pagination, fetch the next list after some object"
+          },
+          "ending_before": {
+            "type": "string",
+            "description": "A cursor for use in pagination, fetch the previous list before some object"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "limit on the number of objects to return"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which payment is created"
+          },
+          "created.lt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time less than the payment created time"
+          },
+          "created.gt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time greater than the payment created time"
+          },
+          "created.lte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time less than or equals to the payment created time"
+          },
+          "created.gte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time greater than or equals to the payment created time"
+          }
+        }
+      },
+      "PaymentListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of payments included in the list"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentsResponse"
+            }
+          }
+        }
+      },
       "PaymentMethod": {
         "oneOf": [
           {
@@ -1358,6 +1580,58 @@
             "example": [
               "redirect_to_url"
             ]
+          }
+        }
+      },
+      "PaymentRetrieveBody": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account."
+          },
+          "force_sync": {
+            "type": "boolean",
+            "description": "Decider to enable or disable the connector call for retrieve request"
+          }
+        }
+      },
+      "PaymentsCancelRequest": {
+        "type": "object",
+        "properties": {
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The reason for the payment cancel"
+          }
+        }
+      },
+      "PaymentsCaptureRequest": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The unique identifier for the payment"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The unique identifier for the merchant"
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured/ debited from the user's payment method."
+          },
+          "refund_uncaptured_amount": {
+            "type": "boolean",
+            "description": "Decider to refund the uncaptured amount"
+          },
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "description": "Provides information about a card payment that customers see on their statements."
+          },
+          "statement_descriptor_prefix": {
+            "type": "string",
+            "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor."
           }
         }
       },
@@ -1699,6 +1973,104 @@
           }
         }
       },
+      "PaymentsRetrieveRequest": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "force_sync"
+        ],
+        "properties": {
+          "resource_id": {
+            "$ref": "#/components/schemas/PaymentIdType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account."
+          },
+          "force_sync": {
+            "type": "boolean",
+            "description": "Decider to enable or disable the connector call for retrieve request"
+          },
+          "param": {
+            "type": "string",
+            "description": "The parameters passed to a retrieve request"
+          },
+          "connector": {
+            "type": "string",
+            "description": "The name of the connector"
+          }
+        }
+      },
+      "PaymentsSessionRequest": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "client_secret",
+          "wallets"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
+          },
+          "wallets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedWallets"
+            }
+          }
+        }
+      },
+      "PaymentsSessionResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "client_secret",
+          "session_token"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
+          },
+          "session_token": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionToken"
+            }
+          }
+        }
+      },
+      "PaymentsStartRequest": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "merchant_id",
+          "attempt_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account."
+          },
+          "attempt_id": {
+            "type": "string",
+            "description": "The identifier for the payment transaction"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -1832,6 +2204,171 @@
           "custom"
         ],
         "example": "custom"
+      },
+      "SessionToken": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The session response structure for Google Pay",
+            "required": [
+              "merchant_info",
+              "allowed_payment_methods",
+              "transaction_info",
+              "wallet_name"
+            ],
+            "properties": {
+              "merchant_info": {
+                "$ref": "#/components/schemas/GpayMerchantInfo"
+              },
+              "allowed_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+                }
+              },
+              "transaction_info": {
+                "$ref": "#/components/schemas/GpayTransactionInfo"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "gpay"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The session response structure for Klarna",
+            "required": [
+              "session_token",
+              "session_id",
+              "wallet_name"
+            ],
+            "properties": {
+              "session_token": {
+                "type": "string",
+                "description": "The session token for Klarna"
+              },
+              "session_id": {
+                "type": "string",
+                "description": "The identifier for the session"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "klarna"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The session response structure for PayPal",
+            "required": [
+              "session_token",
+              "wallet_name"
+            ],
+            "properties": {
+              "session_token": {
+                "type": "string",
+                "description": "The session token for PayPal"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "paypal"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The session response structure for Apple Pay",
+            "required": [
+              "epoch_timestamp",
+              "expires_at",
+              "merchant_session_identifier",
+              "nonce",
+              "merchant_identifier",
+              "domain_name",
+              "display_name",
+              "signature",
+              "operational_analytics_identifier",
+              "retries",
+              "psp_id",
+              "wallet_name"
+            ],
+            "properties": {
+              "epoch_timestamp": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Timestamp at which session is requested"
+              },
+              "expires_at": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Timestamp at which session expires"
+              },
+              "merchant_session_identifier": {
+                "type": "string",
+                "description": "The identifier for the merchant session"
+              },
+              "nonce": {
+                "type": "string",
+                "description": "Applepay generates unique ID (UUID) value"
+              },
+              "merchant_identifier": {
+                "type": "string",
+                "description": "The identifier for the merchant"
+              },
+              "domain_name": {
+                "type": "string",
+                "description": "The domain name of the merchant which is registered in Apple Pay"
+              },
+              "display_name": {
+                "type": "string",
+                "description": "The name to be displayed on Apple Pay button"
+              },
+              "signature": {
+                "type": "string",
+                "description": "A string which represents the properties of a payment"
+              },
+              "operational_analytics_identifier": {
+                "type": "string",
+                "description": "The identifier for the operational analytics"
+              },
+              "retries": {
+                "type": "integer",
+                "format": "int32",
+                "description": "The number of retries to get the session response"
+              },
+              "psp_id": {
+                "type": "string",
+                "description": "The identifier for the connector transaction"
+              },
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "applepay"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "wallet_name"
+        }
+      },
+      "SupportedWallets": {
+        "type": "string",
+        "description": "Wallets which support obtaining session object",
+        "enum": [
+          "paypal",
+          "apple_pay",
+          "klarna",
+          "gpay"
+        ]
       },
       "WalletData": {
         "type": "object",

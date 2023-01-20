@@ -145,8 +145,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let fiserv_req = utils::Encode::<fiserv::FiservCaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = fiserv::FiservCaptureRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(fiserv_req))
     }
 
@@ -302,8 +304,11 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = fiserv::FiservPaymentsRequest::try_from(req)?;
+        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(fiserv_req))
     }
 

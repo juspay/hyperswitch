@@ -121,8 +121,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = stripe::CaptureRequest::try_from(req)?;
+        let stripe_req =
+            utils::Encode::<stripe::CaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -333,8 +335,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+        let stripe_req =
+            utils::Encode::<stripe::PaymentIntentRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -445,10 +449,12 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::CancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
-                "Invalid cancellation reason".to_string(),
-            ))?;
+        let connector_req = stripe::CancelRequest::try_from(req)?;
+        let stripe_req =
+            utils::Encode::<stripe::CancelRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
+                    "Invalid cancellation reason".to_string(),
+                ))?;
         Ok(Some(stripe_req))
     }
 
@@ -560,8 +566,10 @@ impl
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::SetupIntentRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = stripe::SetupIntentRequest::try_from(req)?;
+        let stripe_req =
+            utils::Encode::<stripe::SetupIntentRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -674,8 +682,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::RefundRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = stripe::RefundRequest::try_from(req)?;
+        let stripe_req =
+            utils::Encode::<stripe::RefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 

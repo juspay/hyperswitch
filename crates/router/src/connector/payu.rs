@@ -279,8 +279,11 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuPaymentsCaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payu::PayuPaymentsCaptureRequest::try_from(req)?;
+        let payu_req = utils::Encode::<payu::PayuPaymentsCaptureRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 
@@ -372,8 +375,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payu::PayuPaymentsRequest::try_from(req)?;
+        let payu_req =
+            utils::Encode::<payu::PayuPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 
@@ -464,8 +469,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuRefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payu::PayuRefundRequest::try_from(req)?;
+        let payu_req =
+            utils::Encode::<payu::PayuRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 

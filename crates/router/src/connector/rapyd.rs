@@ -146,8 +146,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::RapydPaymentsRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = rapyd::RapydPaymentsRequest::try_from(req)?;
+        let rapyd_req =
+            utils::Encode::<rapyd::RapydPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }
 
@@ -375,8 +377,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = rapyd::CaptureRequest::try_from(req)?;
+        let rapyd_req =
+            utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }
 

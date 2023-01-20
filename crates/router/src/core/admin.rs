@@ -389,21 +389,16 @@ pub async fn update_payment_connector(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
-    let mut vec = mca.payment_methods_enabled.to_owned().unwrap_or_default();
 
-    let payment_methods_enabled = match req.payment_methods_enabled.clone() {
-        Some(val) => {
-            for pm in val.into_iter() {
-                let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment method",
-                    })?;
-                vec.push(pm_value)
-            }
-            Some(vec)
-        }
-        None => Some(vec),
-    };
+    let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
+        pm_enabled
+            .iter()
+            .flat_map(|payment_method| {
+                utils::Encode::<api::PaymentMethods>::encode_to_value(payment_method)
+            })
+            .collect::<Vec<serde_json::Value>>()
+    });
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -411,8 +406,8 @@ pub async fn update_payment_connector(
         merchant_connector_id: Some(merchant_connector_id),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
-        test_mode: mca.test_mode,
-        disabled: req.disabled.or(mca.disabled),
+        test_mode: req.test_mode,
+        disabled: req.disabled,
         metadata: req.metadata,
     };
 
@@ -426,6 +421,18 @@ pub async fn update_payment_connector(
                 merchant_connector_id
             )
         })?;
+
+    let updated_pm_enabled = updated_mca.payment_methods_enabled.map(|pm| {
+        pm.into_iter()
+            .flat_map(|pm_value| {
+                ValueExt::<api_models::admin::PaymentMethods>::parse_value(
+                    pm_value,
+                    "PaymentMethods",
+                )
+            })
+            .collect::<Vec<api_models::admin::PaymentMethods>>()
+    });
+
     let response = api::PaymentConnectorCreate {
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
@@ -433,7 +440,7 @@ pub async fn update_payment_connector(
         connector_account_details: Some(Secret::new(updated_mca.connector_account_details)),
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
-        payment_methods_enabled: req.payment_methods_enabled,
+        payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
     };
     Ok(service_api::ApplicationResponse::Json(response))

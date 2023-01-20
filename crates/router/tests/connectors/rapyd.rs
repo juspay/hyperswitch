@@ -50,7 +50,8 @@ async fn should_only_authorize_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
 
@@ -70,14 +71,15 @@ async fn should_authorize_and_capture_payment() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Rapyd {};
-    let authorize_response = connector.authorize_payment(None, None).await;
+    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -85,6 +87,7 @@ async fn should_capture_already_authorized_payment() {
             connector
                 .capture_payment(transaction_id, None, None)
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -95,7 +98,7 @@ async fn should_capture_already_authorized_payment() {
 #[serial]
 async fn voiding_already_authorized_payment_fails() {
     let connector = Rapyd {};
-    let authorize_response = connector.authorize_payment(None, None).await;
+    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response);
     let response: OptionFuture<_> = txn_id
@@ -103,6 +106,7 @@ async fn voiding_already_authorized_payment_fails() {
             connector
                 .void_payment(transaction_id, None, None)
                 .await
+                .unwrap()
                 .status
         })
         .into();
@@ -113,11 +117,14 @@ async fn voiding_already_authorized_payment_fails() {
 async fn should_refund_succeeded_payment() {
     let connector = Rapyd {};
     //make a successful payment
-    let response = connector.make_payment(None, None).await;
+    let response = connector.make_payment(None, None).await.unwrap();
 
     //try refund for previous payment
     if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
-        let response = connector.refund_payment(transaction_id, None, None).await;
+        let response = connector
+            .refund_payment(transaction_id, None, None)
+            .await
+            .unwrap();
         assert_eq!(
             response.response.unwrap().refund_status,
             enums::RefundStatus::Success,
@@ -138,7 +145,8 @@ async fn should_fail_payment_for_incorrect_card_number() {
             }),
             None,
         )
-        .await;
+        .await
+        .unwrap();
 
     assert!(response.response.is_err(), "The Payment pass");
 }
