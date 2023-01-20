@@ -467,6 +467,7 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
+/// The status of the mandate, which indicates whether it can be used to initiate a payment
 #[derive(
     Clone,
     Copy,
@@ -479,6 +480,7 @@ pub enum RoutingAlgorithm {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -525,6 +527,12 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+}
+
+impl Connector {
+    pub fn supports_access_token(&self) -> bool {
+        matches!(self, Self::Globalpay)
+    }
 }
 
 #[derive(

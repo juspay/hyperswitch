@@ -20,7 +20,7 @@ pub struct KlarnaPaymentsResponse {
     fraud_status: KlarnaFraudStatus,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct KlarnaSessionRequest {
     intent: KlarnaSessionIntent,
     purchase_country: String,
@@ -64,7 +64,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
 impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     for types::PaymentsSessionRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>,
     ) -> Result<Self, Self::Error> {
@@ -107,7 +107,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
 impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
@@ -132,7 +132,7 @@ pub struct OrderLines {
     total_amount: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[allow(dead_code)]
 pub enum KlarnaSessionIntent {

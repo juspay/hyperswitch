@@ -124,6 +124,13 @@ impl ConnectorCommon for Worldline {
     }
 }
 
+impl api::ConnectorAccessToken for Worldline {}
+
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Worldline
+{
+}
+
 impl api::Payment for Worldline {}
 
 impl api::PreVerify for Worldline {}

@@ -29,7 +29,7 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
     pub entity_id: String,
@@ -40,14 +40,14 @@ pub struct AciPaymentsRequest {
     pub payment_method: PaymentDetails,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciCancelRequest {
     pub entity_id: String,
     pub payment_type: AciPaymentType,
 }
 
-#[derive(Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum PaymentDetails {
     #[serde(rename = "card")]
@@ -59,7 +59,7 @@ pub enum PaymentDetails {
     Paypal,
 }
 
-#[derive(Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CardDetails {
     #[serde(rename = "card.number")]
     pub card_number: String,
@@ -73,7 +73,7 @@ pub struct CardDetails {
     pub card_cvv: String,
 }
 
-#[derive(Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct BankDetails {
     #[serde(rename = "bankAccount.holder")]
     pub account_holder: String,

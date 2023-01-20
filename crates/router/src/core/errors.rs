@@ -64,6 +64,8 @@ pub enum StorageError {
     MockDbError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
+    #[error("Deserialization failure")]
+    DeserializationFailed,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -160,7 +162,10 @@ impl ResponseError for ApplicationError {
 }
 
 pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
-    ApiErrorResponse::NotImplemented.error_response()
+    ApiErrorResponse::NotImplemented {
+        message: api_error_response::NotImplementedMessage::Default,
+    }
+    .error_response()
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -196,7 +201,7 @@ pub enum ApiClientError {
     UnexpectedServerResponse,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ConnectorError {
     #[error("Error while obtaining URL for the integration")]
     FailedToObtainIntegrationUrl,

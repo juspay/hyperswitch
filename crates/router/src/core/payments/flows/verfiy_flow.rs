@@ -5,7 +5,7 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, transformers, PaymentData},
+        payments::{self, access_token, transformers, PaymentData},
     },
     routes::AppState,
     services,
@@ -51,6 +51,15 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             merchant_account,
         )
         .await
+    }
+
+    async fn add_access_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<types::AddAccessTokenResult> {
+        access_token::add_access_token(state, connector, merchant_account, self).await
     }
 }
 

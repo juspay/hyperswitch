@@ -137,7 +137,11 @@ fn make_card_request(
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let card_number = ccard.card_number.peek().as_ref();
     let expiry_year = ccard.card_exp_year.peek().clone();
-    let secret_value = format!("{}{}", ccard.card_exp_month.peek(), &expiry_year[2..]);
+    let secret_value = format!(
+        "{}{}",
+        ccard.card_exp_month.peek(),
+        &expiry_year[expiry_year.len() - 2..]
+    );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
@@ -447,7 +451,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -465,7 +469,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
