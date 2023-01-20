@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as payu;
 
@@ -16,7 +15,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse,
     },
     utils::{self, BytesExt},
 };
@@ -67,13 +66,15 @@ impl ConnectorCommon for Payu {
     }
     fn build_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: payu::PayuErrorResponse = res
+            .response
             .parse_struct("Payu ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.status.status_code,
             message: response.status.status_desc,
             reason: response.status.code_literal,
@@ -142,7 +143,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: payu::PayuPaymentsCancelResponse = res
             .response
@@ -158,7 +159,7 @@ impl
     }
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -227,7 +228,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::payu", response=?res);
         let response: payu::PayuPaymentsSyncResponse = res
@@ -245,7 +246,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -289,8 +290,11 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuPaymentsCaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payu::PayuPaymentsCaptureRequest::try_from(req)?;
+        let payu_req = utils::Encode::<payu::PayuPaymentsCaptureRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 
@@ -314,7 +318,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: payu::PayuPaymentsCaptureResponse = res
             .response
@@ -331,7 +335,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -382,8 +386,10 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payu::PayuPaymentsRequest::try_from(req)?;
+        let payu_req =
+            utils::Encode::<payu::PayuPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 
@@ -413,7 +419,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: payu::PayuPaymentsResponse = res
             .response
@@ -431,7 +437,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -474,8 +480,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuRefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payu::PayuRefundRequest::try_from(req)?;
+        let payu_req =
+            utils::Encode::<payu::PayuRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 
@@ -498,7 +506,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::payu", response=?res);
         let response: payu::RefundResponse = res
@@ -516,7 +524,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -568,7 +576,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::payu", response=?res);
         let response: payu::RefundSyncResponse =
@@ -586,7 +594,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }

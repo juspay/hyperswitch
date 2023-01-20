@@ -3,12 +3,11 @@ use router::{
     core::errors::{ApplicationError, ApplicationResult},
     logger,
 };
-use structopt::StructOpt;
 
 #[actix_web::main]
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
-    let cmd_line = CmdLineConf::from_args();
+    let cmd_line = <CmdLineConf as clap::Parser>::parse();
     if let Some(Subcommand::GenerateOpenapiSpec) = cmd_line.subcommand {
         let file_path = "openapi/generated.json";
         #[allow(clippy::expect_used)]

@@ -25,6 +25,7 @@ pub struct Refund {
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
+    pub refund_error_code: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub refund_arn: Option<String>,
     pub created_at: PrimitiveDateTime,
@@ -62,7 +63,6 @@ pub struct RefundNew {
     pub refund_amount: i64,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
-    pub refund_error_message: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub refund_arn: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
@@ -93,6 +93,7 @@ pub enum RefundUpdate {
     ErrorUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
     },
 }
 
@@ -103,6 +104,7 @@ pub struct RefundUpdateInternal {
     refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<String>,
+    refund_error_code: Option<String>,
     refund_arn: Option<String>,
     metadata: Option<serde_json::Value>,
     refund_reason: Option<String>,
@@ -143,9 +145,11 @@ impl From<RefundUpdate> for RefundUpdateInternal {
             RefundUpdate::ErrorUpdate {
                 refund_status,
                 refund_error_message,
+                refund_error_code,
             } => Self {
                 refund_status,
                 refund_error_message,
+                refund_error_code,
                 ..Default::default()
             },
         }
@@ -160,6 +164,7 @@ impl RefundUpdate {
             refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
             sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
             refund_error_message: pa_update.refund_error_message,
+            refund_error_code: pa_update.refund_error_code,
             refund_arn: pa_update.refund_arn,
             metadata: pa_update.metadata,
             ..source

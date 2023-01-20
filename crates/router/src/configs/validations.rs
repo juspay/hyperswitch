@@ -3,7 +3,7 @@ use common_utils::ext_traits::ConfigExt;
 use crate::core::errors::ApplicationError;
 
 impl super::settings::Secrets {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         when(self.jwt_secret.is_default_or_empty(), || {
@@ -21,7 +21,7 @@ impl super::settings::Secrets {
 }
 
 impl super::settings::Locker {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         when(!self.mock_locker && self.host.is_default_or_empty(), || {
@@ -42,7 +42,7 @@ impl super::settings::Locker {
 }
 
 impl super::settings::Jwekey {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         #[cfg(feature = "kms")]
         common_utils::fp_utils::when(self.aws_key_id.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -62,7 +62,7 @@ impl super::settings::Jwekey {
 }
 
 impl super::settings::Server {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "server host must not be empty".into(),
@@ -72,7 +72,7 @@ impl super::settings::Server {
 }
 
 impl super::settings::Database {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         when(self.host.is_default_or_empty(), || {
@@ -102,7 +102,7 @@ impl super::settings::Database {
 }
 
 impl super::settings::SupportedConnectors {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.wallets.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "list of connectors supporting wallets must not be empty".into(),
@@ -112,7 +112,7 @@ impl super::settings::SupportedConnectors {
 }
 
 impl super::settings::Connectors {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         self.aci.validate()?;
         self.adyen.validate()?;
         self.applepay.validate()?;
@@ -133,7 +133,7 @@ impl super::settings::Connectors {
 }
 
 impl super::settings::ConnectorParams {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "connector base URL must not be empty".into(),
@@ -143,7 +143,7 @@ impl super::settings::ConnectorParams {
 }
 
 impl super::settings::SchedulerSettings {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         when(self.stream.is_default_or_empty(), || {
@@ -165,7 +165,7 @@ impl super::settings::SchedulerSettings {
 }
 
 impl super::settings::ProducerSettings {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.lock_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "producer lock key must not be empty".into(),
@@ -176,7 +176,7 @@ impl super::settings::ProducerSettings {
 
 #[cfg(feature = "kv_store")]
 impl super::settings::DrainerSettings {
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.stream_name.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "drainer stream name must not be empty".into(),

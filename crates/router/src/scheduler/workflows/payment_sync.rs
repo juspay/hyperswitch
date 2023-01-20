@@ -105,7 +105,7 @@ pub async fn get_sync_process_schedule_time(
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(err) => {
-            logger::error!("Redis Mapping Error: {}", err);
+            logger::info!("Redis Mapping Error: {}", err);
             process_data::ConnectorPTMapping::default()
         }
     };

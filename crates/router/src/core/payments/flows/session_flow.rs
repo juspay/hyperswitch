@@ -6,7 +6,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, transformers, PaymentData},
+        payments::{self, access_token, transformers, PaymentData},
     },
     routes, services,
     types::{self, api, storage},
@@ -60,7 +60,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        services::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self).await
     }
 }
 
@@ -93,8 +93,9 @@ fn create_gpay_session_token(
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Gpay {
-                data: gpay_data.data,
                 transaction_info,
+                merchant_info: gpay_data.data.merchant_info,
+                allowed_payment_methods: gpay_data.data.allowed_payment_methods,
             },
         }),
         ..router_data.clone()

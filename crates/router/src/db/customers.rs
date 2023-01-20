@@ -60,10 +60,11 @@ impl CustomerInterface for Store {
         .map_err(Into::into)
         .into_report()?;
         maybe_customer.map_or(Ok(None), |customer| {
-            if customer.name == Some(REDACTED.to_string()) {
-                Err(errors::StorageError::CustomerRedacted)?
-            } else {
-                Ok(Some(customer))
+            // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
+            // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
+            match customer.name {
+                Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+                _ => Ok(Some(customer)),
             }
         })
     }
@@ -97,10 +98,9 @@ impl CustomerInterface for Store {
                 .await
                 .map_err(Into::into)
                 .into_report()?;
-        if customer.name == Some(REDACTED.to_string()) {
-            Err(errors::StorageError::CustomerRedacted)?
-        } else {
-            Ok(customer)
+        match customer.name {
+            Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+            _ => Ok(customer),
         }
     }
 

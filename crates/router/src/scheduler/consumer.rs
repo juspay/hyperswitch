@@ -5,11 +5,12 @@ use std::{
     sync::{self, atomic},
 };
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{
@@ -20,7 +21,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    logger::{error, info},
+    logger,
     routes::AppState,
     scheduler::utils as pt_utils,
     types::storage::{self, enums, ProcessTrackerExt},
@@ -47,38 +48,59 @@ pub async fn start_consumer(
     let mut interval =
         tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
 
+    let mut shutdown_interval = tokio::time::interval(Duration::from_millis(
+        options.readiness.graceful_termination_duration.milliseconds,
+    ));
+
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
+    let signal = signal_hook_tokio::Signals::new([
+        signal_hook::consts::SIGTERM,
+        signal_hook::consts::SIGINT,
+    ])
+    .map_err(|error| {
+        logger::error!("Signal Handler Error: {:?}", error);
+        errors::ProcessTrackerError::ConfigurationError
+    })
+    .into_report()
+    .attach_printable("Failed while creating a signals handler")?;
+    let (sx, mut rx) = oneshot::channel();
+    let handle = signal.handle();
+    let task_handle = tokio::spawn(pt_utils::signal_handler(signal, sx));
+
     loop {
-        interval.tick().await;
+        match rx.try_recv() {
+            Err(oneshot::error::TryRecvError::Empty) => {
+                interval.tick().await;
+                tokio::task::spawn(pt_utils::consumer_operation_handler(
+                    state.clone(),
+                    options.clone(),
+                    settings.clone(),
+                    |err| {
+                        logger::error!(%err);
+                    },
+                    sync::Arc::clone(&consumer_operation_counter),
+                ));
+            }
+            Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+                logger::debug!("Awaiting shutdown!");
+                shutdown_interval.tick().await;
+                let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
 
-        let is_ready = options.readiness.is_ready;
-        if is_ready {
-            tokio::task::spawn(pt_utils::consumer_operation_handler(
-                state.clone(),
-                options.clone(),
-                settings.clone(),
-                |err| {
-                    error!(%err);
-                },
-                sync::Arc::clone(&consumer_operation_counter),
-            ));
-        } else {
-            tokio::time::interval(Duration::from_millis(
-                options.readiness.graceful_termination_duration.milliseconds,
-            ))
-            .tick()
-            .await;
-            let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-
-            match active_tasks {
-                0 => {
-                    info!("Terminating consumer");
-                    break;
+                match active_tasks {
+                    0 => {
+                        logger::info!("Terminating consumer");
+                        break;
+                    }
+                    _ => continue,
                 }
-                _ => continue,
             }
         }
     }
+    handle.close();
+    task_handle
+        .await
+        .into_report()
+        .change_context(errors::ProcessTrackerError::UnexpectedFlow)?;
 
     Ok(())
 }
@@ -98,7 +120,7 @@ pub async fn consumer_operations(
         .consumer_group_create(&stream_name, &group_name, &RedisEntryId::AfterLastID)
         .await;
     if group_created.is_err() {
-        info!("Consumer group already exists");
+        logger::info!("Consumer group already exists");
     }
 
     let mut tasks = state
@@ -106,6 +128,7 @@ pub async fn consumer_operations(
         .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
         .await?;
 
+    logger::info!("{} picked {} tasks", consumer_name, tasks.len());
     let mut handler = vec![];
 
     for task in tasks.iter_mut() {
@@ -190,14 +213,12 @@ pub async fn run_executor<'a>(
         Err(error) => match operation.error_handler(state, process.clone(), error).await {
             Ok(_) => (),
             Err(error) => {
-                error!("Failed while handling error");
-                error!(%error);
+                logger::error!(%error, "Failed while handling error");
                 let status = process
                     .finish_with_status(&*state.store, "GLOBAL_FAILURE".to_string())
                     .await;
                 if let Err(err) = status {
-                    error!("Failed while performing database operation: GLOBAL_FAILURE");
-                    error!(%err)
+                    logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
                 }
             }
         },
@@ -211,13 +232,7 @@ pub async fn some_error_handler<E: fmt::Display>(
     process: storage::ProcessTracker,
     error: E,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    error!(%process.id, "Failed while executing workflow");
-    error!(%error);
-    error!(
-        pt.name = ?process.name,
-        pt.id = %process.id,
-        "Some error occurred"
-    );
+    logger::error!(pt.name = ?process.name, pt.id = %process.id, %error, "Failed while executing workflow");
 
     let db: &dyn StorageInterface = &*state.store;
     db.process_tracker_update_process_status_by_ids(

@@ -4,7 +4,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 
 use self::{
@@ -23,7 +22,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse,
     },
     utils::{self, BytesExt},
 };
@@ -81,13 +80,15 @@ impl ConnectorCommon for Globalpay {
 
     fn build_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: globalpay::GlobalpayErrorResponse = res
+            .response
             .parse_struct("Globalpay ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
@@ -246,7 +247,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
@@ -264,7 +265,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -317,7 +318,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -325,7 +326,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: GlobalpayPaymentsResponse = res
@@ -400,7 +401,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
@@ -418,7 +419,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -489,7 +490,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
@@ -507,7 +508,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -548,9 +549,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = requests::GlobalpayRefundRequest::try_from(req)?;
         let globalpay_req =
-            utils::Encode::<requests::GlobalpayRefundRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -573,7 +577,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::globalpay", response=?res);
         let response: GlobalpayPaymentsResponse = res
@@ -591,7 +595,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -642,7 +646,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::globalpay", response=?res);
         let response: GlobalpayPaymentsResponse = res
@@ -660,7 +664,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
