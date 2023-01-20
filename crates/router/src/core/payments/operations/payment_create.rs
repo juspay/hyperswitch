@@ -87,12 +87,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        helpers::validate_address_for_given_pm(
-            &request.payment_method_data,
-            &shipping_address,
-            &billing_address,
-        )?;
-
         let browser_info = request
             .browser_info
             .clone()

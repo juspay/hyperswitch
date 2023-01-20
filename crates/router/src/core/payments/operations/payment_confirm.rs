@@ -145,22 +145,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        let is_address_mandatory = matches!(
-            request.payment_method_data,
-            Some(api_models::payments::PaymentMethod::PayLater(
-                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. },
-            ))
-        );
-
-        utils::when(
-            is_address_mandatory && shipping_address.is_none() && billing_address.is_none(),
-            || {
-                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing and shipping address".to_string()
-                })
-                .attach_printable("Address field missing"))
-            },
-        )?;
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.clone();
