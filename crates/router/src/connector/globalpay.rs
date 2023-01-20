@@ -84,7 +84,7 @@ impl ConnectorCommon for Globalpay {
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: globalpay::GlobalpayErrorResponse = res
+        let response: transformers::GlobalpayErrorResponse = res
             .response
             .parse_struct("Globalpay ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
