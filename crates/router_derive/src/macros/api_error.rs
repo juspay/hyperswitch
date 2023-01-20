@@ -189,7 +189,8 @@ fn implement_serialize(
         // Safety: Missing attributes are already checked before this function is called.
         #[allow(clippy::unwrap_used)]
         let error_message = properties.message.as_ref().unwrap();
-        let msg_unused_fields = get_unused_fields(&variant.fields, &error_message.value());
+        let msg_unused_fields =
+            get_unused_fields(&variant.fields, &error_message.value(), &properties.ignore);
 
         // Safety: Missing attributes are already checked before this function is called.
         #[allow(clippy::unwrap_used)]

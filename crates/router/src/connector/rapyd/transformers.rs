@@ -11,6 +11,7 @@ use crate::{
         storage::enums,
         transformers::{self, ForeignFrom},
     },
+    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize)]
@@ -18,8 +19,9 @@ pub struct RapydPaymentsRequest {
     pub amount: i64,
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
-    pub payment_method_options: PaymentMethodOptions,
-    pub capture: bool,
+    pub payment_method_options: Option<PaymentMethodOptions>,
+    pub capture: Option<bool>,
+    pub description: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -31,7 +33,9 @@ pub struct PaymentMethodOptions {
 pub struct PaymentMethod {
     #[serde(rename = "type")]
     pub pm_type: String,
-    pub fields: PaymentFields,
+    pub fields: Option<PaymentFields>,
+    pub address: Option<Address>,
+    pub digital_wallet: Option<RapydWallet>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -43,38 +47,94 @@ pub struct PaymentFields {
     pub cvv: Secret<String>,
 }
 
+#[derive(Default, Debug, Serialize)]
+pub struct Address {
+    name: String,
+    line_1: String,
+    line_2: Option<String>,
+    line_3: Option<String>,
+    city: Option<String>,
+    state: Option<String>,
+    country: Option<String>,
+    zip: Option<String>,
+    phone_number: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydWallet {
+    #[serde(rename = "type")]
+    payment_type: String,
+    #[serde(rename = "details")]
+    apple_pay_token: Option<String>,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
+        let (capture, payment_method_options) = match item.payment_method {
+            storage_models::enums::PaymentMethodType::Card => {
+                let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
+                let payment_method_options = PaymentMethodOptions {
+                    three_ds: three_ds_enabled,
+                };
+                (
+                    Some(matches!(
+                        item.request.capture_method,
+                        Some(enums::CaptureMethod::Automatic) | None
+                    )),
+                    Some(payment_method_options),
+                )
+            }
+            _ => (None, None),
+        };
+        let payment_method = match item.request.payment_method_data {
             api_models::payments::PaymentMethod::Card(ref ccard) => {
-                let payment_method = PaymentMethod {
+                Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
-                    fields: PaymentFields {
+                    fields: Some(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
                         name: ccard.card_holder_name.to_owned(),
                         cvv: ccard.card_cvc.to_owned(),
-                    },
-                };
-                let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
-                let payment_method_options = PaymentMethodOptions {
-                    three_ds: three_ds_enabled,
-                };
-                Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method,
-                    capture: matches!(
-                        item.request.capture_method,
-                        Some(enums::CaptureMethod::Automatic) | None
-                    ),
-                    payment_method_options,
+                    }),
+                    address: None,
+                    digital_wallet: None,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api_models::payments::PaymentMethod::Wallet(ref wallet_data) => {
+                let digital_wallet = match wallet_data.issuer_name {
+                    api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
+                        payment_type: "google_pay".to_string(),
+                        apple_pay_token: wallet_data.token.to_owned(),
+                    }),
+                    api_models::enums::WalletIssuer::ApplePay => Some(RapydWallet {
+                        payment_type: "apple_pay".to_string(),
+                        apple_pay_token: wallet_data.token.to_owned(),
+                    }),
+                    _ => None,
+                };
+                Some(PaymentMethod {
+                    pm_type: "by_visa_card".to_string(), //[#369]
+                    fields: None,
+                    address: None,
+                    digital_wallet,
+                })
+            }
+            _ => None,
         }
+        .get_required_value("payment_method not implemnted")
+        .change_context(errors::ConnectorError::NotImplemented(
+            "payment_method".to_owned(),
+        ))?;
+        Ok(Self {
+            amount: item.request.amount,
+            currency: item.request.currency,
+            payment_method,
+            capture,
+            payment_method_options,
+            description: None,
+        })
     }
 }
 
@@ -179,7 +239,7 @@ pub struct ResponseData {
 impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsResponseRouterData<RapydPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
@@ -190,7 +250,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                         ("3d_verification", Some(url)) => {
                             let url = Url::parse(&url)
                                 .into_report()
-                                .change_context(errors::ParsingError)?;
+                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                             let mut base_url = url.clone();
                             base_url.set_query(None);
                             Some(services::RedirectForm {
@@ -219,6 +279,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
                         code: item.response.status.error_code,
+                        status_code: item.http_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
                     }),
@@ -228,6 +289,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -236,6 +298,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -258,7 +321,7 @@ pub struct RapydRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             payment: item.request.connector_transaction_id.to_string(),
@@ -309,7 +372,7 @@ pub struct RefundResponseData {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -333,7 +396,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -362,7 +425,7 @@ pub struct CaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.amount_to_capture,
@@ -375,7 +438,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
     for types::PaymentsCaptureRouterData
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
@@ -397,6 +460,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                         code: item.response.status.error_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
+                        status_code: item.http_code,
                     }),
                 ),
             },
@@ -406,6 +470,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     code: item.response.status.error_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
+                    status_code: item.http_code,
                 }),
             ),
             _ => (
@@ -414,6 +479,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     code: item.response.status.error_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
+                    status_code: item.http_code,
                 }),
             ),
         };
@@ -449,6 +515,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                     enums::AttemptStatus::Failure,
                     Err(types::ErrorResponse {
                         code: item.response.status.error_code,
+                        status_code: item.http_code,
                         message: item.response.status.status,
                         reason: item.response.status.message,
                     }),
@@ -458,6 +525,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),
@@ -466,6 +534,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                 enums::AttemptStatus::Failure,
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
+                    status_code: item.http_code,
                     message: item.response.status.status,
                     reason: item.response.status.message,
                 }),

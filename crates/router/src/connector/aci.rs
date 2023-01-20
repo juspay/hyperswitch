@@ -2,7 +2,6 @@ mod result_codes;
 mod transformers;
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use error_stack::{IntoReport, ResultExt};
 use transformers as aci;
 
@@ -178,11 +177,12 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse = res
-            .parse_struct("AciPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: aci::AciPaymentsResponse =
+            res.response
+                .parse_struct("AciPaymentsResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
             code: response.result.code,
             message: response.result.description,
@@ -194,6 +194,7 @@ impl
                     )
                 })
             }),
+            status_code: res.status_code,
         })
     }
 }
@@ -238,9 +239,11 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = aci::AciPaymentsRequest::try_from(req)?;
         // encode only for for urlencoded things.
-        let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let aci_req =
+            utils::Encode::<aci::AciPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         logger::debug!(aci_payment_logs=?aci_req);
         Ok(Some(aci_req))
     }
@@ -288,12 +291,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse = res
-            .parse_struct("AciPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: aci::AciPaymentsResponse =
+            res.response
+                .parse_struct("AciPaymentsResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.result.code,
             message: response.result.description,
             reason: response.result.parameter_errors.and_then(|errors| {
@@ -349,8 +354,10 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let aci_req = utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = aci::AciCancelRequest::try_from(req)?;
+        let aci_req =
+            utils::Encode::<aci::AciCancelRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(aci_req))
     }
     fn build_request(
@@ -387,12 +394,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse = res
-            .parse_struct("AciPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: aci::AciPaymentsResponse =
+            res.response
+                .parse_struct("AciPaymentsResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.result.code,
             message: response.result.description,
             reason: response.result.parameter_errors.and_then(|errors| {
@@ -452,7 +461,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let body = utils::Encode::<aci::AciRefundRequest>::convert_and_url_encode(req)
+        let connector_req = aci::AciRefundRequest::try_from(req)?;
+        let body = utils::Encode::<aci::AciRefundRequest>::encode_to_string_of_json(&connector_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
@@ -494,12 +504,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: aci::AciRefundResponse = res
+            .response
             .parse_struct("AciRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.result.code,
             message: response.result.description,
             reason: response.result.parameter_errors.and_then(|errors| {

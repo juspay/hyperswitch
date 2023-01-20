@@ -62,7 +62,7 @@ pub async fn payments_start(
     let payload = payment_types::PaymentsStartRequest {
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
-        txn_id: attempt_id.clone(),
+        attempt_id: attempt_id.clone(),
     };
     api::server_wrap(
         &state,

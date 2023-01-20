@@ -52,5 +52,6 @@ impl Customers {
             .service(customer_retrieve)
             .service(customer_update)
             .service(customer_delete)
+            .service(list_customer_payment_method_api)
     }
 }
