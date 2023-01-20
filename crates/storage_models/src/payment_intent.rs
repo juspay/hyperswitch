@@ -29,6 +29,7 @@ pub struct PaymentIntent {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+    pub attempt_id: Option<String>,
 }
 
 #[derive(
@@ -65,6 +66,7 @@ pub struct PaymentIntentNew {
     pub client_secret: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    pub attempt_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
