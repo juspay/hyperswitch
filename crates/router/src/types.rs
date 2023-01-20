@@ -287,14 +287,22 @@ pub struct ErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+    pub status_code: u16,
 }
 
 impl ErrorResponse {
     pub fn get_not_implemented() -> Self {
         Self {
-            code: errors::ApiErrorResponse::NotImplemented.error_code(),
-            message: errors::ApiErrorResponse::NotImplemented.error_message(),
+            code: errors::ApiErrorResponse::NotImplemented {
+                message: errors::api_error_response::NotImplementedMessage::Default,
+            }
+            .error_code(),
+            message: errors::ApiErrorResponse::NotImplemented {
+                message: errors::api_error_response::NotImplementedMessage::Default,
+            }
+            .error_message(),
             reason: None,
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
         }
     }
 }
@@ -305,6 +313,10 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
             code: error.error_code(),
             message: error.error_message(),
             reason: None,
+            status_code: match error {
+                errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
+                _ => 500,
+            },
         }
     }
 }

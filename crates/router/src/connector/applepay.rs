@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use bytes::Bytes;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 
@@ -117,8 +116,11 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req = utils::Encode::<applepay::ApplepaySessionRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = applepay::ApplepaySessionRequest::try_from(req)?;
+        let req = utils::Encode::<applepay::ApplepaySessionRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -160,12 +162,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: applepay::ErrorResponse = res
+            .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
+            status_code: res.status_code,
             code: response.status_code,
             message: response.status_message,
             reason: None,

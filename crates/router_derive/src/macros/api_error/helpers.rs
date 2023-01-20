@@ -14,6 +14,7 @@ mod keyword {
     custom_keyword!(error_type);
     custom_keyword!(code);
     custom_keyword!(message);
+    custom_keyword!(ignore);
 }
 
 enum EnumMeta {
@@ -107,6 +108,10 @@ enum VariantMeta {
         keyword: keyword::message,
         value: LitStr,
     },
+    Ignore {
+        keyword: keyword::ignore,
+        value: LitStr,
+    },
 }
 
 impl Parse for VariantMeta {
@@ -127,6 +132,11 @@ impl Parse for VariantMeta {
             let _: Token![=] = input.parse()?;
             let value = input.parse()?;
             Ok(Self::Message { keyword, value })
+        } else if lookahead.peek(keyword::ignore) {
+            let keyword = input.parse()?;
+            let _: Token![=] = input.parse()?;
+            let value = input.parse()?;
+            Ok(Self::Ignore { keyword, value })
         } else {
             Err(lookahead.error())
         }
@@ -139,6 +149,7 @@ impl Spanned for VariantMeta {
             Self::ErrorType { keyword, .. } => keyword.span,
             Self::Code { keyword, .. } => keyword.span,
             Self::Message { keyword, .. } => keyword.span,
+            Self::Ignore { keyword, .. } => keyword.span,
         }
     }
 }
@@ -163,6 +174,7 @@ pub(super) struct ErrorVariantProperties {
     pub error_type: Option<TypePath>,
     pub code: Option<LitStr>,
     pub message: Option<LitStr>,
+    pub ignore: std::collections::HashSet<String>,
 }
 
 impl HasErrorVariantProperties for Variant {
@@ -172,6 +184,7 @@ impl HasErrorVariantProperties for Variant {
         let mut error_type_keyword = None;
         let mut code_keyword = None;
         let mut message_keyword = None;
+        let mut ignore_keyword = None;
         for meta in self.get_metadata()? {
             match meta {
                 VariantMeta::ErrorType { keyword, value } => {
@@ -197,6 +210,18 @@ impl HasErrorVariantProperties for Variant {
 
                     message_keyword = Some(keyword);
                     output.message = Some(value);
+                }
+                VariantMeta::Ignore { keyword, value } => {
+                    if let Some(first_keyword) = ignore_keyword {
+                        return Err(occurrence_error(first_keyword, keyword, "ignore"));
+                    }
+                    ignore_keyword = Some(keyword);
+                    output.ignore = value
+                        .value()
+                        .replace(' ', "")
+                        .split(',')
+                        .map(ToString::to_string)
+                        .collect();
                 }
             }
         }
@@ -227,20 +252,23 @@ pub(super) fn check_missing_attributes(
 }
 
 /// Get all the fields not used in the error message.
-pub(super) fn get_unused_fields(fields: &Fields, message: &str) -> Vec<Field> {
+pub(super) fn get_unused_fields(
+    fields: &Fields,
+    message: &str,
+    ignore: &std::collections::HashSet<String>,
+) -> Vec<Field> {
     let fields = match fields {
         syn::Fields::Unit => Vec::new(),
         syn::Fields::Unnamed(_) => Vec::new(),
         syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),
     };
-
     fields
         .iter()
         .filter(|&field| {
             // Safety: Named fields are guaranteed to have an identifier.
             #[allow(clippy::unwrap_used)]
             let field_name = format!("{}", field.ident.as_ref().unwrap());
-            !message.contains(&field_name)
+            !message.contains(&field_name) && !ignore.contains(&field_name)
         })
         .cloned()
         .collect()

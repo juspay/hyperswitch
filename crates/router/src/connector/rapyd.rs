@@ -2,7 +2,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use bytes::Bytes;
 use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use rand::distributions::{Alphanumeric, DistString};
@@ -20,7 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse, Response,
+        ErrorResponse,
     },
     utils::{self, BytesExt},
 };
@@ -147,15 +146,17 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::RapydPaymentsRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = rapyd::RapydPaymentsRequest::try_from(req)?;
+        let rapyd_req =
+            utils::Encode::<rapyd::RapydPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }
 
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
             .response
@@ -173,12 +174,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
+            .response
             .parse_struct("Rapyd ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.status.error_code,
             message: response.status.status,
             reason: response.status.message,
@@ -265,7 +268,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
             .response
@@ -283,12 +286,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
+            .response
             .parse_struct("Rapyd ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.status.error_code,
             message: response.status.status,
             reason: response.status.message,
@@ -331,7 +336,7 @@ impl
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
     }
@@ -339,7 +344,7 @@ impl
     fn handle_response(
         &self,
         _data: &types::PaymentsSyncRouterData,
-        _res: Response,
+        _res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
     }
@@ -372,8 +377,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = rapyd::CaptureRequest::try_from(req)?;
+        let rapyd_req =
+            utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }
 
@@ -416,7 +423,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
             .response
@@ -445,12 +452,14 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
+            .response
             .parse_struct("Rapyd ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.status.error_code,
             message: response.status.status,
             reason: response.status.message,
@@ -541,7 +550,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::rapyd", response=?res);
         let response: rapyd::RefundResponse = res
@@ -559,12 +568,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: rapyd::RapydPaymentsResponse = res
+            .response
             .parse_struct("Rapyd ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.status.error_code,
             message: response.status.status,
             reason: response.status.message,
@@ -598,7 +609,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::rapyd", response=?res);
         let response: rapyd::RefundResponse = res
@@ -616,7 +627,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_error_response(
         &self,
-        _res: Bytes,
+        _res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
     }

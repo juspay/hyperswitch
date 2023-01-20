@@ -156,7 +156,7 @@ pub enum StripePaymentMethodType {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
@@ -231,7 +231,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 }
 
 impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
@@ -330,7 +330,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -386,7 +386,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -481,7 +481,7 @@ pub struct RefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
@@ -534,7 +534,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -551,7 +551,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -614,16 +614,13 @@ pub struct CancelRequest {
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let cancellation_reason = match &item.request.cancellation_reason {
             Some(c) => Some(
                 CancellationReason::from_str(c)
                     .into_report()
-                    .change_context(errors::ParsingError)
-                    .attach_printable_lazy(|| {
-                        "Error while converting string to StripeCancelRequest"
-                    })?,
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             None => None,
         };
@@ -669,7 +666,7 @@ pub struct CaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: item.request.amount_to_capture,
@@ -746,7 +743,7 @@ pub struct StripeWebhookObjectId {
 }
 
 impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType),
     ) -> Result<Self, Self::Error> {
@@ -798,14 +795,11 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                     billing_country: None,
                     billing_name: Some(billing_name),
                 })),
-                _ => Err(
-                    error_stack::report!(errors::ApiErrorResponse::NotImplemented)
-                        .attach_printable(
-                            "Stripe does not support payment through provided payment method"
-                                .to_string(),
-                        )
-                        .change_context(errors::ParsingError),
-                )?,
+                _ => Err(error_stack::report!(
+                    errors::ConnectorError::NotImplemented(String::from(
+                        "Stripe does not support payment through provided payment method"
+                    ))
+                )),
             },
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),
