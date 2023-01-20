@@ -7,12 +7,13 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments, utils as core_utils,
+        payments::{self, access_token},
+        utils as core_utils,
     },
     db, logger,
     routes::AppState,
     scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
-    services::{self, add_access_token},
+    services,
     types::{
         self,
         api::{self, refunds},
@@ -126,7 +127,7 @@ pub async fn trigger_refund_to_gateway(
     .await?;
 
     let add_access_token_result =
-        add_access_token(state, &connector, merchant_account, &router_data).await?;
+        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
 
     logger::debug!(refund_router_data=?router_data);
 
@@ -289,7 +290,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
 
     let add_access_token_result =
-        add_access_token(state, &connector, merchant_account, &router_data).await?;
+        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 

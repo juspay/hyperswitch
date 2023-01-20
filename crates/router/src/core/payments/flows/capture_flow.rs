@@ -4,7 +4,7 @@ use super::ConstructFlowSpecificData;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, transformers, Feature, PaymentData},
+        payments::{self, access_token, transformers, Feature, PaymentData},
     },
     routes::AppState,
     services,
@@ -60,7 +60,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        services::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self).await
     }
 }
 
