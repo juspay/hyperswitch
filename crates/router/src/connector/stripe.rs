@@ -344,7 +344,8 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::convert_and_url_encode(req)
+        let req = stripe::PaymentIntentRequest::try_from(req)?;
+        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::encode(&req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
