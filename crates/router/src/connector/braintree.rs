@@ -137,12 +137,9 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = braintree::BraintreeSessionRequest::try_from(req)?;
         let braintree_session_request =
-            utils::Encode::<braintree::BraintreeSessionRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_url_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         logger::debug!(?braintree_session_request);
         Ok(Some(braintree_session_request))
@@ -360,12 +357,9 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = braintree::BraintreePaymentsRequest::try_from(req)?;
         let braintree_req =
-            utils::Encode::<braintree::BraintreePaymentsRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<braintree::BraintreePaymentsRequest>::convert_and_url_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(braintree_req))
     }
 
@@ -560,12 +554,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = braintree::BraintreeRefundRequest::try_from(req)?;
         let braintree_req =
-            utils::Encode::<braintree::BraintreeRefundRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<braintree::BraintreeRefundRequest>::convert_and_url_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(braintree_req))
     }
 
