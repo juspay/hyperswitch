@@ -118,11 +118,17 @@ pub struct CardDetailFromLocker {
     pub issuer_country: Option<String>,
     pub last4_digits: Option<String>,
     #[serde(skip)]
+    #[schema(value_type=Option<String>)]
     pub card_number: Option<masking::Secret<String, pii::CardNumber>>,
+    #[schema(value_type=Option<String>)]
     pub expiry_month: Option<masking::Secret<String>>,
+    #[schema(value_type=Option<String>)]
     pub expiry_year: Option<masking::Secret<String>>,
+    #[schema(value_type=Option<String>)]
     pub card_token: Option<masking::Secret<String>>,
+    #[schema(value_type=Option<String>)]
     pub card_holder_name: Option<masking::Secret<String>>,
+    #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
 }
 

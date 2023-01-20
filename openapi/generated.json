@@ -265,6 +265,37 @@
           "scheduled"
         ]
       },
+      "CardDetail": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "Card Number",
+            "example": "4111111145551142"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          }
+        }
+      },
       "CardDetailFromLocker": {
         "type": "object",
         "properties": {
@@ -278,19 +309,19 @@
             "type": "string"
           },
           "expiry_month": {
-            "$ref": "#/components/schemas/masking.Secret"
+            "type": "string"
           },
           "expiry_year": {
-            "$ref": "#/components/schemas/masking.Secret"
+            "type": "string"
           },
           "card_token": {
-            "$ref": "#/components/schemas/masking.Secret"
+            "type": "string"
           },
           "card_holder_name": {
-            "$ref": "#/components/schemas/masking.Secret"
+            "type": "string"
           },
           "card_fingerprint": {
-            "$ref": "#/components/schemas/masking.Secret"
+            "type": "string"
           }
         }
       },

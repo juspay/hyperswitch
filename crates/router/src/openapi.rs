@@ -65,6 +65,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::payment_methods::ListCustomerPaymentMethodsResponse,
         crate::types::api::payment_methods::DeletePaymentMethodResponse,
         crate::types::api::payment_methods::CardDetailFromLocker,
+        crate::types::api::payment_methods::CardDetail,
         api_models::customers::CustomerResponse,
         api_models::enums::RoutingAlgorithm,
         api_models::enums::PaymentMethodType,
