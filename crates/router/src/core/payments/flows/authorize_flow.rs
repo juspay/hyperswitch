@@ -5,7 +5,7 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, transformers, PaymentData},
+        payments::{self, access_token, transformers, PaymentData},
     },
     routes::AppState,
     scheduler::metrics,
@@ -67,6 +67,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
         resp
+    }
+
+    async fn add_access_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<types::AddAccessTokenResult> {
+        access_token::add_access_token(state, connector, merchant_account, self).await
     }
 }
 

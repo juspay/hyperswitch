@@ -72,6 +72,17 @@ impl ConnectorCommon for Rapyd {
     }
 }
 
+impl api::ConnectorAccessToken for Rapyd {}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+    > for Rapyd
+{
+}
+
 impl api::PaymentAuthorize for Rapyd {}
 
 impl

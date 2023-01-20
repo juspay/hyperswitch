@@ -178,6 +178,7 @@ pub trait ConnectorActions: Connector {
             address: info.map_or(PaymentAddress::default(), |a| a.address.unwrap()),
             connector_meta_data: self.get_connector_meta(),
             amount_captured: None,
+            access_token: None,
         }
     }
 }

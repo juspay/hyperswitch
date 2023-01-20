@@ -51,6 +51,17 @@ impl api::PaymentVoid for Braintree {}
 impl api::PaymentCapture for Braintree {}
 
 impl api::PaymentSession for Braintree {}
+impl api::ConnectorAccessToken for Braintree {}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+    > for Braintree
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<
@@ -279,7 +290,7 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
+        logger::debug!(payment_sync_response_braintree=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -368,11 +379,11 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!(braintreepayments_create_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(braintreepayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
