@@ -110,7 +110,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                     &payment_id,
                     merchant_id,
                     request,
-                    Some(payment_attempt.attempt_id.to_owned()),
+                    payment_attempt.attempt_id.to_owned(),
                 ),
                 storage_scheme,
             )
@@ -298,7 +298,7 @@ impl PaymentMethodValidate {
         payment_id: &str,
         merchant_id: &str,
         request: &api::VerifyRequest,
-        attempt_id: Option<String>,
+        attempt_id: String,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));

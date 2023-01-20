@@ -248,7 +248,7 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
-        attempt_id -> Nullable<Varchar>,
+        attempt_id -> Varchar,
     }
 }
 
