@@ -8,8 +8,19 @@ use crate::{
     types::api::payment_methods::{self, PaymentMethodId},
 };
 
+/// PaymentMethods - Create
+///
+/// To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants
+#[utoipa::path(
+    post,
+    path = "/payment_methods",
+    request_body = CreatePaymentMethod,
+    responses(
+        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
+        (status = 400, description = "Invalid Data")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
-// #[post("")]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -27,8 +38,28 @@ pub async fn create_payment_method_api(
     .await
 }
 
+/// List payment methods for a Merchant
+///
+/// To filter and list the applicable payment methods for a particular merchant id.
+#[utoipa::path(
+    get,
+    path = "/payment_methods/{account_id}",
+    params (
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = ListPaymentMethodResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
-//#[get("{merchant_id}")]
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -53,8 +84,28 @@ pub async fn list_payment_method_api(
     .await
 }
 
+/// List payment methods for a Merchant
+///
+/// To filter and list the applicable payment methods for a particular merchant id.
+#[utoipa::path(
+    get,
+    path = "/payment_methods/{customer_id}",
+    params (
+        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
+        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = ListCustomerPaymentMethodsResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
-// #[get("/{customer_id}/payment_methods")]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(String,)>,
@@ -81,8 +132,21 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
+/// Payment Method - Retrieve
+///
+/// Get payment method
+#[utoipa::path(
+    get,
+    path = "/payment_methods/{method_id}",
+    params (
+        ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method retrieved", body = PaymentMethodResponse),
+        (status = 404, description = "Payment Method does not exist in records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
-// #[get("/{payment_method_id}")]
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -103,6 +167,21 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
+/// Payment Method - Update
+///
+/// Update payment method
+#[utoipa::path(
+    post,
+    path = "/payment_methods/{method_id}",
+    params (
+        ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    request_body = UpdatePaymentMethod,
+    responses(
+        (status = 200, description = "Payment Method Update", body = PaymentMethodResponse),
+        (status = 404, description = "Payment Method does not exist in records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
@@ -129,8 +208,21 @@ pub async fn payment_method_update_api(
     .await
 }
 
+/// Payment Method - Delete
+///
+/// Delete payment method
+#[utoipa::path(
+    delete,
+    path = "/payment_methods/{method_id}",
+    params (
+        ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method Delete", body = DeletePaymentMethodResponse),
+        (status = 404, description = "Payment Method does not exist in records")
+    )
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
-// #[post("/{payment_method_id}/detach")]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
     req: HttpRequest,

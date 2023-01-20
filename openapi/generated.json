@@ -379,6 +379,39 @@
           }
         }
       },
+      "CreatePaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodSubType"
+          },
+          "payment_method_issuer": {
+            "type": "string",
+            "description": "The name of the bank/ provider issuing the payment method to the end user",
+            "example": "Citibank"
+          },
+          "payment_method_issuer_code": {
+            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "the unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          }
+        }
+      },
       "Currency": {
         "type": "string",
         "enum": [
@@ -539,6 +572,73 @@
           }
         }
       },
+      "CustomerPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_token",
+          "customer_id",
+          "payment_method",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "payment_token": {
+            "type": "string",
+            "description": "Token for payment method in temporary card locker which gets refreshed often",
+            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "the unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodSubType"
+          },
+          "payment_method_issuer": {
+            "type": "string",
+            "description": "The name of the bank/ provider issuing the payment method to the end user",
+            "example": "Citibank"
+          },
+          "payment_method_issuer_code": {
+            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "example": true
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "example": true
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "example": [
+              "redirect_to_url"
+            ]
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDetailFromLocker"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
+            "example": "2023-01-18T11:04:09.922Z"
+          }
+        }
+      },
       "CustomerRequest": {
         "type": "object",
         "description": "The customer details",
@@ -668,6 +768,25 @@
             "type": "boolean",
             "description": "If the connector is deleted or not",
             "example": false
+          }
+        }
+      },
+      "DeletePaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_id",
+          "deleted"
+        ],
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "description": "the unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "whether payment method was deleted or not",
+            "example": true
           }
         }
       },
@@ -838,6 +957,150 @@
         "enum": [
           "klarna"
         ]
+      },
+      "ListCustomerPaymentMethodsResponse": {
+        "type": "object",
+        "required": [
+          "enabled_payment_methods",
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "enabled_payment_methods": {
+            "$ref": "#/components/schemas/HashSet"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            }
+          }
+        }
+      },
+      "ListPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodSubType"
+            },
+            "example": [
+              "credit_card"
+            ]
+          },
+          "payment_method_issuers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The name of the bank/ provider issuing the payment method to the end user"
+            },
+            "example": [
+              "Citibank"
+            ]
+          },
+          "payment_method_issuer_code": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+            },
+            "example": [
+              "JP_APPLEPAY"
+            ]
+          },
+          "payment_schemes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of payment schemes accepted or has the processing capabilities of the processor"
+            },
+            "example": [
+              "MASTER",
+              "VISA",
+              "DINERS"
+            ]
+          },
+          "accepted_countries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of Countries accepted or has the processing capabilities of the processor"
+            },
+            "example": [
+              [
+                "US",
+                "UK",
+                "IN"
+              ]
+            ]
+          },
+          "accepted_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "example": [
+              [
+                "USD",
+                "EUR"
+              ]
+            ]
+          },
+          "minimum_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
+            "example": 60000
+          },
+          "maximum_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
+            "example": 1
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable recurring payments / mandates. Default is true.",
+            "example": true
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
+            "example": true
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "example": [
+              "redirect_to_url"
+            ]
+          }
+        }
+      },
+      "ListPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "payment_methods"
+        ],
+        "properties": {
+          "redirect_url": {
+            "type": "string",
+            "description": "Redirect URL of the merchant",
+            "example": "https://www.google.com"
+          },
+          "payment_methods": {
+            "$ref": "#/components/schemas/HashSet"
+          }
+        }
       },
       "MandateAmountData": {
         "type": "object",
@@ -1454,6 +1717,78 @@
             ]
           }
         ]
+      },
+      "PaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_method_id",
+          "payment_method",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Unique identifier for a merchant",
+            "example": "merchant_1671528864"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "the unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "the unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodSubType"
+          },
+          "payment_method_issuer": {
+            "type": "string",
+            "description": "The name of the bank/ provider issuing the payment method to the end user",
+            "example": "Citibank"
+          },
+          "payment_method_issuer_code": {
+            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDetailFromLocker"
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "example": true
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "example": true
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "example": [
+              "redirect_to_url"
+            ]
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
+            "example": "2023-01-18T11:04:09.922Z"
+          }
+        }
       },
       "PaymentMethodSubType": {
         "type": "string",
