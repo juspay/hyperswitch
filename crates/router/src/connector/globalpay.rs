@@ -8,8 +8,10 @@ use error_stack::{IntoReport, ResultExt};
 
 use self::{
     requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
-    response::{GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
-    transformers as globalpay,
+    response::{
+        GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
+        GlobalpayRefreshTokenResponse,
+    },
 };
 use crate::{
     configs::settings,
@@ -156,7 +158,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         logger::debug!(globalpaypayments_raw_refresh_token_response=?res);
         let response: GlobalpayRefreshTokenResponse = res
@@ -175,9 +177,19 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: GlobalpayRefreshTokenErrorResponse = res
+            .response
+            .parse_struct("Globalpay ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: response.detailed_error_description,
+            reason: None,
+        })
     }
 }
 

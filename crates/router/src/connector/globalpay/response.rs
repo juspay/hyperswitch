@@ -78,6 +78,7 @@ pub struct GlobalpayRefreshTokenResponse {
 pub struct GlobalpayRefreshTokenErrorResponse {
     pub error_code: String,
     pub detailed_error_description: String,
+    pub status_code: u16,
 }
 
 /// Information relating to a currency conversion.
