@@ -12,15 +12,19 @@ pub struct CreatePaymentMethod {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
     pub payment_method: api_enums::PaymentMethodType,
+
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
     pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
+
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
     pub payment_method_issuer: Option<String>,
+
     /// A standard code representing the issuer of payment method
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -28,9 +32,11 @@ pub struct CreatePaymentMethod {
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetail>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
+
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
     pub customer_id: Option<String>,
@@ -46,6 +52,7 @@ pub struct UpdatePaymentMethod {
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetail>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
@@ -57,12 +64,15 @@ pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
     pub card_number: masking::Secret<String, pii::CardNumber>,
+
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
     pub card_exp_month: masking::Secret<String>,
+
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
     pub card_exp_year: masking::Secret<String>,
+
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
@@ -132,14 +142,19 @@ pub struct CardDetailFromLocker {
     #[serde(skip)]
     #[schema(value_type=Option<String>)]
     pub card_number: Option<masking::Secret<String, pii::CardNumber>>,
+
     #[schema(value_type=Option<String>)]
     pub expiry_month: Option<masking::Secret<String>>,
+
     #[schema(value_type=Option<String>)]
     pub expiry_year: Option<masking::Secret<String>>,
+
     #[schema(value_type=Option<String>)]
     pub card_token: Option<masking::Secret<String>>,
+
     #[schema(value_type=Option<String>)]
     pub card_holder_name: Option<masking::Secret<String>>,
+
     #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
 }
