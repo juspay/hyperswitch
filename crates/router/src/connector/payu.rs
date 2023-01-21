@@ -233,14 +233,14 @@ impl
                 .build(),
         );
 
-        logger::debug!(hola_req=?req);
+        logger::debug!(payu_access_token_request=?req);
 
         Ok(req)
     }
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         logger::debug!(access_token_response=?res);
         let response: payu::PayuAuthUpdateResponse = res
@@ -259,14 +259,16 @@ impl
 
     fn get_error_response(
         &self,
-        res: Bytes,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(access_token_error_response=?res);
         let response: payu::PayuAccessTokenErrorResponse = res
+            .response
             .parse_struct("Payu AccessTokenErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
+            status_code: res.status_code,
             code: response.error,
             message: response.error_description,
             reason: None,

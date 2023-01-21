@@ -7,7 +7,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
-    utils::OptionExt,
+    utils::OptionExt, connector::utils::AccessTokenRequestInfo,
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
@@ -280,11 +280,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             grant_type: "client_credentials".to_string(),
-            client_id: item.request.id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "item.request.id".to_string(),
-                },
-            )?,
+            client_id: item.get_request_id()?,
             client_secret: item.request.app_id.clone(),
         })
     }

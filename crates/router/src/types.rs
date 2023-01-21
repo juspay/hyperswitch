@@ -349,29 +349,6 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-impl From<ConnectorAuthType> for AccessTokenRequestData {
-    fn from(connector_auth: ConnectorAuthType) -> Self {
-        match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Self {
-                app_id: api_key,
-                id: None,
-            },
-            ConnectorAuthType::BodyKey { api_key, key1 } => Self {
-                app_id: api_key,
-                id: Some(key1),
-            },
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Self {
-                app_id: api_key,
-                id: Some(key1),
-            },
-            ConnectorAuthType::NoKey => Self {
-                app_id: String::new(),
-                id: None,
-            },
-        }
-    }
-}
-
 impl From<errors::ApiErrorResponse> for ErrorResponse {
     fn from(error: errors::ApiErrorResponse) -> Self {
         Self {

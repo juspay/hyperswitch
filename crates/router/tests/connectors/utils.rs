@@ -1,10 +1,10 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, thread::sleep, time::Duration};
 
 use async_trait::async_trait;
 use error_stack::Report;
 use masking::Secret;
 use router::{
-    core::{errors::ConnectorError, payments},
+    core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress},
@@ -68,6 +68,29 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    /// will retry the psync till the given status matches or retry max 3 times in a 10secs interval
+    async fn psync_retry_till_status_matches(
+        &self,
+        status: enums::AttemptStatus,
+        payment_data: Option<types::PaymentsSyncData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsSyncRouterData, Report<ConnectorError>> {
+        let max_try = 3;
+        let mut curr_try = 1;
+        while curr_try <= max_try {
+            let sync_res = self
+                .sync_payment(payment_data.clone(), payment_info.clone())
+                .await
+                .unwrap();
+            if (sync_res.status == status) || (curr_try == max_try) {
+                return Ok(sync_res);
+            }
+            sleep(Duration::from_secs(10));
+            curr_try += 1;
+        }
+        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
     async fn capture_payment(

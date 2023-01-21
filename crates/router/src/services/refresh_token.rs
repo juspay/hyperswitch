@@ -64,8 +64,9 @@ pub async fn add_access_token<
             Some(access_token) => Ok(Some(access_token)),
             None => {
                 let cloned_router_data = router_data.clone();
-                let refresh_token_request_data =
-                    types::AccessTokenRequestData::from(router_data.connector_auth_type.clone());
+                let refresh_token_request_data = types::AccessTokenRequestData::try_from(
+                    router_data.connector_auth_type.clone(),
+                )?;
                 let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
                     Err(types::ErrorResponse::default());
                 let refresh_token_router_data =

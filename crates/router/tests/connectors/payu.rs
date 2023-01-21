@@ -64,7 +64,8 @@ async fn should_authorize_card_payment() {
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
         let sync_response = Payu {}
-            .sync_payment(
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
@@ -91,7 +92,7 @@ async fn should_authorize_gpay_payment() {
                 }),
             currency: enums::Currency::PLN,
             ..PaymentAuthorizeType::default().0
-    }), get_default_payment_info()).await;
+    }), get_default_payment_info()).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
         let sync_response = Payu {}
@@ -125,10 +126,10 @@ async fn should_capture_already_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
-
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
         let sync_response = connector
-            .sync_payment(
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
@@ -143,10 +144,12 @@ async fn should_capture_already_authorized_payment() {
         assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
         let capture_response = connector
             .capture_payment(transaction_id.clone(), None, get_default_payment_info())
-            .await;
+            .await
+            .unwrap();
         assert_eq!(capture_response.status, enums::AttemptStatus::Pending);
         let response = connector
-            .sync_payment(
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Charged,
                 Some(types::PaymentsSyncData {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id,
@@ -181,7 +184,8 @@ async fn should_sync_payment() {
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
         // Sync the Payment Data
         let response = connector
-            .sync_payment(
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id,
@@ -218,11 +222,13 @@ async fn should_void_already_authorized_payment() {
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
         let void_response = connector
             .void_payment(transaction_id.clone(), None, get_default_payment_info())
-            .await;
+            .await
+            .unwrap();
         assert_eq!(void_response.status, enums::AttemptStatus::Pending);
 
         let sync_response = connector
-            .sync_payment(
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Voided,
                 Some(types::PaymentsSyncData {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id,
@@ -241,9 +247,8 @@ async fn should_void_already_authorized_payment() {
 #[actix_web::test]
 async fn should_refund_succeeded_payment() {
     let connector = Payu {};
-    //make a successful payment
     let authorize_response = connector
-        .make_payment(
+        .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 currency: enums::Currency::PLN,
                 ..PaymentAuthorizeType::default().0
@@ -255,14 +260,31 @@ async fn should_refund_succeeded_payment() {
     assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 
     if let Some(transaction_id) = utils::get_connector_transaction_id(authorize_response) {
+        let sync_response = connector
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    encoded_data: None,
+                    capture_method: None,
+                }),
+                get_default_payment_info(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
         //Capture the payment in case of Manual Capture
         let capture_response = connector
             .capture_payment(transaction_id.clone(), None, get_default_payment_info())
-            .await;
+            .await
+            .unwrap();
         assert_eq!(capture_response.status, enums::AttemptStatus::Pending);
 
         let sync_response = connector
-            .sync_payment(
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Charged,
                 Some(types::PaymentsSyncData {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
@@ -275,11 +297,11 @@ async fn should_refund_succeeded_payment() {
             .await
             .unwrap();
         assert_eq!(sync_response.status, enums::AttemptStatus::Charged);
-
         //Refund the payment
         let refund_response = connector
             .refund_payment(transaction_id.clone(), None, get_default_payment_info())
-            .await;
+            .await
+            .unwrap();
         assert_eq!(
             refund_response.response.unwrap().connector_refund_id.len(),
             10
@@ -298,7 +320,8 @@ async fn should_sync_succeeded_refund_payment() {
             None,
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         sync_refund_response.response.unwrap().refund_status,
         enums::RefundStatus::Success
@@ -315,7 +338,8 @@ async fn should_fail_already_refunded_payment() {
             None,
             get_default_payment_info(),
         )
-        .await;
+        .await
+        .unwrap();
     let x = response.response.unwrap_err();
     assert_eq!(x.reason.unwrap(), "PAID".to_string());
 }
