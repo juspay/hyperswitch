@@ -1,46 +1,60 @@
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
-        title = "Juspay Router - API Documentation",
+        title = "Hyperswitch - API Documentation",
         contact(
-            name = "Juspay Support",
-            url = "https://juspay.io",
-            email = "support@juspay.in"
+            name = "Hyperswitch Support",
+            url = "https://hyperswitch.io",
+            email = "hyperswitch@juspay.in"
         ),
         // terms_of_service = "https://www.juspay.io/terms",
         description = r#"
 ## Get started
 
-Juspay Router provides a collection of APIs that enable you to process and manage payments.
+Hyperswitch provides a collection of APIs that enable you to process and manage payments.
 Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.
 
 You can consume the APIs directly using your favorite HTTP/REST library.
 
 We have a testing environment referred to "sandbox", which you can setup to test API calls without
-affecting production data.
+affecting production data. Currently, our sandbox environment is live while our production environment is under development and will be available soon. You can sign up on our Dashboard to get API keys to access Hyperswitch API.
 
-### Base URLs
+### Environment
 
 Use the following base URLs when making requests to the APIs:
 
-| Environment   |  Base URL                                            |
-|---------------|------------------------------------------------------|
-| Sandbox       | <https://sandbox.hyperswitch.io>                   |
-| Production    | <https://router.juspay.io>                           |
+| Environment   |  Base URL                          |
+|---------------|------------------------------------|
+| Sandbox       | <https://sandbox.hyperswitch.io>   |
+| Production    | Coming Soon!                       |
 
 ## Authentication
 
-When you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant
-account, you are given a secret key (also referred as api-key).
-You may authenticate all API requests with Juspay server by providing the appropriate key in the
+When you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant
+account, you are given a secret key (also referred as api-key) and a publishable key.
+You may authenticate all API requests with Hyperswitch server by providing the appropriate key in the
 request Authorization header.
+
+| Key           |  Description                                                                                  |
+|---------------|-----------------------------------------------------------------------------------------------|
+| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |
+| Production    | Unique identifier for your account. Used to authenticate API requests from your app’s client  |
 
 Never share your secret api keys. Keep them guarded and secure.
 "#,
     ),
     servers(
-        (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment"),
-        (url = "https://router.juspay.io", description = "Production Environment")
+        (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment")
+    ),
+    tags(
+        (name = "Merchant Account", description = "Create and manage merchant accounts"),
+        (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
+        (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
+        (name = "Refunds", description = "Create and manage refunds for successful payments"),
+        (name = "Mandates", description = "Manage mandates"),
+        (name = "Customers", description = "Create and manage customers"),
+        (name = "Payment Methods", description = "Create and manage payment methods of customers")
+        
     ),
     paths(
         crate::routes::refunds::refunds_create,

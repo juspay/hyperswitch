@@ -18,7 +18,8 @@ use crate::{
     responses(
         (status = 200, description = "Refund created", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields")
-    )
+    ),
+    tag = "Refunds"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
@@ -49,7 +50,8 @@ pub async fn refunds_create(
     responses(
         (status = 200, description = "Refund retrieved", body = RefundResponse),
         (status = 404, description = "Refund does not exist in our records")
-    )
+    ),
+    tag = "Refunds"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
 // #[get("/{id}")]
@@ -85,7 +87,8 @@ pub async fn refunds_retrieve(
     responses(
         (status = 200, description = "Refund updated", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields")
-    )
+    ),
+    tag = "Refunds"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 // #[post("/{id}")]
@@ -126,7 +129,8 @@ pub async fn refunds_update(
     responses(
         (status = 200, description = "List of refunds", body = RefundListResponse),
         (status = 404, description = "Refund does not exist in our records")
-    )
+    ),
+    tag = "Refunds"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]

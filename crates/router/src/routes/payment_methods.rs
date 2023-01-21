@@ -18,7 +18,8 @@ use crate::{
     responses(
         (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
         (status = 400, description = "Invalid Data")
-    )
+    ),
+    tag = "Payment Methods"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
@@ -57,7 +58,8 @@ pub async fn create_payment_method_api(
         (status = 200, description = "Payment Methods retrieved", body = ListPaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
-    )
+    ),
+    tag = "Payment Methods"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_method_api(
@@ -103,7 +105,8 @@ pub async fn list_payment_method_api(
         (status = 200, description = "Payment Methods retrieved", body = ListCustomerPaymentMethodsResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
-    )
+    ),
+    tag = "Payment Methods"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
@@ -144,7 +147,8 @@ pub async fn list_customer_payment_method_api(
     responses(
         (status = 200, description = "Payment Method retrieved", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
-    )
+    ),
+    tag = "Payment Methods"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
@@ -180,7 +184,8 @@ pub async fn payment_method_retrieve_api(
     responses(
         (status = 200, description = "Payment Method updated", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
-    )
+    ),
+    tag = "Payment Methods"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
@@ -220,7 +225,8 @@ pub async fn payment_method_update_api(
     responses(
         (status = 200, description = "Payment Method deleted", body = DeletePaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
-    )
+    ),
+    tag = "Payment Methods"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(

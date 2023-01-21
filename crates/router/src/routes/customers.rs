@@ -18,7 +18,8 @@ use crate::{
     responses(
         (status = 200, description = "Customer Created", body = CustomerResponse),
         (status = 400, description = "Invalid data")
-    )
+    ),
+     tag = "Customers"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -46,7 +47,8 @@ pub async fn customers_create(
     responses(
         (status = 200, description = "Customer Retrieved", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
@@ -86,7 +88,8 @@ pub async fn customers_retrieve(
     responses(
         (status = 200, description = "Customer was Updated", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
@@ -117,7 +120,8 @@ pub async fn customers_update(
     responses(
         (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(

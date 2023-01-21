@@ -1,12 +1,12 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Juspay Router - API Documentation",
-    "description": "\n## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                                            |\n|---------------|------------------------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>                   |\n| Production    | <https://router.juspay.io>                           |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant\naccount, you are given a secret key (also referred as api-key).\nYou may authenticate all API requests with Juspay server by providing the appropriate key in the\nrequest Authorization header.\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "title": "Hyperswitch - API Documentation",
+    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data. Currently, our sandbox environment is live while our production environment is under development and will be available soon. You can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | Coming Soon!                       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in the\nrequest Authorization header.\n\n| Key           |  Description                                                                                  |\n|---------------|-----------------------------------------------------------------------------------------------|\n| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |\n| Production    | Unique identifier for your account. Used to authenticate API requests from your app’s client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
     "contact": {
-      "name": "Juspay Support",
-      "url": "https://juspay.io",
-      "email": "support@juspay.in"
+      "name": "Hyperswitch Support",
+      "url": "https://hyperswitch.io",
+      "email": "hyperswitch@juspay.in"
     },
     "license": {
       "name": "Apache-2.0"
@@ -17,17 +17,13 @@
     {
       "url": "https://sandbox.hyperswitch.io",
       "description": "Sandbox Environment"
-    },
-    {
-      "url": "https://router.juspay.io",
-      "description": "Production Environment"
     }
   ],
   "paths": {
     "/account": {
       "post": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Account"
         ],
         "summary": "Merchant Account - Create",
         "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
@@ -63,10 +59,10 @@
     "/account/{account_id}": {
       "get": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Account"
         ],
         "summary": "Merchant Account - Retrieve",
-        "description": "Merchant Account - Retrieve\nRetrieve a merchant account details.",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a merchant account details.",
         "operationId": "retrieve_merchant_account",
         "parameters": [
           {
@@ -99,10 +95,10 @@
       },
       "post": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Account"
         ],
         "summary": "Merchant Account - Update",
-        "description": "Merchant Account - Update\nUpdate a merchant account details.",
+        "description": "Merchant Account - Update\n\nUpdate a merchant account details.",
         "operationId": "update_merchant_account",
         "parameters": [
           {
@@ -145,10 +141,10 @@
       },
       "delete": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Account"
         ],
         "summary": "Merchant Account - Delete",
-        "description": "Merchant Account - Delete\nDelete a merchant account details.",
+        "description": "Merchant Account - Delete\n\nDelete a merchant account details.",
         "operationId": "delete_merchant_account",
         "parameters": [
           {
@@ -183,7 +179,7 @@
     "/account/{account_id}/connectors": {
       "get": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Connector Account"
         ],
         "summary": "Payment Connector - List",
         "description": "Payment Connector - List\n\nList Payment Connector Details for the merchant",
@@ -225,11 +221,11 @@
       },
       "post": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Connector Account"
         ],
         "summary": "PaymentsConnectors - Create",
         "description": "PaymentsConnectors - Create\n\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
-        "operationId": "payment_connector_create",
+        "operationId": "123",
         "requestBody": {
           "content": {
             "application/json": {
@@ -261,7 +257,7 @@
     "/account/{account_id}/connectors/{connector_id}": {
       "get": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Connector Account"
         ],
         "summary": "Payment Connector - Retrieve",
         "description": "Payment Connector - Retrieve\n\nRetrieve Payment Connector Details",
@@ -311,7 +307,7 @@
       },
       "post": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Connector Account"
         ],
         "summary": "Payment Connector - Update",
         "description": "Payment Connector - Update\n\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc",
@@ -371,7 +367,7 @@
       },
       "delete": {
         "tags": [
-          "crate::routes::admin"
+          "Merchant Connector Account"
         ],
         "summary": "Payment Connector - Delete",
         "description": "Payment Connector - Delete\nDelete or Detach a Payment Connector from Merchant Account",
@@ -423,7 +419,7 @@
     "/customers": {
       "post": {
         "tags": [
-          "crate::routes::customers"
+          "Customers"
         ],
         "summary": "Create Customer",
         "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
@@ -459,7 +455,7 @@
     "/customers/{customer_id}": {
       "get": {
         "tags": [
-          "crate::routes::customers"
+          "Customers"
         ],
         "summary": "Retrieve Customer",
         "description": "Retrieve Customer\n\nRetrieve a customer's details.",
@@ -495,7 +491,7 @@
       },
       "post": {
         "tags": [
-          "crate::routes::customers"
+          "Customers"
         ],
         "summary": "Update Customer",
         "description": "Update Customer\n\nUpdates the customer's details in a customer object.",
@@ -541,7 +537,7 @@
       },
       "delete": {
         "tags": [
-          "crate::routes::customers"
+          "Customers"
         ],
         "summary": "Delete Customer",
         "description": "Delete Customer\n\nDelete a customer record.",
@@ -579,7 +575,7 @@
     "/mandates/revoke/{mandate_id}": {
       "post": {
         "tags": [
-          "crate::routes::mandates"
+          "Mandates"
         ],
         "summary": "Mandates - Revoke mandate",
         "description": "Mandates - Revoke mandate\n\nRevoke a mandate given the mandate ID",
@@ -617,7 +613,7 @@
     "/mandates/{mandate_id}": {
       "get": {
         "tags": [
-          "crate::routes::mandates"
+          "Mandates"
         ],
         "summary": "Mandates - Get mandates",
         "description": "Mandates - Get mandates\n\nRetrieve a mandate given the mandate ID",
@@ -655,7 +651,7 @@
     "/payment_methods": {
       "post": {
         "tags": [
-          "crate::routes::payment_methods"
+          "Payment Methods"
         ],
         "summary": "PaymentMethods - Create",
         "description": "PaymentMethods - Create\n\nTo create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants",
@@ -691,7 +687,7 @@
     "/payment_methods/{account_id}": {
       "get": {
         "tags": [
-          "crate::routes::payment_methods"
+          "Payment Methods"
         ],
         "summary": "List payment methods for a Merchant",
         "description": "List payment methods for a Merchant\n\nTo filter and list the applicable payment methods for a particular merchant id.",
@@ -800,7 +796,7 @@
     "/payment_methods/{customer_id}": {
       "get": {
         "tags": [
-          "crate::routes::payment_methods"
+          "Payment Methods"
         ],
         "summary": "List payment methods for a Customer",
         "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular customer id.",
@@ -909,7 +905,7 @@
     "/payment_methods/{method_id}": {
       "get": {
         "tags": [
-          "crate::routes::payment_methods"
+          "Payment Methods"
         ],
         "summary": "Payment Method - Retrieve",
         "description": "Payment Method - Retrieve\n\nGet payment method",
@@ -945,7 +941,7 @@
       },
       "post": {
         "tags": [
-          "crate::routes::payment_methods"
+          "Payment Methods"
         ],
         "summary": "Payment Method - Update",
         "description": "Payment Method - Update\n\nUpdate payment method",
@@ -991,7 +987,7 @@
       },
       "delete": {
         "tags": [
-          "crate::routes::payment_methods"
+          "Payment Methods"
         ],
         "summary": "Payment Method - Delete",
         "description": "Payment Method - Delete\n\nDelete payment method",
@@ -1029,7 +1025,7 @@
     "/payments": {
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Create",
         "description": "Payments - Create\n\nTo create a new payment, against a merchant API key",
@@ -1065,7 +1061,7 @@
     "/payments/list": {
       "get": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - List",
         "description": "Payments - List\n\nTo list the payments",
@@ -1182,7 +1178,7 @@
     "/payments/session_tokens": {
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Session token",
         "description": "Payments - Session token\n\nTo create the session object or to get session token for wallets",
@@ -1218,7 +1214,7 @@
     "/payments/start/{payment_id}/{merchant_id}/{attempt_id}": {
       "get": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Start",
         "description": "Payments - Start\n\nThe entry point for a payment which involves the redirection flow. This redirects the user to the authentication page",
@@ -1269,7 +1265,7 @@
     "/payments/{payment_id}": {
       "get": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Retrieve",
         "description": "Payments - Retrieve\n\nTo retrieve a payment by calling the connector to get the final status of the payment",
@@ -1315,7 +1311,7 @@
       },
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Update",
         "description": "Payments - Update\n\nTo update the payment",
@@ -1363,7 +1359,7 @@
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Cancel",
         "description": "Payments - Cancel\n\nTo cancel the payment",
@@ -1404,7 +1400,7 @@
     "/payments/{payment_id}/capture": {
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Capture",
         "description": "Payments - Capture\n\nTo capture payments for a currently uncaptured payment",
@@ -1452,7 +1448,7 @@
     "/payments/{payment_id}/confirm": {
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Confirm",
         "description": "Payments - Confirm\n\nTo confirm the payment",
@@ -1500,7 +1496,7 @@
     "/payments/{payment_id}/{merchant_id}/response/{connector}": {
       "post": {
         "tags": [
-          "crate::routes::payments"
+          "Payments"
         ],
         "summary": "Payments - Redirect response",
         "description": "Payments - Redirect response\n\nTo get the payment response for redirect flows",
@@ -1551,7 +1547,7 @@
     "/refunds": {
       "post": {
         "tags": [
-          "crate::routes::refunds"
+          "Refunds"
         ],
         "summary": "Refunds - Create",
         "description": "Refunds - Create\n\nTo create a refund against an already processed payment",
@@ -1587,7 +1583,7 @@
     "/refunds/list": {
       "get": {
         "tags": [
-          "crate::routes::refunds"
+          "Refunds"
         ],
         "summary": "Refunds - List",
         "description": "Refunds - List\n\nTo list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
@@ -1691,7 +1687,7 @@
     "/refunds/{refund_id}": {
       "get": {
         "tags": [
-          "crate::routes::refunds"
+          "Refunds"
         ],
         "summary": "Refunds - Retrieve",
         "description": "Refunds - Retrieve\n\nTo retrieve a refund against an already processed payment",
@@ -1727,7 +1723,7 @@
       },
       "post": {
         "tags": [
-          "crate::routes::refunds"
+          "Refunds"
         ],
         "summary": "Refunds - Update",
         "description": "Refunds - Update\n\nTo update a refund against an already processed payment",
@@ -4696,5 +4692,35 @@
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Merchant Account",
+      "description": "Create and manage merchant accounts"
+    },
+    {
+      "name": "Merchant Connector Account",
+      "description": "Create and manage merchant connector accounts"
+    },
+    {
+      "name": "Payments",
+      "description": "Create and manage one-time payments, recurring payments and mandates"
+    },
+    {
+      "name": "Refunds",
+      "description": "Create and manage refunds for successful payments"
+    },
+    {
+      "name": "Mandates",
+      "description": "Manage mandates"
+    },
+    {
+      "name": "Customers",
+      "description": "Create and manage customers"
+    },
+    {
+      "name": "Payment Methods",
+      "description": "Create and manage payment methods of customers"
+    }
+  ]
 }

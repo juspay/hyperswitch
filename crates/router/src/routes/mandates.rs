@@ -20,7 +20,8 @@ use crate::{
     responses(
         (status = 200, description = "The mandate was retrieved successfully", body = MandateResponse),
         (status = 404, description = "Mandate does not exist in our records")
-    )
+    ),
+    tag = "Mandates"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
@@ -54,7 +55,8 @@ pub async fn get_mandate(
     responses(
         (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
         (status = 400, description = "Mandate does not exist in our records")
-    )
+    ),
+    tag = "Mandates"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
 // #[post("/revoke/{id}")]

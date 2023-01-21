@@ -19,7 +19,8 @@ use crate::{
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
@@ -66,7 +67,8 @@ pub async fn payments_create(
     responses(
         (status = 200, description = "Redirects to the authentication page"),
         (status = 404, description = "No redirection found")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
@@ -112,7 +114,8 @@ pub async fn payments_start(
     responses(
         (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
@@ -166,7 +169,8 @@ pub async fn payments_retrieve(
     responses(
         (status = 200, description = "Payment updated", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 // #[post("/{payment_id}")]
@@ -222,7 +226,8 @@ pub async fn payments_update(
     responses(
         (status = 200, description = "Payment confirmed", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 // #[post("/{payment_id}/confirm")]
@@ -279,7 +284,8 @@ pub async fn payments_confirm(
     responses(
         (status = 200, description = "Payment captured", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
@@ -323,7 +329,8 @@ pub async fn payments_capture(
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
         (status = 400, description = "Missing mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub async fn payments_connector_session(
@@ -372,7 +379,8 @@ pub async fn payments_connector_session(
     responses(
         (status = 302, description = "Received payment redirect response"),
         (status = 400, description = "Missing mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all)]
 pub async fn payments_redirect_response(
@@ -419,7 +427,8 @@ pub async fn payments_redirect_response(
     responses(
         (status = 200, description = "Payment canceled"),
         (status = 400, description = "Missing mandatory fields")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 // #[post("/{payment_id}/cancel")]
@@ -472,7 +481,8 @@ pub async fn payments_cancel(
     responses(
         (status = 200, description = "Received payment list"),
         (status = 404, description = "No payments found")
-    )
+    ),
+    tag = "Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
