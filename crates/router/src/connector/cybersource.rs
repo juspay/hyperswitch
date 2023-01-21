@@ -19,7 +19,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::{self, BytesExt},
+    utils::{self, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -633,10 +633,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let refund_id = req
+            .response
+            .clone()
+            .ok()
+            .get_required_value("response")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            .connector_refund_id;
         Ok(format!(
             "{}tss/v2/transactions/{}",
             self.base_url(connectors),
-            req.request.connector_transaction_id
+            refund_id
         ))
     }
     fn build_request(
