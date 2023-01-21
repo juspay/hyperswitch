@@ -3,11 +3,12 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::AccessTokenRequestInfo,
     consts,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
-    utils::OptionExt, connector::utils::AccessTokenRequestInfo,
+    utils::OptionExt,
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
