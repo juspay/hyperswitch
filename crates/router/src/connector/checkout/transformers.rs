@@ -147,8 +147,7 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMet
         item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
     ) -> Self {
         let item = item.0;
-        let status = item.0;
-        let capture_method = item.1;
+        let (status, capture_method) = item;
         match status {
             CheckoutPaymentStatus::Authorized => {
                 if capture_method == Some(enums::CaptureMethod::Automatic)

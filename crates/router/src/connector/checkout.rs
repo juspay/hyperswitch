@@ -471,7 +471,7 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        logger::debug!(payments_create_response=?res);
+        logger::debug!(payments_cancel_response=?res);
 
         let mut response: checkout::PaymentVoidResponse = res
             .response
