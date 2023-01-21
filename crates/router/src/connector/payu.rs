@@ -11,7 +11,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services::{self, ConnectorIntegration},
+    headers, logger,
+    services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -96,23 +97,15 @@ impl ConnectorCommon for Payu {
 impl api::Payment for Payu {}
 
 impl api::PreVerify for Payu {}
-impl
-    ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Payu
 {
 }
 
 impl api::PaymentVoid for Payu {}
 
-impl
-    ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Payu
 {
     fn get_headers(
         &self,
@@ -178,12 +171,8 @@ impl
 
 impl api::ConnectorAccessToken for Payu {}
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for Payu
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Payu
 {
     fn get_url(
         &self,
@@ -193,7 +182,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "pl/standard/user/oauth/authorize".to_string()
+            "pl/standard/user/oauth/authorize"
         ))
     }
 
@@ -281,8 +270,7 @@ impl
 }
 
 impl api::PaymentSync for Payu {}
-impl
-    ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payu
 {
     fn get_headers(
@@ -357,12 +345,8 @@ impl
 }
 
 impl api::PaymentCapture for Payu {}
-impl
-    ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Payu
 {
     fn get_headers(
         &self,
@@ -447,24 +431,16 @@ impl
 
 impl api::PaymentSession for Payu {}
 
-impl
-    ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Payu
 {
     //TODO: implement sessions flow
 }
 
 impl api::PaymentAuthorize for Payu {}
 
-impl
-    ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Payu
 {
     fn get_headers(
         &self,
@@ -483,7 +459,11 @@ impl
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "api/v2_1/orders"))
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "api/v2_1/orders"
+        ))
     }
 
     fn get_request_body(
@@ -551,9 +531,7 @@ impl api::Refund for Payu {}
 impl api::RefundExecute for Payu {}
 impl api::RefundSync for Payu {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Payu
-{
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Payu {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -634,9 +612,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Payu
-{
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payu {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
