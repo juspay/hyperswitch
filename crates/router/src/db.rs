@@ -18,9 +18,11 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
+use common_utils::errors::CustomResult;
+use error_stack::report;
 use futures::lock::Mutex;
 
-use crate::{services::Store, types::storage};
+use crate::{core::errors, services::Store, types::storage};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -53,8 +55,32 @@ pub trait StorageInterface:
     + connector_response::ConnectorResponseInterface
     + reverse_lookup::ReverseLookupInterface
     + 'static
+    + InternalLoader
 {
     async fn close(&mut self) {}
+}
+
+pub trait InternalLoader {
+    fn get_store(&self) -> CustomResult<&Store, errors::StorageError> {
+        Err(report!(errors::StorageError::DatabaseError(report!(
+            storage_models::errors::DatabaseError::Others
+        ))))
+    }
+    fn get_mock_db(&self) -> CustomResult<&MockDb, errors::StorageError> {
+        Err(report!(errors::StorageError::MockDbError))
+    }
+}
+
+impl InternalLoader for Store {
+    fn get_store(&self) -> CustomResult<&Store, errors::StorageError> {
+        Ok(self)
+    }
+}
+
+impl InternalLoader for MockDb {
+    fn get_mock_db(&self) -> CustomResult<&MockDb, errors::StorageError> {
+        Ok(self)
+    }
 }
 
 #[async_trait::async_trait]
@@ -112,7 +138,7 @@ pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
     key: &str,
     type_name: &str,
-) -> common_utils::errors::CustomResult<T, redis_interface::errors::RedisError>
+) -> CustomResult<T, errors::RedisError>
 where
     T: serde::de::DeserializeOwned,
 {
