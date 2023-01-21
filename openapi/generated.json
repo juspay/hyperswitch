@@ -576,6 +576,82 @@
         "deprecated": false
       }
     },
+    "/mandates/revoke/{mandate_id}": {
+      "post": {
+        "tags": [
+          "crate::routes::mandates"
+        ],
+        "summary": "Mandates - Revoke mandate",
+        "description": "Mandates - Revoke mandate\n\nRevoke a mandate given the mandate ID",
+        "operationId": "revoke_mandate",
+        "parameters": [
+          {
+            "name": "mandate_id",
+            "in": "path",
+            "description": "The identifier for mandate",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The mandate was revoked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MandateRevokedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Mandate does not exist in our records"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/mandates/{mandate_id}": {
+      "get": {
+        "tags": [
+          "crate::routes::mandates"
+        ],
+        "summary": "Mandates - Get mandates",
+        "description": "Mandates - Get mandates\n\nRetrieve a mandate given the mandate ID",
+        "operationId": "get_mandate",
+        "parameters": [
+          {
+            "name": "mandate_id",
+            "in": "path",
+            "description": "The identifier for mandate",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The mandate was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MandateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mandate does not exist in our records"
+          }
+        },
+        "deprecated": false
+      }
+    },
     "/payment_methods": {
       "post": {
         "tags": [
@@ -981,6 +1057,492 @@
           },
           "400": {
             "description": "Missing Mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/list": {
+      "get": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - List",
+        "description": "Payments - List\n\nTo list the payments",
+        "operationId": "payments_list",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "query",
+            "description": "The identifier for the customer",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "starting_after",
+            "in": "query",
+            "description": "A cursor for use in pagination, fetch the next list after some object",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ending_before",
+            "in": "query",
+            "description": "A cursor for use in pagination, fetch the previous list before some object",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Limit on the number of objects to return",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "created",
+            "in": "query",
+            "description": "The time at which payment is created",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "created_lt",
+            "in": "query",
+            "description": "Time less than the payment created time",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "created_gt",
+            "in": "query",
+            "description": "Time greater than the payment created time",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "created_lte",
+            "in": "query",
+            "description": "Time less than or equals to the payment created time",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "created_gte",
+            "in": "query",
+            "description": "Time greater than or equals to the payment created time",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Received payment list"
+          },
+          "404": {
+            "description": "No payments found"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/session_tokens": {
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Session token",
+        "description": "Payments - Session token\n\nTo create the session object or to get session token for wallets",
+        "operationId": "payments_connector_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment session object created or session token was retrieved from wallets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/start/{payment_id}/{merchant_id}/{attempt_id}": {
+      "get": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Start",
+        "description": "Payments - Start\n\nThe entry point for a payment which involves the redirection flow. This redirects the user to the authentication page",
+        "operationId": "payments_start",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The identifier for merchant",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "description": "The identifier for transaction",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redirects to the authentication page"
+          },
+          "404": {
+            "description": "No redirection found"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/{payment_id}": {
+      "get": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Retrieve",
+        "description": "Payments - Retrieve\n\nTo retrieve a payment by calling the connector to get the final status of the payment",
+        "operationId": "payments_retrieve",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRetrieveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets the payment with final status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment found"
+          }
+        },
+        "deprecated": false
+      },
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Update",
+        "description": "Payments - Update\n\nTo update the payment",
+        "operationId": "payments_update",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/{payment_id}/cancel": {
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Cancel",
+        "description": "Payments - Cancel\n\nTo cancel the payment",
+        "operationId": "payments_cancel",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment canceled"
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/{payment_id}/capture": {
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Capture",
+        "description": "Payments - Capture\n\nTo capture payments for a currently uncaptured payment",
+        "operationId": "payments_capture",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCaptureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment captured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/{payment_id}/confirm": {
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Confirm",
+        "description": "Payments - Confirm\n\nTo confirm the payment",
+        "operationId": "payments_confirm",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/payments/{payment_id}/{merchant_id}/response/{connector}": {
+      "post": {
+        "tags": [
+          "crate::routes::payments"
+        ],
+        "summary": "Payments - Redirect response",
+        "description": "Payments - Redirect response\n\nTo get the payment response for redirect flows",
+        "operationId": "payments_redirect_response",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The identifier for merchant",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connector",
+            "in": "path",
+            "description": "The name of the connector",
+            "required": true,
+            "deprecated": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Received payment redirect response"
+          },
+          "400": {
+            "description": "Missing mandatory fields"
           }
         },
         "deprecated": false
@@ -2280,6 +2842,43 @@
           }
         }
       },
+      "MandateCardDetails": {
+        "type": "object",
+        "properties": {
+          "last4_digits": {
+            "type": "string",
+            "description": "The last 4 digits of card"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The expiry month of card"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The expiry year of card"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder name"
+          },
+          "card_token": {
+            "type": "string",
+            "description": "The token from card locker"
+          },
+          "scheme": {
+            "type": "string",
+            "description": "The card scheme network for the particular card"
+          },
+          "issuer_country": {
+            "type": "string",
+            "description": "The country code in in which the card was issued"
+          },
+          "card_fingerprint": {
+            "type": "string",
+            "description": "A unique identifier alias to identify a particular card"
+          }
+        }
+      },
       "MandateData": {
         "type": "object",
         "required": [
@@ -2294,6 +2893,64 @@
             "$ref": "#/components/schemas/MandateType"
           }
         }
+      },
+      "MandateResponse": {
+        "type": "object",
+        "required": [
+          "mandate_id",
+          "status",
+          "payment_method_id",
+          "payment_method"
+        ],
+        "properties": {
+          "mandate_id": {
+            "type": "string",
+            "description": "The identifier for mandate"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MandateStatus"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The identifier for payment method"
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "The payment method"
+          },
+          "card": {
+            "$ref": "#/components/schemas/MandateCardDetails"
+          },
+          "customer_acceptance": {
+            "$ref": "#/components/schemas/CustomerAcceptance"
+          }
+        }
+      },
+      "MandateRevokedResponse": {
+        "type": "object",
+        "required": [
+          "mandate_id",
+          "status"
+        ],
+        "properties": {
+          "mandate_id": {
+            "type": "string",
+            "description": "The identifier for mandate"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MandateStatus"
+          }
+        }
+      },
+      "MandateStatus": {
+        "type": "string",
+        "description": "The status of the mandate, which indicates whether it can be used to initiate a payment",
+        "enum": [
+          "active",
+          "inactive",
+          "pending",
+          "revoked"
+        ]
       },
       "MandateType": {
         "oneOf": [
@@ -3257,7 +3914,8 @@
             "example": "187282ab-40ef-47a9-9206-5099ba31e432"
           },
           "card_cvc": {
-            "type": "string"
+            "type": "string",
+            "description": "This is used when payment is to be confirmed and the card is not saved"
           },
           "shipping": {
             "$ref": "#/components/schemas/Address"
@@ -3707,20 +4365,25 @@
         ],
         "properties": {
           "refund_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The identifier for refund"
           },
           "payment_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The identifier for payment"
           },
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc"
           },
           "currency": {
-            "type": "string"
+            "type": "string",
+            "description": "The three-letter ISO currency code"
           },
           "reason": {
-            "type": "string"
+            "type": "string",
+            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive"
           },
           "status": {
             "$ref": "#/components/schemas/RefundStatus"
@@ -3729,23 +4392,28 @@
             "type": "object"
           },
           "error_message": {
-            "type": "string"
+            "type": "string",
+            "description": "The error message"
           },
           "error_code": {
-            "type": "string"
+            "type": "string",
+            "description": "The code for the error"
           },
           "created_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "The timestamp at which refund is created"
           },
           "updated_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "The timestamp at which refund is updated"
           }
         }
       },
       "RefundStatus": {
         "type": "string",
+        "description": "The status for refunds",
         "enum": [
           "succeeded",
           "failed",

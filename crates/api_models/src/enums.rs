@@ -468,6 +468,7 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
+/// The status of the mandate, which indicates whether it can be used to initiate a payment
 #[derive(
     Clone,
     Copy,
@@ -480,6 +481,7 @@ pub enum RoutingAlgorithm {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
