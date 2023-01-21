@@ -140,6 +140,33 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
+impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
+    for transformers::Foreign<enums::AttemptStatus>
+{
+    fn from(
+        item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
+    ) -> Self {
+        let item = item.0;
+        let (status, capture_method) = item;
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if capture_method == Some(enums::CaptureMethod::Automatic)
+                    || capture_method.is_none()
+                {
+                    enums::AttemptStatus::Charged
+                } else {
+                    enums::AttemptStatus::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
+            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
+            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+        }
+        .into()
+    }
+}
+
 impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
     for transformers::Foreign<enums::AttemptStatus>
 {
@@ -215,7 +242,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
-                item.response.balances,
+                item.data.request.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
