@@ -456,9 +456,9 @@ pub async fn list_payment_methods(
     let payment_attempt = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            db.find_payment_attempt_by_payment_id_merchant_id(
-                &pi.payment_id,
+            db.find_payment_attempt_by_merchant_id_attempt_id(
                 &pi.merchant_id,
+                &pi.attempt_id,
                 merchant_account.storage_scheme,
             )
             .await
