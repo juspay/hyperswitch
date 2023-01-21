@@ -46,7 +46,7 @@ async fn should_only_authorize_payment() {
                 payment_method_data: types::api::PaymentMethod::Card(api::CCard {
                     card_number: Secret::new("4005550000000019".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
-                    card_exp_year: Secret::new("35".to_string()),
+                    card_exp_year: Secret::new("2035".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
                 }),

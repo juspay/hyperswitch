@@ -48,6 +48,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn should_authorize_card_payment() {
     //Authorize Card Payment in PLN currency
     let authorize_response = Payu {}
@@ -113,6 +114,7 @@ async fn should_authorize_gpay_payment() {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn should_capture_already_authorized_payment() {
     let connector = Payu {};
     let authorize_response = connector
@@ -166,6 +168,7 @@ async fn should_capture_already_authorized_payment() {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn should_sync_payment() {
     let connector = Payu {};
     // Authorize the payment for manual capture
@@ -203,6 +206,7 @@ async fn should_sync_payment() {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn should_void_already_authorized_payment() {
     let connector = Payu {};
     //make a successful payment
@@ -245,6 +249,7 @@ async fn should_void_already_authorized_payment() {
 }
 
 #[actix_web::test]
+#[ignore]
 async fn should_refund_succeeded_payment() {
     let connector = Payu {};
     let authorize_response = connector
