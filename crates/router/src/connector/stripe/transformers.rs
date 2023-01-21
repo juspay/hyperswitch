@@ -1,8 +1,9 @@
-use std::str::FromStr;
-
 use api_models::{self, payments};
+use common_utils::fp_utils;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use strum::EnumString;
 use url::Url;
 use uuid::Uuid;
@@ -156,38 +157,38 @@ pub enum StripePaymentMethodType {
 }
 
 fn validate_shipping_address_against_payment_method(
-    maybe_shipping_address: &Option<payments::Address>,
-    payment_method: &Option<StripePaymentMethodData>,
+    shipping_address: &StripeShippingAddress,
+    payment_method: &payments::PaymentMethod,
 ) -> Result<(), errors::ConnectorError> {
-    match payment_method {
-        Some(StripePaymentMethodData::AfterpayClearpay(..)) => {
-            let missing_field = match maybe_shipping_address {
-                Some(address) => match address.address {
-                    Some(payments::AddressDetails {
-                        first_name: None, ..
-                    }) => Some("shipping.first_name"),
-                    Some(payments::AddressDetails {
-                        last_name: None, ..
-                    }) => Some("shipping.last_name"),
-                    Some(payments::AddressDetails { line1: None, .. }) => Some("shipping.line1"),
-                    Some(payments::AddressDetails { country: None, .. }) => {
-                        Some("shipping.country")
-                    }
-                    Some(payments::AddressDetails { zip: None, .. }) => Some("shipping.zip"),
-                    _ => None,
-                },
-                None => Some("shipping address"),
-            };
+    if let payments::PaymentMethod::PayLater(payments::PayLaterData::AfterpayClearpayRedirect {
+        ..
+    }) = payment_method
+    {
+        fp_utils::when(shipping_address.name.is_none(), || {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shipping.address".to_string(),
+            })
+        })?;
 
-            match missing_field {
-                Some(missing_field) => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: missing_field.to_string(),
-                }),
-                None => Ok(()),
-            }
-        }
-        _ => Ok(()),
+        fp_utils::when(shipping_address.line1.is_none(), || {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shipping.line1".to_string(),
+            })
+        })?;
+
+        fp_utils::when(shipping_address.country.is_none(), || {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shipping.country".to_string(),
+            })
+        })?;
+
+        fp_utils::when(shipping_address.postal_code.is_none(), || {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shipping.zip".to_string(),
+            })
+        })?;
     }
+    Ok(())
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
@@ -215,8 +216,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             }
         };
 
-        validate_shipping_address_against_payment_method(&item.address.shipping, &payment_data)?;
-
         let shipping_address = match item.address.shipping.clone() {
             Some(mut shipping) => StripeShippingAddress {
                 city: shipping.address.as_mut().and_then(|a| a.city.take()),
@@ -225,13 +224,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
                 postal_code: shipping.address.as_mut().and_then(|a| a.zip.take()),
                 state: shipping.address.as_mut().and_then(|a| a.state.take()),
-                name: shipping.address.as_mut().map(|a| {
-                    format!(
-                        "{} {}",
-                        a.first_name.clone().expose_option().unwrap_or_default(),
-                        a.last_name.clone().expose_option().unwrap_or_default()
-                    )
-                    .into()
+                name: shipping.address.as_mut().and_then(|a| {
+                    a.first_name.as_ref().map(|first_name| {
+                        format!(
+                            "{} {}",
+                            first_name.clone().expose(),
+                            a.last_name.clone().expose_option().unwrap_or_default()
+                        )
+                        .into()
+                    })
                 }),
                 phone: shipping.phone.map(|p| {
                     format!(
@@ -244,6 +245,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             },
             None => StripeShippingAddress::default(),
         };
+
+        validate_shipping_address_against_payment_method(
+            &shipping_address,
+            &item.request.payment_method_data,
+        )?;
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
