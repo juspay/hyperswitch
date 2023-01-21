@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive;
 
-use super::{Operation, PostUpdateTracker};
+use super::{BoxedOperation, Operation, PostGetTracker, PostUpdateTracker};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -20,7 +20,7 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
-    ops = "post_tracker",
+    ops = "post_update_tracker,post_get_tracker",
     flow = "syncdata,authorizedata,canceldata,capturedata,verifydata,sessiondata"
 )]
 pub struct PaymentResponse;
@@ -52,6 +52,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             .await
     }
 }
+#[async_trait]
+impl<F: Clone> PostGetTracker<F, PaymentData<F>, types::PaymentsAuthorizeData> for PaymentResponse {
+    async fn get_tracker<'b>(
+        &'b self,
+        _db: &dyn StorageInterface,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _response: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, types::PaymentsAuthorizeData>,
+        PaymentData<F>,
+    )>
+    where
+        F: 'b + Send + Sync,
+    {
+        Ok((Box::new(self), payment_data))
+    }
+}
 
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
@@ -68,6 +87,26 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     {
         payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
             .await
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostGetTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
+    async fn get_tracker<'b>(
+        &'b self,
+        _db: &dyn StorageInterface,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _response: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, types::PaymentsSyncData>,
+        PaymentData<F>,
+    )>
+    where
+        F: 'b + Send + Sync,
+    {
+        Ok((Box::new(self), payment_data))
     }
 }
 
@@ -92,6 +131,26 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
 }
 
 #[async_trait]
+impl<F: Clone> PostGetTracker<F, PaymentData<F>, types::PaymentsSessionData> for PaymentResponse {
+    async fn get_tracker<'b>(
+        &'b self,
+        _db: &dyn StorageInterface,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _response: &types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, types::PaymentsSessionData>,
+        PaymentData<F>,
+    )>
+    where
+        F: 'b + Send + Sync,
+    {
+        Ok((Box::new(self), payment_data))
+    }
+}
+
+#[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
 {
@@ -110,7 +169,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             .await
     }
 }
-
+#[async_trait]
+impl<F: Clone> PostGetTracker<F, PaymentData<F>, types::PaymentsCaptureData> for PaymentResponse {
+    async fn get_tracker<'b>(
+        &'b self,
+        _db: &dyn StorageInterface,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _response: &types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, types::PaymentsCaptureData>,
+        PaymentData<F>,
+    )>
+    where
+        F: 'b + Send + Sync,
+    {
+        Ok((Box::new(self), payment_data))
+    }
+}
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -129,7 +206,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             .await
     }
 }
-
+#[async_trait]
+impl<F: Clone> PostGetTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
+    async fn get_tracker<'b>(
+        &'b self,
+        _db: &dyn StorageInterface,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _response: &types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, types::PaymentsCancelData>,
+        PaymentData<F>,
+    )>
+    where
+        F: 'b + Send + Sync,
+    {
+        Ok((Box::new(self), payment_data))
+    }
+}
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -153,7 +248,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
             .await
     }
 }
-
+#[async_trait]
+impl<F: Clone> PostGetTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
+    async fn get_tracker<'b>(
+        &'b self,
+        _db: &dyn StorageInterface,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _response: &types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, types::VerifyRequestData>,
+        PaymentData<F>,
+    )>
+    where
+        F: 'b + Send + Sync,
+    {
+        Ok((Box::new(self), payment_data))
+    }
+}
 async fn payment_response_update_tracker<F: Clone, T>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,

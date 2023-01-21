@@ -62,6 +62,13 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
             format!("post connector update tracker not found for {self:?}")
         })
     }
+
+    fn to_post_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn PostGetTracker<F, PaymentData<F>, T> + Send + Sync)> {
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| format!("post connector get tracker not found for {self:?}"))
+    }
 }
 
 pub struct ValidateResult<'a> {
@@ -155,6 +162,20 @@ pub trait PostUpdateTracker<F, D, R>: Send {
     ) -> RouterResult<D>
     where
         F: 'b + Send;
+}
+
+#[async_trait]
+pub trait PostGetTracker<F, D, R>: Send + Sync {
+    async fn get_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        payment_data: D,
+        response: &types::RouterData<F, R, PaymentsResponseData>,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(BoxedOperation<'b, F, R>, D)>
+    where
+        F: 'b + Send + Sync;
 }
 
 #[async_trait]

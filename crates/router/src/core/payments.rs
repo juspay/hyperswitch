@@ -46,7 +46,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
+    F: Send + Sync + Clone,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -58,8 +58,8 @@ where
         services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
+    FData: Send + Sync,
     PaymentResponse: Operation<F, FData>,
-    FData: Send,
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
@@ -141,7 +141,7 @@ where
                     &merchant_account,
                     &validate_result.payment_id,
                     connector,
-                    &operation,
+                    PaymentResponse,
                     payment_data,
                     &customer,
                     call_connector_action,
@@ -153,7 +153,7 @@ where
                     state,
                     &merchant_account,
                     connectors,
-                    &operation,
+                    PaymentResponse,
                     payment_data,
                     &customer,
                 )
@@ -180,7 +180,7 @@ where
                     &merchant_account,
                     &validate_result.payment_id,
                     connector_data,
-                    &operation,
+                    PaymentResponse,
                     payment_data,
                     &customer,
                     call_connector_action,
@@ -203,8 +203,8 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
-    FData: Send,
+    F: Send + Sync + Clone,
+    FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
@@ -217,7 +217,7 @@ where
         services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData>,
+    PaymentResponse: Operation<F, FData> + Send + Sync + Debug,
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -325,25 +325,24 @@ pub async fn call_connector_service<F, Op, Req>(
     merchant_account: &storage::MerchantAccount,
     payment_id: &api::PaymentIdType,
     connector: api::ConnectorData,
-    _operation: &Op,
+    operation: Op,
     payment_data: PaymentData<F>,
     customer: &Option<storage::Customer>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<PaymentData<F>>
 where
-    Op: Debug + Sync,
-    F: Send + Clone,
+    Op: Operation<F, Req> + Send + Sync + Debug,
+    F: Send + Clone + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send + Sync,
 
     // To construct connector flow specific api
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
-
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
 {
+    let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
     let db = &*state.store;
 
     let stime_connector = Instant::now();
@@ -379,7 +378,17 @@ where
 
     let response = router_data_res
         .async_and_then(|response| async {
-            let operation = helpers::response_operation::<F, Req>();
+            // let operation = helpers::response_operation::<F, Req>();
+            let (operation, payment_data) = operation
+                .to_post_get_tracker()?
+                .get_tracker(
+                    db,
+                    payment_id,
+                    payment_data,
+                    &response,
+                    merchant_account.storage_scheme,
+                )
+                .await?;
             let payment_data = operation
                 .to_post_update_tracker()?
                 .update_tracker(
@@ -405,7 +414,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     connectors: Vec<api::ConnectorData>,
-    _operation: &Op,
+    _operation: Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<storage::Customer>,
 ) -> RouterResult<PaymentData<F>>

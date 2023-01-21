@@ -303,7 +303,7 @@ pub trait AsyncExt<A, B> {
 }
 
 #[async_trait::async_trait]
-impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
+impl<A: Send + Sync, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
@@ -329,7 +329,7 @@ impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
 }
 
 #[async_trait::async_trait]
-impl<A: Send, B> AsyncExt<A, B> for Option<A> {
+impl<A: Send + Sync, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where

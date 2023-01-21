@@ -81,6 +81,7 @@ enum Conversion {
     Domain,
     UpdateTracker,
     PostUpdateTracker,
+    PostGetTracker,
     All,
     Invalid(String),
 }
@@ -92,7 +93,8 @@ impl From<String> for Conversion {
             "get_tracker" => Self::GetTracker,
             "domain" => Self::Domain,
             "update_tracker" => Self::UpdateTracker,
-            "post_tracker" => Self::PostUpdateTracker,
+            "post_update_tracker" => Self::PostUpdateTracker,
+            "post_get_tracker" => Self::PostGetTracker,
             "all" => Self::All,
             s => Self::Invalid(s.to_string()),
         }
@@ -146,6 +148,11 @@ impl Conversion {
                     Ok(self)
                 }
             },
+            Self::PostGetTracker => quote! {
+                fn to_post_get_tracker(&self) -> RouterResult<&(dyn PostGetTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
+                    Ok(self)
+                }
+            },
             Self::Invalid(s) => {
                 helpers::syn_error(Span::call_site(), &format!("Invalid identifier {s}"))
                     .to_compile_error()
@@ -191,6 +198,11 @@ impl Conversion {
             },
             Self::PostUpdateTracker => quote! {
                 fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
+                    Ok(*self)
+                }
+            },
+            Self::PostGetTracker => quote! {
+                fn to_post_get_tracker(&self) -> RouterResult<&(dyn PostGetTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
@@ -340,6 +352,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                 use crate::core::payments::operations::{
                     ValidateRequest,
                     PostUpdateTracker,
+                    PostGetTracker,
                     GetTracker,
                     UpdateTracker,
                     PaymentData
