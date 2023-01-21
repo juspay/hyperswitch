@@ -73,8 +73,9 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid JWT token was used"
     )]
     InvalidJwtToken,
-    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{message}", ignore = "status_code")]
+    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
+        code: String,
         message: String,
         connector: String,
         status_code: u16,
@@ -138,6 +139,26 @@ pub enum ApiErrorResponse {
     IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
+}
+
+#[derive(Clone)]
+pub enum NotImplementedMessage {
+    Reason(String),
+    Default,
+}
+
+impl std::fmt::Debug for NotImplementedMessage {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Reason(message) => write!(fmt, "{message} is not implemented"),
+            Self::Default => {
+                write!(
+                    fmt,
+                    "This API is under development and will be made available soon."
+                )
+            }
+        }
+    }
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -207,7 +228,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
-            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,           // 501
+            Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
         }
     }
 

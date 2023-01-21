@@ -89,7 +89,7 @@ impl From<api_models::payments::PaymentMethod> for PaymentDetails {
     }
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct TransactionRequest {
     transaction_type: TransactionType,
@@ -99,47 +99,47 @@ struct TransactionRequest {
     authorization_indicator_type: Option<AuthorizationIndicator>,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct AuthorizationIndicator {
     authorization_indicator: AuthorizationType,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct TransactionVoidRequest {
     transaction_type: TransactionType,
     ref_trans_id: String,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: MerchantAuthentication,
     transaction_request: TransactionRequest,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentCancelRequest {
     merchant_authentication: MerchantAuthentication,
     transaction_request: TransactionVoidRequest,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 // The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
 pub struct CreateTransactionRequest {
     create_transaction_request: AuthorizedotnetPaymentsRequest,
 }
 
-#[derive(Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelTransactionRequest {
     create_transaction_request: AuthorizedotnetPaymentCancelRequest,
 }
 
-#[derive(Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthorizationType {
     Final,
@@ -338,7 +338,7 @@ impl<F, T>
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RefundTransactionRequest {
     transaction_type: TransactionType,
@@ -349,14 +349,14 @@ struct RefundTransactionRequest {
     reference_transaction_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetRefundRequest {
     merchant_authentication: MerchantAuthentication,
     transaction_request: RefundTransactionRequest,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 // The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
 pub struct CreateRefundRequest {
@@ -449,14 +449,14 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
     merchant_authentication: MerchantAuthentication,
     #[serde(rename = "transId")]
     transaction_id: Option<String>,
 }
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetCreateSyncRequest {
     get_transaction_details_request: TransactionDetails,

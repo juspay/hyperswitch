@@ -278,7 +278,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
     router_data.response.map_err(|error_response| {
         errors::ApiErrorResponse::ExternalConnectorError {
-            message: format!("{}: {}", error_response.code, error_response.message),
+            message: error_response.message,
+            code: error_response.code,
             status_code: error_response.status_code,
             connector,
         }

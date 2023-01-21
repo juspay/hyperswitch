@@ -596,13 +596,13 @@ pub async fn get_customer_from_details(
 
 pub async fn get_connector_default(
     state: &AppState,
-    request_connector: Option<api_enums::Connector>,
+    request_connector: Option<&String>,
 ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
     let connectors = &state.conf.connectors;
-    if let Some(connector) = request_connector {
+    if let Some(connector_name) = request_connector {
         let connector_data = api::ConnectorData::get_connector_by_name(
             connectors,
-            &connector.to_string(),
+            connector_name,
             api::GetToken::Connector,
         )?;
         Ok(api::ConnectorCallType::Single(connector_data))

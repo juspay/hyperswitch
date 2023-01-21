@@ -60,6 +60,17 @@ impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
 impl api::PaymentSession for Stripe {}
+impl api::ConnectorAccessToken for Stripe {}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+    > for Stripe
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

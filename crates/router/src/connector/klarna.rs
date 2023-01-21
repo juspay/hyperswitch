@@ -51,6 +51,17 @@ impl api::PaymentSync for Klarna {}
 impl api::PaymentVoid for Klarna {}
 impl api::PaymentCapture for Klarna {}
 impl api::PaymentSession for Klarna {}
+impl api::ConnectorAccessToken for Klarna {}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+    > for Klarna
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<
@@ -96,9 +107,11 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
-        let klarna_req = utils::Encode::<klarna::KlarnaSessionRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let klarna_req =
+            utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         logger::debug!(klarna_session_request_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
@@ -240,8 +253,11 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = klarna::KlarnaPaymentsRequest::try_from(req)?;
+        let klarna_req = utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         logger::debug!(klarna_payment_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
