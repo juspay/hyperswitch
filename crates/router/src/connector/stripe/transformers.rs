@@ -167,7 +167,7 @@ fn validate_shipping_address_against_payment_method(
     {
         fp_utils::when(shipping_address.name.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address".to_string(),
+                field_name: "shipping.first_name".to_string(),
             })
         })?;
 
