@@ -217,6 +217,8 @@ impl ResponseId {
 pub struct RefundsData {
     pub refund_id: String,
     pub connector_transaction_id: String,
+
+    pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,

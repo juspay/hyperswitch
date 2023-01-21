@@ -466,11 +466,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncReque
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let transaction_id = item
-            .response
-            .as_ref()
-            .map(|refund_response_data| refund_response_data.connector_refund_id.clone())
-            .ok();
+        let transaction_id = item.request.connector_refund_id.clone();
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = Self {
