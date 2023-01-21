@@ -53,19 +53,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
-        let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
-                merchant_id,
-                storage_scheme,
-            )
+        let mut payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+        let mut payment_attempt = db
+            .find_payment_attempt_by_merchant_id_attempt_id(
+                merchant_id,
+                payment_intent.attempt_id.as_str(),
+                storage_scheme,
+            )
             .await
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

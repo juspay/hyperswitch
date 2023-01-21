@@ -62,9 +62,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_merchant_id_attempt_id(
                 merchant_id,
+                payment_intent.attempt_id.as_str(),
                 storage_scheme,
             )
             .await

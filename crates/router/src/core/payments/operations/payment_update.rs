@@ -59,10 +59,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await?;
 
+        payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_merchant_id_attempt_id(
                 merchant_id,
+                payment_intent.attempt_id.as_str(),
                 storage_scheme,
             )
             .await
@@ -80,13 +87,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let amount = request
             .amount
             .unwrap_or_else(|| payment_attempt.amount.into());
-
-        payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
 
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
