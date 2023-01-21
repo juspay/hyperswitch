@@ -3,6 +3,7 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::AccessTokenRequestInfo,
     consts,
     core::errors,
     pii::{self, Secret},
@@ -268,6 +269,48 @@ impl<F, T>
     }
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayuAuthUpdateRequest {
+    grant_type: String,
+    client_id: String,
+    client_secret: String,
+}
+
+impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            grant_type: "client_credentials".to_string(),
+            client_id: item.get_request_id()?,
+            client_secret: item.request.app_id.clone(),
+        })
+    }
+}
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+pub struct PayuAuthUpdateResponse {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: i64,
+    pub grant_type: String,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::AccessToken {
+                token: item.response.access_token,
+                expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsCancelResponse {
@@ -456,9 +499,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             refund: PayuRefundRequestData {
-                description: item.description.clone().ok_or(
+                description: item.request.reason.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "item.description".to_string(),
+                        field_name: "item.request.reason".to_string(),
                     },
                 )?,
                 amount: None,
@@ -474,6 +517,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Finalized,
+    Completed,
     Canceled,
     #[default]
     Pending,
@@ -482,7 +526,7 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Finalized => Self::Success,
+            RefundStatus::Finalized | RefundStatus::Completed => Self::Success,
             RefundStatus::Canceled => Self::Failure,
             RefundStatus::Pending => Self::Pending,
         }
@@ -562,4 +606,10 @@ pub struct PayuErrorData {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayuErrorResponse {
     pub status: PayuErrorData,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PayuAccessTokenErrorResponse {
+    pub error: String,
+    pub error_description: String,
 }
