@@ -50,7 +50,12 @@ You have two options to try out HyperSwitch:
 1. [Try it in our Sandbox Environment](/docs/try_sandbox.md): Fast and easy to
    start.
    No code or setup required in your system.
-2. [Install in your local system](/docs/try_local_system.md): Configurations and
+2. Try our React Demo App: A simple demo of integrating Hyperswitch with your React app.
+
+   <a href="https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip">
+   <img src= "./docs/imgs/download-button.png" alt="Download Now" width="190rem" />
+   </a>
+3. [Install in your local system](/docs/try_local_system.md): Configurations and
    setup required in your system.
    Suitable if you like to customize the core offering.
 
