@@ -1,30 +1,25 @@
+# <img height = "60" width = "400" src = "./docs/imgs/heading.svg">
+
 <br>
-<img height = "30" width = "200" src = "./docs/imgs/heading.svg">
 
----
+HyperSwitch is an Open Source Financial Switch to make payments **Fast,
+Reliable and Affordable**. It lets you connect with multiple payment processors and route traffic
+effortlessly, all with a single API integration. Using HyperSwitch, you can:
 
-HyperSwitch is an **Open Source Financial Switch** to make payments Fast,
-Reliable and Affordable.
-It lets you connect with multiple payment processors with a single API
-integration.
-Once integrated, you can add new payment processors and route traffic
-effortlessly.
-Using HyperSwitch, you can:
+- **Reduce dependency** on a single processor like Stripe or Braintree
+- **Reduce Dev effort** by 90% to add & maintain integrations
+- **Improve success rates** with seamless failover and auto-retries
+- **Reduce processing fees** with smart routing
+- **Customize payment flows** with full visibility and control
+- **Increase business reach** with local / alternate payment methods
 
-- Reduce dependency on a single processor like Stripe or Braintree
-- Reduce Dev efforts by 90% in adding & maintaining integrations
-- Improve success rates with auto-retries
-- Reduce processing fees through smart routing
-- Customize your payment flow with 100% visibility and control
-- Increase business reach with local payment methods
-- Embrace diversity in payments
+> Note: HyperSwitch is **wire-compatible** with top processors like Stripe, making it easy
+to integrate.
 
-_HyperSwitch is wire-compatible with top processors like Stripe, making it easy
-to integrate._
-
-<p align="center">
-<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="60%" />
+<p align="left" style="margin: 100px">
+<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
 </p>
+
 
 ## Table of Contents
 
