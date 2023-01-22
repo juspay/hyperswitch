@@ -197,7 +197,7 @@ pub struct FiservPaymentsResponse {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayResponse {
-    gateway_transaction_id: String,
+    gateway_transaction_id: Option<String>,
     transaction_state: FiservPaymentStatus,
     transaction_processing_details: TransactionProcessingDetails,
 }
