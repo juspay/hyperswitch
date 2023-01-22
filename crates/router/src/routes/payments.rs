@@ -11,7 +11,7 @@ use crate::{
 
 /// Payments - Create
 ///
-/// To create a new payment, against a merchant API key
+/// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
 #[utoipa::path(
     post,
     path = "/payments",
@@ -20,7 +20,8 @@ use crate::{
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Create a Payment"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
@@ -53,23 +54,24 @@ pub async fn payments_create(
     .await
 }
 
-/// Payments - Start
-///
-/// The entry point for a payment which involves the redirection flow. This redirects the user to the authentication page
-#[utoipa::path(
-    get,
-    path = "/payments/start/{payment_id}/{merchant_id}/{attempt_id}",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment"),
-        ("merchant_id" = String, Path, description = "The identifier for merchant"),
-        ("attempt_id" = String, Path, description = "The identifier for transaction")
-    ),
-    responses(
-        (status = 200, description = "Redirects to the authentication page"),
-        (status = 404, description = "No redirection found")
-    ),
-    tag = "Payments"
-)]
+// /// Payments - Start
+// ///
+// /// The entry point for a payment which involves the redirection flow. This redirects the user to the authentication page
+// #[utoipa::path(
+//     get,
+//     path = "/payments/start/{payment_id}/{merchant_id}/{attempt_id}",
+//     params(
+//         ("payment_id" = String, Path, description = "The identifier for payment"),
+//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
+//         ("attempt_id" = String, Path, description = "The identifier for transaction")
+//     ),
+//     responses(
+//         (status = 200, description = "Redirects to the authentication page"),
+//         (status = 404, description = "No redirection found")
+//     ),
+//     tag = "Payments",
+//     operation_id = "Start a Redirection Payment"
+// )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
@@ -103,7 +105,7 @@ pub async fn payments_start(
 
 /// Payments - Retrieve
 ///
-/// To retrieve a payment by calling the connector to get the final status of the payment
+/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
     get,
     path = "/payments/{payment_id}",
@@ -115,7 +117,8 @@ pub async fn payments_start(
         (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Retrieve a Payment"
 )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
@@ -158,7 +161,7 @@ pub async fn payments_retrieve(
 
 /// Payments - Update
 ///
-/// To update the payment
+/// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}",
@@ -170,7 +173,8 @@ pub async fn payments_retrieve(
         (status = 200, description = "Payment updated", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Update a Payment"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 // #[post("/{payment_id}")]
@@ -215,7 +219,7 @@ pub async fn payments_update(
 
 /// Payments - Confirm
 ///
-/// To confirm the payment
+/// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",
@@ -227,7 +231,8 @@ pub async fn payments_update(
         (status = 200, description = "Payment confirmed", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Confirm a Payment"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 // #[post("/{payment_id}/confirm")]
@@ -273,7 +278,7 @@ pub async fn payments_confirm(
 
 /// Payments - Capture
 ///
-/// To capture payments for a currently uncaptured payment
+/// To capture the funds for an uncaptured payment
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/capture",
@@ -285,7 +290,8 @@ pub async fn payments_confirm(
         (status = 200, description = "Payment captured", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Capture a Payment"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
@@ -330,7 +336,8 @@ pub async fn payments_capture(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Create Session tokens for a Payment"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub async fn payments_connector_session(
@@ -365,23 +372,24 @@ pub async fn payments_connector_session(
     .await
 }
 
-/// Payments - Redirect response
-///
-/// To get the payment response for redirect flows
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/{merchant_id}/response/{connector}",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment"),
-        ("merchant_id" = String, Path, description = "The identifier for merchant"),
-        ("connector" = String, Path, description = "The name of the connector")
-    ),
-    responses(
-        (status = 302, description = "Received payment redirect response"),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments"
-)]
+// /// Payments - Redirect response
+// ///
+// /// To get the payment response for redirect flows
+// #[utoipa::path(
+//     post,
+//     path = "/payments/{payment_id}/{merchant_id}/response/{connector}",
+//     params(
+//         ("payment_id" = String, Path, description = "The identifier for payment"),
+//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
+//         ("connector" = String, Path, description = "The name of the connector")
+//     ),
+//     responses(
+//         (status = 302, description = "Received payment redirect response"),
+//         (status = 400, description = "Missing mandatory fields")
+//     ),
+//     tag = "Payments",
+//     operation_id = "Get Redirect Response for a Payment"
+// )]
 #[instrument(skip_all)]
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
@@ -416,7 +424,7 @@ pub async fn payments_redirect_response(
 
 /// Payments - Cancel
 ///
-/// To cancel the payment
+/// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/cancel",
@@ -428,7 +436,8 @@ pub async fn payments_redirect_response(
         (status = 200, description = "Payment canceled"),
         (status = 400, description = "Missing mandatory fields")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "Cancel a Payment"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 // #[post("/{payment_id}/cancel")]
@@ -482,7 +491,8 @@ pub async fn payments_cancel(
         (status = 200, description = "Received payment list"),
         (status = 404, description = "No payments found")
     ),
-    tag = "Payments"
+    tag = "Payments",
+    operation_id = "List all Payments"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]

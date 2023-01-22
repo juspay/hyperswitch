@@ -8,9 +8,9 @@ use crate::{
     types::api::mandates,
 };
 
-/// Mandates - Get mandates
+/// Mandates - Retrieve Mandate
 ///
-/// Retrieve a mandate given the mandate ID
+/// Retrieve a mandate
 #[utoipa::path(
     get,
     path = "/mandates/{mandate_id}",
@@ -21,7 +21,8 @@ use crate::{
         (status = 200, description = "The mandate was retrieved successfully", body = MandateResponse),
         (status = 404, description = "Mandate does not exist in our records")
     ),
-    tag = "Mandates"
+    tag = "Mandates",
+    operation_id = "Retrieve a Mandate"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
@@ -43,9 +44,9 @@ pub async fn get_mandate(
     .await
 }
 
-/// Mandates - Revoke mandate
+/// Mandates - Revoke Mandate
 ///
-/// Revoke a mandate given the mandate ID
+/// Revoke a mandate
 #[utoipa::path(
     post,
     path = "/mandates/revoke/{mandate_id}",
@@ -56,7 +57,8 @@ pub async fn get_mandate(
         (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
         (status = 400, description = "Mandate does not exist in our records")
     ),
-    tag = "Mandates"
+    tag = "Mandates",
+     operation_id = "Revoke a Mandate"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
 // #[post("/revoke/{id}")]

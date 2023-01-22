@@ -19,7 +19,8 @@ use crate::{
         (status = 200, description = "Refund created", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
-    tag = "Refunds"
+    tag = "Refunds",
+    operation_id = "Create a Refund"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
@@ -40,7 +41,7 @@ pub async fn refunds_create(
 
 /// Refunds - Retrieve
 ///
-/// To retrieve a refund against an already processed payment
+/// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
     get,
     path = "/refunds/{refund_id}",
@@ -51,7 +52,8 @@ pub async fn refunds_create(
         (status = 200, description = "Refund retrieved", body = RefundResponse),
         (status = 404, description = "Refund does not exist in our records")
     ),
-    tag = "Refunds"
+    tag = "Refunds",
+    operation_id = "Retrieve a Refund"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
 // #[get("/{id}")]
@@ -76,7 +78,7 @@ pub async fn refunds_retrieve(
 
 /// Refunds - Update
 ///
-/// To update a refund against an already processed payment
+/// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields
 #[utoipa::path(
     post,
     path = "/refunds/{refund_id}",
@@ -88,7 +90,8 @@ pub async fn refunds_retrieve(
         (status = 200, description = "Refund updated", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
-    tag = "Refunds"
+    tag = "Refunds",
+    operation_id = "Update a Refund"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 // #[post("/{id}")]
@@ -130,7 +133,8 @@ pub async fn refunds_update(
         (status = 200, description = "List of refunds", body = RefundListResponse),
         (status = 404, description = "Refund does not exist in our records")
     ),
-    tag = "Refunds"
+    tag = "Refunds",
+    operation_id = "List all Refunds"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]

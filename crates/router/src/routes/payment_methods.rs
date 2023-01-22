@@ -19,7 +19,8 @@ use crate::{
         (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
         (status = 400, description = "Invalid Data")
     ),
-    tag = "Payment Methods"
+    tag = "Payment Methods",
+    operation_id = "Create a Payment Method"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
@@ -41,7 +42,7 @@ pub async fn create_payment_method_api(
 
 /// List payment methods for a Merchant
 ///
-/// To filter and list the applicable payment methods for a particular merchant id.
+/// To filter and list the applicable payment methods for a particular Merchant ID
 #[utoipa::path(
     get,
     path = "/payment_methods/{account_id}",
@@ -59,7 +60,8 @@ pub async fn create_payment_method_api(
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
-    tag = "Payment Methods"
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Merchant"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_method_api(
@@ -88,7 +90,7 @@ pub async fn list_payment_method_api(
 
 /// List payment methods for a Customer
 ///
-/// To filter and list the applicable payment methods for a particular customer id.
+/// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
     path = "/payment_methods/{customer_id}",
@@ -106,7 +108,8 @@ pub async fn list_payment_method_api(
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
-    tag = "Payment Methods"
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
@@ -137,7 +140,7 @@ pub async fn list_customer_payment_method_api(
 
 /// Payment Method - Retrieve
 ///
-/// Get payment method
+/// To retrieve a payment method
 #[utoipa::path(
     get,
     path = "/payment_methods/{method_id}",
@@ -148,7 +151,8 @@ pub async fn list_customer_payment_method_api(
         (status = 200, description = "Payment Method retrieved", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
-    tag = "Payment Methods"
+    tag = "Payment Methods",
+    operation_id = "Retrieve a Payment method"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
@@ -173,7 +177,7 @@ pub async fn payment_method_retrieve_api(
 
 /// Payment Method - Update
 ///
-/// Update payment method
+/// To update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments
 #[utoipa::path(
     post,
     path = "/payment_methods/{method_id}",
@@ -185,7 +189,8 @@ pub async fn payment_method_retrieve_api(
         (status = 200, description = "Payment Method updated", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
-    tag = "Payment Methods"
+    tag = "Payment Methods",
+    operation_id = "Update a Payment method"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
@@ -226,7 +231,8 @@ pub async fn payment_method_update_api(
         (status = 200, description = "Payment Method deleted", body = DeletePaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
-    tag = "Payment Methods"
+    tag = "Payment Methods",
+    operation_id = "Delete a Payment method"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
