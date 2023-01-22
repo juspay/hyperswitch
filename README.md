@@ -70,7 +70,7 @@ Try the steps below to get a feel for how quick the setup is:
 2. Follow the instructions detailed on our
    [documentation page][migrate-from-stripe].
 
-[dashboard]: https://dashboard-hyperswitch.netlify.app
+[dashboard]: https://app.hyperswitch.io
 [migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
 
 ## Supported Features
