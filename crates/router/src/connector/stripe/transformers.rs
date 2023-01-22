@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::{self, payments};
-use common_utils::fp_utils;
+use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -86,6 +86,8 @@ pub struct PaymentIntentRequest {
     #[serde(flatten)]
     pub shipping: StripeShippingAddress,
     #[serde(flatten)]
+    pub billing: StripeBillingAddress,
+    #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
 }
@@ -128,12 +130,6 @@ pub struct StripePayLaterData {
     pub payment_method_types: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub billing_email: String,
-    #[serde(rename = "payment_method_data[billing_details][address][country]")]
-    pub billing_country: Option<String>,
-    #[serde(rename = "payment_method_data[billing_details][name]")]
-    pub billing_name: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -167,27 +163,60 @@ fn validate_shipping_address_against_payment_method(
     {
         fp_utils::when(shipping_address.name.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.first_name".to_string(),
+                field_name: "shipping.address.first_name".to_string(),
             })
         })?;
 
         fp_utils::when(shipping_address.line1.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.line1".to_string(),
+                field_name: "shipping.address.line1".to_string(),
             })
         })?;
 
         fp_utils::when(shipping_address.country.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.country".to_string(),
+                field_name: "shipping.address.country".to_string(),
             })
         })?;
 
         fp_utils::when(shipping_address.postal_code.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.zip".to_string(),
+                field_name: "shipping.address.zip".to_string(),
             })
         })?;
+    }
+    Ok(())
+}
+
+fn validate_billing_address_against_payment_method(
+    billing_address: &StripeBillingAddress,
+    payment_method: &payments::PaymentMethod,
+) -> Result<(), errors::ConnectorError> {
+    match payment_method {
+        payments::PaymentMethod::PayLater(payments::PayLaterData::KlarnaRedirect { .. }) => {
+            fp_utils::when(billing_address.country.is_none(), || {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing.address.country".to_string(),
+                })
+            })?;
+
+            fp_utils::when(billing_address.email.is_none(), || {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "email".to_string(),
+                })
+            })?;
+        }
+
+        payments::PaymentMethod::PayLater(payments::PayLaterData::AfterpayClearpayRedirect {
+            ..
+        }) => {
+            fp_utils::when(billing_address.name.is_none(), || {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing.address.first_name".to_string(),
+                })
+            })?;
+        }
+        _ => (),
     }
     Ok(())
 }
@@ -247,8 +276,39 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeShippingAddress::default(),
         };
 
+        let billing_address = match item.address.billing.clone() {
+            Some(mut billing) => StripeBillingAddress {
+                email: item.request.email.clone(),
+                country: billing
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.country.clone()),
+                name: billing.address.as_mut().and_then(|a| {
+                    a.first_name.as_ref().map(|first_name| {
+                        format!(
+                            "{} {}",
+                            first_name.clone().expose(),
+                            a.last_name.clone().expose_option().unwrap_or_default()
+                        )
+                    })
+                }),
+                line1: billing
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.line1.clone()),
+            },
+            None => StripeBillingAddress::default(),
+        };
+
+        crate::logger::debug!(?billing_address);
+
         validate_shipping_address_against_payment_method(
             &shipping_address,
+            &item.request.payment_method_data,
+        )?;
+
+        validate_billing_address_against_payment_method(
+            &billing_address,
             &item.request.payment_method_data,
         )?;
 
@@ -268,6 +328,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             description: item.description.clone(),
             off_session: item.request.off_session,
             shipping: shipping_address,
+            billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
             mandate,
@@ -644,6 +705,18 @@ pub struct StripeShippingAddress {
     pub phone: Option<Secret<String>>,
 }
 
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+pub struct StripeBillingAddress {
+    #[serde(rename = "payment_method_data[billing_details][email]")]
+    pub email: Option<Secret<String, Email>>,
+    #[serde(rename = "payment_method_data[billing_details][address][country]")]
+    pub country: Option<String>,
+    #[serde(rename = "payment_method_data[billing_details][name]")]
+    pub name: Option<String>,
+    #[serde(rename = "payment_method_data[billing_details][address][line1]")]
+    pub line1: Option<Secret<String>>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
     pub payment_intent: String,
@@ -810,37 +883,24 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
             })),
             api::PaymentMethod::BankTransfer => Ok(Self::Bank),
             api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
-                api_models::payments::PayLaterData::KlarnaRedirect {
-                    billing_email,
-                    billing_country,
-                    ..
-                } => Ok(Self::Klarna(StripePayLaterData {
-                    payment_method_types: StripePaymentMethodType::Klarna,
-                    payment_method_data_type: StripePaymentMethodType::Klarna,
-                    billing_email,
-                    billing_country: Some(billing_country),
-                    billing_name: None,
-                })),
-                api_models::payments::PayLaterData::AffirmRedirect { billing_email, .. } => {
+                api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
+                    Ok(Self::Klarna(StripePayLaterData {
+                        payment_method_types: StripePaymentMethodType::Klarna,
+                        payment_method_data_type: StripePaymentMethodType::Klarna,
+                    }))
+                }
+                api_models::payments::PayLaterData::AffirmRedirect { .. } => {
                     Ok(Self::Affirm(StripePayLaterData {
                         payment_method_types: StripePaymentMethodType::Affirm,
                         payment_method_data_type: StripePaymentMethodType::Affirm,
-                        billing_email,
-                        billing_country: None,
-                        billing_name: None,
                     }))
                 }
-                api_models::payments::PayLaterData::AfterpayClearpayRedirect {
-                    billing_email,
-                    billing_name,
-                    ..
-                } => Ok(Self::AfterpayClearpay(StripePayLaterData {
-                    payment_method_types: StripePaymentMethodType::AfterpayClearpay,
-                    payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
-                    billing_email,
-                    billing_country: None,
-                    billing_name: Some(billing_name),
-                })),
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    Ok(Self::AfterpayClearpay(StripePayLaterData {
+                        payment_method_types: StripePaymentMethodType::AfterpayClearpay,
+                        payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
+                    }))
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(String::from(
                     "Stripe does not support payment through provided payment method",
                 ))),
