@@ -144,6 +144,7 @@ pub trait ConnectorActions: Connector {
                 connector_transaction_id: transaction_id,
                 refund_amount: 100,
                 connector_metadata: None,
+                connector_refund_id: None,
                 reason: Some("Customer returned product".to_string()),
             }),
             payment_info,
@@ -167,6 +168,7 @@ pub trait ConnectorActions: Connector {
                 refund_amount: 100,
                 connector_metadata: None,
                 reason: None,
+                connector_refund_id: None,
             }),
             payment_info,
         );
@@ -335,6 +337,7 @@ impl Default for PaymentRefundType {
             refund_amount: 100,
             connector_metadata: None,
             reason: None,
+            connector_refund_id: None,
         };
         Self(data)
     }
