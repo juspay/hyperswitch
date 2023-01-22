@@ -164,8 +164,8 @@ should be introduced checking it agrees with actual structure -->
 
 ### Our Belief
 
-_We believe payments should be open, fast, reliable and affordable to serve
-billions of people at scale._
+> Payments should be open, fast, reliable and affordable to serve
+the billions of people at scale.
 
 <!--
 HyperSwitch would allow everyone to quickly customize and set up an open payment
@@ -177,23 +177,21 @@ It was born from our struggle to understand and integrate various payment
 options/payment processors/networks and banks, with varying degrees of
 documentation and inconsistent API semantics. -->
 
-Globally payment diversity has been growing exponentially.
-There are hundreds of payment processors and new payment methods.
-So, businesses embrace diversity by onboarding multiple payment processors to
+Globally payment diversity has been growing at a rapid pace.
+There are hundreds of payment processors and new payment methods like BNPL, RTP etc.
+Businesses need to embrace this diversity to
 increase conversion, reduce cost and improve control.
-But integrating and maintaining multiple processors needs a lot of dev efforts.
-So, why should devs across companies repeat this same work?
+But integrating and maintaining multiple processors needs a lot of dev effort.
+Why should devs across companies repeat the same work?
 Why can't it be unified and reused? Hence, HyperSwitch was born to create that
-reusable core and let companies build or customize on top of it.
+reusable core and let companies build and customize on top of it.
 
 ### Our Values
 
-1. Embrace Diversity of Payments: It leads to a better experience, efficiency &
-   resilience.
-2. Future is Open Source: It enables Innovation, code reuse & affordability.
-3. Be part of the Community: It helps in collaboration, learning & contribution.
-4. Build it like a System Software: It makes the product reliable, secure &
-   performant.
+1. Embrace Payments Diversity: It will drive innovation in the ecosystem in multiple ways.
+2. Make it Open Source: Increases trust; Improves the quality and reusability of software.
+3. Be Community driven: It enables participatory design and development. 
+4. Build it like Systems Software: This sets a high bar for Reliability, Security and Performance SLAs.
 5. Maximize Value Creation: For developers, customers & partners.
 
 ### Contributing
