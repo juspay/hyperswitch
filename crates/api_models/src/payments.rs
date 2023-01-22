@@ -365,17 +365,13 @@ pub enum PayLaterData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethod {
-    #[serde(rename(deserialize = "card"))]
     Card(CCard),
     #[default]
-    #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    #[serde(rename(deserialize = "wallet"))]
     Wallet(WalletData),
-    #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
-    #[serde(rename(deserialize = "paypal"))]
     Paypal,
 }
 
