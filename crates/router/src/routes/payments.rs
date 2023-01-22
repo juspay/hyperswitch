@@ -349,7 +349,7 @@ pub async fn payments_list(
         |state, merchant_account, req| {
             payments::list_payments(&*state.store, merchant_account, req)
         },
-        *auth::jwt_auth_or(&auth::ApiKeyAuth, req.headers()),
+        &auth::ApiKeyAuth,
     )
     .await
 }
