@@ -43,7 +43,7 @@ locker_decryption_key2 = ""
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "worldline"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline"]
 
 [refund]
 max_attempts = 10
@@ -92,7 +92,7 @@ base_url = "https://cert.api.fiservapps.com/"
 base_url = "http://localhost:9090/"
 
 [connectors.payu]
-base_url = "https://secure.snd.payu.com/api/"
+base_url = "https://secure.snd.payu.com/"
 
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
