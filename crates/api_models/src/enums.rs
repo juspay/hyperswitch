@@ -529,7 +529,7 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Globalpay)
+        matches!(self, Self::Globalpay | Self::Payu)
     }
 }
 

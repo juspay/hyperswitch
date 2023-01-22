@@ -11,7 +11,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, logger,
+    services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -25,20 +26,29 @@ pub struct Payu;
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payu
 where
-    Self: services::ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            self.get_content_type().to_string(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
+        headers.push(auth_header);
+        Ok(headers)
     }
 }
 
@@ -64,10 +74,12 @@ impl ConnectorCommon for Payu {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
+
     fn build_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(payu_error_response=?res);
         let response: payu::PayuErrorResponse = res
             .response
             .parse_struct("Payu ErrorResponse")
@@ -85,23 +97,15 @@ impl ConnectorCommon for Payu {
 impl api::Payment for Payu {}
 
 impl api::PreVerify for Payu {}
-impl
-    services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Payu
 {
 }
 
 impl api::PaymentVoid for Payu {}
 
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Payu
 {
     fn get_headers(
         &self,
@@ -124,7 +128,7 @@ impl
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "v2_1/orders/",
+            "api/v2_1/orders/",
             connector_payment_id
         ))
     }
@@ -167,18 +171,106 @@ impl
 
 impl api::ConnectorAccessToken for Payu {}
 
-impl
-    services::ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for Payu
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Payu
 {
+    fn get_url(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "pl/standard/user/oauth/authorize"
+        ))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_headers(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefreshTokenType::get_content_type(self).to_string(),
+        )])
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RefreshTokenRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let payu_req = utils::Encode::<payu::PayuAuthUpdateRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        logger::debug!(payu_access_token_request=?payu_req);
+        Ok(Some(payu_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RefreshTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let req = Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .build(),
+        );
+
+        logger::debug!(payu_access_token_request=?req);
+
+        Ok(req)
+    }
+    fn handle_response(
+        &self,
+        data: &types::RefreshTokenRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
+        logger::debug!(access_token_response=?res);
+        let response: payu::PayuAuthUpdateResponse = res
+            .response
+            .parse_struct("payu PayuAuthUpdateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(access_token_error_response=?res);
+        let response: payu::PayuAccessTokenErrorResponse = res
+            .response
+            .parse_struct("Payu AccessTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error,
+            message: response.error_description,
+            reason: None,
+        })
+    }
 }
 
 impl api::PaymentSync for Payu {}
-impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payu
 {
     fn get_headers(
@@ -206,7 +298,7 @@ impl
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "v2_1/orders/",
+            "api/v2_1/orders/",
             connector_payment_id
         ))
     }
@@ -253,12 +345,8 @@ impl
 }
 
 impl api::PaymentCapture for Payu {}
-impl
-    services::ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Payu
 {
     fn get_headers(
         &self,
@@ -280,7 +368,7 @@ impl
         Ok(format!(
             "{}{}{}{}",
             self.base_url(connectors),
-            "v2_1/orders/",
+            "api/v2_1/orders/",
             req.request.connector_transaction_id,
             "/status"
         ))
@@ -343,24 +431,16 @@ impl
 
 impl api::PaymentSession for Payu {}
 
-impl
-    services::ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Payu
 {
     //TODO: implement sessions flow
 }
 
 impl api::PaymentAuthorize for Payu {}
 
-impl
-    services::ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Payu
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Payu
 {
     fn get_headers(
         &self,
@@ -379,7 +459,11 @@ impl
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v2_1/orders"))
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "api/v2_1/orders"
+        ))
     }
 
     fn get_request_body(
@@ -447,9 +531,7 @@ impl api::Refund for Payu {}
 impl api::RefundExecute for Payu {}
 impl api::RefundSync for Payu {}
 
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Payu
-{
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Payu {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -470,7 +552,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(format!(
             "{}{}{}{}",
             self.base_url(connectors),
-            "v2_1/orders/",
+            "api/v2_1/orders/",
             req.request.connector_transaction_id,
             "/refund"
         ))
@@ -530,9 +612,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 }
 
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Payu
-{
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payu {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -553,7 +633,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         Ok(format!(
             "{}{}{}{}",
             self.base_url(connectors),
-            "v2_1/orders/",
+            "api/v2_1/orders/",
             req.request.connector_transaction_id,
             "/refunds"
         ))
