@@ -157,7 +157,7 @@ async fn should_throw_missing_required_field_for_country() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::MissingRequiredField {
-            field_name: String::from("billing.address.country")
+            field_name: "billing.address.country"
         }
     )
 }

@@ -55,7 +55,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 }],
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "product_name".to_string()
+                field_name: "product_name",
             })),
         }
     }
@@ -98,7 +98,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 }],
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "product_name".to_string()
+                field_name: "product_name"
             })),
         }
     }

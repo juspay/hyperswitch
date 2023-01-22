@@ -7,11 +7,11 @@ use crate::{
 };
 
 pub fn missing_field_err(
-    message: &str,
+    message: &'static str,
 ) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + '_> {
-    Box::new(|| {
+    Box::new(move || {
         errors::ConnectorError::MissingRequiredField {
-            field_name: message.to_string(),
+            field_name: message,
         }
         .into()
     })

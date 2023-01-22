@@ -7,18 +7,18 @@ use crate::{
 };
 
 pub trait OptionExt<T> {
-    fn check_value_present(&self, field_name: &str) -> RouterResult<()>;
+    fn check_value_present(&self, field_name: &'static str) -> RouterResult<()>;
 
-    fn get_required_value(self, field_name: &str) -> RouterResult<T>;
+    fn get_required_value(self, field_name: &'static str) -> RouterResult<T>;
 
-    fn parse_enum<E>(self, enum_name: &str) -> CustomResult<E, errors::ParsingError>
+    fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
     where
         T: AsRef<str>,
         E: std::str::FromStr,
         // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
         <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
 
-    fn parse_value<U>(self, type_name: &str) -> CustomResult<U, errors::ParsingError>
+    fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
         T: ValueExt<U>,
         U: serde::de::DeserializeOwned;
@@ -30,26 +30,26 @@ impl<T> OptionExt<T> for Option<T>
 where
     T: std::fmt::Debug,
 {
-    fn check_value_present(&self, field_name: &str) -> RouterResult<()> {
+    fn check_value_present(&self, field_name: &'static str) -> RouterResult<()> {
         when(self.is_none(), || {
-            Err(Report::new(ApiErrorResponse::MissingRequiredField {
-                field_name: field_name.to_string(),
-            })
-            .attach_printable(format!("Missing required field {field_name} in {self:?}")))
+            Err(
+                Report::new(ApiErrorResponse::MissingRequiredField { field_name })
+                    .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+            )
         })
     }
 
-    fn get_required_value(self, field_name: &str) -> RouterResult<T> {
+    fn get_required_value(self, field_name: &'static str) -> RouterResult<T> {
         match self {
             Some(v) => Ok(v),
-            None => Err(Report::new(ApiErrorResponse::MissingRequiredField {
-                field_name: field_name.to_string(),
-            })
-            .attach_printable(format!("Missing required field {field_name} in {self:?}"))),
+            None => Err(
+                Report::new(ApiErrorResponse::MissingRequiredField { field_name })
+                    .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+            ),
         }
     }
 
-    fn parse_enum<E>(self, enum_name: &str) -> CustomResult<E, errors::ParsingError>
+    fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
     where
         T: AsRef<str>,
         E: std::str::FromStr,
@@ -65,7 +65,7 @@ where
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }
 
-    fn parse_value<U>(self, type_name: &str) -> CustomResult<U, errors::ParsingError>
+    fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
         T: ValueExt<U>,
         U: serde::de::DeserializeOwned,
