@@ -28,7 +28,7 @@ _HyperSwitch is wire-compatible with top processors like Stripe making it easy
 to integrate._
 
 <p align="center">
-<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="40%" />
+<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="60%" />
 </p>
 
 ## Table of Contents
