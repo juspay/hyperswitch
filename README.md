@@ -1,6 +1,5 @@
 # <img height = "60" width = "400" src = "./docs/imgs/heading.svg">
 
-<br>
 
 HyperSwitch is an Open Source Financial Switch to make payments **Fast,
 Reliable and Affordable**. It lets you connect with multiple payment processors and route traffic
@@ -13,12 +12,14 @@ effortlessly, all with a single API integration. Using HyperSwitch, you can:
 - **Customize payment flows** with full visibility and control
 - **Increase business reach** with local / alternate payment methods
 
-> Note: HyperSwitch is **wire-compatible** with top processors like Stripe, making it easy
+> HyperSwitch is **wire-compatible** with top processors like Stripe, making it easy
 to integrate.
 
-<p align="left" style="margin: 100px">
+<p align="left"> 
+   &nbsp; &nbsp;
 <img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
 </p>
+
 
 
 ## Table of Contents
