@@ -50,6 +50,7 @@ impl WorldlineTest {
                 ..Default::default()
             }),
             auth_type: None,
+            access_token: None,
         })
     }
 

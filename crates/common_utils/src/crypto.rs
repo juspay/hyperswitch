@@ -215,6 +215,23 @@ impl DecodeMessage for GcmAes256 {
     }
 }
 
+/// Secure Hash Algorithm 512
+#[derive(Debug)]
+pub struct Sha512;
+
+/// Trait for generating a digest for SHA
+pub trait GenerateDigest {
+    /// takes a message and creates a digest for it
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError>;
+}
+
+impl GenerateDigest for Sha512 {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let digest = ring::digest::digest(&ring::digest::SHA512, message);
+        Ok(digest.as_ref().to_vec())
+    }
+}
+
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]

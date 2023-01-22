@@ -56,6 +56,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             ..Default::default()
         }),
         auth_type: None,
+        access_token: None,
     })
 }
 
