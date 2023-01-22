@@ -344,10 +344,6 @@ pub enum PayLaterData {
     KlarnaRedirect {
         /// The issuer name of the redirect
         issuer_name: KlarnaIssuer,
-        /// The billing email
-        billing_email: String,
-        // The billing country code
-        billing_country: String,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -360,17 +356,11 @@ pub enum PayLaterData {
     AffirmRedirect {
         /// The issuer name of affirm redirect issuer
         issuer_name: AffirmIssuer,
-        /// The billing email
-        billing_email: String,
     },
     /// For AfterpayClearpay redirect as PayLater Option
     AfterpayClearpayRedirect {
         /// The issuer name of afterpayclearpay redirect issuer
         issuer_name: AfterpayClearpayIssuer,
-        /// The billing email
-        billing_email: String,
-        /// The billing name
-        billing_name: String,
     },
 }
 
