@@ -295,9 +295,11 @@ pub async fn sync_refund_with_gateway(
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
-    match add_access_token_result.access_token_result {
-        Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => router_data.response = Err(connector_error),
+    if add_access_token_result.connector_supports_access_token {
+        match add_access_token_result.access_token_result {
+            Ok(access_token) => router_data.access_token = access_token,
+            Err(connector_error) => router_data.response = Err(connector_error),
+        }
     }
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token

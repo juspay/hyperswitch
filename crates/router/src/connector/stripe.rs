@@ -779,13 +779,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
-            .response
-            .as_ref()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+            .request
             .connector_refund_id
-            .clone();
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
         Ok(format!("{}v1/refunds/{}", self.base_url(connectors), id))
     }
 
