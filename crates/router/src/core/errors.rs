@@ -237,6 +237,8 @@ pub enum ConnectorError {
     NotImplemented(String),
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
+    #[error("Missing connector refund ID")]
+    MissingConnectorRefundID,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]
