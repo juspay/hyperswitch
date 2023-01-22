@@ -23,7 +23,7 @@ pub trait PaymentsRequestData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
-    fn get_card(&self) -> Result<api::CCard, Error>;
+    fn get_card(&self) -> Result<api::Card, Error>;
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
@@ -42,7 +42,7 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             .ok_or_else(missing_field_err("billing.address.country"))
     }
 
-    fn get_card(&self) -> Result<api::CCard, Error> {
+    fn get_card(&self) -> Result<api::Card, Error> {
         match self.request.payment_method_data.clone() {
             api::PaymentMethod::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
@@ -72,7 +72,7 @@ pub trait CardData {
     fn get_card_cvc(&self) -> String;
 }
 
-impl CardData for api::CCard {
+impl CardData for api::Card {
     fn get_card_number(&self) -> String {
         self.card_number.peek().clone()
     }

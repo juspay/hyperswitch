@@ -19,14 +19,24 @@
       "description": "Sandbox Environment"
     }
   ],
+  "security": [
+    {
+      "ApiSecretKey": "[]"
+    }
+  ],
   "paths": {
-    "/account": {
+    "/accounts": {
       "post": {
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Merchant Account - Create",
-        "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
+        "summary": "",
+        "description": "\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Create a Merchant Account",
         "requestBody": {
           "content": {
@@ -56,13 +66,18 @@
         "deprecated": false
       }
     },
-    "/account/{account_id}": {
+    "/accounts/{account_id}": {
       "get": {
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Merchant Account - Retrieve",
-        "description": "Merchant Account - Retrieve\n\nRetrieve a merchant account details.",
+        "summary": "",
+        "description": "\nRetrieve a merchant account details.",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Retrieve a Merchant Account",
         "parameters": [
           {
@@ -97,8 +112,13 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Merchant Account - Update",
-        "description": "Merchant Account - Update\n\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "summary": "",
+        "description": "\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
@@ -143,8 +163,13 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Merchant Account - Delete",
-        "description": "Merchant Account - Delete\n\nTo delete a merchant account",
+        "summary": "",
+        "description": "\nTo delete a merchant account",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Delete a Merchant Account",
         "parameters": [
           {
@@ -176,13 +201,18 @@
         "deprecated": false
       }
     },
-    "/account/{account_id}/connectors": {
+    "/accounts/{account_id}/connectors": {
       "get": {
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - List",
-        "description": "Payment Connector - List\n\nList Payment Connector Details for the merchant",
+        "summary": "",
+        "description": "\nList Payment Connector Details for the merchant",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "List all Merchant Connectors",
         "parameters": [
           {
@@ -223,8 +253,13 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "PaymentsConnectors - Create",
-        "description": "PaymentsConnectors - Create\n\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "summary": "",
+        "description": "\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -254,13 +289,18 @@
         "deprecated": false
       }
     },
-    "/account/{account_id}/connectors/{connector_id}": {
+    "/accounts/{account_id}/connectors/{connector_id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - Retrieve",
-        "description": "Payment Connector - Retrieve\n\nRetrieve Payment Connector Details",
+        "summary": "",
+        "description": "\nRetrieve Payment Connector Details",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -309,8 +349,13 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - Update",
-        "description": "Payment Connector - Update\n\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
+        "summary": "",
+        "description": "\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -369,8 +414,13 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - Delete",
-        "description": "Payment Connector - Delete\nDelete or Detach a Payment Connector from Merchant Account",
+        "summary": "",
+        "description": "\nDelete or Detach a Payment Connector from Merchant Account",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -398,6 +448,11 @@
         "responses": {
           "200": {
             "description": "Payment Connector Deleted",
+            "security": [
+              {
+                "ApiSecretKey": []
+              }
+            ],
             "content": {
               "application/json": {
                 "schema": {
@@ -421,8 +476,13 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Create Customer",
-        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "summary": "",
+        "description": "\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Create a Customer",
         "requestBody": {
           "content": {
@@ -457,8 +517,13 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Retrieve Customer",
-        "description": "Retrieve Customer\n\nRetrieve a customer's details.",
+        "summary": "",
+        "description": "\nRetrieve a customer's details.",
+        "security": [
+          {
+            "ApiSecretKey": []
+          }
+        ],
         "operationId": "Retrieve a Customer",
         "parameters": [
           {
@@ -493,8 +558,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Update Customer",
-        "description": "Update Customer\n\nUpdates the customer's details in a customer object.",
+        "summary": "",
+        "description": "\nUpdates the customer's details in a customer object.",
         "operationId": "Update a Customer",
         "parameters": [
           {
@@ -539,8 +604,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Delete Customer",
-        "description": "Delete Customer\n\nDelete a customer record.",
+        "summary": "",
+        "description": "\nDelete a customer record.",
         "operationId": "Delete a Customer",
         "parameters": [
           {
@@ -577,8 +642,8 @@
         "tags": [
           "Mandates"
         ],
-        "summary": "Mandates - Revoke Mandate",
-        "description": "Mandates - Revoke Mandate\n\nRevoke a mandate",
+        "summary": "",
+        "description": "\nRevoke a mandate",
         "operationId": "Revoke a Mandate",
         "parameters": [
           {
@@ -615,8 +680,8 @@
         "tags": [
           "Mandates"
         ],
-        "summary": "Mandates - Retrieve Mandate",
-        "description": "Mandates - Retrieve Mandate\n\nRetrieve a mandate",
+        "summary": "",
+        "description": "\nRetrieve a mandate",
         "operationId": "Retrieve a Mandate",
         "parameters": [
           {
@@ -653,8 +718,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "PaymentMethods - Create",
-        "description": "PaymentMethods - Create\n\nTo create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants",
+        "summary": "",
+        "description": "\nTo create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants",
         "operationId": "Create a Payment Method",
         "requestBody": {
           "content": {
@@ -689,8 +754,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Merchant",
-        "description": "List payment methods for a Merchant\n\nTo filter and list the applicable payment methods for a particular Merchant ID",
+        "summary": "",
+        "description": "\nTo filter and list the applicable payment methods for a particular Merchant ID",
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
@@ -798,8 +863,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Customer",
-        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "summary": "",
+        "description": "\nTo filter and list the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -907,8 +972,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Payment Method - Retrieve",
-        "description": "Payment Method - Retrieve\n\nTo retrieve a payment method",
+        "summary": "",
+        "description": "\nTo retrieve a payment method",
         "operationId": "Retrieve a Payment method",
         "parameters": [
           {
@@ -943,8 +1008,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Payment Method - Update",
-        "description": "Payment Method - Update\n\nTo update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
+        "summary": "",
+        "description": "\nTo update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
         "operationId": "Update a Payment method",
         "parameters": [
           {
@@ -989,8 +1054,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDelete payment method",
+        "summary": "",
+        "description": "\nDelete payment method",
         "operationId": "Delete a Payment method",
         "parameters": [
           {
@@ -1027,8 +1092,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Create",
-        "description": "Payments - Create\n\nTo process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture",
+        "summary": "",
+        "description": "\nTo process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture",
         "operationId": "Create a Payment",
         "requestBody": {
           "content": {
@@ -1063,8 +1128,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - List",
-        "description": "Payments - List\n\nTo list the payments",
+        "summary": "",
+        "description": "\nTo list the payments",
         "operationId": "List all Payments",
         "parameters": [
           {
@@ -1180,8 +1245,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Session token",
-        "description": "Payments - Session token\n\nTo create the session object or to get session token for wallets",
+        "summary": "",
+        "description": "\nTo create the session object or to get session token for wallets",
         "operationId": "Create Session tokens for a Payment",
         "requestBody": {
           "content": {
@@ -1216,8 +1281,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Retrieve",
-        "description": "Payments - Retrieve\n\nTo retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "summary": "",
+        "description": "\nTo retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Payment",
         "parameters": [
           {
@@ -1262,8 +1327,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Update",
-        "description": "Payments - Update\n\nTo update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
+        "summary": "",
+        "description": "\nTo update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
         "operationId": "Update a Payment",
         "parameters": [
           {
@@ -1310,8 +1375,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Cancel",
-        "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action",
+        "summary": "",
+        "description": "\nA Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action",
         "operationId": "Cancel a Payment",
         "parameters": [
           {
@@ -1351,8 +1416,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Capture",
-        "description": "Payments - Capture\n\nTo capture the funds for an uncaptured payment",
+        "summary": "",
+        "description": "\nTo capture the funds for an uncaptured payment",
         "operationId": "Capture a Payment",
         "parameters": [
           {
@@ -1399,8 +1464,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Confirm",
-        "description": "Payments - Confirm\n\nThis API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API",
+        "summary": "",
+        "description": "\nThis API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API",
         "operationId": "Confirm a Payment",
         "parameters": [
           {
@@ -1447,8 +1512,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "Refunds - Create",
-        "description": "Refunds - Create\n\nTo create a refund against an already processed payment",
+        "summary": "",
+        "description": "\nTo create a refund against an already processed payment",
         "operationId": "Create a Refund",
         "requestBody": {
           "content": {
@@ -1483,8 +1548,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "Refunds - List",
-        "description": "Refunds - List\n\nTo list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
+        "summary": "",
+        "description": "\nTo list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
         "operationId": "List all Refunds",
         "parameters": [
           {
@@ -1587,8 +1652,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "Refunds - Retrieve",
-        "description": "Refunds - Retrieve\n\nTo retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "summary": "",
+        "description": "\nTo retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Refund",
         "parameters": [
           {
@@ -1623,8 +1688,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "Refunds - Update",
-        "description": "Refunds - Update\n\nTo update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields",
+        "summary": "",
+        "description": "\nTo update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields",
         "operationId": "Update a Refund",
         "parameters": [
           {
@@ -1753,7 +1818,16 @@
           "no_three_ds"
         ]
       },
-      "CCard": {
+      "CaptureMethod": {
+        "type": "string",
+        "enum": [
+          "automatic",
+          "manual",
+          "manual_multiple",
+          "scheduled"
+        ]
+      },
+      "Card": {
         "type": "object",
         "required": [
           "card_number",
@@ -1789,15 +1863,6 @@
             "example": "242"
           }
         }
-      },
-      "CaptureMethod": {
-        "type": "string",
-        "enum": [
-          "automatic",
-          "manual",
-          "manual_multiple",
-          "scheduled"
-        ]
       },
       "CardDetail": {
         "type": "object",
@@ -3385,27 +3450,27 @@
           {
             "type": "object",
             "required": [
-              "Card"
+              "card"
             ],
             "properties": {
-              "Card": {
-                "$ref": "#/components/schemas/CCard"
+              "card": {
+                "$ref": "#/components/schemas/Card"
               }
             }
           },
           {
             "type": "string",
             "enum": [
-              "BankTransfer"
+              "bank_transfer"
             ]
           },
           {
             "type": "object",
             "required": [
-              "Wallet"
+              "wallet"
             ],
             "properties": {
-              "Wallet": {
+              "wallet": {
                 "$ref": "#/components/schemas/WalletData"
               }
             }
@@ -3413,10 +3478,10 @@
           {
             "type": "object",
             "required": [
-              "PayLater"
+              "pay_later"
             ],
             "properties": {
-              "PayLater": {
+              "pay_later": {
                 "$ref": "#/components/schemas/PayLaterData"
               }
             }
@@ -3424,7 +3489,7 @@
           {
             "type": "string",
             "enum": [
-              "Paypal"
+              "paypal"
             ]
           }
         ]
@@ -4593,32 +4658,41 @@
   },
   "tags": [
     {
-      "name": "Merchant Account",
-      "description": "Create and manage merchant accounts"
+      "name": "Merchant Account"
     },
     {
-      "name": "Merchant Connector Account",
-      "description": "Create and manage merchant connector accounts"
+      "name": "Merchant Connector Account"
     },
     {
-      "name": "Payments",
-      "description": "Create and manage one-time payments, recurring payments and mandates"
+      "name": "Payments"
     },
     {
-      "name": "Refunds",
-      "description": "Create and manage refunds for successful payments"
+      "name": "Refunds"
     },
     {
-      "name": "Mandates",
-      "description": "Manage mandates"
+      "name": "Mandates"
     },
     {
-      "name": "Customers",
-      "description": "Create and manage customers"
+      "name": "Customers"
     },
     {
-      "name": "Payment Methods",
-      "description": "Create and manage payment methods of customers"
+      "name": "Payment Methods"
     }
-  ]
+  ],
+  "securitySchemes": {
+    "ApiSecretKey": {
+      "description": "Unless explicitly stated, all endpoints require authentication using your secret key.  You may generate your API keys from the Juspay Dashboard.\n#### Format\n- Sandbox `sk_xxxxxxxxxxxxxxxxxxxxxxxxxx`\n- Production `pk_xxxxxxxxxxxxxxxxxxxxxxxxxx`\n",
+      "name": "api-key",
+      "type": "apiKey",
+      "in": "header",
+      "x-cko-type": "api-key"
+    },
+    "AdminSecretKey": {
+      "description": "Admin Key for managing Merchant Accounts and Payment Connectors In the OSS version - Developers can directly update the AdminSecretKey in the DB and start using the admin APIs to configure a new accounts and connectors In the Hosted version - The key can be obtained from the Dashboard or the Support team\n",
+      "name": "admin-api-key",
+      "type": "apiKey",
+      "in": "header",
+      "x-cko-type": "admin-api-key"
+    }
+  }
 }

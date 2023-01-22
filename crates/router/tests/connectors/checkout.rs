@@ -30,7 +30,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 100,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+            payment_method_data: types::api::PaymentMethod::Card(api::Card {
                 card_number: "4242424242424242".to_string().into(),
                 card_exp_month: "10".to_string().into(),
                 card_exp_year: "35".to_string().into(),

@@ -8,7 +8,8 @@ use crate::{
     types::api::customers,
 };
 
-/// Create Customer
+// Create Customer
+
 ///
 /// Create a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
@@ -38,7 +39,8 @@ pub async fn customers_create(
     .await
 }
 
-/// Retrieve Customer
+// Retrieve Customer
+
 ///
 /// Retrieve a customer's details.
 #[utoipa::path(
@@ -79,7 +81,8 @@ pub async fn customers_retrieve(
     .await
 }
 
-/// Update Customer
+// Update Customer
+
 ///
 /// Updates the customer's details in a customer object.
 #[utoipa::path(
@@ -113,7 +116,8 @@ pub async fn customers_update(
     .await
 }
 
-/// Delete Customer
+// Delete Customer
+
 ///
 /// Delete a customer record.
 #[utoipa::path(

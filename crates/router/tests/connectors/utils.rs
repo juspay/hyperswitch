@@ -230,12 +230,12 @@ pub trait LocalMock {
 pub struct PaymentAuthorizeType(pub types::PaymentsAuthorizeData);
 pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
-pub struct CCardType(pub api::CCard);
+pub struct CCardType(pub api::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
 
 impl Default for CCardType {
     fn default() -> Self {
-        Self(api::CCard {
+        Self(api::Card {
             card_number: Secret::new("4200000000000000".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),

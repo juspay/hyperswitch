@@ -9,7 +9,8 @@ use crate::{
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
-/// Payments - Create
+// Payments - Create
+
 ///
 /// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
 #[utoipa::path(
@@ -103,7 +104,8 @@ pub async fn payments_start(
     .await
 }
 
-/// Payments - Retrieve
+// Payments - Retrieve
+
 ///
 /// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
@@ -159,7 +161,8 @@ pub async fn payments_retrieve(
     .await
 }
 
-/// Payments - Update
+// Payments - Update
+
 ///
 /// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
 #[utoipa::path(
@@ -217,7 +220,8 @@ pub async fn payments_update(
     .await
 }
 
-/// Payments - Confirm
+// Payments - Confirm
+
 ///
 /// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
 #[utoipa::path(
@@ -276,7 +280,8 @@ pub async fn payments_confirm(
     .await
 }
 
-/// Payments - Capture
+// Payments - Capture
+
 ///
 /// To capture the funds for an uncaptured payment
 #[utoipa::path(
@@ -325,7 +330,8 @@ pub async fn payments_capture(
     .await
 }
 
-/// Payments - Session token
+// Payments - Session token
+
 ///
 /// To create the session object or to get session token for wallets
 #[utoipa::path(
@@ -422,7 +428,8 @@ pub async fn payments_redirect_response(
     .await
 }
 
-/// Payments - Cancel
+// Payments - Cancel
+
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
 #[utoipa::path(
@@ -470,7 +477,8 @@ pub async fn payments_cancel(
     .await
 }
 
-/// Payments - List
+// Payments - List
+
 ///
 /// To list the payments
 #[utoipa::path(

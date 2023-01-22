@@ -47,14 +47,13 @@ Never share your secret api keys. Keep them guarded and secure.
         (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment")
     ),
     tags(
-        (name = "Merchant Account", description = "Create and manage merchant accounts"),
-        (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
-        (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
-        (name = "Refunds", description = "Create and manage refunds for successful payments"),
-        (name = "Mandates", description = "Manage mandates"),
-        (name = "Customers", description = "Create and manage customers"),
-        (name = "Payment Methods", description = "Create and manage payment methods of customers")
-        
+        (name = "Merchant Account"),// , description = "Create and manage merchant accounts"),
+        (name = "Merchant Connector Account"),// , description = "Create and manage merchant connector accounts"),
+        (name = "Payments"),// , description = "Create and manage one-time payments, recurring payments and mandates"),
+        (name = "Refunds"),// , description = "Create and manage refunds for successful payments"),
+        (name = "Mandates"),// , description = "Manage mandates"),
+        (name = "Customers"),// , description = "Create and manage customers"),
+        (name = "Payment Methods")// , description = "Create and manage payment methods of customers")
     ),
     paths(
         crate::routes::refunds::refunds_create,
@@ -150,7 +149,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AcceptanceType,
         api_models::payments::MandateAmountData,
         api_models::payments::OnlineMandate,
-        api_models::payments::CCard,
+        api_models::payments::Card,
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsResponse,

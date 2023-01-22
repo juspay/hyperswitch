@@ -8,7 +8,8 @@ use crate::{
     types::api::refunds,
 };
 
-/// Refunds - Create
+// Refunds - Create
+
 ///
 /// To create a refund against an already processed payment
 #[utoipa::path(
@@ -39,7 +40,8 @@ pub async fn refunds_create(
     .await
 }
 
-/// Refunds - Retrieve
+// Refunds - Retrieve
+
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
@@ -76,7 +78,8 @@ pub async fn refunds_retrieve(
     .await
 }
 
-/// Refunds - Update
+// Refunds - Update
+
 ///
 /// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields
 #[utoipa::path(
@@ -114,7 +117,8 @@ pub async fn refunds_update(
     .await
 }
 
-/// Refunds - List
+// Refunds - List
+
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
 #[utoipa::path(
