@@ -1,30 +1,25 @@
-# HyperSwitch
+<br>
+<img height = "30" width = "200" src = "./docs/imgs/heading.svg">
 
-[![Build Status][actions-badge]][actions-url]
-[![Apache 2.0 license][license-badge]][license-url]
-
-[actions-badge]: https://github.com/juspay/hyperswitch/workflows/CI/badge.svg
-[actions-url]: https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain
-[license-badge]: https://img.shields.io/github/license/juspay/hyperswitch
-[license-url]: https://github.com/juspay/hyperswitch/blob/main/LICENSE
+---
 
 HyperSwitch is an **Open Source Financial Switch** to make payments Fast,
 Reliable and Affordable.
-It lets you connect with **multiple payment processors with a single API
-integration**.
+It lets you connect with multiple payment processors with a single API
+integration.
 Once integrated, you can add new payment processors and route traffic
 effortlessly.
 Using HyperSwitch, you can:
 
-- **Reduce dependency** on a single processor like Stripe or Braintree
-- **Reduce Dev efforts** by 90% in adding & maintaining integrations
-- **Improve success rates** with auto-retries
-- **Reduce processing fees** through smart routing
-- **Customize your payment** flow with 100% visibility and control
-- **Increase business reach** with local payment methods
-- **Embrace diversity** in payments
+- Reduce dependency on a single processor like Stripe or Braintree
+- Reduce Dev efforts by 90% in adding & maintaining integrations
+- Improve success rates with auto-retries
+- Reduce processing fees through smart routing
+- Customize your payment flow with 100% visibility and control
+- Increase business reach with local payment methods
+- Embrace diversity in payments
 
-_HyperSwitch is wire-compatible with top processors like Stripe making it easy
+_HyperSwitch is wire-compatible with top processors like Stripe, making it easy
 to integrate._
 
 <p align="center">
@@ -45,7 +40,7 @@ to integrate._
 
 ## Quick Start Guide
 
-You have two options to try out HyperSwitch:
+You have three options to try out HyperSwitch:
 
 1. [Try it in our Sandbox Environment](/docs/try_sandbox.md): Fast and easy to
    start.
@@ -231,6 +226,7 @@ pure-idiomatic.
 
 ## Community
 
+
 Get updates on HyperSwitch development and chat with the community:
 
 - Read and subscribe to [the official HyperSwitch blog][blog].
@@ -258,3 +254,12 @@ Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 ## Copyright and License
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
+
+
+[![Build Status][actions-badge]][actions-url]
+[![Apache 2.0 license][license-badge]][license-url]
+
+[actions-badge]: https://github.com/juspay/hyperswitch/workflows/CI/badge.svg
+[actions-url]: https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain
+[license-badge]: https://img.shields.io/github/license/juspay/hyperswitch
+[license-url]: https://github.com/juspay/hyperswitch/blob/main/LICENSE
