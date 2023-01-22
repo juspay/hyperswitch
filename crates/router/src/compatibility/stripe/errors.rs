@@ -321,6 +321,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
         match value {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
+            | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::InvalidEphermeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,

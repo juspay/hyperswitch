@@ -74,6 +74,7 @@ pub async fn construct_refund_router_data<'a, F>(
             amount,
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
+            connector_refund_id: refund.connector_refund_id.clone(),
         },
 
         response: Ok(types::RefundsResponseData {
