@@ -550,6 +550,63 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
     }
 }
 
+impl TryFrom<types::PaymentsSyncResponseRouterData<RapydPaymentsResponse>>
+    for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        item: types::PaymentsSyncResponseRouterData<RapydPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match item.response.status.status.as_str() {
+            "SUCCESS" => match item.response.data {
+                Some(data) => (
+                    enums::AttemptStatus::foreign_from((data.status, data.next_action)),
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
+                        redirection_data: None,
+                        redirect: false,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                    }),
+                ),
+                None => (
+                    enums::AttemptStatus::Failure,
+                    Err(types::ErrorResponse {
+                        code: item.response.status.error_code,
+                        status_code: item.http_code,
+                        message: item.response.status.status,
+                        reason: item.response.status.message,
+                    }),
+                ),
+            },
+            "ERROR" => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: item.response.status.error_code,
+                    status_code: item.http_code,
+                    message: item.response.status.status,
+                    reason: item.response.status.message,
+                }),
+            ),
+            _ => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: item.response.status.error_code,
+                    status_code: item.http_code,
+                    message: item.response.status.status,
+                    reason: item.response.status.message,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RapydIncomingWebhook {
     pub id: String,

@@ -17,7 +17,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, logger, services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -173,7 +173,6 @@ impl
             .response
             .parse_struct("Rapyd PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(rapydpayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -285,7 +284,6 @@ impl
             .response
             .parse_struct("Rapyd PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(rapydpayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -322,7 +320,10 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsSyncType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -331,33 +332,83 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
+        let id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/v1/payments/{}",
+            self.base_url(connectors),
+            id.get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(None)
+        let timestamp = date_time::now_unix_timestamp();
+        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+
+        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let response_id = req.request.connector_transaction_id.clone();
+        let url_path = format!(
+            "/v1/payments/{}",
+            response_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        );
+        let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
+
+        let headers = vec![
+            ("access_key".to_string(), auth.access_key),
+            ("salt".to_string(), salt),
+            ("timestamp".to_string(), timestamp.to_string()),
+            ("signature".to_string(), signature),
+        ];
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Delete)
+            .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+            .headers(headers)
+            .build();
+        Ok(Some(request))
     }
 
     fn get_error_response(
         &self,
-        _res: types::Response,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
+        let response: rapyd::RapydPaymentsResponse = res
+            .response
+            .parse_struct("Rapyd ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.status.error_code,
+            message: response.status.status,
+            reason: response.status.message,
+        })
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsSyncRouterData,
-        _res: types::Response,
+        data: &types::PaymentsSyncRouterData,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("PSync".to_string()).into())
+        let response: rapyd::RapydPaymentsResponse = res
+            .response
+            .parse_struct("Rapyd PaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
 
@@ -561,7 +612,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::rapyd", response=?res);
         let response: rapyd::RefundResponse = res
             .response
             .parse_struct("rapyd RefundResponse")
@@ -620,7 +670,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         data: &types::RefundSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::rapyd", response=?res);
         let response: rapyd::RefundResponse = res
             .response
             .parse_struct("rapyd RefundResponse")
