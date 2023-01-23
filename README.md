@@ -1,47 +1,54 @@
-# HyperSwitch
+<p align="center">
+  <img src="./docs/imgs/hyperswitch-logo-dark.svg#gh-dark-mode-only" alt="HyperSwitch-Logo" width="40%" />
+  <img src="./docs/imgs/hyperswitch-logo-light.svg#gh-light-mode-only" alt="HyperSwitch-Logo" width="40%" />
+</p>
 
-[![Build Status][actions-badge]][actions-url]
-[![Apache 2.0 license][license-badge]][license-url]
+<p align="center">
+<i>Unified Payments Switch. Fast. Reliable. Affordable.</i>
+</p>
 
-[actions-badge]: https://github.com/juspay/hyperswitch/workflows/CI/badge.svg
-[actions-url]: https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain
-[license-badge]: https://img.shields.io/github/license/juspay/hyperswitch
-[license-url]: https://github.com/juspay/hyperswitch/blob/main/LICENSE
+<p align="center">
+  <a href="https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain">
+    <img src="https://github.com/juspay/hyperswitch/workflows/CI/badge.svg" />
+  </a>
+  <a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/juspay/hyperswitch" />
+  </a>
+</p>
 
-HyperSwitch is an **Open Source Financial Switch** to make payments Fast,
-Reliable and Affordable.
-It lets you connect with **multiple payment processors with a single API
-integration**.
-Once integrated, you can add new payment processors and route traffic
-effortlessly.
+<p align="center">
+  <a href="#quick-start-guide">Quick Start Guide</a> •
+  <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="#supported-features">Supported Features</a> •
+  <a href="#faqs">FAQs</a>
+  <br>
+  <a href="#whats-included">What's Included</a> •
+  <a href="#join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
+  <a href="#community">Community</a> •
+  <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#versioning">Versioning</a> •
+  <a href="#copyright-and-license">Copyright and License</a>
+</p>
+<hr>
+
+HyperSwitch is an Open Source Financial Switch to make payments **Fast, Reliable
+and Affordable**.
+It lets you connect with multiple payment processors and route traffic
+effortlessly, all with a single API integration.
 Using HyperSwitch, you can:
 
 - **Reduce dependency** on a single processor like Stripe or Braintree
-- **Reduce Dev efforts** by 90% in adding & maintaining integrations
-- **Improve success rates** with auto-retries
-- **Reduce processing fees** through smart routing
-- **Customize your payment** flow with 100% visibility and control
-- **Increase business reach** with local payment methods
-- **Embrace diversity** in payments
+- **Reduce Dev effort** by 90% to add & maintain integrations
+- **Improve success rates** with seamless failover and auto-retries
+- **Reduce processing fees** with smart routing
+- **Customize payment flows** with full visibility and control
+- **Increase business reach** with local / alternate payment methods
 
-_HyperSwitch is wire-compatible with top processors like Stripe making it easy
-to integrate._
+> HyperSwitch is **wire-compatible** with top processors like Stripe, making it
+> easy to integrate.
 
-<p align="center">
-<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="60%" />
-</p>
-
-## Table of Contents
-
-- [Quick Start Guide](#quick-start-guide)
-- [Fast Integration for Stripe Users](#fast-integration-for-stripe-users)
-- [Supported Features](#supported-features)
-- [What's Included](#whats-included)
-- [Join us in building HyperSwitch](#join-us-in-building-hyperswitch)
-- [Community](#community)
-- [Bugs and feature requests](#bugs-and-feature-requests)
-- [Versioning](#versioning)
-- [Copyright and License](#copyright-and-license)
+<br>
+<img src="./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
 
 ## Quick Start Guide
 
@@ -50,7 +57,8 @@ You have three options to try out HyperSwitch:
 1. [Try it in our Sandbox Environment](/docs/try_sandbox.md): Fast and easy to
    start.
    No code or setup required in your system.
-2. Try our React Demo App: A simple demo of integrating Hyperswitch with your React app.
+2. Try our React Demo App: A simple demo of integrating Hyperswitch with your
+   React app.
 
    <a href="https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip">
    <img src= "./docs/imgs/download-button.png" alt="Download Now" width="190rem" />
@@ -118,6 +126,13 @@ analytics, and operations end-to-end:
 
 You can [try the hosted version in our sandbox][dashboard].
 
+## FAQs
+
+Got more more questions?
+Please refer to our [FAQs page][faqs].
+
+[faqs]: https://hyperswitch.io/docs/websiteFAQ
+
 <!--
 ## Documentation
 
@@ -174,8 +189,8 @@ should be introduced checking it agrees with actual structure -->
 
 ### Our Belief
 
-_We believe payments should be open, fast, reliable and affordable to serve
-billions of people at scale._
+> Payments should be open, fast, reliable and affordable to serve
+> the billions of people at scale.
 
 <!--
 HyperSwitch would allow everyone to quickly customize and set up an open payment
@@ -187,23 +202,25 @@ It was born from our struggle to understand and integrate various payment
 options/payment processors/networks and banks, with varying degrees of
 documentation and inconsistent API semantics. -->
 
-Globally payment diversity has been growing exponentially.
-There are hundreds of payment processors and new payment methods.
-So, businesses embrace diversity by onboarding multiple payment processors to
-increase conversion, reduce cost and improve control.
-But integrating and maintaining multiple processors needs a lot of dev efforts.
-So, why should devs across companies repeat this same work?
+Globally payment diversity has been growing at a rapid pace.
+There are hundreds of payment processors and new payment methods like BNPL,
+RTP etc.
+Businesses need to embrace this diversity to increase conversion, reduce cost
+and improve control.
+But integrating and maintaining multiple processors needs a lot of dev effort.
+Why should devs across companies repeat the same work?
 Why can't it be unified and reused? Hence, HyperSwitch was born to create that
-reusable core and let companies build or customize on top of it.
+reusable core and let companies build and customize on top of it.
 
 ### Our Values
 
-1. Embrace Diversity of Payments: It leads to a better experience, efficiency &
-   resilience.
-2. Future is Open Source: It enables Innovation, code reuse & affordability.
-3. Be part of the Community: It helps in collaboration, learning & contribution.
-4. Build it like a System Software: It makes the product reliable, secure &
-   performant.
+1. Embrace Payments Diversity: It will drive innovation in the ecosystem in
+   multiple ways.
+2. Make it Open Source: Increases trust; Improves the quality and reusability of
+   software.
+3. Be Community driven: It enables participatory design and development.
+4. Build it like Systems Software: This sets a high bar for Reliability,
+   Security and Performance SLAs.
 5. Maximize Value Creation: For developers, customers & partners.
 
 ### Contributing
