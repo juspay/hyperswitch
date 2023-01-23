@@ -4,6 +4,10 @@
 </p>
 
 <p align="center">
+<i>Unified Payments Switch. Fast.Reliable.Affordable.</i>
+</p>
+
+<p align="center">
   <a href="https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain">
     <img src="https://github.com/juspay/hyperswitch/workflows/CI/badge.svg" />
   </a>
@@ -11,6 +15,20 @@
     <img src="https://img.shields.io/github/license/juspay/hyperswitch" />
   </a>
 </p>
+
+<p align="center">
+  <a href="#quick-start-guide">Quick Start Guide</a> •
+  <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="#supported-features">Supported Features</a> •
+  <a href="#whats-included">What's Included</a>
+  <br>
+  <a href="#join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
+  <a href="#community">Community</a> •
+  <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#versioning">Versioning</a> •
+  <a href="#copyright-and-license">Copyright and License</a>
+</p>
+<hr />
 
 HyperSwitch is an Open Source Financial Switch to make payments **Fast, Reliable
 and Affordable**.
@@ -28,22 +46,8 @@ Using HyperSwitch, you can:
 > HyperSwitch is **wire-compatible** with top processors like Stripe, making it
 > easy to integrate.
 
-<p align="center">
-<br />
+<br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
-</p>
-
-## Table of Contents
-
-- [Quick Start Guide](#quick-start-guide)
-- [Fast Integration for Stripe Users](#fast-integration-for-stripe-users)
-- [Supported Features](#supported-features)
-- [What's Included](#whats-included)
-- [Join us in building HyperSwitch](#join-us-in-building-hyperswitch)
-- [Community](#community)
-- [Bugs and feature requests](#bugs-and-feature-requests)
-- [Versioning](#versioning)
-- [Copyright and License](#copyright-and-license)
 
 ## Quick Start Guide
 
