@@ -322,7 +322,6 @@ diesel::table! {
         refund_status -> RefundStatus,
         sent_to_gateway -> Bool,
         refund_error_message -> Nullable<Text>,
-        refund_error_code -> Nullable<Varchar>,
         metadata -> Nullable<Json>,
         refund_arn -> Nullable<Varchar>,
         created_at -> Timestamp,
@@ -330,6 +329,7 @@ diesel::table! {
         description -> Nullable<Varchar>,
         attempt_id -> Varchar,
         refund_reason -> Nullable<Varchar>,
+        refund_error_code -> Nullable<Text>,
     }
 }
 
