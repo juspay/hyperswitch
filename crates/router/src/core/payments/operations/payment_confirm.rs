@@ -156,7 +156,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         "You cannot confirm this Payment because it has already {}, after being previously confirmed.",
                         payment_intent.status
                     )
-                    .into()
                 }))
             }
             _ => Ok((
