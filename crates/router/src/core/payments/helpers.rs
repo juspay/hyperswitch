@@ -1141,6 +1141,7 @@ pub(crate) fn authenticate_client_secret(
         (Some(req_cs), Some(pi_cs)) => utils::when(req_cs.ne(pi_cs), || {
             Err(errors::ApiErrorResponse::ClientSecretInvalid)
         }),
+        (_, None) => Err(errors::ApiErrorResponse::ClientSecretInvalid),
         _ => Ok(()),
     }
 }
