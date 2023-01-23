@@ -672,8 +672,8 @@ impl api::IncomingWebhook for Adyen {
         _headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         _merchant_id: &str,
-        secret: &[u8],
-    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::ConnectorError> {
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
@@ -689,7 +689,7 @@ impl api::IncomingWebhook for Adyen {
             notif.success
         );
 
-        Ok((message.into_bytes(), secret.to_vec()))
+        Ok(message.into_bytes())
     }
 
     async fn get_webhook_source_verification_merchant_secret(

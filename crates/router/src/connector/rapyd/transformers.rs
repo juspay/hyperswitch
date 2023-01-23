@@ -558,7 +558,7 @@ pub struct RapydIncomingWebhook {
     pub data: WebhookData,
     pub trigger_operation_id: Option<String>,
     pub status: String,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -573,6 +573,7 @@ pub enum RapydWebhookObjectEventType {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
 pub enum WebhookData {
     PaymentData(ResponseData),
     RefundData(RefundResponseData),

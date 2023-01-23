@@ -16,6 +16,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers, logger, services,
     types::{
         self,
@@ -634,6 +635,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     }
 }
 
+#[async_trait::async_trait]
 impl api::IncomingWebhook for Rapyd {
     fn get_webhook_source_verification_algorithm(
         &self,
@@ -656,13 +658,27 @@ impl api::IncomingWebhook for Rapyd {
         Ok(signature)
     }
 
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+
+        Ok(secret)
+    }
+
     fn get_webhook_source_verification_message(
         &self,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         merchant_id: &str,
         secret: &[u8],
-    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let host = conn_utils::get_header_key_value("host", headers)?;
         let connector = self.id();
         let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
@@ -683,7 +699,39 @@ impl api::IncomingWebhook for Rapyd {
             .attach_printable("Could not convert body to UTF-8")?;
         let to_sign = format!("{url_path}{salt}{timestamp}{access_key}{secret_key}{body_string}");
 
-        Ok((to_sign.into_bytes(), secret_key.as_bytes().to_vec()))
+        Ok(to_sign.into_bytes())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        db: &dyn StorageInterface,
+        headers: &actix_web::http::header::HeaderMap,
+        body: &[u8],
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let signature = self
+            .get_webhook_source_verification_signature(headers, body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let secret = self
+            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let message = self
+            .get_webhook_source_verification_message(headers, body, merchant_id, &secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let stringify_auth = String::from_utf8(secret.to_vec())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Could not convert secret to UTF-8")?;
+        let auth: transformers::RapydAuthType = stringify_auth
+            .parse_struct("RapydAuthType")
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let secret_key = auth.secret_key;
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let tag = hmac::sign(&key, &message);
+        let hmac_sign = hex::encode(tag);
+        Ok(hmac_sign.as_bytes().eq(&signature))
     }
 
     fn get_webhook_object_reference_id(

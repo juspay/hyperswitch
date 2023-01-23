@@ -912,8 +912,8 @@ impl api::IncomingWebhook for Stripe {
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
         _merchant_id: &str,
-        secret: &[u8],
-    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::ConnectorError> {
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(headers)?;
 
         let timestamp = security_header_kvs
@@ -921,15 +921,12 @@ impl api::IncomingWebhook for Stripe {
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
             .into_report()?;
 
-        Ok((
-            format!(
-                "{}.{}",
-                String::from_utf8_lossy(&timestamp),
-                String::from_utf8_lossy(body)
-            )
-            .into_bytes(),
-            secret.to_vec(),
-        ))
+        Ok(format!(
+            "{}.{}",
+            String::from_utf8_lossy(&timestamp),
+            String::from_utf8_lossy(body)
+        )
+        .into_bytes())
     }
 
     async fn get_webhook_source_verification_merchant_secret(
