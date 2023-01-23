@@ -59,12 +59,23 @@ impl api::PaymentSync for Checkout {}
 impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
+impl api::ConnectorAccessToken for Checkout {}
 
 impl
     services::ConnectorIntegration<
         api::Session,
         types::PaymentsSessionData,
         types::PaymentsResponseData,
+    > for Checkout
+{
+    // Not Implemented (R)
+}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
     > for Checkout
 {
     // Not Implemented (R)
@@ -268,6 +279,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(raw_response=?res);
         let response: checkout::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
@@ -357,11 +369,11 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!(payments_create_response=?res);
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -459,12 +471,13 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        logger::debug!(payments_cancel_response=?res);
+
         let mut response: checkout::PaymentVoidResponse = res
             .response
             .parse_struct("PaymentVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         response.status = res.status_code;
-        logger::debug!(payments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -662,12 +675,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
         let refund_action_id = data
-            .response
+            .request
+            .connector_refund_id
             .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let response: Vec<checkout::ActionResponse> = res
             .response

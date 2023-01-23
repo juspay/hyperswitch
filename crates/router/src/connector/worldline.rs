@@ -124,6 +124,13 @@ impl ConnectorCommon for Worldline {
     }
 }
 
+impl api::ConnectorAccessToken for Worldline {}
+
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Worldline
+{
+}
+
 impl api::Payment for Worldline {}
 
 impl api::PreVerify for Worldline {}
@@ -594,13 +601,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req
-            .response
-            .as_ref()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+            .request
             .connector_refund_id
-            .clone();
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id;

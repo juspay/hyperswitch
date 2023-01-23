@@ -64,6 +64,8 @@ pub enum StorageError {
     MockDbError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
+    #[error("Deserialization failure")]
+    DeserializationFailed,
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -235,6 +237,8 @@ pub enum ConnectorError {
     NotImplemented(String),
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
+    #[error("Missing connector refund ID")]
+    MissingConnectorRefundID,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]

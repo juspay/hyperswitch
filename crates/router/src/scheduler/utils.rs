@@ -4,8 +4,10 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
+use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{consumer, metrics, process_data, workflows};
@@ -248,7 +250,7 @@ pub async fn consumer_operation_handler<E>(
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
 {
-    consumer_operation_counter.fetch_add(1, atomic::Ordering::Relaxed);
+    consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
 
     match consumer::consumer_operations(&state, &options, &settings).await {
@@ -259,7 +261,8 @@ pub async fn consumer_operation_handler<E>(
     let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
     logger::debug!("Time taken to execute consumer_operation: {}s", duration);
 
-    consumer_operation_counter.fetch_sub(1, atomic::Ordering::Relaxed);
+    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::Release);
+    logger::info!("Current tasks being executed: {}", current_count);
 }
 
 pub fn runner_from_task(
@@ -354,4 +357,29 @@ where
         Ok(())
     };
     result
+}
+
+pub(crate) async fn signal_handler(
+    mut sig: signal_hook_tokio::Signals,
+    sender: oneshot::Sender<()>,
+) {
+    if let Some(signal) = sig.next().await {
+        logger::info!(
+            "Received signal: {:?}",
+            signal_hook::low_level::signal_name(signal)
+        );
+        match signal {
+            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
+                Ok(_) => {
+                    logger::info!("Request for force shutdown received")
+                }
+                Err(_) => {
+                    logger::error!(
+                        "The receiver is closed, a termination call might already be sent"
+                    )
+                }
+            },
+            _ => {}
+        }
+    }
 }

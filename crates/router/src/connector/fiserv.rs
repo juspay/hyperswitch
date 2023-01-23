@@ -63,6 +63,18 @@ impl api::ConnectorCommon for Fiserv {
     }
 }
 
+impl api::ConnectorAccessToken for Fiserv {}
+
+impl
+    services::ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+    > for Fiserv
+{
+    // Not Implemented (R)
+}
+
 impl api::Payment for Fiserv {}
 
 impl api::PreVerify for Fiserv {}

@@ -25,7 +25,6 @@ pub struct Refund {
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
-    pub refund_error_code: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub refund_arn: Option<String>,
     pub created_at: PrimitiveDateTime,
@@ -33,6 +32,7 @@ pub struct Refund {
     pub description: Option<String>,
     pub attempt_id: String,
     pub refund_reason: Option<String>,
+    pub refund_error_code: Option<String>,
 }
 
 #[derive(
@@ -104,10 +104,10 @@ pub struct RefundUpdateInternal {
     refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<String>,
-    refund_error_code: Option<String>,
     refund_arn: Option<String>,
     metadata: Option<serde_json::Value>,
     refund_reason: Option<String>,
+    refund_error_code: Option<String>,
 }
 
 impl From<RefundUpdate> for RefundUpdateInternal {
