@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, fp_utils};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeOptionInterface;
@@ -1150,18 +1150,18 @@ pub(crate) fn validate_payment_status(
     not_allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if not_allowed_statuses
-        .iter()
-        .any(|not_allowed| intent_status == not_allowed)
-    {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-                "You cannot {action} this Payment because it has already {intent_status}",
-            ),
-        })
-    } else {
-        Ok(())
-    }
+    fp_utils::when(
+        not_allowed_statuses
+            .iter()
+            .any(|not_allowed| intent_status == not_allowed),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "You cannot {action} this Payment because it has already {intent_status}",
+                ),
+            })
+        },
+    )
 }
 
 pub(crate) fn validate_pm_or_token_given(
