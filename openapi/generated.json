@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Juspay Router - API Documentation",
-    "description": "\n## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                                            |\n|---------------|------------------------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>                   |\n| Production    | <https://router.juspay.io>                           |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant\naccount, you are given a secret key (also referred as api-key).\nYou may authenticate all API requests with Juspay server by providing the appropriate key in the\nrequest Authorization header.\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "description": "\n## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                                            |\n|---------------|------------------------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>                   |\n| Production    | <https://router.juspay.io>                           |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key).\nYou may authenticate all API requests with Juspay server by providing the appropriate key in the\nrequest Authorization header.\n\nNever share your secret api keys. Keep them guarded and secure.\n",
     "contact": {
       "name": "Juspay Support",
       "url": "https://juspay.io",
@@ -26,9 +26,7 @@
   "paths": {
     "/account": {
       "post": {
-        "tags": [
-          "crate::routes::admin"
-        ],
+        "tags": ["crate::routes::admin"],
         "summary": "Merchant Account - Create",
         "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
         "operationId": "merchant_account_create",
@@ -62,9 +60,7 @@
     },
     "/payments": {
       "post": {
-        "tags": [
-          "crate::routes::payments"
-        ],
+        "tags": ["crate::routes::payments"],
         "summary": "Payments - Create",
         "description": "Payments - Create\n\nTo create a new payment, against a merchant API key",
         "operationId": "payments_create",
@@ -98,9 +94,7 @@
     },
     "/refunds": {
       "post": {
-        "tags": [
-          "crate::routes::refunds"
-        ],
+        "tags": ["crate::routes::refunds"],
         "summary": "Refunds - Create",
         "description": "Refunds - Create\n\nTo create a refund against an already processed payment",
         "operationId": "refunds_create",
@@ -137,10 +131,7 @@
     "schemas": {
       "AcceptanceType": {
         "type": "string",
-        "enum": [
-          "online",
-          "offline"
-        ]
+        "enum": ["online", "offline"]
       },
       "Address": {
         "type": "object",
@@ -214,10 +205,7 @@
       },
       "AuthenticationType": {
         "type": "string",
-        "enum": [
-          "three_ds",
-          "no_three_ds"
-        ]
+        "enum": ["three_ds", "no_three_ds"]
       },
       "CCard": {
         "type": "object",
@@ -258,12 +246,7 @@
       },
       "CaptureMethod": {
         "type": "string",
-        "enum": [
-          "automatic",
-          "manual",
-          "manual_multiple",
-          "scheduled"
-        ]
+        "enum": ["automatic", "manual", "manual_multiple", "scheduled"]
       },
       "Connector": {
         "type": "string",
@@ -301,9 +284,7 @@
       },
       "CreateMerchantAccount": {
         "type": "object",
-        "required": [
-          "merchant_id"
-        ],
+        "required": ["merchant_id"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -489,9 +470,7 @@
       },
       "CustomerAcceptance": {
         "type": "object",
-        "required": [
-          "acceptance_type"
-        ],
+        "required": ["acceptance_type"],
         "properties": {
           "acceptance_type": {
             "$ref": "#/components/schemas/AcceptanceType"
@@ -589,10 +568,7 @@
       },
       "CustomerResponse": {
         "type": "object",
-        "required": [
-          "customer_id",
-          "created_at"
-        ],
+        "required": ["customer_id", "created_at"],
         "properties": {
           "customer_id": {
             "type": "string",
@@ -646,11 +622,7 @@
       },
       "DeleteMcaResponse": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "merchant_connector_id",
-          "deleted"
-        ],
+        "required": ["merchant_id", "merchant_connector_id", "deleted"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -673,10 +645,7 @@
       },
       "DeleteResponse": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "deleted"
-        ],
+        "required": ["merchant_id", "deleted"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -693,17 +662,11 @@
       },
       "FutureUsage": {
         "type": "string",
-        "enum": [
-          "off_session",
-          "on_session"
-        ]
+        "enum": ["off_session", "on_session"]
       },
       "GpayAllowedMethodsParameters": {
         "type": "object",
-        "required": [
-          "allowed_auth_methods",
-          "allowed_card_networks"
-        ],
+        "required": ["allowed_auth_methods", "allowed_card_networks"],
         "properties": {
           "allowed_auth_methods": {
             "type": "array",
@@ -723,11 +686,7 @@
       },
       "GpayAllowedPaymentMethods": {
         "type": "object",
-        "required": [
-          "type",
-          "parameters",
-          "tokenization_specification"
-        ],
+        "required": ["type", "parameters", "tokenization_specification"],
         "properties": {
           "type": {
             "type": "string",
@@ -743,9 +702,7 @@
       },
       "GpayMerchantInfo": {
         "type": "object",
-        "required": [
-          "merchant_name"
-        ],
+        "required": ["merchant_name"],
         "properties": {
           "merchant_name": {
             "type": "string",
@@ -755,10 +712,7 @@
       },
       "GpayTokenParameters": {
         "type": "object",
-        "required": [
-          "gateway",
-          "gateway_merchant_id"
-        ],
+        "required": ["gateway", "gateway_merchant_id"],
         "properties": {
           "gateway": {
             "type": "string",
@@ -772,10 +726,7 @@
       },
       "GpayTokenizationSpecification": {
         "type": "object",
-        "required": [
-          "type",
-          "parameters"
-        ],
+        "required": ["type", "parameters"],
         "properties": {
           "type": {
             "type": "string",
@@ -829,22 +780,15 @@
       },
       "KlarnaRedirectIssuer": {
         "type": "string",
-        "enum": [
-          "stripe"
-        ]
+        "enum": ["stripe"]
       },
       "KlarnaSdkIssuer": {
         "type": "string",
-        "enum": [
-          "klarna"
-        ]
+        "enum": ["klarna"]
       },
       "MandateAmountData": {
         "type": "object",
-        "required": [
-          "amount",
-          "currency"
-        ],
+        "required": ["amount", "currency"],
         "properties": {
           "amount": {
             "type": "integer",
@@ -859,10 +803,7 @@
       },
       "MandateData": {
         "type": "object",
-        "required": [
-          "customer_acceptance",
-          "mandate_type"
-        ],
+        "required": ["customer_acceptance", "mandate_type"],
         "properties": {
           "customer_acceptance": {
             "$ref": "#/components/schemas/CustomerAcceptance"
@@ -876,9 +817,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "single_use"
-            ],
+            "required": ["single_use"],
             "properties": {
               "single_use": {
                 "$ref": "#/components/schemas/MandateAmountData"
@@ -887,9 +826,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "multi_use"
-            ],
+            "required": ["multi_use"],
             "properties": {
               "multi_use": {
                 "$ref": "#/components/schemas/MandateAmountData"
@@ -984,10 +921,7 @@
       },
       "MerchantConnectorId": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "merchant_connector_id"
-        ],
+        "required": ["merchant_id", "merchant_connector_id"],
         "properties": {
           "merchant_id": {
             "type": "string"
@@ -1071,9 +1005,7 @@
       },
       "NextAction": {
         "type": "object",
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "properties": {
           "type": {
             "$ref": "#/components/schemas/NextActionType"
@@ -1096,10 +1028,7 @@
       },
       "OnlineMandate": {
         "type": "object",
-        "required": [
-          "ip_address",
-          "user_agent"
-        ],
+        "required": ["ip_address", "user_agent"],
         "properties": {
           "ip_address": {
             "type": "string",
@@ -1114,10 +1043,7 @@
       },
       "OrderDetails": {
         "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
+        "required": ["product_name", "quantity"],
         "properties": {
           "product_name": {
             "type": "string",
@@ -1137,18 +1063,12 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "klarna_redirect"
-            ],
+            "required": ["klarna_redirect"],
             "properties": {
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": [
-                  "issuer_name",
-                  "billing_email",
-                  "billing_country"
-                ],
+                "required": ["issuer_name", "billing_email", "billing_country"],
                 "properties": {
                   "issuer_name": {
                     "$ref": "#/components/schemas/KlarnaRedirectIssuer"
@@ -1166,17 +1086,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "klarna_sdk"
-            ],
+            "required": ["klarna_sdk"],
             "properties": {
               "klarna_sdk": {
                 "type": "object",
                 "description": "For Klarna Sdk as PayLater Option",
-                "required": [
-                  "issuer_name",
-                  "token"
-                ],
+                "required": ["issuer_name", "token"],
                 "properties": {
                   "issuer_name": {
                     "$ref": "#/components/schemas/KlarnaSdkIssuer"
@@ -1191,16 +1106,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "affirm_redirect"
-            ],
+            "required": ["affirm_redirect"],
             "properties": {
               "affirm_redirect": {
                 "type": "object",
                 "description": "For Affirm redirect flow",
-                "required": [
-                  "billing_email"
-                ],
+                "required": ["billing_email"],
                 "properties": {
                   "billing_email": {
                     "type": "string",
@@ -1215,10 +1126,7 @@
       "PaymentConnectorCreate": {
         "type": "object",
         "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
-        "required": [
-          "connector_type",
-          "connector_name"
-        ],
+        "required": ["connector_type", "connector_name"],
         "properties": {
           "connector_type": {
             "$ref": "#/components/schemas/ConnectorType"
@@ -1257,26 +1165,11 @@
             "example": [
               {
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "accepted_currencies": [
-                  "AED",
-                  "AED"
-                ],
-                "accepted_countries": [
-                  "in",
-                  "us"
-                ],
+                "payment_method_types": ["upi_collect", "upi_intent"],
+                "payment_method_issuers": ["labore magna ipsum", "aute"],
+                "payment_schemes": ["Discover", "Discover"],
+                "accepted_currencies": ["AED", "AED"],
+                "accepted_countries": ["in", "us"],
                 "minimum_amount": 1,
                 "maximum_amount": 68607706,
                 "recurring_enabled": true,
@@ -1304,9 +1197,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "PaymentIntentId"
-            ],
+            "required": ["PaymentIntentId"],
             "properties": {
               "PaymentIntentId": {
                 "type": "string",
@@ -1316,9 +1207,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "ConnectorTransactionId"
-            ],
+            "required": ["ConnectorTransactionId"],
             "properties": {
               "ConnectorTransactionId": {
                 "type": "string",
@@ -1328,9 +1217,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "PaymentAttemptId"
-            ],
+            "required": ["PaymentAttemptId"],
             "properties": {
               "PaymentAttemptId": {
                 "type": "string",
@@ -1389,10 +1276,7 @@
       },
       "PaymentListResponse": {
         "type": "object",
-        "required": [
-          "size",
-          "data"
-        ],
+        "required": ["size", "data"],
         "properties": {
           "size": {
             "type": "integer",
@@ -1410,9 +1294,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "Card"
-            ],
+            "required": ["Card"],
             "properties": {
               "Card": {
                 "$ref": "#/components/schemas/CCard"
@@ -1421,15 +1303,11 @@
           },
           {
             "type": "string",
-            "enum": [
-              "BankTransfer"
-            ]
+            "enum": ["BankTransfer"]
           },
           {
             "type": "object",
-            "required": [
-              "Wallet"
-            ],
+            "required": ["Wallet"],
             "properties": {
               "Wallet": {
                 "$ref": "#/components/schemas/WalletData"
@@ -1438,9 +1316,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "PayLater"
-            ],
+            "required": ["PayLater"],
             "properties": {
               "PayLater": {
                 "$ref": "#/components/schemas/PayLaterData"
@@ -1449,9 +1325,7 @@
           },
           {
             "type": "string",
-            "enum": [
-              "Paypal"
-            ]
+            "enum": ["Paypal"]
           }
         ]
       },
@@ -1500,9 +1374,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodSubType"
             },
-            "example": [
-              "credit"
-            ]
+            "example": ["credit"]
           },
           "payment_method_issuers": {
             "type": "array",
@@ -1510,9 +1382,7 @@
               "type": "string",
               "description": "List of payment method issuers to be enabled for this payment method"
             },
-            "example": [
-              "HDFC"
-            ]
+            "example": ["HDFC"]
           },
           "payment_schemes": {
             "type": "array",
@@ -1520,22 +1390,14 @@
               "type": "string",
               "description": "List of payment schemes accepted or has the processing capabilities of the processor"
             },
-            "example": [
-              "MASTER",
-              "VISA",
-              "DINERS"
-            ]
+            "example": ["MASTER", "VISA", "DINERS"]
           },
           "accepted_currencies": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Currency"
             },
-            "example": [
-              "USD",
-              "EUR",
-              "AED"
-            ]
+            "example": ["USD", "EUR", "AED"]
           },
           "accepted_countries": {
             "type": "array",
@@ -1543,10 +1405,7 @@
               "type": "string",
               "description": "List of Countries accepted or has the processing capabilities of the processor"
             },
-            "example": [
-              "US",
-              "IN"
-            ]
+            "example": ["US", "IN"]
           },
           "minimum_amount": {
             "type": "integer",
@@ -1577,9 +1436,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentExperience"
             },
-            "example": [
-              "redirect_to_url"
-            ]
+            "example": ["redirect_to_url"]
           }
         }
       },
@@ -1791,12 +1648,7 @@
       },
       "PaymentsResponse": {
         "type": "object",
-        "required": [
-          "status",
-          "amount",
-          "currency",
-          "payment_method"
-        ],
+        "required": ["status", "amount", "currency", "payment_method"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -1975,10 +1827,7 @@
       },
       "PaymentsRetrieveRequest": {
         "type": "object",
-        "required": [
-          "resource_id",
-          "force_sync"
-        ],
+        "required": ["resource_id", "force_sync"],
         "properties": {
           "resource_id": {
             "$ref": "#/components/schemas/PaymentIdType"
@@ -2003,11 +1852,7 @@
       },
       "PaymentsSessionRequest": {
         "type": "object",
-        "required": [
-          "payment_id",
-          "client_secret",
-          "wallets"
-        ],
+        "required": ["payment_id", "client_secret", "wallets"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -2027,11 +1872,7 @@
       },
       "PaymentsSessionResponse": {
         "type": "object",
-        "required": [
-          "payment_id",
-          "client_secret",
-          "session_token"
-        ],
+        "required": ["payment_id", "client_secret", "session_token"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -2051,11 +1892,7 @@
       },
       "PaymentsStartRequest": {
         "type": "object",
-        "required": [
-          "payment_id",
-          "merchant_id",
-          "attempt_id"
-        ],
+        "required": ["payment_id", "merchant_id", "attempt_id"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -2127,9 +1964,7 @@
       },
       "RefundRequest": {
         "type": "object",
-        "required": [
-          "payment_id"
-        ],
+        "required": ["payment_id"],
         "properties": {
           "refund_id": {
             "type": "string",
@@ -2174,13 +2009,7 @@
       },
       "RefundResponse": {
         "type": "object",
-        "required": [
-          "refund_id",
-          "payment_id",
-          "amount",
-          "currency",
-          "status"
-        ],
+        "required": ["refund_id", "payment_id", "amount", "currency", "status"],
         "properties": {
           "refund_id": {
             "type": "string"
@@ -2219,19 +2048,11 @@
       },
       "RefundStatus": {
         "type": "string",
-        "enum": [
-          "succeeded",
-          "failed",
-          "pending",
-          "review"
-        ]
+        "enum": ["succeeded", "failed", "pending", "review"]
       },
       "RefundType": {
         "type": "string",
-        "enum": [
-          "scheduled",
-          "instant"
-        ]
+        "enum": ["scheduled", "instant"]
       },
       "RefundUpdateRequest": {
         "type": "object",
@@ -2250,12 +2071,7 @@
       "RoutingAlgorithm": {
         "type": "string",
         "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
-        "enum": [
-          "round_robin",
-          "max_conversion",
-          "min_cost",
-          "custom"
-        ],
+        "enum": ["round_robin", "max_conversion", "min_cost", "custom"],
         "example": "custom"
       },
       "SessionToken": {
@@ -2284,20 +2100,14 @@
               },
               "wallet_name": {
                 "type": "string",
-                "enum": [
-                  "gpay"
-                ]
+                "enum": ["gpay"]
               }
             }
           },
           {
             "type": "object",
             "description": "The session response structure for Klarna",
-            "required": [
-              "session_token",
-              "session_id",
-              "wallet_name"
-            ],
+            "required": ["session_token", "session_id", "wallet_name"],
             "properties": {
               "session_token": {
                 "type": "string",
@@ -2309,19 +2119,14 @@
               },
               "wallet_name": {
                 "type": "string",
-                "enum": [
-                  "klarna"
-                ]
+                "enum": ["klarna"]
               }
             }
           },
           {
             "type": "object",
             "description": "The session response structure for PayPal",
-            "required": [
-              "session_token",
-              "wallet_name"
-            ],
+            "required": ["session_token", "wallet_name"],
             "properties": {
               "session_token": {
                 "type": "string",
@@ -2329,9 +2134,7 @@
               },
               "wallet_name": {
                 "type": "string",
-                "enum": [
-                  "paypal"
-                ]
+                "enum": ["paypal"]
               }
             }
           },
@@ -2402,9 +2205,7 @@
               },
               "wallet_name": {
                 "type": "string",
-                "enum": [
-                  "applepay"
-                ]
+                "enum": ["applepay"]
               }
             }
           }
@@ -2416,18 +2217,11 @@
       "SupportedWallets": {
         "type": "string",
         "description": "Wallets which support obtaining session object",
-        "enum": [
-          "paypal",
-          "apple_pay",
-          "klarna",
-          "gpay"
-        ]
+        "enum": ["paypal", "apple_pay", "klarna", "gpay"]
       },
       "WalletData": {
         "type": "object",
-        "required": [
-          "issuer_name"
-        ],
+        "required": ["issuer_name"],
         "properties": {
           "issuer_name": {
             "$ref": "#/components/schemas/WalletIssuer"
@@ -2440,11 +2234,7 @@
       },
       "WalletIssuer": {
         "type": "string",
-        "enum": [
-          "googlepay",
-          "applepay",
-          "paypal"
-        ]
+        "enum": ["googlepay", "applepay", "paypal"]
       },
       "WebhookDetails": {
         "type": "object",
