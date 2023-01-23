@@ -255,42 +255,13 @@ fn find_properties(attr: &syn::Attribute) -> syn::Result<HashMap<String, Vec<Str
         Ok(syn::Meta::List(syn::MetaList {
             ref path,
             paren_token: _,
-            mut nested,
+            nested,
         })) => {
             path.get_ident().map(|i| i == "operation").ok_or_else(|| {
                 helpers::syn_error(path.span(), "Attribute 'operation' was not found")
             })?;
-            let tracker = nested
-                .pop()
-                .ok_or_else(|| {
-                    helpers::syn_error(
-                        nested.span(),
-                        "Invalid format of attributes. Expected format is ops=...,flow=...",
-                    )
-                })?
-                .into_value();
-            let operation = nested
-                .pop()
-                .ok_or_else(|| {
-                    helpers::syn_error(
-                        nested.span(),
-                        "Invalid format of attributes. Expected format is ops=...,flow=...",
-                    )
-                })?
-                .into_value();
-            let o = find_value(&tracker).ok_or_else(|| {
-                helpers::syn_error(
-                    tracker.span(),
-                    "Invalid format of attributes. Expected format is ops=...,flow=...",
-                )
-            })?;
-            let t = find_value(&operation).ok_or_else(|| {
-                helpers::syn_error(
-                    operation.span(),
-                    "Invalid format of attributes. Expected format is ops=...,flow=...",
-                )
-            })?;
-            Ok(HashMap::from_iter([t, o]))
+            let n = nested.iter().filter_map(|t| find_value(t));
+            Ok(HashMap::from_iter(n))
         }
         _ => Err(helpers::syn_error(
             attr.span(),
@@ -315,6 +286,14 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
             "Invalid properties. Property 'flow' was not found",
         )
     })?;
+    let current_crate = syn::Ident::new(
+        &prop
+            .get("crate")
+            .map(|v| v.join(""))
+            .unwrap_or(String::from("crate")),
+        Span::call_site(),
+    );
+
     let trait_derive = flow.iter().map(|derive| {
         let derive: Derives = derive.to_owned().into();
         let fns = ops.iter().map(|t| {
@@ -336,15 +315,15 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
     };
     let output = quote! {
         const _: () = {
-                use crate::core::errors::RouterResult;
-                use crate::core::payments::operations::{
+                use #current_crate::core::errors::RouterResult;
+                use #current_crate::core::payments::operations::{
                     ValidateRequest,
                     PostUpdateTracker,
                     GetTracker,
                     UpdateTracker,
                     PaymentData
                 };
-                use crate::types::{
+                use #current_crate::types::{
                     VerifyRequestData,
                     PaymentsSyncData,
                     PaymentsCaptureData,
