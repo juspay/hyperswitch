@@ -173,6 +173,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 Box::new(self)
             };
 
+        payment_intent.status = match request.payment_method_data.as_ref() {
+            Some(_) => {
+                if request.confirm.unwrap_or(false) {
+                    payment_intent.status
+                } else {
+                    enums::IntentStatus::RequiresConfirmation
+                }
+            }
+            None => enums::IntentStatus::RequiresPaymentMethod,
+        };
+
         match payment_intent.status {
             enums::IntentStatus::Succeeded
             | enums::IntentStatus::Failed

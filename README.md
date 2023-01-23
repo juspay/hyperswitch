@@ -28,7 +28,7 @@ _HyperSwitch is wire-compatible with top processors like Stripe making it easy
 to integrate._
 
 <p align="center">
-<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="40%" />
+<img src= "./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="60%" />
 </p>
 
 ## Table of Contents
@@ -45,12 +45,18 @@ to integrate._
 
 ## Quick Start Guide
 
-You have two options to try out HyperSwitch:
+You have three options to try out HyperSwitch:
 
 1. [Try it in our Sandbox Environment](/docs/try_sandbox.md): Fast and easy to
    start.
    No code or setup required in your system.
-2. [Install in your local system](/docs/try_local_system.md): Configurations and
+2. Try our React Demo App: A simple demo of integrating Hyperswitch with your React app.
+
+   <a href="https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip">
+   <img src= "./docs/imgs/download-button.png" alt="Download Now" width="190rem" />
+   </a>
+
+3. [Install in your local system](/docs/try_local_system.md): Configurations and
    setup required in your system.
    Suitable if you like to customize the core offering.
 
@@ -64,7 +70,7 @@ Try the steps below to get a feel for how quick the setup is:
 2. Follow the instructions detailed on our
    [documentation page][migrate-from-stripe].
 
-[dashboard]: https://dashboard-hyperswitch.netlify.app
+[dashboard]: https://app.hyperswitch.io
 [migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
 
 ## Supported Features

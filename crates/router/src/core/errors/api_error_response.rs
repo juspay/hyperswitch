@@ -73,6 +73,11 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid JWT token was used."
     )]
     InvalidJwtToken,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_12",
+        message = "{message}",
+    )]
+    GenericUnauthorized { message: String },
 
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed while processing with connector. Retry payment.")]
     PaymentAuthorizationFailed { data: Option<serde_json::Value> },
@@ -135,8 +140,9 @@ pub enum ApiErrorResponse {
     MandateValidationFailed { reason: String },
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "{message:?}")]
     NotImplemented { message: NotImplementedMessage },
-    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{message}", ignore = "status_code")]
+    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
+        code: String,
         message: String,
         connector: String,
         status_code: u16,
@@ -178,9 +184,10 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::InvalidEphermeralKey | Self::InvalidJwtToken => {
-                StatusCode::UNAUTHORIZED
-            } // 401
+            Self::Unauthorized
+            | Self::InvalidEphermeralKey
+            | Self::InvalidJwtToken
+            | Self::GenericUnauthorized { .. } => StatusCode::UNAUTHORIZED, // 401
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }

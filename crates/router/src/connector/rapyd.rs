@@ -386,7 +386,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_url_encode(req)
+        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }

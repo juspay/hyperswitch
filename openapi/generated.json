@@ -19,11 +19,6 @@
       "description": "Sandbox Environment"
     }
   ],
-  "security": [
-    {
-      "ApiSecretKey": "[]"
-    }
-  ],
   "paths": {
     "/accounts": {
       "post": {
@@ -32,11 +27,6 @@
         ],
         "summary": "",
         "description": "\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Create a Merchant Account",
         "requestBody": {
           "content": {
@@ -73,11 +63,6 @@
         ],
         "summary": "",
         "description": "\nRetrieve a merchant account details.",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Retrieve a Merchant Account",
         "parameters": [
           {
@@ -114,11 +99,6 @@
         ],
         "summary": "",
         "description": "\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
@@ -165,11 +145,6 @@
         ],
         "summary": "",
         "description": "\nTo delete a merchant account",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Delete a Merchant Account",
         "parameters": [
           {
@@ -208,11 +183,6 @@
         ],
         "summary": "",
         "description": "\nList Payment Connector Details for the merchant",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "List all Merchant Connectors",
         "parameters": [
           {
@@ -255,11 +225,6 @@
         ],
         "summary": "",
         "description": "\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -296,11 +261,6 @@
         ],
         "summary": "",
         "description": "\nRetrieve Payment Connector Details",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -351,11 +311,6 @@
         ],
         "summary": "",
         "description": "\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -416,11 +371,6 @@
         ],
         "summary": "",
         "description": "\nDelete or Detach a Payment Connector from Merchant Account",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -448,11 +398,6 @@
         "responses": {
           "200": {
             "description": "Payment Connector Deleted",
-            "security": [
-              {
-                "ApiSecretKey": []
-              }
-            ],
             "content": {
               "application/json": {
                 "schema": {
@@ -478,11 +423,6 @@
         ],
         "summary": "",
         "description": "\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Create a Customer",
         "requestBody": {
           "content": {
@@ -519,11 +459,6 @@
         ],
         "summary": "",
         "description": "\nRetrieve a customer's details.",
-        "security": [
-          {
-            "ApiSecretKey": []
-          }
-        ],
         "operationId": "Retrieve a Customer",
         "parameters": [
           {
@@ -4678,21 +4613,5 @@
     {
       "name": "Payment Methods"
     }
-  ],
-  "securitySchemes": {
-    "ApiSecretKey": {
-      "description": "Unless explicitly stated, all endpoints require authentication using your secret key.  You may generate your API keys from the Juspay Dashboard.\n#### Format\n- Sandbox `sk_xxxxxxxxxxxxxxxxxxxxxxxxxx`\n- Production `pk_xxxxxxxxxxxxxxxxxxxxxxxxxx`\n",
-      "name": "api-key",
-      "type": "apiKey",
-      "in": "header",
-      "x-cko-type": "api-key"
-    },
-    "AdminSecretKey": {
-      "description": "Admin Key for managing Merchant Accounts and Payment Connectors In the OSS version - Developers can directly update the AdminSecretKey in the DB and start using the admin APIs to configure a new accounts and connectors In the Hosted version - The key can be obtained from the Dashboard or the Support team\n",
-      "name": "admin-api-key",
-      "type": "apiKey",
-      "in": "header",
-      "x-cko-type": "admin-api-key"
-    }
-  }
+  ]
 }

@@ -18,6 +18,20 @@ pub fn missing_field_err(
 }
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+pub trait AccessTokenRequestInfo {
+    fn get_request_id(&self) -> Result<String, Error>;
+}
+
+impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
+    fn get_request_id(&self) -> Result<String, Error> {
+        self.request
+            .id
+            .clone()
+            .ok_or_else(missing_field_err("request.id"))
+    }
+}
+
 pub trait PaymentsRequestData {
     fn get_attempt_id(&self) -> Result<String, Error>;
     fn get_billing(&self) -> Result<&api::Address, Error>;
