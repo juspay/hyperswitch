@@ -260,8 +260,7 @@ fn find_properties(attr: &syn::Attribute) -> syn::Result<HashMap<String, Vec<Str
             path.get_ident().map(|i| i == "operation").ok_or_else(|| {
                 helpers::syn_error(path.span(), "Attribute 'operation' was not found")
             })?;
-            let n = nested.iter().filter_map(|t| find_value(t));
-            Ok(HashMap::from_iter(n))
+            Ok(HashMap::from_iter(nested.iter().filter_map(find_value)))
         }
         _ => Err(helpers::syn_error(
             attr.span(),
@@ -290,7 +289,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
         &prop
             .get("crate")
             .map(|v| v.join(""))
-            .unwrap_or(String::from("crate")),
+            .unwrap_or_else(|| String::from("crate")),
         Span::call_site(),
     );
 
