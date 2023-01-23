@@ -216,7 +216,7 @@ pub struct Status {
     pub status: String,
     pub message: Option<String>,
     pub response_code: Option<String>,
-    pub operation_id: String,
+    pub operation_id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -572,9 +572,51 @@ pub enum RapydWebhookObjectEventType {
     PaymentRefundFailed,
 }
 
+impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: RapydWebhookObjectEventType) -> Result<Self, Self::Error> {
+        match value {
+            RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
+            RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
+            RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum WebhookData {
     PaymentData(ResponseData),
     RefundData(RefundResponseData),
+}
+
+impl From<ResponseData> for RapydPaymentsResponse {
+    fn from(value: ResponseData) -> Self {
+        Self {
+            status: Status {
+                error_code: "".to_owned(),
+                status: "SUCCESS".to_owned(),
+                message: None,
+                response_code: None,
+                operation_id: None,
+            },
+            data: Some(value),
+        }
+    }
+}
+
+impl From<RefundResponseData> for RefundResponse {
+    fn from(value: RefundResponseData) -> Self {
+        Self {
+            status: Status {
+                error_code: "".to_owned(),
+                status: "SUCCESS".to_owned(),
+                message: None,
+                response_code: None,
+                operation_id: None,
+            },
+            data: Some(value),
+        }
+    }
 }

@@ -761,18 +761,7 @@ impl api::IncomingWebhook for Rapyd {
         let webhook: transformers::RapydIncomingWebhook = body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(match webhook.webhook_type {
-            transformers::RapydWebhookObjectEventType::PaymentCompleted => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            transformers::RapydWebhookObjectEventType::PaymentCaptured => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            transformers::RapydWebhookObjectEventType::PaymentFailed => {
-                api::IncomingWebhookEvent::PaymentIntentFailure
-            }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
-        })
+        webhook.webhook_type.try_into()
     }
 
     fn get_webhook_resource_object(
@@ -783,7 +772,10 @@ impl api::IncomingWebhook for Rapyd {
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let response = match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => Ok(payment_data),
+            transformers::WebhookData::PaymentData(payment_data) => {
+                let rapyd_response: transformers::RapydPaymentsResponse = payment_data.into();
+                Ok(rapyd_response)
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
         }?;
         let res_json = serde_json::to_value(response)
