@@ -29,6 +29,7 @@ Using HyperSwitch, you can:
 > easy to integrate.
 
 <p align="center">
+<br />
 <img src="./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
 </p>
 
