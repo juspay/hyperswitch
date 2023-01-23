@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-<i>Unified Payments Switch. Fast.Reliable.Affordable.</i>
+<i>Unified Payments Switch. Fast. Reliable. Affordable.</i>
 </p>
 
 <p align="center">
@@ -20,15 +20,16 @@
   <a href="#quick-start-guide">Quick Start Guide</a> •
   <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
   <a href="#supported-features">Supported Features</a> •
-  <a href="#whats-included">What's Included</a>
+  <a href="#faqs">FAQs</a>
   <br>
+  <a href="#whats-included">What's Included</a> •
   <a href="#join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
   <a href="#community">Community</a> •
   <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
   <a href="#versioning">Versioning</a> •
   <a href="#copyright-and-license">Copyright and License</a>
 </p>
-<hr />
+<hr>
 
 HyperSwitch is an Open Source Financial Switch to make payments **Fast, Reliable
 and Affordable**.
@@ -124,6 +125,13 @@ analytics, and operations end-to-end:
   - Expert team to consult and improve business metrics
 
 You can [try the hosted version in our sandbox][dashboard].
+
+## FAQs
+
+Got more more questions?
+Please refer to our [FAQs page][faqs].
+
+[faqs]: https://hyperswitch.io/docs/websiteFAQ
 
 <!--
 ## Documentation
