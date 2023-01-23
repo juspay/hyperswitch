@@ -315,13 +315,12 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
     let output = quote! {
         const _: () = {
                 use #current_crate::core::errors::RouterResult;
-                use #current_crate::core::payments::operations::{
+                use #current_crate::core::payments::{PaymentData,operations::{
                     ValidateRequest,
                     PostUpdateTracker,
                     GetTracker,
                     UpdateTracker,
-                    PaymentData
-                };
+                }};
                 use #current_crate::types::{
                     VerifyRequestData,
                     PaymentsSyncData,
