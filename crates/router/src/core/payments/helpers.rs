@@ -1141,8 +1141,26 @@ pub(crate) fn authenticate_client_secret(
         (Some(req_cs), Some(pi_cs)) => utils::when(req_cs.ne(pi_cs), || {
             Err(errors::ApiErrorResponse::ClientSecretInvalid)
         }),
-        (_, None) => Err(errors::ApiErrorResponse::ClientSecretInvalid),
         _ => Ok(()),
+    }
+}
+
+pub(crate) fn validate_payment_status(
+    intent_status: &storage_enums::IntentStatus,
+    not_allowed_statuses: &[storage_enums::IntentStatus],
+    action: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    if not_allowed_statuses
+        .iter()
+        .any(|not_allowed| intent_status == not_allowed)
+    {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this Payment because it has already {intent_status}",
+            ),
+        })
+    } else {
+        Ok(())
     }
 }
 
