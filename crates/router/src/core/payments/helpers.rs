@@ -1150,18 +1150,13 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     not_allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(
-        not_allowed_statuses
-            .iter()
-            .any(|not_allowed| intent_status == not_allowed),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "You cannot {action} this payment because it has already {intent_status}",
-                ),
-            })
-        },
-    )
+    fp_utils::when(not_allowed_statuses.contains(intent_status), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this payment because it has status {intent_status}",
+            ),
+        })
+    })
 }
 
 pub(crate) fn validate_pm_or_token_given(
