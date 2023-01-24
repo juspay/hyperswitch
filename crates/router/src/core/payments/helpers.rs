@@ -1145,7 +1145,7 @@ pub(crate) fn authenticate_client_secret(
     }
 }
 
-pub(crate) fn validate_payment_status(
+pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     intent_status: &storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
@@ -1157,7 +1157,7 @@ pub(crate) fn validate_payment_status(
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
-                    "You cannot {action} this Payment because it has already {intent_status}",
+                    "You cannot {action} this payment because it has already {intent_status}",
                 ),
             })
         },
