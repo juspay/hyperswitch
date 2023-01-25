@@ -9,8 +9,9 @@ use super::{
 };
 use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
+    consts,
     core::errors,
-    types::{self, api, storage::enums, ErrorResponse}, consts,
+    types::{self, api, storage::enums, ErrorResponse},
 };
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
