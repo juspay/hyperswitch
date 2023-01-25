@@ -152,9 +152,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         match payment_intent.status {
             enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "You cannot confirm this Payment because it has already succeeded \
-                              after being previously confirmed."
-                        .into()
+                    message: format!(
+                        "You cannot confirm this Payment because it has already {}, after being previously confirmed.",
+                        payment_intent.status
+                    )
                 }))
             }
             _ => Ok((
