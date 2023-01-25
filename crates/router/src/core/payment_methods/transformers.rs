@@ -57,8 +57,8 @@ pub struct GetCardResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteCardResponse {
-    pub card_id: String,
-    pub external_id: String,
+    pub card_id: Option<String>,
+    pub external_id: Option<String>,
     pub card_isin: Option<Secret<String>>,
     pub status: String,
 }
