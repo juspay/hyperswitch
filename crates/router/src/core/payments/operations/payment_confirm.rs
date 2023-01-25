@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -17,7 +17,7 @@ use crate::{
     types::{
         self,
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums},
+        storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
     utils::{self, OptionExt},
@@ -51,6 +51,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::Succeeded,
+            ],
+            "confirm",
+        )?;
+
         let (token, payment_method_type, setup_mandate) =
             helpers::get_token_pm_type_mandate_details(
                 state,
@@ -59,13 +75,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 merchant_account,
             )
             .await?;
-
-        payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
 
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
@@ -149,48 +158,38 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.clone();
 
-        match payment_intent.status {
-            enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: format!(
-                        "You cannot confirm this Payment because it has already {}, after being previously confirmed.",
-                        payment_intent.status
-                    )
-                }))
-            }
-            _ => Ok((
-                Box::new(self),
-                PaymentData {
-                    flow: PhantomData,
-                    payment_intent,
-                    payment_attempt,
-                    currency,
-                    connector_response,
-                    amount,
-                    email: request.email.clone(),
-                    mandate_id: None,
-                    setup_mandate,
-                    token,
-                    address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
-                    },
-                    confirm: request.confirm,
-                    payment_method_data: request.payment_method_data.clone(),
-                    force_sync: None,
-                    refunds: vec![],
-                    sessions_token: vec![],
-                    card_cvc: request.card_cvc.clone(),
+        Ok((
+            Box::new(self),
+            PaymentData {
+                flow: PhantomData,
+                payment_intent,
+                payment_attempt,
+                currency,
+                connector_response,
+                amount,
+                email: request.email.clone(),
+                mandate_id: None,
+                setup_mandate,
+                token,
+                address: PaymentAddress {
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
-                Some(CustomerDetails {
-                    customer_id: request.customer_id.clone(),
-                    name: request.name.clone(),
-                    email: request.email.clone(),
-                    phone: request.phone.clone(),
-                    phone_country_code: request.phone_country_code.clone(),
-                }),
-            )),
-        }
+                confirm: request.confirm,
+                payment_method_data: request.payment_method_data.clone(),
+                force_sync: None,
+                refunds: vec![],
+                sessions_token: vec![],
+                card_cvc: request.card_cvc.clone(),
+            },
+            Some(CustomerDetails {
+                customer_id: request.customer_id.clone(),
+                name: request.name.clone(),
+                email: request.email.clone(),
+                phone: request.phone.clone(),
+                phone_country_code: request.phone_country_code.clone(),
+            }),
+        ))
     }
 }
 
@@ -225,7 +224,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -276,7 +275,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         customer: Option<storage::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -286,13 +285,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let (intent_status, attempt_status) = match payment_data.payment_attempt.authentication_type
         {
-            Some(enums::AuthenticationType::NoThreeDs) => (
-                enums::IntentStatus::Processing,
-                enums::AttemptStatus::Pending,
+            Some(storage_enums::AuthenticationType::NoThreeDs) => (
+                storage_enums::IntentStatus::Processing,
+                storage_enums::AttemptStatus::Pending,
             ),
             _ => (
-                enums::IntentStatus::RequiresCustomerAction,
-                enums::AttemptStatus::AuthenticationPending,
+                storage_enums::IntentStatus::RequiresCustomerAction,
+                storage_enums::AttemptStatus::AuthenticationPending,
             ),
         };
 
