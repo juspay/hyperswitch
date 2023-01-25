@@ -149,10 +149,16 @@ impl From<GlobalpayPaymentStatus> for enums::RefundStatus {
     }
 }
 
-fn get_payment_response(status : enums::AttemptStatus, response : GlobalpayPaymentsResponse) -> Result<types::PaymentsResponseData, ErrorResponse>{
+fn get_payment_response(
+    status: enums::AttemptStatus,
+    response: GlobalpayPaymentsResponse,
+) -> Result<types::PaymentsResponseData, ErrorResponse> {
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {
-            message: response.payment_method.and_then(|pm| pm.message).map_or("".to_string(), |f| f),
+            message: response
+                .payment_method
+                .and_then(|pm| pm.message)
+                .map_or("".to_string(), |f| f),
             ..Default::default()
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
@@ -161,7 +167,7 @@ fn get_payment_response(status : enums::AttemptStatus, response : GlobalpayPayme
             redirect: false,
             mandate_reference: None,
             connector_metadata: None,
-        })
+        }),
     }
 }
 

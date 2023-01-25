@@ -244,7 +244,8 @@ pub enum CybersourcePaymentStatus {
 impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
     fn from(item: CybersourcePaymentStatus) -> Self {
         match item {
-            CybersourcePaymentStatus::Authorized | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Authorized,
+            CybersourcePaymentStatus::Authorized
+            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Authorized,
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
