@@ -10,7 +10,7 @@ use super::{
 use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
     core::errors,
-    types::{self, api, storage::enums, ErrorResponse},
+    types::{self, api, storage::enums, ErrorResponse}, consts,
 };
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -158,7 +158,7 @@ fn get_payment_response(
             message: response
                 .payment_method
                 .and_then(|pm| pm.message)
-                .unwrap_or_default(),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             ..Default::default()
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
