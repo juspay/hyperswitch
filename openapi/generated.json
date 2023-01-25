@@ -203,6 +203,14 @@
           }
         }
       },
+      "AffirmIssuer": {
+        "type": "string",
+        "enum": ["affirm"]
+      },
+      "AfterpayClearpayIssuer": {
+        "type": "string",
+        "enum": ["afterpay_clearpay"]
+      },
       "AuthenticationType": {
         "type": "string",
         "enum": ["three_ds", "no_three_ds"]
@@ -778,11 +786,7 @@
           "requires_capture"
         ]
       },
-      "KlarnaRedirectIssuer": {
-        "type": "string",
-        "enum": ["stripe"]
-      },
-      "KlarnaSdkIssuer": {
+      "KlarnaIssuer": {
         "type": "string",
         "enum": ["klarna"]
       },
@@ -1071,7 +1075,7 @@
                 "required": ["issuer_name", "billing_email", "billing_country"],
                 "properties": {
                   "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaRedirectIssuer"
+                    "$ref": "#/components/schemas/KlarnaIssuer"
                   },
                   "billing_email": {
                     "type": "string",
@@ -1094,7 +1098,7 @@
                 "required": ["issuer_name", "token"],
                 "properties": {
                   "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaSdkIssuer"
+                    "$ref": "#/components/schemas/KlarnaIssuer"
                   },
                   "token": {
                     "type": "string",
@@ -1110,12 +1114,39 @@
             "properties": {
               "affirm_redirect": {
                 "type": "object",
-                "description": "For Affirm redirect flow",
-                "required": ["billing_email"],
+                "description": "For Affirm redirect as PayLater Option",
+                "required": ["issuer_name", "billing_email"],
                 "properties": {
+                  "issuer_name": {
+                    "$ref": "#/components/schemas/AffirmIssuer"
+                  },
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email address"
+                    "description": "The billing email"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["afterpay_clearpay_redirect"],
+            "properties": {
+              "afterpay_clearpay_redirect": {
+                "type": "object",
+                "description": "For AfterpayClearpay redirect as PayLater Option",
+                "required": ["issuer_name", "billing_email", "billing_name"],
+                "properties": {
+                  "issuer_name": {
+                    "$ref": "#/components/schemas/AfterpayClearpayIssuer"
+                  },
+                  "billing_email": {
+                    "type": "string",
+                    "description": "The billing email"
+                  },
+                  "billing_name": {
+                    "type": "string",
+                    "description": "The billing name"
                   }
                 }
               }
@@ -2034,6 +2065,9 @@
             "type": "object"
           },
           "error_message": {
+            "type": "string"
+          },
+          "error_code": {
             "type": "string"
           },
           "created_at": {
