@@ -32,7 +32,7 @@ use crate::{
     },
 };
 
-pub type BoxedOperation<'a, F, T> = Box<dyn Operation<F, T> + Send + Sync + 'a>;
+pub type BoxedOperation<'a, F, T> = Box<dyn Operation<F, T> + Sync + 'a>;
 
 pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T> + Send + Sync)> {
