@@ -158,7 +158,7 @@ fn get_payment_response(
             message: response
                 .payment_method
                 .and_then(|pm| pm.message)
-                .unwrap_or("".to_string()),
+                .unwrap_or_default(),
             ..Default::default()
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
