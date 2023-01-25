@@ -10,7 +10,7 @@ use super::{
 use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, ErrorResponse},
 };
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -149,6 +149,22 @@ impl From<GlobalpayPaymentStatus> for enums::RefundStatus {
     }
 }
 
+fn get_payment_response(status : enums::AttemptStatus, response : GlobalpayPaymentsResponse) -> Result<types::PaymentsResponseData, ErrorResponse>{
+    match status {
+        enums::AttemptStatus::Failure => Err(ErrorResponse {
+            message: response.payment_method.and_then(|pm| pm.message).map_or("".to_string(), |f| f),
+            ..Default::default()
+        }),
+        _ => Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(response.id),
+            redirection_data: None,
+            redirect: false,
+            mandate_reference: None,
+            connector_metadata: None,
+        })
+    }
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -162,15 +178,10 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.status.clone());
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                redirect: false,
-                mandate_reference: None,
-                connector_metadata: None,
-            }),
+            status,
+            response: get_payment_response(status, item.response),
             ..item.data
         })
     }
