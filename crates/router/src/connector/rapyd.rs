@@ -369,7 +369,7 @@ impl
             ("signature".to_string(), signature),
         ];
         let request = services::RequestBuilder::new()
-            .method(services::Method::Delete)
+            .method(services::Method::Get)
             .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
             .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
             .headers(headers)
