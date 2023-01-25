@@ -73,6 +73,7 @@ url = { version = "2.3.1", features = ["serde"] }
 # Switch to the crates.io release of `utoipa` when the `preserve_order` feature is available in the release
 utoipa = { git = "https://github.com/juhaku/utoipa", rev = "2a5c09d953f14dc78af655bbcfd016ce9a71baa0", features = ["preserve_order", "time"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
+pprof = { version = "0.11", features = ["flamegraph"] }
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }

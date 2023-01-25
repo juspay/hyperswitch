@@ -1,3 +1,5 @@
+use std::fs::File;
+
 use router::{
     configs::settings::{CmdLineConf, Settings, Subcommand},
     core::errors::{ApplicationError, ApplicationResult},
@@ -31,6 +33,8 @@ async fn main() -> ApplicationResult<()> {
 
     let _guard = logger::setup(&conf.log)?;
 
+    let _prof_guard = pprof::ProfilerGuardBuilder::default().frequency(1000).blocklist(&["libc", "libgcc", "pthread", "vdso"]).build().unwrap();
+
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
@@ -41,6 +45,13 @@ async fn main() -> ApplicationResult<()> {
     let _ = server.await;
 
     state.store.close().await;
+
+    if let Ok(report) = _prof_guard.report().build() {
+        let file = File::create("flamegraph.svg").unwrap();
+        let mut options = pprof::flamegraph::Options::default();
+        options.image_width = Some(2500);
+        report.flamegraph_with_options(file, &mut options).unwrap();
+    };
 
     Err(ApplicationError::from(std::io::Error::new(
         std::io::ErrorKind::Other,
