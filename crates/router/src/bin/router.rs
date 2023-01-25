@@ -8,6 +8,7 @@ use router::{
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
+
     #[cfg(feature = "openapi")]
     {
         use router::configs::settings::Subcommand;
