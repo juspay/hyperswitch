@@ -252,6 +252,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             &item.request.payment_method_data,
         )?;
 
+        let off_session = item
+            .request
+            .off_session
+            .and_then(|value| mandate.as_ref().map(|_| value));
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -266,10 +271,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             confirm: true, // Stripe requires confirm to be true if return URL is present
 
             description: item.description.clone(),
-            off_session: item.request.off_session,
             shipping: shipping_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
+            off_session,
             mandate,
         })
     }
