@@ -247,11 +247,11 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attemp_status = enums::AttemptStatus::foreign_from((
+                let attempt_status = enums::AttemptStatus::foreign_from((
                     data.status.to_owned(),
                     data.next_action.to_owned(),
                 ));
-                match attemp_status {
+                match attempt_status {
                     storage_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
                         Err(types::ErrorResponse {
@@ -285,7 +285,7 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                                 (_, _) => None,
                             };
                         (
-                            attemp_status,
+                            attempt_status,
                             Ok(types::PaymentsResponseData::TransactionResponse {
                                 resource_id: types::ResponseId::ConnectorTransactionId(
                                     data.id.to_owned(),
@@ -449,11 +449,11 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attemp_status = enums::AttemptStatus::foreign_from((
+                let attempt_status = enums::AttemptStatus::foreign_from((
                     data.status.to_owned(),
                     data.next_action.to_owned(),
                 ));
-                match attemp_status {
+                match attempt_status {
                     storage_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
                         Err(types::ErrorResponse {
@@ -467,7 +467,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                         }),
                     ),
                     _ => (
-                        attemp_status,
+                        attempt_status,
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 data.id.to_owned(),
@@ -508,11 +508,11 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attemp_status = enums::AttemptStatus::foreign_from((
+                let attempt_status = enums::AttemptStatus::foreign_from((
                     data.status.to_owned(),
                     data.next_action.to_owned(),
                 ));
-                match attemp_status {
+                match attempt_status {
                     storage_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
                         Err(types::ErrorResponse {
@@ -526,7 +526,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                         }),
                     ),
                     _ => (
-                        attemp_status,
+                        attempt_status,
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 data.id.to_owned(),
@@ -567,11 +567,11 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<RapydPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attemp_status = enums::AttemptStatus::foreign_from((
+                let attempt_status = enums::AttemptStatus::foreign_from((
                     data.status.to_owned(),
                     data.next_action.to_owned(),
                 ));
-                match attemp_status {
+                match attempt_status {
                     storage_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
                         Err(types::ErrorResponse {
@@ -585,7 +585,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<RapydPaymentsResponse>>
                         }),
                     ),
                     _ => (
-                        attemp_status,
+                        attempt_status,
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 data.id.to_owned(),
