@@ -78,8 +78,7 @@ pub async fn create_customer(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
                         format!(
-                            "Failed while fetching Customer, customer_id: {}",
-                            customer_id
+                            "Failed while fetching Customer, customer_id: {customer_id}"
                         )
                     })?
             } else {

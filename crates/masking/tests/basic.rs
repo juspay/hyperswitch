@@ -40,7 +40,7 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // format
 
-    let got = format!("{:?}", composite);
+    let got = format!("{composite:?}");
     let exp = "Composite { secret_number: *** basic::basic::AccountNumber ***, not_secret: \"not secret\" }";
     assert_eq!(got, exp);
 
@@ -87,7 +87,7 @@ fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // format
 
-    let got = format!("{:?}", composite);
+    let got = format!("{composite:?}");
     let exp = "Composite { secret_number: *** basic::without_serialize::AccountNumber ***, not_secret: \"not secret\" }";
     assert_eq!(got, exp);
 
@@ -129,7 +129,7 @@ fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // format
 
-    let got = format!("{:?}", composite);
+    let got = format!("{composite:?}");
     let exp =
         "Composite { secret_number: *** alloc::string::String ***, not_secret: \"not secret\" }";
     assert_eq!(got, exp);

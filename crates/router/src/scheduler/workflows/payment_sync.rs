@@ -58,7 +58,7 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             status if terminal_status.contains(status) => {
                 let id = process.id.clone();
                 process
-                    .finish_with_status(db, format!("COMPLETED_BY_PT_{}", id))
+                    .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
                     .await?
             }
             _ => {
@@ -98,7 +98,7 @@ pub async fn get_sync_process_schedule_time(
     let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
         get_and_deserialize_key(
             db,
-            &format!("pt_mapping_{}", connector),
+            &format!("pt_mapping_{connector}"),
             "ConnectorPTMapping",
         )
         .await;

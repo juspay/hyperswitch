@@ -417,8 +417,7 @@ pub async fn update_payment_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while updating MerchantConnectorAccount: id: {}",
-                merchant_connector_id
+                "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}"
             )
         })?;
 

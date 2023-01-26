@@ -72,7 +72,7 @@ pub fn mk_add_card_request(
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let customer_id = if cfg!(feature = "sandbox") {
-        format!("{}::{}", customer_id, merchant_id)
+        format!("{customer_id}::{merchant_id}")
     } else {
         customer_id.to_owned()
     };
