@@ -384,9 +384,7 @@ pub async fn refund_update_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!("Unable to update refund with refund_id: {refund_id}")
-        })?;
+        .attach_printable_lazy(|| format!("Unable to update refund with refund_id: {refund_id}"))?;
 
     Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }

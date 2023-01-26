@@ -96,12 +96,7 @@ pub async fn get_sync_process_schedule_time(
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
-        get_and_deserialize_key(
-            db,
-            &format!("pt_mapping_{connector}"),
-            "ConnectorPTMapping",
-        )
-        .await;
+        get_and_deserialize_key(db, &format!("pt_mapping_{connector}"), "ConnectorPTMapping").await;
     let mapping = match redis_mapping {
         Ok(x) => x,
         Err(err) => {
