@@ -75,15 +75,11 @@ pub async fn create_customer(
             if error.current_context().is_db_unique_violation() {
                 db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id)
                     .await
-                    .map_err(|err| match err.current_context() {
-                        &errors::StorageError::CustomerRedacted => {
-                            err.change_context(errors::ApiErrorResponse::CustomerRedacted)
-                        }
-                        _ => err
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map_err(|err| {
+                        err.to_not_found_response(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable(format!(
                                 "Failed while fetching Customer, customer_id: {customer_id}",
-                            )),
+                            ))
                     })?
             } else {
                 Err(error
