@@ -2,7 +2,7 @@ pub mod api_error_response;
 pub mod error_handlers;
 pub mod utils;
 
-use std::fmt::Display;
+use std::{borrow::Cow, fmt::Display};
 
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
@@ -54,8 +54,8 @@ pub enum StorageError {
     DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
-    #[error("DuplicateValue: {0}")]
-    DuplicateValue(String),
+    #[error("DuplicateValue: {entity} already exists for key {key}")]
+    DuplicateValue { entity: &'static str, key: String },
     #[error("KV error")]
     KVError,
     #[error("Serialization failure")]
