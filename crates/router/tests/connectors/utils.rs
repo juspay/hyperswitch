@@ -187,6 +187,28 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
+    async fn capture_payment_and_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        capture_data: Option<types::PaymentsCaptureData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
+        //make a successful payment
+        let response = self
+            .authorize_and_capture_payment(authorize_data, capture_data, payment_info.clone())
+            .await
+            .unwrap();
+        let txn_id = self.get_connector_transaction_id_from_capture_data(response);
+
+        //try refund for previous payment
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        Ok(self
+            .refund_payment(txn_id.unwrap(), refund_data, payment_info)
+            .await
+            .unwrap())
+    }
+
     async fn make_payment_and_refund(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -324,6 +346,19 @@ pub trait ConnectorActions: Connector {
             connector_meta_data: self.get_connector_meta(),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
+        }
+    }
+
+    fn get_connector_transaction_id_from_capture_data(
+        &self,
+        response: types::PaymentsCaptureRouterData,
+    ) -> Option<String> {
+        match response.response {
+            Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
+                resource_id.get_connector_transaction_id().ok()
+            }
+            Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+            Err(_) => None,
         }
     }
 }
