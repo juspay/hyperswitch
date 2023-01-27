@@ -321,14 +321,20 @@ pub struct CCard {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum KlarnaRedirectIssuer {
-    Stripe,
+pub enum KlarnaIssuer {
+    Klarna,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum KlarnaSdkIssuer {
-    Klarna,
+pub enum AffirmIssuer {
+    Affirm,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AfterpayClearpayIssuer {
+    AfterpayClearpay,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -337,7 +343,7 @@ pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
         /// The issuer name of the redirect
-        issuer_name: KlarnaRedirectIssuer,
+        issuer_name: KlarnaIssuer,
         /// The billing email
         billing_email: String,
         // The billing country code
@@ -345,15 +351,26 @@ pub enum PayLaterData {
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
-        /// The issuer name of the redirect
-        issuer_name: KlarnaSdkIssuer,
+        /// The issuer name of the sdk
+        issuer_name: KlarnaIssuer,
         /// The token for the sdk workflow
         token: String,
     },
-    /// For Affirm redirect flow
+    /// For Affirm redirect as PayLater Option
     AffirmRedirect {
-        /// The billing email address
+        /// The issuer name of affirm redirect issuer
+        issuer_name: AffirmIssuer,
+        /// The billing email
         billing_email: String,
+    },
+    /// For AfterpayClearpay redirect as PayLater Option
+    AfterpayClearpayRedirect {
+        /// The issuer name of afterpayclearpay redirect issuer
+        issuer_name: AfterpayClearpayIssuer,
+        /// The billing email
+        billing_email: String,
+        /// The billing name
+        billing_name: String,
     },
 }
 

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, fp_utils};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeOptionInterface;
@@ -230,8 +230,7 @@ pub fn validate_request_amount_and_amount_to_capture(
                     utils::when(!amount_to_capture.le(&amount_inner.get()), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
-                            "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
-                            amount_to_capture, amount
+                            "amount_to_capture is greater than amount capture_amount: {amount_to_capture:?} request_amount: {amount:?}"
                         )
                         }))
                     })
@@ -1054,9 +1053,9 @@ pub fn make_url_with_signature(
     })
 }
 
-pub fn hmac_sha256_sorted_query_params<'a>(
+pub fn hmac_sha256_sorted_query_params(
     params: &mut [(Cow<'_, str>, Cow<'_, str>)],
-    key: &'a str,
+    key: &str,
 ) -> RouterResult<String> {
     params.sort();
     let final_string = params
@@ -1077,7 +1076,7 @@ pub fn hmac_sha256_sorted_query_params<'a>(
 }
 
 pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{:?}", operations) == "PaymentConfirm"
+    format!("{operations:?}") == "PaymentConfirm"
 }
 
 pub fn generate_mandate(
@@ -1143,6 +1142,20 @@ pub(crate) fn authenticate_client_secret(
         }),
         _ => Ok(()),
     }
+}
+
+pub(crate) fn validate_payment_status_against_not_allowed_statuses(
+    intent_status: &storage_enums::IntentStatus,
+    not_allowed_statuses: &[storage_enums::IntentStatus],
+    action: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(not_allowed_statuses.contains(intent_status), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this payment because it has status {intent_status}",
+            ),
+        })
+    })
 }
 
 pub(crate) fn validate_pm_or_token_given(

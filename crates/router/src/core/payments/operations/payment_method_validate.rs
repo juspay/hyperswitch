@@ -298,7 +298,7 @@ impl PaymentMethodValidate {
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));
 
         let client_secret =
-            utils::generate_id(consts::ID_LENGTH, format!("{}_secret", payment_id).as_str());
+            utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),

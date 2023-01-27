@@ -153,7 +153,7 @@ where
             ("Signature".to_string(), signature),
         ];
         if matches!(http_method, services::Method::Post | services::Method::Put) {
-            headers.push(("Digest".to_string(), format!("SHA-256={}", sha256)));
+            headers.push(("Digest".to_string(), format!("SHA-256={sha256}")));
         }
         Ok(headers)
     }

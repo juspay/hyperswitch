@@ -57,8 +57,8 @@ pub struct GetCardResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteCardResponse {
-    pub card_id: String,
-    pub external_id: String,
+    pub card_id: Option<String>,
+    pub external_id: Option<String>,
     pub card_isin: Option<Secret<String>>,
     pub status: String,
 }
@@ -72,7 +72,7 @@ pub fn mk_add_card_request(
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let customer_id = if cfg!(feature = "sandbox") {
-        format!("{}::{}", customer_id, merchant_id)
+        format!("{customer_id}::{merchant_id}")
     } else {
         customer_id.to_owned()
     };

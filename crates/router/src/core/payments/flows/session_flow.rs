@@ -74,8 +74,7 @@ fn create_gpay_session_token(
         .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorMetaData)
         .attach_printable(format!(
-            "cannot parse gpay metadata from the given value {:?}",
-            connector_metadata
+            "cannot parse gpay metadata from the given value {connector_metadata:?}"
         ))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "connector_metadata".to_string(),
