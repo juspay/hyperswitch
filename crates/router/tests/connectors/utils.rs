@@ -1,5 +1,6 @@
-use std::{fmt::Debug, marker::PhantomData, thread::sleep, time::Duration};
+use std::{fmt::Debug, marker::PhantomData, time::Duration};
 
+use actix::clock::sleep;
 use async_trait::async_trait;
 use error_stack::Report;
 use masking::Secret;
@@ -17,6 +18,10 @@ pub trait Connector {
     fn get_name(&self) -> String;
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None
+    }
+    /// interval in seconds to be followed when making the subsequent request whenever needed
+    fn get_request_interval(&self) -> u64 {
+        5
     }
 }
 
@@ -36,14 +41,16 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| types::PaymentsAuthorizeData {
+            types::PaymentsAuthorizeData {
+                confirm: false,
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
-                ..PaymentAuthorizeType::default().0
-            }),
+                ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
             payment_info,
         );
         call_connector(request, integration).await
     }
+
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -87,7 +94,7 @@ pub trait ConnectorActions: Connector {
             if (sync_res.status == status) || (curr_try == max_try) {
                 return Ok(sync_res);
             }
-            sleep(Duration::from_secs(10));
+            sleep(Duration::from_secs(self.get_request_interval())).await;
             curr_try += 1;
         }
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
@@ -101,15 +108,32 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsCaptureRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or(types::PaymentsCaptureData {
-                amount_to_capture: Some(100),
-                currency: enums::Currency::USD,
+            types::PaymentsCaptureData {
                 connector_transaction_id: transaction_id,
-                amount: 100,
-            }),
+                ..payment_data.unwrap_or(PaymentCaptureType::default().0)
+            },
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    async fn authorize_and_capture_payment(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        capture_data: Option<types::PaymentsCaptureData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsCaptureRouterData, Report<ConnectorError>> {
+        let authorize_response = self
+            .authorize_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+        assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+        let txn_id = get_connector_transaction_id(authorize_response);
+        let response = self
+            .capture_payment(txn_id.unwrap(), capture_data, payment_info)
+            .await
+            .unwrap();
+        return Ok(response);
     }
 
     async fn void_payment(
@@ -120,13 +144,33 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsCancelRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or(types::PaymentsCancelData {
+            types::PaymentsCancelData {
                 connector_transaction_id: transaction_id,
-                cancellation_reason: Some("Test cancellation".to_string()),
-            }),
+                ..payment_data.unwrap_or(PaymentCancelType::default().0)
+            },
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    async fn authorize_and_void_payment(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        void_data: Option<types::PaymentsCancelData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsCancelRouterData, Report<ConnectorError>> {
+        let authorize_response = self
+            .authorize_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+        assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+        let txn_id = get_connector_transaction_id(authorize_response);
+        sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        let response = self
+            .void_payment(txn_id.unwrap(), void_data, payment_info)
+            .await
+            .unwrap();
+        return Ok(response);
     }
 
     async fn refund_payment(
@@ -137,24 +181,70 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| types::RefundsData {
-                amount: 100,
-                currency: enums::Currency::USD,
-                refund_id: uuid::Uuid::new_v4().to_string(),
+            types::RefundsData {
                 connector_transaction_id: transaction_id,
-                refund_amount: 100,
-                connector_metadata: None,
-                connector_refund_id: None,
-                reason: Some("Customer returned product".to_string()),
-            }),
+                ..payment_data.unwrap_or(PaymentRefundType::default().0)
+            },
             payment_info,
         );
         call_connector(request, integration).await
     }
 
+    async fn make_payment_and_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
+        //make a successful payment
+        let response = self
+            .make_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+
+        //try refund for previous payment
+        let transaction_id = get_connector_transaction_id(response).unwrap();
+        sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        Ok(self
+            .refund_payment(transaction_id, refund_data, payment_info)
+            .await
+            .unwrap())
+    }
+
+    async fn make_payment_and_multiple_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) {
+        //make a successful payment
+        let response = self
+            .make_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+
+        //try refund for previous payment
+        let transaction_id = get_connector_transaction_id(response).unwrap();
+        for _x in 0..2 {
+            sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+            let refund_response = self
+                .refund_payment(
+                    transaction_id.clone(),
+                    refund_data.clone(),
+                    payment_info.clone(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                refund_response.response.unwrap().refund_status,
+                enums::RefundStatus::Success,
+            );
+        }
+    }
+
     async fn sync_refund(
         &self,
-        transaction_id: String,
+        refund_id: String,
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
@@ -164,15 +254,44 @@ pub trait ConnectorActions: Connector {
                 amount: 1000,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
-                connector_transaction_id: transaction_id,
+                connector_transaction_id: "".to_string(),
                 refund_amount: 100,
                 connector_metadata: None,
                 reason: None,
-                connector_refund_id: None,
+                connector_refund_id: Some(refund_id),
             }),
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    /// will retry the psync till the given status matches or retry max 3 times in a 10secs interval
+    async fn rsync_retry_till_status_matches(
+        &self,
+        status: enums::RefundStatus,
+        refund_id: String,
+        payment_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
+        let max_try = 3;
+        let mut curr_try = 1;
+        while curr_try <= max_try {
+            let sync_res = self
+                .sync_refund(
+                    refund_id.clone(),
+                    payment_data.clone(),
+                    payment_info.clone(),
+                )
+                .await
+                .unwrap();
+            if (sync_res.clone().response.unwrap().refund_status == status) || (curr_try == max_try)
+            {
+                return Ok(sync_res);
+            }
+            sleep(Duration::from_secs(self.get_request_interval())).await;
+            curr_try += 1;
+        }
+        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
     fn generate_data<Flow, Req: From<Req>, Res>(
@@ -258,6 +377,8 @@ pub trait LocalMock {
 }
 
 pub struct PaymentAuthorizeType(pub types::PaymentsAuthorizeData);
+pub struct PaymentCaptureType(pub types::PaymentsCaptureData);
+pub struct PaymentCancelType(pub types::PaymentsCancelData);
 pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
 pub struct CCardType(pub api::CCard);
@@ -296,6 +417,26 @@ impl Default for PaymentAuthorizeType {
     }
 }
 
+impl Default for PaymentCaptureType {
+    fn default() -> Self {
+        Self(types::PaymentsCaptureData {
+            amount_to_capture: Some(100),
+            currency: enums::Currency::USD,
+            connector_transaction_id: "".to_string(),
+            amount: 100,
+        })
+    }
+}
+
+impl Default for PaymentCancelType {
+    fn default() -> Self {
+        Self(types::PaymentsCancelData {
+            cancellation_reason: Some("requested_by_customer".to_string()),
+            connector_transaction_id: "".to_string(),
+        })
+    }
+}
+
 impl Default for BrowserInfoType {
     fn default() -> Self {
         let data = types::BrowserInformation {
@@ -330,13 +471,13 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
-            amount: 1000,
+            amount: 100,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
             connector_metadata: None,
-            reason: None,
+            reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
         };
         Self(data)
