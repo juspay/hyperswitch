@@ -230,8 +230,7 @@ pub fn validate_request_amount_and_amount_to_capture(
                     utils::when(!amount_to_capture.le(&amount_inner.get()), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
-                            "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
-                            amount_to_capture, amount
+                            "amount_to_capture is greater than amount capture_amount: {amount_to_capture:?} request_amount: {amount:?}"
                         )
                         }))
                     })
@@ -1054,9 +1053,9 @@ pub fn make_url_with_signature(
     })
 }
 
-pub fn hmac_sha256_sorted_query_params<'a>(
+pub fn hmac_sha256_sorted_query_params(
     params: &mut [(Cow<'_, str>, Cow<'_, str>)],
-    key: &'a str,
+    key: &str,
 ) -> RouterResult<String> {
     params.sort();
     let final_string = params
@@ -1077,7 +1076,7 @@ pub fn hmac_sha256_sorted_query_params<'a>(
 }
 
 pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{:?}", operations) == "PaymentConfirm"
+    format!("{operations:?}") == "PaymentConfirm"
 }
 
 pub fn generate_mandate(

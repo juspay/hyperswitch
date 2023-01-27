@@ -63,7 +63,7 @@ async fn payments_create_stripe() {
         .await
         .unwrap();
     let create_response_body = create_response.body().await;
-    println!("{:?} : {:?}", create_response, create_response_body);
+    println!("{create_response:?} : {create_response_body:?}");
     assert_eq!(create_response.status(), awc::http::StatusCode::OK);
 
     let mut retrieve_response = client
@@ -73,7 +73,7 @@ async fn payments_create_stripe() {
         .await
         .unwrap();
     let retrieve_response_body = retrieve_response.body().await;
-    println!("{:?} =:= {:?}", retrieve_response, retrieve_response_body);
+    println!("{retrieve_response:?} =:= {retrieve_response_body:?}");
     assert_eq!(retrieve_response.status(), awc::http::StatusCode::OK);
 
     let mut refund_response = client
@@ -84,7 +84,7 @@ async fn payments_create_stripe() {
         .unwrap();
 
     let refund_response_body = refund_response.body().await;
-    println!("{:?} =:= {:?}", refund_response, refund_response_body);
+    println!("{refund_response:?} =:= {refund_response_body:?}");
     assert_eq!(refund_response.status(), awc::http::StatusCode::OK);
 }
 
@@ -132,7 +132,7 @@ async fn payments_create_adyen() {
         .await
         .unwrap();
     let create_response_body = create_response.body().await;
-    println!("{:?} : {:?}", create_response, create_response_body);
+    println!("{create_response:?} : {create_response_body:?}");
     assert_eq!(create_response.status(), awc::http::StatusCode::OK);
 
     let mut retrieve_response = client
@@ -142,7 +142,7 @@ async fn payments_create_adyen() {
         .await
         .unwrap();
     let retrieve_response_body = retrieve_response.body().await;
-    println!("{:?} =:= {:?}", retrieve_response, retrieve_response_body);
+    println!("{retrieve_response:?} =:= {retrieve_response_body:?}");
     assert_eq!(retrieve_response.status(), awc::http::StatusCode::OK);
 
     let mut refund_response = client
@@ -153,7 +153,7 @@ async fn payments_create_adyen() {
         .unwrap();
 
     let refund_response_body = refund_response.body().await;
-    println!("{:?} =:= {:?}", refund_response, refund_response_body);
+    println!("{refund_response:?} =:= {refund_response_body:?}");
     assert_eq!(refund_response.status(), awc::http::StatusCode::OK);
 }
 
@@ -197,7 +197,7 @@ async fn payments_create_fail() {
         .await
         .unwrap();
     let invalid_response_body = invalid_response.body().await;
-    println!("{:?} : {:?}", invalid_response, invalid_response_body);
+    println!("{invalid_response:?} : {invalid_response_body:?}");
     assert_eq!(
         invalid_response.status(),
         awc::http::StatusCode::BAD_REQUEST
@@ -210,7 +210,7 @@ async fn payments_create_fail() {
         .await
         .unwrap();
     let api_key_response_body = api_key_response.body().await;
-    println!("{:?} =:= {:?}", api_key_response, api_key_response_body);
+    println!("{api_key_response:?} =:= {api_key_response_body:?}");
     assert_eq!(
         api_key_response.status(),
         awc::http::StatusCode::UNAUTHORIZED
@@ -230,13 +230,13 @@ async fn payments_todo() {
 
     for endpoint in get_endpoints {
         response = client
-            .get(format!("http://127.0.0.1:8080/payments/{}", endpoint))
+            .get(format!("http://127.0.0.1:8080/payments/{endpoint}"))
             .insert_header(("API-KEY", "MySecretApiKey"))
             .send()
             .await
             .unwrap();
         response_body = response.body().await;
-        println!("{} =:= {:?} : {:?}", endpoint, response, response_body);
+        println!("{endpoint} =:= {response:?} : {response_body:?}");
         assert_eq!(response.status(), awc::http::StatusCode::OK);
     }
 
@@ -264,7 +264,7 @@ fn connector_list() {
 
     let newlist: types::ConnectorsList = serde_json::from_str(&json).unwrap();
 
-    println!("{:#?}", newlist);
+    println!("{newlist:#?}");
     assert_eq!(true, true);
 }
 

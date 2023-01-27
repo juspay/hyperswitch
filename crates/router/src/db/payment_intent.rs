@@ -220,7 +220,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("{merchant_id}_{payment_id}");
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentIntent>(
                             &key,
@@ -230,7 +230,7 @@ mod storage {
                         .await
                         .map_err(|error| match error.current_context() {
                             errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Intent does not exist for {}", key),
+                                format!("Payment Intent does not exist for {key}"),
                             )
                             .into(),
                             _ => error.change_context(errors::StorageError::KVError),

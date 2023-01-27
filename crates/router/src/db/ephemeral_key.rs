@@ -88,7 +88,7 @@ mod storage {
             &self,
             key: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            let key = format!("epkey_{}", key);
+            let key = format!("epkey_{key}");
             self.redis_conn
                 .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
                 .await

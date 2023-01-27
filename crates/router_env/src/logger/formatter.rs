@@ -106,7 +106,7 @@ impl fmt::Display for RecordType {
             Self::ExitSpan => "END",
             Self::Event => "EVENT",
         };
-        write!(f, "{}", repr)
+        write!(f, "{repr}")
     }
 }
 

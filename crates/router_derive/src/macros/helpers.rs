@@ -13,7 +13,7 @@ pub(super) fn occurrence_error<T: ToTokens>(
 ) -> syn::Error {
     let mut error = syn::Error::new_spanned(
         second_keyword,
-        format!("Found multiple occurrences of error({})", attr),
+        format!("Found multiple occurrences of error({attr})"),
     );
     error.combine(syn::Error::new_spanned(first_keyword, "first one here"));
     error

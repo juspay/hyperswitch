@@ -235,7 +235,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{}_{}", merchant_id, internal_reference_id);
+                    let lookup_id = format!("{merchant_id}_{internal_reference_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
@@ -560,7 +560,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("{merchant_id}_{payment_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
                         .await
