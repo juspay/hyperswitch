@@ -83,18 +83,16 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::PaymentsSyncData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsSyncRouterData, Report<ConnectorError>> {
-        let max_try = 3;
-        let mut curr_try = 1;
-        while curr_try <= max_try {
+        let max_tries = 3;
+        for curr_try in 0..max_tries {
             let sync_res = self
                 .sync_payment(payment_data.clone(), payment_info.clone())
                 .await
                 .unwrap();
-            if (sync_res.status == status) || (curr_try == max_try) {
+            if (sync_res.status == status) || (curr_try == max_tries - 1) {
                 return Ok(sync_res);
             }
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
-            curr_try += 1;
         }
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
@@ -272,7 +270,7 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
-        let max_tries = 2;
+        let max_tries = 3;
         for curr_try in 0..max_tries {
             let sync_res = self
                 .sync_refund(
@@ -283,7 +281,7 @@ pub trait ConnectorActions: Connector {
                 .await
                 .unwrap();
             if (sync_res.clone().response.unwrap().refund_status == status)
-                || (curr_try == max_tries)
+                || (curr_try == max_tries - 1)
             {
                 return Ok(sync_res);
             }
