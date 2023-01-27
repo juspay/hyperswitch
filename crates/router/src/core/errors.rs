@@ -2,7 +2,7 @@ pub mod api_error_response;
 pub mod error_handlers;
 pub mod utils;
 
-use std::{borrow::Cow, fmt::Display};
+use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
@@ -306,9 +306,9 @@ pub enum ProcessTrackerError {
     #[error("Failed to fetch processes from database")]
     ProcessFetchingFailed,
     #[error("Failed while fetching: {resource_name}")]
-    ResourceFetchingFailed { resource_name: String },
+    ResourceFetchingFailed { resource_name: &'static str },
     #[error("Failed while executing: {flow}")]
-    FlowExecutionError { flow: String },
+    FlowExecutionError { flow: &'static str },
     #[error("Not Implemented")]
     NotImplemented,
     #[error("Job not found")]
