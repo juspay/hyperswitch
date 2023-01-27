@@ -344,7 +344,7 @@ pub enum FingerprintPresenceIndicator {
 }
 
 /// Indicates where a transaction is in its lifecycle.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobalpayPaymentStatus {
     /// A Transaction has been successfully authorized and captured. The funding
