@@ -185,7 +185,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = enums::AttemptStatus::from(item.response.status.clone());
+        let status = enums::AttemptStatus::from(item.response.status);
         Ok(Self {
             status,
             response: get_payment_response(status, item.response),
