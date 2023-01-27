@@ -111,5 +111,5 @@ pub(crate) fn get_stream_key_flag(store: Arc<services::Store>, stream_index: u8)
 }
 
 pub(crate) fn get_drainer_stream_name(store: Arc<services::Store>, stream_index: u8) -> String {
-    store.drainer_stream(format!("shard_{}", stream_index).as_str())
+    store.drainer_stream(format!("shard_{stream_index}").as_str())
 }

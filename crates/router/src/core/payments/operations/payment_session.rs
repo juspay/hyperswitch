@@ -18,7 +18,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, enums as api_enums, PaymentIdTypeExt},
-        storage::{self, enums},
+        storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
     utils::OptionExt,
@@ -53,6 +53,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
+        let mut payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::Succeeded,
+            ],
+            "create a session token for",
+        )?;
+
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(
                 &payment_id,
@@ -64,16 +80,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
-        let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
-
         let currency = payment_intent.currency.get_required_value("currency")?;
 
-        payment_attempt.payment_method = Some(enums::PaymentMethodType::Wallet);
+        payment_attempt.payment_method = Some(storage_enums::PaymentMethodType::Wallet);
 
         let amount = payment_intent.amount.into();
 
@@ -163,7 +172,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -255,7 +264,7 @@ where
         &'b self,
         _state: &'b AppState,
         _payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethod>,

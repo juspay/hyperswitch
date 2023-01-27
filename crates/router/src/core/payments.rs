@@ -239,7 +239,7 @@ where
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
-    format!("{:?}", operation).eq("PaymentStart")
+    format!("{operation:?}").eq("PaymentStart")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -562,7 +562,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
-    match format!("{:?}", operation).as_str() {
+    match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(

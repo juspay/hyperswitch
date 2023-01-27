@@ -38,40 +38,40 @@ async fn customer_success() {
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("customer-create: {:?} : {:?}", response, response_body);
+    println!("customer-create: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
 
     // retrieve customer
     response = client
-        .get(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .get(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send()
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("customer-retrieve: {:?} =:= {:?}", response, response_body);
+    println!("customer-retrieve: {response:?} =:= {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
 
     // update customer
     response = client
-        .post(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .post(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send_json(&update_request)
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("customer-update: {:?} =:= {:?}", response, response_body);
+    println!("customer-update: {response:?} =:= {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
 
     // delete customer
     response = client
-        .delete(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .delete(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send()
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("customer-delete : {:?} =:= {:?}", response, response_body);
+    println!("customer-delete : {response:?} =:= {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
 }
 
@@ -100,7 +100,7 @@ async fn customer_failure() {
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(
         response.status(),
         awc::http::StatusCode::UNPROCESSABLE_ENTITY
@@ -108,24 +108,24 @@ async fn customer_failure() {
 
     // retrieve a customer with customer id which is not in DB
     response = client
-        .post(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .post(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send()
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::BAD_REQUEST);
 
     // update customer id with customer id which is not in DB
     response = client
-        .post(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .post(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send_json(&request)
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(
         response.status(),
         awc::http::StatusCode::UNPROCESSABLE_ENTITY
@@ -133,13 +133,13 @@ async fn customer_failure() {
 
     // delete a customer with customer id which is not in DB
     response = client
-        .delete(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .delete(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send()
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::BAD_REQUEST);
 
     // email validation for customer update
@@ -152,20 +152,20 @@ async fn customer_failure() {
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
 
     request = serde_json::json!({
         "email": "abch"
     });
     response = client
-        .post(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .post(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send_json(&request)
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(
         response.status(),
         awc::http::StatusCode::UNPROCESSABLE_ENTITY
@@ -176,13 +176,13 @@ async fn customer_failure() {
         "email": "abch"
     });
     response = client
-        .post(format!("http://127.0.0.1:8080/customers/{}", customer_id))
+        .post(format!("http://127.0.0.1:8080/customers/{customer_id}"))
         .insert_header(api_key)
         .send_json(&request)
         .await
         .unwrap();
     response_body = response.body().await;
-    println!("{:?} : {:?}", response, response_body);
+    println!("{response:?} : {response_body:?}");
     assert_eq!(
         response.status(),
         awc::http::StatusCode::UNPROCESSABLE_ENTITY
