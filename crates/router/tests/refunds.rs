@@ -49,23 +49,23 @@ async fn refunds_todo() {
 
     for endpoint in get_endpoints {
         response = client
-            .get(format!("http://127.0.0.1:8080/refunds/{}", endpoint))
+            .get(format!("http://127.0.0.1:8080/refunds/{endpoint}"))
             .send()
             .await
             .unwrap();
         response_body = response.body().await;
-        println!("{} =:= {:?} : {:?}", endpoint, response, response_body);
+        println!("{endpoint} =:= {response:?} : {response_body:?}");
         assert_eq!(response.status(), awc::http::StatusCode::OK);
     }
 
     for endpoint in post_endpoints {
         response = client
-            .post(format!("http://127.0.0.1:8080/refunds/{}", endpoint))
+            .post(format!("http://127.0.0.1:8080/refunds/{endpoint}"))
             .send()
             .await
             .unwrap();
         response_body = response.body().await;
-        println!("{} =:= {:?} : {:?}", endpoint, response, response_body);
+        println!("{endpoint} =:= {response:?} : {response_body:?}");
         assert_eq!(response.status(), awc::http::StatusCode::OK);
     }
 }

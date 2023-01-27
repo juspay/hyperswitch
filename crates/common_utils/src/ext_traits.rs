@@ -87,7 +87,7 @@ where
         serde_json::to_string(&P::try_from(self).change_context(errors::ParsingError)?)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {:?} to a request", self))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
     fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
@@ -99,7 +99,7 @@ where
         serde_urlencoded::to_string(&P::try_from(self).change_context(errors::ParsingError)?)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {:?} to a request", self))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
     // Check without two functions can we combine this
@@ -110,7 +110,7 @@ where
         serde_urlencoded::to_string(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {:?} to a request", self))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
     fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
@@ -120,7 +120,7 @@ where
         serde_json::to_string(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {:?} to a request", self))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
     fn encode_to_value(&'e self) -> CustomResult<serde_json::Value, errors::ParsingError>
@@ -130,7 +130,7 @@ where
         serde_json::to_value(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {:?} to a value", self))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 
     fn encode_to_vec(&'e self) -> CustomResult<Vec<u8>, errors::ParsingError>
@@ -140,7 +140,7 @@ where
         serde_json::to_vec(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {:?} to a value", self))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 }
 

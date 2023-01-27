@@ -384,9 +384,7 @@ pub async fn refund_update_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!("Unable to update refund with refund_id: {}", refund_id)
-        })?;
+        .attach_printable_lazy(|| format!("Unable to update refund with refund_id: {refund_id}"))?;
 
     Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
@@ -693,7 +691,7 @@ pub async fn sync_refund_with_gateway_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{}", id))
+                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{id}"))
                 .await?
         }
         _ => {
@@ -806,7 +804,7 @@ pub async fn trigger_refund_execute_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(db, format!("COMPLETED_BY_PT_{}", id))
+                .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
                 .await?;
         }
     };
@@ -916,7 +914,7 @@ pub async fn get_refund_sync_process_schedule_time(
     let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
         db::get_and_deserialize_key(
             db,
-            &format!("pt_mapping_refund_sync_{}", connector),
+            &format!("pt_mapping_refund_sync_{connector}"),
             "ConnectorPTMapping",
         )
         .await;

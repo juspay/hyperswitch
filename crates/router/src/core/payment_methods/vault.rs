@@ -91,7 +91,7 @@ impl Vaultable for api::CCard {
 
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,
-            payment_method_id: None,
+            payment_method_id: value2.payment_method_id,
         };
 
         Ok((card, supp_data))

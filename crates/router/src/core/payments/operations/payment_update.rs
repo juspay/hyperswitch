@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -17,7 +17,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums},
+        storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
     utils::OptionExt,
@@ -41,7 +41,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        let (mut payment_intent, mut payment_attempt, currency): (_, _, enums::Currency);
+        let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -50,6 +50,29 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let storage_scheme = merchant_account.storage_scheme;
 
         let db = &*state.store;
+
+        payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::RequiresCapture,
+            ],
+            "update",
+        )?;
+
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            payment_intent.client_secret.as_ref(),
+        )?;
+
         let (token, payment_method_type, setup_mandate) =
             helpers::get_token_pm_type_mandate_details(
                 state,
@@ -80,18 +103,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let amount = request
             .amount
             .unwrap_or_else(|| payment_attempt.amount.into());
-
-        payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
-
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
@@ -178,56 +189,44 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 if request.confirm.unwrap_or(false) {
                     payment_intent.status
                 } else {
-                    enums::IntentStatus::RequiresConfirmation
+                    storage_enums::IntentStatus::RequiresConfirmation
                 }
             }
-            None => enums::IntentStatus::RequiresPaymentMethod,
+            None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
 
-        match payment_intent.status {
-            enums::IntentStatus::Succeeded
-            | enums::IntentStatus::Failed
-            | enums::IntentStatus::RequiresCapture => {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: format!(
-                        "You cannot update this Payment because the status of this payment is {}",
-                        payment_intent.status
-                    )
-                }))
-            }
-            _ => Ok((
-                next_operation,
-                PaymentData {
-                    flow: PhantomData,
-                    payment_intent,
-                    payment_attempt,
-                    currency,
-                    amount,
-                    email: request.email.clone(),
-                    mandate_id,
-                    token,
-                    setup_mandate,
-                    address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
-                    },
-                    confirm: request.confirm,
-                    payment_method_data: request.payment_method_data.clone(),
-                    force_sync: None,
-                    refunds: vec![],
-                    connector_response,
-                    sessions_token: vec![],
-                    card_cvc: request.card_cvc.clone(),
+        Ok((
+            next_operation,
+            PaymentData {
+                flow: PhantomData,
+                payment_intent,
+                payment_attempt,
+                currency,
+                amount,
+                email: request.email.clone(),
+                mandate_id,
+                token,
+                setup_mandate,
+                address: PaymentAddress {
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
-                Some(CustomerDetails {
-                    customer_id: request.customer_id.clone(),
-                    name: request.name.clone(),
-                    email: request.email.clone(),
-                    phone: request.phone.clone(),
-                    phone_country_code: request.phone_country_code.clone(),
-                }),
-            )),
-        }
+                confirm: request.confirm,
+                payment_method_data: request.payment_method_data.clone(),
+                force_sync: None,
+                refunds: vec![],
+                connector_response,
+                sessions_token: vec![],
+                card_cvc: request.card_cvc.clone(),
+            },
+            Some(CustomerDetails {
+                customer_id: request.customer_id.clone(),
+                name: request.name.clone(),
+                email: request.email.clone(),
+                phone: request.phone.clone(),
+                phone_country_code: request.phone_country_code.clone(),
+            }),
+        ))
     }
 }
 
@@ -262,7 +261,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethod>,
@@ -299,22 +298,23 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         customer: Option<storage::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
         let is_payment_method_unavailable =
             payment_data.payment_attempt.payment_method_id.is_none()
-                && payment_data.payment_intent.status == enums::IntentStatus::RequiresPaymentMethod;
+                && payment_data.payment_intent.status
+                    == storage_enums::IntentStatus::RequiresPaymentMethod;
 
         let payment_method = payment_data.payment_attempt.payment_method;
 
         let get_attempt_status = || {
             if is_payment_method_unavailable {
-                enums::AttemptStatus::PaymentMethodAwaited
+                storage_enums::AttemptStatus::PaymentMethodAwaited
             } else {
-                enums::AttemptStatus::ConfirmationAwaited
+                storage_enums::AttemptStatus::ConfirmationAwaited
             }
         };
 
@@ -340,11 +340,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;
             if is_payment_method_unavailable {
-                enums::IntentStatus::RequiresPaymentMethod
+                storage_enums::IntentStatus::RequiresPaymentMethod
             } else if !payment_data.confirm.unwrap_or(true)
-                || current_intent_status == enums::IntentStatus::RequiresCustomerAction
+                || current_intent_status == storage_enums::IntentStatus::RequiresCustomerAction
             {
-                enums::IntentStatus::RequiresConfirmation
+                storage_enums::IntentStatus::RequiresConfirmation
             } else {
                 payment_data.payment_intent.status
             }
