@@ -274,7 +274,7 @@ pub enum VaultError {
     #[error("The given payment method is currently not supported in vault")]
     PaymentMethodNotSupported,
     #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: String },
+    MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
 }
