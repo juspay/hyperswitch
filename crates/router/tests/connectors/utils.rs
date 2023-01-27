@@ -282,7 +282,8 @@ pub trait ConnectorActions: Connector {
                 )
                 .await
                 .unwrap();
-            if (sync_res.clone().response.unwrap().refund_status == status) || (curr_try == max_tries)
+            if (sync_res.clone().response.unwrap().refund_status == status)
+                || (curr_try == max_tries)
             {
                 return Ok(sync_res);
             }
