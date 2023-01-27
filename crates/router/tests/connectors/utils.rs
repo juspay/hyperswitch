@@ -77,7 +77,7 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
-    /// will retry the psync till the given status matches or retry max 3 times in a 10secs interval
+    /// will retry the psync till the given status matches or retry max 3 times
     async fn psync_retry_till_status_matches(
         &self,
         status: enums::AttemptStatus,
@@ -265,7 +265,7 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
-    /// will retry the psync till the given status matches or retry max 3 times in a 10secs interval
+    /// will retry the rsync till the given status matches or retry max 3 times
     async fn rsync_retry_till_status_matches(
         &self,
         status: enums::RefundStatus,

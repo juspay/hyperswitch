@@ -4,7 +4,7 @@ use crate::{
 };
 use actix::clock::sleep;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentsCaptureData};
+use router::types::{self, api, storage::enums};
 use std::{time::Duration};
 
 struct {{project-name | downcase | pascal_case}};
@@ -75,7 +75,7 @@ async fn should_partially_capture_already_authorized_payment() {
     let response = connector
         .authorize_and_capture_payment(
             None,
-            Some(PaymentsCaptureData {
+            Some(types::PaymentsCaptureData {
                 amount_to_capture: Some(50),
                 ..utils::PaymentCaptureType::default().0
             }),
