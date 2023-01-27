@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use actix::clock::sleep;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -146,7 +145,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        r#"Your card was declined. Your request was in test mode, but used a non test (live) card. For a list of valid test cards, visit: https://stripe.com/docs/testing."#,
+        "Your card was declined. Your request was in test mode, but used a non test (live) card. For a list of valid test cards, visit: https://stripe.com/docs/testing.",
     );
 }
 
@@ -168,7 +167,7 @@ async fn should_fail_payment_for_no_card_number() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        r#"You passed an empty string for 'payment_method_data[card][number]'. We assume empty values are an attempt to unset a parameter; however 'payment_method_data[card][number]' cannot be unset. You should remove 'payment_method_data[card][number]' from your request or supply a non-empty value."#,
+        "You passed an empty string for 'payment_method_data[card][number]'. We assume empty values are an attempt to unset a parameter; however 'payment_method_data[card][number]' cannot be unset. You should remove 'payment_method_data[card][number]' from your request or supply a non-empty value.",
     );
 }
 
@@ -188,7 +187,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, r#"Your card's expiration month is invalid."#,);
+    assert_eq!(x.message, "Your card's expiration month is invalid.",);
 }
 
 #[actix_web::test]
@@ -207,7 +206,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, r#"Your card's expiration year is invalid."#,);
+    assert_eq!(x.message, "Your card's expiration year is invalid.",);
 }
 
 #[actix_web::test]
@@ -226,7 +225,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, r#"Your card's security code is invalid."#,);
+    assert_eq!(x.message, "Your card's security code is invalid.",);
 }
 
 #[actix_web::test]
@@ -237,7 +236,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    sleep(Duration::from_secs(5)).await; // to avoid 404 error as stripe takes some time to process the new transaction
+    tokio::time::sleep(Duration::from_secs(5)).await; // to avoid 404 error as stripe takes some time to process the new transaction
     let response = connector
         .capture_payment("12345".to_string(), None, None)
         .await

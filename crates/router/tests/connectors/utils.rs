@@ -1,6 +1,5 @@
 use std::{fmt::Debug, marker::PhantomData, time::Duration};
 
-use actix::clock::sleep;
 use async_trait::async_trait;
 use error_stack::Report;
 use masking::Secret;
@@ -94,7 +93,7 @@ pub trait ConnectorActions: Connector {
             if (sync_res.status == status) || (curr_try == max_try) {
                 return Ok(sync_res);
             }
-            sleep(Duration::from_secs(self.get_request_interval())).await;
+            tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
             curr_try += 1;
         }
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
@@ -165,7 +164,7 @@ pub trait ConnectorActions: Connector {
             .unwrap();
         assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
         let txn_id = get_connector_transaction_id(authorize_response);
-        sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
         let response = self
             .void_payment(txn_id.unwrap(), void_data, payment_info)
             .await
@@ -204,7 +203,7 @@ pub trait ConnectorActions: Connector {
 
         //try refund for previous payment
         let transaction_id = get_connector_transaction_id(response).unwrap();
-        sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
         Ok(self
             .refund_payment(transaction_id, refund_data, payment_info)
             .await
@@ -226,7 +225,7 @@ pub trait ConnectorActions: Connector {
         //try refund for previous payment
         let transaction_id = get_connector_transaction_id(response).unwrap();
         for _x in 0..2 {
-            sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+            tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
             let refund_response = self
                 .refund_payment(
                     transaction_id.clone(),
@@ -273,9 +272,8 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
-        let max_try = 3;
-        let mut curr_try = 1;
-        while curr_try <= max_try {
+        let max_tries = 2;
+        for curr_try in 0..max_tries {
             let sync_res = self
                 .sync_refund(
                     refund_id.clone(),
@@ -284,12 +282,11 @@ pub trait ConnectorActions: Connector {
                 )
                 .await
                 .unwrap();
-            if (sync_res.clone().response.unwrap().refund_status == status) || (curr_try == max_try)
+            if (sync_res.clone().response.unwrap().refund_status == status) || (curr_try == max_tries)
             {
                 return Ok(sync_res);
             }
-            sleep(Duration::from_secs(self.get_request_interval())).await;
-            curr_try += 1;
+            tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
         }
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
