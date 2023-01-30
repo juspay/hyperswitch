@@ -42,8 +42,22 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = [
+    "stripe",
+    "adyen",
+    "authorizedotnet",
+    "checkout",
+    "braintree",
+    "aci",
+    "shift4",
+    "cybersource",
+    "worldpay",
+    "globalpay",
+    "fiserv",
+    "payu",
+    "worldline",
+]
 
 [refund]
 max_attempts = 10
@@ -102,4 +116,7 @@ base_url = "https://eu.sandbox.api-ingenico.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
+
+[scheduler.consumer]
+disabled = false
 consumer_group = "SCHEDULER_GROUP"

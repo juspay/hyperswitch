@@ -163,8 +163,8 @@ pub struct ConnectorParams {
 #[serde(default)]
 pub struct SchedulerSettings {
     pub stream: String,
-    pub consumer_group: String,
     pub producer: ProducerSettings,
+    pub consumer: ConsumerSettings,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -176,6 +176,13 @@ pub struct ProducerSettings {
     pub lock_key: String,
     pub lock_ttl: i64,
     pub batch_size: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ConsumerSettings {
+    pub disabled: bool,
+    pub consumer_group: String,
 }
 
 #[cfg(feature = "kv_store")]

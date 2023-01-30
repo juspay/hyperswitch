@@ -152,7 +152,7 @@ impl super::settings::SchedulerSettings {
             ))
         })?;
 
-        when(self.consumer_group.is_default_or_empty(), || {
+        when(self.consumer.consumer_group.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "scheduler consumer group must not be empty".into(),
             ))
