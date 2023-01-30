@@ -341,27 +341,16 @@ pub enum AfterpayClearpayIssuer {
 #[serde(rename_all = "snake_case")]
 pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
-    KlarnaRedirect {
-        /// The issuer name of the redirect
-        issuer_name: KlarnaIssuer,
-    },
+    KlarnaRedirect {},
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
-        /// The issuer name of the sdk
-        issuer_name: KlarnaIssuer,
         /// The token for the sdk workflow
         token: String,
     },
     /// For Affirm redirect as PayLater Option
-    AffirmRedirect {
-        /// The issuer name of affirm redirect issuer
-        issuer_name: AffirmIssuer,
-    },
+    AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
-    AfterpayClearpayRedirect {
-        /// The issuer name of afterpayclearpay redirect issuer
-        issuer_name: AfterpayClearpayIssuer,
-    },
+    AfterpayClearpayRedirect {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize, ToSchema)]
