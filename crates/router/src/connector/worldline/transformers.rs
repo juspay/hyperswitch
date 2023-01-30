@@ -211,7 +211,7 @@ fn build_customer_info(
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
         get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "billing.address.country".into(),
+            field_name: "billing.address.country",
         })?;
 
     let number_with_country_code = billing.phone.as_ref().and_then(|phone| {
