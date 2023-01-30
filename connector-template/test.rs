@@ -435,4 +435,4 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 
 // Connector dependent test cases goes here
 
-// To do add unit test for cards 3DS, wallets and webhooks
+// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
