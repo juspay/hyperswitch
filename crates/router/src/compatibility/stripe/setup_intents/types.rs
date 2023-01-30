@@ -69,7 +69,7 @@ pub enum StripePaymentMethodDetails {
     BankTransfer,
 }
 
-impl From<StripeCard> for payments::CCard {
+impl From<StripeCard> for payments::Card {
     fn from(card: StripeCard) -> Self {
         Self {
             card_number: card.number,
@@ -83,7 +83,7 @@ impl From<StripeCard> for payments::CCard {
 impl From<StripePaymentMethodDetails> for payments::PaymentMethod {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
-            StripePaymentMethodDetails::Card(card) => Self::Card(payments::CCard::from(card)),
+            StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
             StripePaymentMethodDetails::BankTransfer => Self::BankTransfer,
         }
     }

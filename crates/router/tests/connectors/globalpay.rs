@@ -129,7 +129,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = Globalpay {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4024007134364842".to_string()),
                     ..utils::CCardType::default().0
                 }),
