@@ -166,7 +166,10 @@ cards = [
 # It defines the the streams/queues name and configuration as well as event selection variables
 [scheduler]
 stream = "SCHEDULER_STREAM"
+
+[scheduler.consumer]
 consumer_group = "SCHEDULER_GROUP"
+disabled = false                   # This flag decides if the consumer should actively consume task
 
 [scheduler.producer]
 upper_fetch_limit = 0             # Upper limit for fetching entries from the redis queue (in seconds)
