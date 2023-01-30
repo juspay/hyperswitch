@@ -42,22 +42,8 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
-cards = [
-    "stripe",
-    "adyen",
-    "authorizedotnet",
-    "checkout",
-    "braintree",
-    "aci",
-    "shift4",
-    "cybersource",
-    "worldpay",
-    "globalpay",
-    "fiserv",
-    "payu",
-    "worldline",
-]
+wallets = ["klarna","braintree","applepay"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline"]
 
 [refund]
 max_attempts = 10
