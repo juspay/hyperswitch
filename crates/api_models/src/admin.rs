@@ -211,7 +211,7 @@ pub struct WebhookDetails {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct DeleteResponse {
+pub struct DeleteMerchantAccountResponse {
     /// The identifier for the Merchant Account
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,

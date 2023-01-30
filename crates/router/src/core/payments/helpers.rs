@@ -539,7 +539,7 @@ pub(crate) async fn call_payment_method(
                             }
                         }
                         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "customer".to_string()
+                            field_name: "customer"
                         })
                         .attach_printable("Missing Customer Object")),
                     }
@@ -568,12 +568,12 @@ pub(crate) async fn call_payment_method(
                 }
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type".to_string()
+                field_name: "payment_method_type"
             })
             .attach_printable("PaymentMethodType Required")),
         },
         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data".to_string()
+            field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
     }
@@ -829,7 +829,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payent_method".to_string(),
+                field_name: "payent_method",
             })
         },
     )?;
@@ -840,7 +840,7 @@ pub(crate) fn validate_payment_method_fields_present(
             && req.payment_token.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data".to_string(),
+                field_name: "payment_method_data",
             })
         },
     )?;

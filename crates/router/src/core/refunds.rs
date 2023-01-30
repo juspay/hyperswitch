@@ -108,7 +108,7 @@ pub async fn trigger_refund_to_gateway(
 
     let currency = payment_attempt.currency.ok_or_else(|| {
         report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "currency".to_string()
+            field_name: "currency"
         })
         .attach_printable("Transaction in invalid")
     })?;
