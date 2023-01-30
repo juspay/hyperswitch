@@ -66,7 +66,7 @@ mod storage {
                 Ok(v) if v.contains(&HsetnxReply::KeyNotSet) => {
                     Err(errors::StorageError::DuplicateValue {
                         entity: "ephimeral key",
-                        key: id_key,
+                        key: None,
                     }
                     .into())
                 }

@@ -393,7 +393,7 @@ mod storage {
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "payment attempt",
-                            key,
+                            key: Some(key),
                         })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {

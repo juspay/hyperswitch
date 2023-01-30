@@ -307,7 +307,7 @@ mod storage {
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "refund",
-                            key: created_refund.refund_id,
+                            key: Some(created_refund.refund_id),
                         })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {

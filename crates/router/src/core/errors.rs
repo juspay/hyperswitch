@@ -54,8 +54,11 @@ pub enum StorageError {
     DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
-    #[error("DuplicateValue: {entity} already exists for key {key}")]
-    DuplicateValue { entity: &'static str, key: String },
+    #[error("DuplicateValue: {entity} already exists {key:?}")]
+    DuplicateValue {
+        entity: &'static str,
+        key: Option<String>,
+    },
     #[error("KV error")]
     KVError,
     #[error("Serialization failure")]
