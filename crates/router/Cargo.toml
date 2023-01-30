@@ -19,6 +19,7 @@ olap = []
 oltp = []
 production = []
 kv_store = []
+openapi = ["olap", "oltp"]
 
 
 [dependencies]
