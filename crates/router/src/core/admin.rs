@@ -416,10 +416,7 @@ pub async fn update_payment_connector(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating MerchantConnectorAccount: id: {}",
-                merchant_connector_id
-            )
+            format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
         })?;
 
     let updated_pm_enabled = updated_mca.payment_methods_enabled.map(|pm| {

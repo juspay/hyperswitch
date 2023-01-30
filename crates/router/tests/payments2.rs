@@ -24,7 +24,7 @@ fn connector_list() {
 
     let newlist: router::types::ConnectorsList = serde_json::from_str(&json).unwrap();
 
-    println!("{:#?}", newlist);
+    println!("{newlist:#?}");
     assert_eq!(true, true);
 }
 
