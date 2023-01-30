@@ -256,7 +256,10 @@ async fn should_fail_payment_for_invalid_card_cvc() {
 async fn should_fail_void_payment_for_auto_capture() {
     let connector = Stripe {};
     // Authorize
-    let authorize_response = connector.make_payment(get_payment_authorize_data(), None).await.unwrap();
+    let authorize_response = connector
+        .make_payment(get_payment_authorize_data(), None)
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
@@ -334,10 +337,14 @@ async fn should_partially_refund_succeeded_payment() {
 async fn should_partially_refund_manually_captured_payment() {
     let connector = Stripe {};
     let response = connector
-        .auth_capture_and_refund(get_payment_authorize_data(), Some(types::RefundsData {
-            refund_amount: 50,
-            ..utils::PaymentRefundType::default().0
-        }), None)
+        .auth_capture_and_refund(
+            get_payment_authorize_data(),
+            Some(types::RefundsData {
+                refund_amount: 50,
+                ..utils::PaymentRefundType::default().0
+            }),
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(
