@@ -27,13 +27,13 @@ tracing-appender = { version = "0.2.2" }
 tracing-attributes = "=0.1.22"
 tracing-opentelemetry = { version = "0.18.0" }
 tracing-subscriber = { version = "0.3.16", default-features = true, features = ["json", "env-filter", "registry"] }
-vergen = { version = "7.5.0", optional = true }
+vergen = { version = "8.0.0-beta.3", optional = true, features = ["cargo", "git", "git2", "rustc"] }
 
 [dev-dependencies]
 tokio = { version = "1.24.2", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
-vergen = "7.5.0"
+vergen = { version = "8.0.0-beta.3", features = ["cargo", "git", "git2", "rustc"] }
 
 [features]
 default = ["actix_web"]
