@@ -88,7 +88,7 @@ async fn should_authorize_and_capture_payment() {
         .sync_payment(
             Some(types::PaymentsSyncData {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    utils::get_connector_transaction_id(response.unwrap()).unwrap(),
+                    utils::get_connector_transaction_id(response.unwrap().response).unwrap(),
                 ),
                 encoded_data: None,
                 capture_method: None,
@@ -130,7 +130,7 @@ async fn should_capture_already_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -155,7 +155,7 @@ async fn should_void_already_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -181,7 +181,7 @@ async fn should_refund_succeeded_payment() {
         .unwrap();
 
     //try refund for previous payment
-    let transaction_id = utils::get_connector_transaction_id(response).unwrap();
+    let transaction_id = utils::get_connector_transaction_id(response.response).unwrap();
     let response = connector
         .refund_payment(transaction_id, None, get_default_payment_info())
         .await

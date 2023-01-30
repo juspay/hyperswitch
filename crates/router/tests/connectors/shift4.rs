@@ -4,7 +4,7 @@ use router::types::{self, api, storage::enums};
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentRefundType},
 };
 
 struct Shift4;
@@ -49,7 +49,7 @@ async fn should_capture_already_authorized_payment() {
     let connector = Shift4 {};
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -91,13 +91,43 @@ async fn should_refund_succeeded_payment() {
     let response = connector.make_payment(None, None).await.unwrap();
 
     //try refund for previous payment
-    if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response) {
         let response = connector
             .refund_payment(transaction_id, None, None)
             .await
             .unwrap();
         assert_eq!(
             response.response.unwrap().refund_status,
+            enums::RefundStatus::Success,
+        );
+    }
+}
+
+#[actix_web::test]
+async fn should_sync_refund() {
+    let connector = Shift4 {};
+    //make a successful payment
+    let response = connector.make_payment(None, None).await.unwrap();
+
+    //try refund for previous payment
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response) {
+        let res = connector
+            .refund_payment(transaction_id.clone(), None, None)
+            .await
+            .unwrap();
+        let sync_response = connector
+            .sync_refund(
+                transaction_id,
+                Some(types::RefundsData {
+                    refund_id: res.response.unwrap().connector_refund_id,
+                    ..PaymentRefundType::default().0
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            sync_response.response.unwrap().refund_status,
             enums::RefundStatus::Success,
         );
     }
