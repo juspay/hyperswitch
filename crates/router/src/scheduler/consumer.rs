@@ -234,12 +234,12 @@ pub async fn run_executor<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn some_error_handler<E: fmt::Display>(
+pub async fn consumer_error_handler<E: fmt::Display + fmt::Debug>(
     state: &AppState,
     process: storage::ProcessTracker,
     error: E,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    logger::error!(pt.name = ?process.name, pt.id = %process.id, %error, "Failed while executing workflow");
+    logger::error!(pt.name = ?process.name, pt.id = %process.id, ?error, "ERROR: Failed while executing workflow");
 
     let db: &dyn StorageInterface = &*state.store;
     db.process_tracker_update_process_status_by_ids(
