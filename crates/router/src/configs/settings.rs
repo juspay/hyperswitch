@@ -50,6 +50,7 @@ pub struct Settings {
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
+    pub webhooks: WebhooksSettings,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -193,6 +194,12 @@ pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
     pub max_read_count: u64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct WebhooksSettings {
+    pub outgoing_enabled: bool,
 }
 
 impl Settings {

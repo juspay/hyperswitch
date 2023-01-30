@@ -49,6 +49,9 @@ cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4
 max_attempts = 10
 max_age = 365
 
+[webhooks]
+outgoing_enabled = true
+
 [eph_key]
 validity = 1
 
