@@ -72,6 +72,10 @@ pub enum Flow {
     PaymentConnectorsDelete,
     /// Payment connectors list flow.
     PaymentConnectorsList,
+    /// ConfigKey create flow.
+    ConfigKeyCreate,
+    /// ConfigKey fetch flow.
+    ConfigKeyFetch,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
