@@ -64,7 +64,7 @@ impl WorldlineTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
+            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
                 card_number: Secret::new(card_number.to_string()),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
@@ -157,7 +157,7 @@ async fn should_throw_missing_required_field_for_country() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::MissingRequiredField {
-            field_name: String::from("billing.address.country")
+            field_name: "billing.address.country"
         }
     )
 }

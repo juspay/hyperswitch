@@ -119,13 +119,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
         }?;
         let browser_info = item.request.browser_info.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info".to_string(),
+                field_name: "browser_info",
             },
         )?;
         Ok(Self {
             customer_ip: browser_info.ip_address.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info.ip_address".to_string(),
+                    field_name: "browser_info.ip_address",
                 },
             )?,
             merchant_pos_id: auth_type.merchant_pos_id,
@@ -133,7 +133,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             currency_code: item.request.currency,
             description: item.description.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "item.description".to_string(),
+                    field_name: "item.description",
                 },
             )?,
             pay_methods: payment_method,
@@ -501,7 +501,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
             refund: PayuRefundRequestData {
                 description: item.request.reason.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "item.request.reason".to_string(),
+                        field_name: "item.request.reason",
                     },
                 )?,
                 amount: None,

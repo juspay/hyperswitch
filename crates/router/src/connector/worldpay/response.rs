@@ -87,7 +87,7 @@ where
         .map(transform_fn);
     reference_id.ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
-            field_name: "links.events".to_string(),
+            field_name: "links.events",
         }
         .into()
     })

@@ -20,7 +20,10 @@ pub enum StripeErrorCode {
     InvalidRequestUrl,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Missing required param: {field_name}.")]
-    ParameterMissing { field_name: String, param: String },
+    ParameterMissing {
+        field_name: &'static str,
+        param: &'static str,
+    },
 
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "parameter_unknown",
@@ -327,7 +330,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
-                    field_name: field_name.to_owned(),
+                    field_name,
                     param: field_name,
                 }
             }
@@ -395,8 +398,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PreconditionFailed { message }
             }
             errors::ApiErrorResponse::InvalidDataValue { field_name } => Self::ParameterMissing {
-                field_name: field_name.to_owned(),
-                param: field_name.to_owned(),
+                field_name,
+                param: field_name,
             },
             errors::ApiErrorResponse::MaximumRefundCount => Self::MaximumRefundCount,
             errors::ApiErrorResponse::PaymentNotSucceeded => Self::PaymentFailed,

@@ -72,6 +72,7 @@ async fn payments_incoming_webhook_flow(
                 .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
             create_event_and_trigger_outgoing_webhook(
+                state,
                 merchant_account,
                 event_type,
                 enums::EventClass::Payments,
@@ -79,7 +80,6 @@ async fn payments_incoming_webhook_flow(
                 payment_id,
                 enums::EventObjectType::PaymentDetails,
                 api::OutgoingWebhookContent::PaymentDetails(payments_response),
-                state.store,
             )
             .await?;
         }
@@ -93,6 +93,7 @@ async fn payments_incoming_webhook_flow(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn create_event_and_trigger_outgoing_webhook(
+    state: AppState,
     merchant_account: storage::MerchantAccount,
     event_type: enums::EventType,
     event_class: enums::EventClass,
@@ -100,12 +101,7 @@ async fn create_event_and_trigger_outgoing_webhook(
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
-    db: Box<dyn StorageInterface>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let arbiter = actix::Arbiter::try_current()
-        .ok_or(errors::WebhooksFlowError::ForkFlowFailed)
-        .into_report()?;
-
     let new_event = storage::EventNew {
         event_id: generate_id(consts::ID_LENGTH, "evt"),
         event_type,
@@ -116,26 +112,34 @@ async fn create_event_and_trigger_outgoing_webhook(
         primary_object_type,
     };
 
-    let event = db
+    let event = state
+        .store
         .insert_event(new_event)
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventCreationFailed)?;
 
-    let outgoing_webhook = api::OutgoingWebhook {
-        merchant_id: merchant_account.merchant_id.clone(),
-        event_id: event.event_id,
-        event_type: event.event_type.foreign_into(),
-        content,
-        timestamp: event.created_at,
-    };
+    if state.conf.webhooks.outgoing_enabled {
+        let arbiter = actix::Arbiter::try_current()
+            .ok_or(errors::WebhooksFlowError::ForkFlowFailed)
+            .into_report()?;
 
-    arbiter.spawn(async move {
-        let result = trigger_webhook_to_merchant(merchant_account, outgoing_webhook, db).await;
+        let outgoing_webhook = api::OutgoingWebhook {
+            merchant_id: merchant_account.merchant_id.clone(),
+            event_id: event.event_id,
+            event_type: event.event_type.foreign_into(),
+            content,
+            timestamp: event.created_at,
+        };
 
-        if let Err(e) = result {
-            logger::error!(?e);
-        }
-    });
+        arbiter.spawn(async move {
+            let result =
+                trigger_webhook_to_merchant(merchant_account, outgoing_webhook, state.store).await;
+
+            if let Err(e) = result {
+                logger::error!(?e);
+            }
+        });
+    }
 
     Ok(())
 }

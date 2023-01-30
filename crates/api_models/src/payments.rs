@@ -96,7 +96,7 @@ pub struct PaymentsRequest {
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
-
+    /// This is used when payment is to be confirmed and the card is not saved
     #[schema(value_type = Option<String>)]
     pub card_cvc: Option<Secret<String>>,
     /// The shipping address for the payment
@@ -301,7 +301,7 @@ pub struct OnlineMandate {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CCard {
+pub struct Card {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
     pub card_number: Secret<String, pii::CardNumber>,
@@ -375,17 +375,13 @@ pub enum PayLaterData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethod {
-    #[serde(rename(deserialize = "card"))]
-    Card(CCard),
+    Card(Card),
     #[default]
-    #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
-    #[serde(rename(deserialize = "wallet"))]
     Wallet(WalletData),
-    #[serde(rename(deserialize = "pay_later"))]
     PayLater(PayLaterData),
-    #[serde(rename(deserialize = "paypal"))]
     Paypal,
 }
 
@@ -399,7 +395,7 @@ pub struct WalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
-pub struct CCardResponse {
+pub struct CardResponse {
     last4: String,
     exp_month: String,
     exp_year: String,
@@ -408,7 +404,7 @@ pub struct CCardResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
-    Card(CCardResponse),
+    Card(CardResponse),
     #[serde(rename(deserialize = "bank_transfer"))]
     BankTransfer,
     Wallet(WalletData),
@@ -936,8 +932,8 @@ impl From<PaymentsCaptureRequest> for PaymentsResponse {
     }
 }
 
-impl From<CCard> for CCardResponse {
-    fn from(card: CCard) -> Self {
+impl From<Card> for CardResponse {
+    fn from(card: Card) -> Self {
         let card_number_length = card.card_number.peek().clone().len();
         Self {
             last4: card.card_number.peek().clone()[card_number_length - 4..card_number_length]
@@ -951,7 +947,7 @@ impl From<CCard> for CCardResponse {
 impl From<PaymentMethod> for PaymentMethodDataResponse {
     fn from(payment_method_data: PaymentMethod) -> Self {
         match payment_method_data {
-            PaymentMethod::Card(card) => Self::Card(CCardResponse::from(card)),
+            PaymentMethod::Card(card) => Self::Card(CardResponse::from(card)),
             PaymentMethod::BankTransfer => Self::BankTransfer,
             PaymentMethod::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
             PaymentMethod::Wallet(wallet_data) => Self::Wallet(wallet_data),

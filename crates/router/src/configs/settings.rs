@@ -25,6 +25,7 @@ pub struct CmdLineConf {
 
 #[derive(clap::Parser)]
 pub enum Subcommand {
+    #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
 }
@@ -49,6 +50,7 @@ pub struct Settings {
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
+    pub webhooks: WebhooksSettings,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -163,8 +165,8 @@ pub struct ConnectorParams {
 #[serde(default)]
 pub struct SchedulerSettings {
     pub stream: String,
-    pub consumer_group: String,
     pub producer: ProducerSettings,
+    pub consumer: ConsumerSettings,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -178,6 +180,13 @@ pub struct ProducerSettings {
     pub batch_size: usize,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ConsumerSettings {
+    pub disabled: bool,
+    pub consumer_group: String,
+}
+
 #[cfg(feature = "kv_store")]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
@@ -185,6 +194,12 @@ pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
     pub max_read_count: u64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct WebhooksSettings {
+    pub outgoing_enabled: bool,
 }
 
 impl Settings {
