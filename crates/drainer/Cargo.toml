@@ -18,7 +18,7 @@ serde = "1.0.152"
 serde_json = "1.0.91"
 serde_path_to_error = "0.1.9"
 thiserror = "1.0.38"
-tokio = { version = "1.24.2", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 
 # First Party Crates
 common_utils = { version = "0.1.0", path = "../common_utils" }

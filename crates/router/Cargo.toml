@@ -69,7 +69,7 @@ signal-hook = "0.3.14"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.38"
 time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.24.2", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
 utoipa = { version = "3.0.1", features = ["preserve_order", "time"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
@@ -93,8 +93,8 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "1.0.0"
 time = { version = "0.3.17", features = ["macros"] }
-tokio = "1.24.2"
-toml = "0.6.0"
+tokio = "1.25.0"
+toml = "0.7.0"
 wiremock = "0.5"
 
 [[bin]]
