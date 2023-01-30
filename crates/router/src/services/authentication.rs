@@ -204,7 +204,7 @@ pub fn check_client_secret_and_get_auth(
             .get_client_secret()
             .check_value_present("client_secret")
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret".to_owned(),
+                field_name: "client_secret",
             })?;
         return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
     }
