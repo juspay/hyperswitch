@@ -133,7 +133,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
 fn make_card_request(
     address: &types::PaymentAddress,
     req: &types::PaymentsAuthorizeData,
-    ccard: &api_models::CCard,
+    ccard: &api_models::Card,
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let card_number = ccard.card_number.peek().as_ref();
     let expiry_year = ccard.card_exp_year.peek().clone();
