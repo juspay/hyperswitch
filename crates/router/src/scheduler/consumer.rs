@@ -198,13 +198,14 @@ pub async fn fetch_consumer_tasks(
 }
 
 // Accept flow_options if required
-#[instrument(skip(state))]
+#[instrument(skip(state), fields(workflow_id))]
 pub async fn start_workflow(
     state: AppState,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
     runner: workflows::PTRunner,
 ) {
+    tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     workflows::perform_workflow_execution(&state, process, runner).await
 }
 
