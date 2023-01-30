@@ -29,6 +29,7 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
+    pub router_return_url: Option<String>,
 }
 
 #[async_trait]
@@ -57,7 +58,11 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
+            types::PaymentsAuthorizeData {
+                confirm: false,
+                capture_method: Some(storage_models::enums::CaptureMethod::Automatic),
+                ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
             payment_info,
         );
         call_connector(request, integration).await
@@ -216,7 +221,7 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         //make a successful payment
         let response = self
-            .authorize_and_capture_payment(authorize_data, None, None)
+            .authorize_and_capture_payment(authorize_data, None, payment_info.clone())
             .await
             .unwrap();
         assert_eq!(response.status, enums::AttemptStatus::Charged);
@@ -302,6 +307,7 @@ pub trait ConnectorActions: Connector {
                 )
                 .await
                 .unwrap();
+            print!(">>>>>{:?}", sync_res);
             if (sync_res.clone().response.unwrap().refund_status == status)
                 || (curr_try == max_tries - 1)
             {
@@ -324,7 +330,7 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: Some(uuid::Uuid::new_v4().to_string()),
             status: enums::AttemptStatus::default(),
-            router_return_url: None,
+            router_return_url: info.clone().and_then(|a| a.router_return_url),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -493,7 +499,7 @@ impl Default for PaymentRefundType {
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
-            refund_amount: 100,
+            refund_amount: 150,
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,

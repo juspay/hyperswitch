@@ -14,13 +14,14 @@ pub(crate) struct ConnectorAuthentication {
     pub shift4: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
+    pub adyen: Option<BodyKey>,
 }
 
 impl ConnectorAuthentication {
     pub(crate) fn new() -> Self {
         #[allow(clippy::expect_used)]
         toml::de::from_slice(
-            &std::fs::read("tests/connectors/auth.toml")
+            &std::fs::read("tests/connectors/sample_auth.toml")
                 .expect("connector authentication config file not found"),
         )
         .expect("Failed to read connector authentication config file")

@@ -390,7 +390,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
-    pub status: String,
+    pub status: Option<String>,
     pub message: Option<String>,
     pub details: serde_json::Value,
 }
