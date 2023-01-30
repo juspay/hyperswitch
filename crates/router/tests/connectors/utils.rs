@@ -216,9 +216,9 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         //make a successful payment
         let response = self
-        .authorize_and_capture_payment(authorize_data, None, None)
-        .await
-        .unwrap();
+            .authorize_and_capture_payment(authorize_data, None, None)
+            .await
+            .unwrap();
         assert_eq!(response.status, enums::AttemptStatus::Charged);
 
         //try refund for previous payment
@@ -503,7 +503,7 @@ impl Default for PaymentRefundType {
 }
 
 pub fn get_connector_transaction_id(
-    response:  Result<types::PaymentsResponseData, types::ErrorResponse>,
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<String> {
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {

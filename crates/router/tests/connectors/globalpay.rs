@@ -1,4 +1,5 @@
 use std::{thread::sleep, time::Duration};
+
 use masking::Secret;
 use router::types::{
     self,
