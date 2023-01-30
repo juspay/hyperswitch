@@ -8,7 +8,8 @@ use crate::{
     types::api::customers,
 };
 
-/// Create Customer
+// Create Customer
+
 ///
 /// Create a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
@@ -18,7 +19,9 @@ use crate::{
     responses(
         (status = 200, description = "Customer Created", body = CustomerResponse),
         (status = 400, description = "Invalid data")
-    )
+    ),
+     tag = "Customers",
+     operation_id = "Create a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -36,7 +39,8 @@ pub async fn customers_create(
     .await
 }
 
-/// Retrieve Customer
+// Retrieve Customer
+
 ///
 /// Retrieve a customer's details.
 #[utoipa::path(
@@ -46,7 +50,9 @@ pub async fn customers_create(
     responses(
         (status = 200, description = "Customer Retrieved", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers",
+     operation_id = "Retrieve a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
@@ -75,7 +81,8 @@ pub async fn customers_retrieve(
     .await
 }
 
-/// Update Customer
+// Update Customer
+
 ///
 /// Updates the customer's details in a customer object.
 #[utoipa::path(
@@ -86,7 +93,9 @@ pub async fn customers_retrieve(
     responses(
         (status = 200, description = "Customer was Updated", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers",
+     operation_id = "Update a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
@@ -107,7 +116,8 @@ pub async fn customers_update(
     .await
 }
 
-/// Delete Customer
+// Delete Customer
+
 ///
 /// Delete a customer record.
 #[utoipa::path(
@@ -117,7 +127,9 @@ pub async fn customers_update(
     responses(
         (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers",
+     operation_id = "Delete a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
