@@ -74,7 +74,7 @@ pub enum ApiErrorResponse {
     )]
     InvalidJwtToken,
     #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_17",
+        error_type = ErrorType::InvalidRequestError, code = "IR_18",
         message = "{message}",
     )]
     GenericUnauthorized { message: String },
