@@ -1,6 +1,5 @@
 use masking::Secret;
 use router::types::{self, api, storage::enums};
-use storage_models::schema::connector_response::encoded_data;
 
 use crate::{
     connector_auth,
