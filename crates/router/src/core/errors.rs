@@ -7,7 +7,7 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
-use error_stack::{self, report};
+use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 use storage_models::errors as storage_errors;
@@ -71,12 +71,6 @@ pub enum StorageError {
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
     fn from(err: error_stack::Report<storage_errors::DatabaseError>) -> Self {
         Self::DatabaseError(err)
-    }
-}
-
-impl From<storage_errors::DatabaseError> for StorageError {
-    fn from(err: storage_errors::DatabaseError) -> Self {
-        Self::DatabaseError(report!(err))
     }
 }
 
