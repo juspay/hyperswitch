@@ -5,7 +5,6 @@ use serde::Deserialize;
 pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
-    pub braintree: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub fiserv: Option<SignatureKey>,
@@ -16,7 +15,6 @@ pub(crate) struct ConnectorAuthentication {
     pub stripe: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
-    pub adyen: Option<BodyKey>,
 }
 
 impl ConnectorAuthentication {
