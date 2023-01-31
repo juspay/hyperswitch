@@ -497,7 +497,7 @@ impl Default for PaymentRefundType {
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
-            refund_amount: 150,
+            refund_amount: 100,
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,

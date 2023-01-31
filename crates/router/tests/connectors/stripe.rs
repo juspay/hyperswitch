@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 

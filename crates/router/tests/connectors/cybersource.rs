@@ -263,7 +263,6 @@ async fn should_fail_void_payment_for_reversed_payment() {
         .await
         .unwrap();
     let res = void_response.response.unwrap_err();
-    println!("{:?}", res);
     assert_eq!(
         res.message,
         "Decline - The authorization has already been reversed."
