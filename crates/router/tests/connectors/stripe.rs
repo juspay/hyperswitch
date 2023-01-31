@@ -141,7 +141,7 @@ async fn should_void_already_authorized_payment() {
         .authorize_and_void_payment(
             get_payment_authorize_data(),
             Some(types::PaymentsCancelData {
-                connector_transaction_id: "".to_string(),
+                connector_transaction_id: "".to_string(), // this transaction will be ignored and it will use the one from payment authorize data
                 cancellation_reason: Some("requested_by_customer".to_string()),
             }),
             None,

@@ -96,13 +96,18 @@ impl ConnectorCommon for Cybersource {
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
-            message: format!(
-                "{} {}",
-                response.message.unwrap_or_default(),
-                response.details.map(|d| d.to_string()).unwrap_or_default()
-            )
-            .trim()
-            .to_string(),
+            message: response
+                .message
+                .map(|m| {
+                    format!(
+                        "{} {}",
+                        m,
+                        response.details.map(|d| d.to_string()).unwrap_or_default()
+                    )
+                    .trim()
+                    .to_string()
+                })
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: response.reason,
         })
     }
