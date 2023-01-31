@@ -306,7 +306,6 @@ pub trait ConnectorActions: Connector {
                 )
                 .await
                 .unwrap();
-            print!(">>>>>{:?}", sync_res);
             if (sync_res.clone().response.unwrap().refund_status == status)
                 || (curr_try == max_tries - 1)
             {

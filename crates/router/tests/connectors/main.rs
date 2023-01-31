@@ -3,6 +3,7 @@
 mod aci;
 mod adyen;
 mod authorizedotnet;
+mod braintree;
 mod checkout;
 mod connector_auth;
 mod cybersource;
