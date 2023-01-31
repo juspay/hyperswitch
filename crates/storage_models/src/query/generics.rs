@@ -153,12 +153,12 @@ where
 
     // The below also panics with to_string and needs to be handled
     match query.get_results_async(conn).await.map(|mut vec_r| {
-        if vec_r.len() == 0 {
+        if vec_r.is_empty() {
             Err(errors::DatabaseError::NotFound)
         } else if vec_r.len() != 1 {
             Err(errors::DatabaseError::Others)
         } else {
-            vec_r.pop().ok_or_else(|| errors::DatabaseError::Others)
+            vec_r.pop().ok_or(errors::DatabaseError::Others)
         }
         .into_report()
         .attach_printable_lazy(|| format!("Maybe not queried using a unique key {debug_values}"))
