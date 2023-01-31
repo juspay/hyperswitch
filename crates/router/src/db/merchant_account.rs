@@ -26,6 +26,12 @@ pub trait MerchantAccountInterface {
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
 
+    async fn normal_update_merchant(
+        &self,
+        merchant_id: &str,
+        merchant_account: storage::MerchantAccountUpdate,
+    ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
+
     async fn find_merchant_account_by_api_key(
         &self,
         api_key: &str,
@@ -74,6 +80,18 @@ impl MerchantAccountInterface for Store {
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         this.update(&conn, merchant_account)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn normal_update_merchant(
+        &self,
+        merchant_id: &str,
+        merchant_account: storage::MerchantAccountUpdate,
+    ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await;
+        storage::MerchantAccount::normal_update(&conn, merchant_id, merchant_account)
             .await
             .map_err(Into::into)
             .into_report()
@@ -172,6 +190,15 @@ impl MerchantAccountInterface for MockDb {
         _merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn normal_update_merchant(
+        &self,
+        _merchant_id: &str,
+        _merchant_account: storage::MerchantAccountUpdate,
+    ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
+        // [#TODO]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 

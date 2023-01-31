@@ -48,7 +48,7 @@ pub struct MerchantAccountNew {
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
-        merchant_id: String,
+        merchant_id: Option<String>,
         merchant_name: Option<String>,
         api_key: Option<StrongSecret<String>>,
         merchant_details: Option<serde_json::Value>,
@@ -106,7 +106,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
             } => Self {
-                merchant_id: Some(merchant_id),
+                merchant_id,
                 merchant_name,
                 api_key,
                 merchant_details,
