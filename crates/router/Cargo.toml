@@ -25,19 +25,19 @@ openapi = ["olap", "oltp"]
 [dependencies]
 actix = "0.13.0"
 actix-cors = "0.6.4"
-actix-rt = "2.7.0"
-actix-web = "4.2.1"
+actix-rt = "2.8.0"
+actix-web = "4.3.0"
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
-async-trait = "0.1.61"
-aws-config = { version = "0.52.0", optional = true }
-aws-sdk-kms = { version = "0.22.0", optional = true }
+async-trait = "0.1.63"
+aws-config = { version = "0.54.1", optional = true }
+aws-sdk-kms = { version = "0.24.0", optional = true }
 base64 = "0.21.0"
 bb8 = "0.8"
 bytes = "1.3.0"
-clap = { version = "4.1.1", default-features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.1.4", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-diesel = { version = "2.0.2", features = ["postgres", "serde_json", "time"] }
+diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time"] }
 dyn-clone = "1.0.10"
 encoding_rs = "0.8.31"
 error-stack = "0.2.4"
@@ -57,7 +57,7 @@ num_cpus = "1.15.0"
 once_cell = "1.17.0"
 rand = "0.8.5"
 regex = "1.7.1"
-reqwest = { version = "0.11.13", features = ["json", "native-tls", "gzip"] }
+reqwest = { version = "0.11.14", features = ["json", "native-tls", "gzip"] }
 ring = "0.16.20"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
@@ -69,10 +69,9 @@ signal-hook = "0.3.14"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.38"
 time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
-# Switch to the crates.io release of `utoipa` when the `preserve_order` feature is available in the release
-utoipa = { git = "https://github.com/juhaku/utoipa", rev = "2a5c09d953f14dc78af655bbcfd016ce9a71baa0", features = ["preserve_order", "time"] }
+utoipa = { version = "3.0.1", features = ["preserve_order", "time"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 
 # First party crates
@@ -88,14 +87,14 @@ storage_models = { version = "0.1.0", path = "../storage_models", features = ["k
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
 
 [dev-dependencies]
-actix-http = "3.2.2"
-awc = { version = "3.0.1", features = ["rustls"] }
+actix-http = "3.3.0"
+awc = { version = "3.1.0", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
-serial_test = "0.10.0"
+serial_test = "1.0.0"
 time = { version = "0.3.17", features = ["macros"] }
-tokio = "1.24.1"
-toml = "0.5.10"
+tokio = "1.25.0"
+toml = "0.7.0"
 wiremock = "0.5"
 
 [[bin]]
