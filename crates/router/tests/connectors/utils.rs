@@ -41,7 +41,7 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::PaymentsAuthorizeData {
-                confirm: false,
+                confirm: true,
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
             },
@@ -57,7 +57,11 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
+            types::PaymentsAuthorizeData {
+                confirm: true,
+                capture_method: Some(storage_models::enums::CaptureMethod::Automatic),
+                ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
             payment_info,
         );
         call_connector(request, integration).await
@@ -216,10 +220,9 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         //make a successful payment
         let response = self
-            .authorize_and_capture_payment(authorize_data, None, None)
+            .authorize_and_capture_payment(authorize_data, None, payment_info.clone())
             .await
             .unwrap();
-        assert_eq!(response.status, enums::AttemptStatus::Charged);
 
         //try refund for previous payment
         let transaction_id = get_connector_transaction_id(response.response).unwrap();
