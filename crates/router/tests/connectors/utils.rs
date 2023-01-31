@@ -29,6 +29,7 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
+    pub router_return_url: Option<String>,
 }
 
 #[async_trait]
@@ -305,6 +306,7 @@ pub trait ConnectorActions: Connector {
                 )
                 .await
                 .unwrap();
+            print!(">>>>>{:?}", sync_res);
             if (sync_res.clone().response.unwrap().refund_status == status)
                 || (curr_try == max_tries - 1)
             {
@@ -327,7 +329,7 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: Some(uuid::Uuid::new_v4().to_string()),
             status: enums::AttemptStatus::default(),
-            router_return_url: None,
+            router_return_url: info.clone().and_then(|a| a.router_return_url),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -496,7 +498,7 @@ impl Default for PaymentRefundType {
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
-            refund_amount: 100,
+            refund_amount: 150,
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,

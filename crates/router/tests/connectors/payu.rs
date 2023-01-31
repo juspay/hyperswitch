@@ -41,9 +41,8 @@ fn get_access_token() -> Option<AccessToken> {
 }
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: None,
-        auth_type: None,
         access_token: get_access_token(),
+        ..Default::default()
     })
 }
 
