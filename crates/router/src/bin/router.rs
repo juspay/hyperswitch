@@ -1,5 +1,5 @@
 use router::{
-    configs::settings::{CmdLineConf, Settings, Subcommand},
+    configs::settings::{CmdLineConf, Settings},
     core::errors::{ApplicationError, ApplicationResult},
     logger,
 };
@@ -8,18 +8,23 @@ use router::{
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
-    if let Some(Subcommand::GenerateOpenapiSpec) = cmd_line.subcommand {
-        let file_path = "openapi/generated.json";
-        #[allow(clippy::expect_used)]
-        std::fs::write(
-            file_path,
-            <router::openapi::ApiDoc as utoipa::OpenApi>::openapi()
-                .to_pretty_json()
-                .expect("Failed to generate serialize OpenAPI specification as JSON"),
-        )
-        .expect("Failed to write OpenAPI specification to file");
-        println!("Successfully saved OpenAPI specification file at '{file_path}'");
-        return Ok(());
+
+    #[cfg(feature = "openapi")]
+    {
+        use router::configs::settings::Subcommand;
+        if let Some(Subcommand::GenerateOpenapiSpec) = cmd_line.subcommand {
+            let file_path = "openapi/generated.json";
+            #[allow(clippy::expect_used)]
+            std::fs::write(
+                file_path,
+                <router::openapi::ApiDoc as utoipa::OpenApi>::openapi()
+                    .to_pretty_json()
+                    .expect("Failed to generate serialize OpenAPI specification as JSON"),
+            )
+            .expect("Failed to write OpenAPI specification to file");
+            println!("Successfully saved OpenAPI specification file at '{file_path}'");
+            return Ok(());
+        }
     }
 
     #[allow(clippy::expect_used)]

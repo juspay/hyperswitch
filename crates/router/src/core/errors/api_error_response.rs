@@ -28,7 +28,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "The HTTP method is not applicable for this API.")]
     InvalidHttpMethod,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_05", message = "Missing required param: {field_name}.")]
-    MissingRequiredField { field_name: String },
+    MissingRequiredField { field_name: &'static str },
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_06",
         message = "{field_name} contains invalid data. Expected format is {expected_format}."

@@ -93,7 +93,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
             },
             transaction_reference: item.attempt_id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "attempt_id".to_string(),
+                    field_name: "attempt_id",
                 },
             )?,
             channel: None,
@@ -160,7 +160,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
             status: match item.response.outcome {
                 Some(outcome) => enums::AttemptStatus::from(outcome),
                 None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "outcome".to_string(),
+                    field_name: "outcome",
                 })?,
             },
             description: item.response.description,

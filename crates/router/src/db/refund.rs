@@ -305,13 +305,11 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_refund)
                         .await
                     {
-                        Ok(HsetnxReply::KeyNotSet) => {
-                            Err(errors::StorageError::DuplicateValue(format!(
-                                "Refund already exists refund_id: {}",
-                                &created_refund.refund_id
-                            )))
-                            .into_report()
-                        }
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                            entity: "refund",
+                            key: Some(created_refund.refund_id),
+                        })
+                        .into_report(),
                         Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
 

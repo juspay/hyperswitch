@@ -198,14 +198,14 @@ pub async fn merchant_account_update(
 pub async fn merchant_account_delete(
     db: &dyn StorageInterface,
     merchant_id: String,
-) -> RouterResponse<api::DeleteResponse> {
+) -> RouterResponse<api::DeleteMerchantAccountResponse> {
     let is_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
-    let response = api::DeleteResponse {
+    let response = api::DeleteMerchantAccountResponse {
         merchant_id,
         deleted: is_deleted,
     };

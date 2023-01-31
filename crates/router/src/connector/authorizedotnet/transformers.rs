@@ -317,7 +317,7 @@ impl<F, T>
             })
             .transpose()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata".to_string(),
+                field_name: "connector_metadata",
             })?;
 
         Ok(Self {
@@ -373,7 +373,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             .as_ref()
             .get_required_value("connector_metadata")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata".to_string(),
+                field_name: "connector_metadata",
             })?
             .clone();
 
@@ -385,7 +385,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             payment: payment_details
                 .parse_value("PaymentDetails")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_details".to_string(),
+                    field_name: "payment_details",
                 })?,
             currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),

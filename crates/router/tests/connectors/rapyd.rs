@@ -38,7 +38,7 @@ async fn should_only_authorize_payment() {
     let response = Rapyd {}
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4111111111111111".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
@@ -60,7 +60,7 @@ async fn should_authorize_and_capture_payment() {
     let response = Rapyd {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4111111111111111".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
@@ -137,7 +137,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = Rapyd {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("0000000000000000".to_string()),
                     ..utils::CCardType::default().0
                 }),

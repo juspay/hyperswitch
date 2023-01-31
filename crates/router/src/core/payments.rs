@@ -257,7 +257,7 @@ where
 
     let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_id".to_string(),
+            field_name: "payment_id",
         })?;
 
     let connector_data = api::ConnectorData::get_connector_by_name(

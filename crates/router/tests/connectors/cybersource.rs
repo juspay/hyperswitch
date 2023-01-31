@@ -151,7 +151,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4024007134364111".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -169,7 +169,7 @@ async fn should_fail_payment_for_no_card_number() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -187,7 +187,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_exp_month: Secret::new("13".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -208,7 +208,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_exp_year: Secret::new("2022".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -226,7 +226,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_cvc: Secret::new("2131233213".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -334,6 +334,7 @@ async fn should_partially_refund_succeeded_payment() {
         enums::RefundStatus::Pending,
     );
 }
+
 #[actix_web::test]
 async fn should_partially_refund_manually_captured_payment() {
     let connector = Cybersource {};

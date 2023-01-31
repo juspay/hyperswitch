@@ -43,7 +43,7 @@ async fn should_only_authorize_payment() {
     let response = Fiserv {}
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4005550000000019".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2035".to_string()),
@@ -65,7 +65,7 @@ async fn should_authorize_and_capture_payment() {
     let response = Fiserv {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4005550000000019".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2035".to_string()),
@@ -86,7 +86,7 @@ async fn should_capture_already_authorized_payment() {
     let authorize_response = connector
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4005550000000019".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2035".to_string()),
@@ -119,7 +119,7 @@ async fn should_fail_payment_for_missing_cvc() {
     let response = Fiserv {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4005550000000019".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2035".to_string()),
