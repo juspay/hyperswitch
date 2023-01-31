@@ -1,5 +1,5 @@
 pub use api_models::payments::{
-    AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, CCard,
+    AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
     NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethod, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
@@ -182,8 +182,8 @@ mod payments_test {
     use super::*;
 
     #[allow(dead_code)]
-    fn card() -> CCard {
-        CCard {
+    fn card() -> Card {
+        Card {
             card_number: "1234432112344321".to_string().into(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),

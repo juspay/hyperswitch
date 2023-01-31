@@ -156,7 +156,7 @@ pub fn divide_into_batches(
         .fold(Vec::new(), |mut batches, item| {
             let batch = ProcessTrackerBatch {
                 id: batch_id.clone(),
-                group_name: conf.consumer_group.clone(),
+                group_name: conf.consumer.consumer_group.clone(),
                 stream_name: conf.stream.clone(),
                 connection_name: String::new(),
                 created_time: batch_creation_time,

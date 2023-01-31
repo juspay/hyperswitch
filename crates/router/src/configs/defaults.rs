@@ -82,8 +82,8 @@ impl Default for super::settings::SchedulerSettings {
     fn default() -> Self {
         Self {
             stream: "SCHEDULER_STREAM".into(),
-            consumer_group: "SCHEDULER_GROUP".into(),
             producer: super::settings::ProducerSettings::default(),
+            consumer: super::settings::ConsumerSettings::default(),
         }
     }
 }
@@ -96,6 +96,15 @@ impl Default for super::settings::ProducerSettings {
             lock_key: "PRODUCER_LOCKING_KEY".into(),
             lock_ttl: 160,
             batch_size: 200,
+        }
+    }
+}
+
+impl Default for super::settings::ConsumerSettings {
+    fn default() -> Self {
+        Self {
+            disabled: false,
+            consumer_group: "SCHEDULER_GROUP".into(),
         }
     }
 }

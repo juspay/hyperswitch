@@ -67,18 +67,29 @@ pub enum RefundType {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundResponse {
+    /// The identifier for refund
     pub refund_id: String,
+    /// The identifier for payment
     pub payment_id: String,
+    /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
     pub amount: i64,
+    /// The three-letter ISO currency code
     pub currency: String,
+    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     pub reason: Option<String>,
+    /// The status for refund
     pub status: RefundStatus,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<serde_json::Value>,
+    /// The error message
     pub error_message: Option<String>,
+    /// The code for the error
     pub error_code: Option<String>,
+    /// The timestamp at which refund is created
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    /// The timestamp at which refund is updated
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
 }
@@ -114,11 +125,13 @@ pub struct RefundListRequest {
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
+    /// The list of refund response
     pub data: Vec<RefundResponse>,
 }
 
+/// The status for refunds
 #[derive(Debug, Eq, Clone, PartialEq, Default, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {

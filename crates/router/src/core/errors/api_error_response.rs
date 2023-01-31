@@ -18,8 +18,8 @@ pub enum ErrorType {
 #[derive(Debug, Clone, router_derive::ApiError)]
 #[error(error_type_enum = ErrorType)]
 pub enum ApiErrorResponse {
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "This API is under development and will be made available soon")]
-    NotImplemented,
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "IR_00", message = "{message:?}")]
+    NotImplemented { message: NotImplementedMessage },
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_01",
         message = "API key not provided or invalid API key used"
@@ -30,7 +30,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "The HTTP method is not applicable for this API")]
     InvalidHttpMethod,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "Missing required param: {field_name}")]
-    MissingRequiredField { field_name: String },
+    MissingRequiredField { field_name: &'static str },
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_05",
         message = "{field_name} contains invalid data. Expected format is {expected_format}"
@@ -73,6 +73,12 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid JWT token was used"
     )]
     InvalidJwtToken,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_17",
+        message = "{message}",
+    )]
+    GenericUnauthorized { message: String },
+
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -176,9 +182,10 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::InvalidEphemeralKey | Self::InvalidJwtToken => {
-                StatusCode::UNAUTHORIZED
-            } // 401
+            Self::Unauthorized
+            | Self::InvalidEphemeralKey
+            | Self::InvalidJwtToken
+            | Self::GenericUnauthorized { .. } => StatusCode::UNAUTHORIZED, // 401
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }

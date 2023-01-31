@@ -445,12 +445,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req
-            .response
+            .request
+            .connector_refund_id
             .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(format!(
             "{}refunds/{}",
             self.base_url(connectors),

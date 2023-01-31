@@ -34,7 +34,7 @@ where
         AsQuery + LoadQuery<'static, PgConnection, R> + Send,
     R: Send + 'static,
 {
-    let debug_values = format!("{:?}", values);
+    let debug_values = format!("{values:?}");
 
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -49,7 +49,7 @@ where
             _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
-    .attach_printable_lazy(|| format!("Error while inserting {}", debug_values))
+    .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -68,7 +68,7 @@ where
         <V as AsChangeset>::Changeset,
     >: AsQuery + QueryFragment<Pg> + QueryId + Send + 'static,
 {
-    let debug_values = format!("{:?}", values);
+    let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -78,7 +78,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| format!("Error while updating {}", debug_values))
+        .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -98,7 +98,7 @@ where
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
     R: Send + 'static,
 {
-    let debug_values = format!("{:?}", values);
+    let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -108,7 +108,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| format!("Error while updating {}", debug_values))
+        .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -138,7 +138,7 @@ where
     <V as AsChangeset>::Changeset: Clone,
     <<<T as FindDsl<Pk>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
-    let debug_values = format!("{:?}", values);
+    let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
 
@@ -152,10 +152,10 @@ where
         }
         Err(ConnectionError::Query(DieselError::NotFound)) => {
             Err(report!(errors::DatabaseError::NotFound))
-                .attach_printable_lazy(|| format!("Error while updating by ID {}", debug_values))
+                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
         }
         _ => Err(report!(errors::DatabaseError::Others))
-            .attach_printable_lazy(|| format!("Error while updating by ID {}", debug_values)),
+            .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
     }
 }
 
@@ -243,7 +243,7 @@ where
             _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
-    .attach_printable_lazy(|| format!("Error finding record by primary key: {:?}", id))
+    .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
 }
 
 #[instrument(level = "DEBUG", skip_all)]

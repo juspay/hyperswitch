@@ -344,7 +344,8 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::convert_and_url_encode(req)
+        let req = stripe::PaymentIntentRequest::try_from(req)?;
+        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::encode(&req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
@@ -779,13 +780,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req
-            .response
-            .as_ref()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+            .request
             .connector_refund_id
-            .clone();
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
         Ok(format!("{}v1/refunds/{}", self.base_url(connectors), id))
     }
 
