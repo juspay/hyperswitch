@@ -8,7 +8,7 @@ use crate::{
     types::api as api_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyFetch))]
 pub async fn config_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
