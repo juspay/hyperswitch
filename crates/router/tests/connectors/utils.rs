@@ -1,13 +1,13 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, time::Duration};
 
 use async_trait::async_trait;
 use error_stack::Report;
 use masking::Secret;
 use router::{
-    core::{errors::ConnectorError, payments},
+    core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, PaymentAddress},
+    types::{self, api, storage::enums, AccessToken, PaymentAddress},
 };
 use wiremock::{Mock, MockServer};
 
@@ -18,12 +18,17 @@ pub trait Connector {
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None
     }
+    /// interval in seconds to be followed when making the subsequent request whenever needed
+    fn get_request_interval(&self) -> u64 {
+        5
+    }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
+    pub access_token: Option<AccessToken>,
 }
 
 #[async_trait]
@@ -35,14 +40,16 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| types::PaymentsAuthorizeData {
+            types::PaymentsAuthorizeData {
+                confirm: false,
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
-                ..PaymentAuthorizeType::default().0
-            }),
+                ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
             payment_info,
         );
         call_connector(request, integration).await
     }
+
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -69,6 +76,27 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
+    /// will retry the psync till the given status matches or retry max 3 times
+    async fn psync_retry_till_status_matches(
+        &self,
+        status: enums::AttemptStatus,
+        payment_data: Option<types::PaymentsSyncData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsSyncRouterData, Report<ConnectorError>> {
+        let max_tries = 3;
+        for curr_try in 0..max_tries {
+            let sync_res = self
+                .sync_payment(payment_data.clone(), payment_info.clone())
+                .await
+                .unwrap();
+            if (sync_res.status == status) || (curr_try == max_tries - 1) {
+                return Ok(sync_res);
+            }
+            tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
+        }
+        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
+    }
+
     async fn capture_payment(
         &self,
         transaction_id: String,
@@ -77,15 +105,32 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsCaptureRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or(types::PaymentsCaptureData {
-                amount_to_capture: Some(100),
-                currency: enums::Currency::USD,
+            types::PaymentsCaptureData {
                 connector_transaction_id: transaction_id,
-                amount: 100,
-            }),
+                ..payment_data.unwrap_or(PaymentCaptureType::default().0)
+            },
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    async fn authorize_and_capture_payment(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        capture_data: Option<types::PaymentsCaptureData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsCaptureRouterData, Report<ConnectorError>> {
+        let authorize_response = self
+            .authorize_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+        assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+        let txn_id = get_connector_transaction_id(authorize_response);
+        let response = self
+            .capture_payment(txn_id.unwrap(), capture_data, payment_info)
+            .await
+            .unwrap();
+        return Ok(response);
     }
 
     async fn void_payment(
@@ -96,13 +141,33 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsCancelRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or(types::PaymentsCancelData {
+            types::PaymentsCancelData {
                 connector_transaction_id: transaction_id,
-                cancellation_reason: Some("Test cancellation".to_string()),
-            }),
+                ..payment_data.unwrap_or(PaymentCancelType::default().0)
+            },
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    async fn authorize_and_void_payment(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        void_data: Option<types::PaymentsCancelData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsCancelRouterData, Report<ConnectorError>> {
+        let authorize_response = self
+            .authorize_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+        assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+        let txn_id = get_connector_transaction_id(authorize_response);
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        let response = self
+            .void_payment(txn_id.unwrap(), void_data, payment_info)
+            .await
+            .unwrap();
+        return Ok(response);
     }
 
     async fn refund_payment(
@@ -113,23 +178,92 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| types::RefundsData {
-                amount: 100,
-                currency: enums::Currency::USD,
-                refund_id: uuid::Uuid::new_v4().to_string(),
+            types::RefundsData {
                 connector_transaction_id: transaction_id,
-                refund_amount: 100,
-                connector_metadata: None,
-                reason: None,
-            }),
+                ..payment_data.unwrap_or(PaymentRefundType::default().0)
+            },
             payment_info,
         );
         call_connector(request, integration).await
     }
 
+    async fn capture_payment_and_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        capture_data: Option<types::PaymentsCaptureData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
+        //make a successful payment
+        let response = self
+            .authorize_and_capture_payment(authorize_data, capture_data, payment_info.clone())
+            .await
+            .unwrap();
+        let txn_id = self.get_connector_transaction_id_from_capture_data(response);
+
+        //try refund for previous payment
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        Ok(self
+            .refund_payment(txn_id.unwrap(), refund_data, payment_info)
+            .await
+            .unwrap())
+    }
+
+    async fn make_payment_and_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
+        //make a successful payment
+        let response = self
+            .make_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+
+        //try refund for previous payment
+        let transaction_id = get_connector_transaction_id(response).unwrap();
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        Ok(self
+            .refund_payment(transaction_id, refund_data, payment_info)
+            .await
+            .unwrap())
+    }
+
+    async fn make_payment_and_multiple_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) {
+        //make a successful payment
+        let response = self
+            .make_payment(authorize_data, payment_info.clone())
+            .await
+            .unwrap();
+
+        //try refund for previous payment
+        let transaction_id = get_connector_transaction_id(response).unwrap();
+        for _x in 0..2 {
+            tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+            let refund_response = self
+                .refund_payment(
+                    transaction_id.clone(),
+                    refund_data.clone(),
+                    payment_info.clone(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                refund_response.response.unwrap().refund_status,
+                enums::RefundStatus::Success,
+            );
+        }
+    }
+
     async fn sync_refund(
         &self,
-        transaction_id: String,
+        refund_id: String,
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
@@ -139,14 +273,43 @@ pub trait ConnectorActions: Connector {
                 amount: 1000,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
-                connector_transaction_id: transaction_id,
+                connector_transaction_id: "".to_string(),
                 refund_amount: 100,
                 connector_metadata: None,
                 reason: None,
+                connector_refund_id: Some(refund_id),
             }),
             payment_info,
         );
         call_connector(request, integration).await
+    }
+
+    /// will retry the rsync till the given status matches or retry max 3 times
+    async fn rsync_retry_till_status_matches(
+        &self,
+        status: enums::RefundStatus,
+        refund_id: String,
+        payment_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
+        let max_tries = 3;
+        for curr_try in 0..max_tries {
+            let sync_res = self
+                .sync_refund(
+                    refund_id.clone(),
+                    payment_data.clone(),
+                    payment_info.clone(),
+                )
+                .await
+                .unwrap();
+            if (sync_res.clone().response.unwrap().refund_status == status)
+                || (curr_try == max_tries - 1)
+            {
+                return Ok(sync_res);
+            }
+            tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
+        }
+        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
     fn generate_data<Flow, Req: From<Req>, Res>(
@@ -175,10 +338,27 @@ pub trait ConnectorActions: Connector {
             request: req,
             response: Err(types::ErrorResponse::default()),
             payment_method_id: None,
-            address: info.map_or(PaymentAddress::default(), |a| a.address.unwrap()),
+            address: info
+                .clone()
+                .and_then(|a| a.address)
+                .or_else(|| Some(PaymentAddress::default()))
+                .unwrap(),
             connector_meta_data: self.get_connector_meta(),
             amount_captured: None,
-            access_token: None,
+            access_token: info.and_then(|a| a.access_token),
+        }
+    }
+
+    fn get_connector_transaction_id_from_capture_data(
+        &self,
+        response: types::PaymentsCaptureRouterData,
+    ) -> Option<String> {
+        match response.response {
+            Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
+                resource_id.get_connector_transaction_id().ok()
+            }
+            Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+            Err(_) => None,
         }
     }
 }
@@ -228,14 +408,16 @@ pub trait LocalMock {
 }
 
 pub struct PaymentAuthorizeType(pub types::PaymentsAuthorizeData);
+pub struct PaymentCaptureType(pub types::PaymentsCaptureData);
+pub struct PaymentCancelType(pub types::PaymentsCancelData);
 pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
-pub struct CCardType(pub api::CCard);
+pub struct CCardType(pub api::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
 
 impl Default for CCardType {
     fn default() -> Self {
-        Self(api::CCard {
+        Self(api::Card {
             card_number: Secret::new("4200000000000000".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
@@ -263,6 +445,26 @@ impl Default for PaymentAuthorizeType {
             email: None,
         };
         Self(data)
+    }
+}
+
+impl Default for PaymentCaptureType {
+    fn default() -> Self {
+        Self(types::PaymentsCaptureData {
+            amount_to_capture: Some(100),
+            currency: enums::Currency::USD,
+            connector_transaction_id: "".to_string(),
+            amount: 100,
+        })
+    }
+}
+
+impl Default for PaymentCancelType {
+    fn default() -> Self {
+        Self(types::PaymentsCancelData {
+            cancellation_reason: Some("requested_by_customer".to_string()),
+            connector_transaction_id: "".to_string(),
+        })
     }
 }
 
@@ -300,13 +502,14 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
-            amount: 1000,
+            amount: 100,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
             connector_metadata: None,
-            reason: None,
+            reason: Some("Customer returned product".to_string()),
+            connector_refund_id: None,
         };
         Self(data)
     }

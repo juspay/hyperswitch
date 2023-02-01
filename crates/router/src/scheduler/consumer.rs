@@ -71,6 +71,12 @@ pub async fn start_consumer(
         match rx.try_recv() {
             Err(oneshot::error::TryRecvError::Empty) => {
                 interval.tick().await;
+
+                // A guard from env to disable the consumer
+                if settings.consumer.disabled {
+                    continue;
+                }
+
                 tokio::task::spawn(pt_utils::consumer_operation_handler(
                     state.clone(),
                     options.clone(),
@@ -112,7 +118,7 @@ pub async fn consumer_operations(
     settings: &settings::SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
-    let group_name = settings.consumer_group.clone();
+    let group_name = settings.consumer.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
 
     let group_created = &mut state

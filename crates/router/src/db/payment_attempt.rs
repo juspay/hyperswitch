@@ -391,9 +391,10 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
                         .await
                     {
-                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
-                            format!("Payment Attempt already exists for payment_id: {}", key),
-                        ))
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                            entity: "payment attempt",
+                            key: Some(key),
+                        })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
@@ -544,7 +545,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("{merchant_id}_{payment_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
                         .await
@@ -619,8 +620,7 @@ mod storage {
             .and_then(|attempt| match attempt.status {
                 enums::AttemptStatus::Charged => Ok(attempt),
                 _ => Err(errors::StorageError::ValueNotFound(format!(
-                    "Successful payment attempt does not exist for {}_{}",
-                    payment_id, merchant_id
+                    "Successful payment attempt does not exist for {payment_id}_{merchant_id}"
                 )))
                 .into_report(),
             })

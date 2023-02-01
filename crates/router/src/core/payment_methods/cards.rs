@@ -280,8 +280,8 @@ pub async fn mock_delete_card<'a>(
         .await
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(payment_methods::DeleteCardResponse {
-        card_id: locker_mock_up.card_id,
-        external_id: locker_mock_up.external_id,
+        card_id: Some(locker_mock_up.card_id),
+        external_id: Some(locker_mock_up.external_id),
         card_isin: None,
         status: "SUCCESS".to_string(),
     })

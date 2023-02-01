@@ -252,7 +252,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 country: shipping.address.as_mut().and_then(|a| a.country.take()),
                 line1: shipping.address.as_mut().and_then(|a| a.line1.take()),
                 line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
-                postal_code: shipping.address.as_mut().and_then(|a| a.zip.take()),
+                zip: shipping.address.as_mut().and_then(|a| a.zip.take()),
                 state: shipping.address.as_mut().and_then(|a| a.state.take()),
                 name: shipping.address.as_mut().and_then(|a| {
                     a.first_name.as_ref().map(|first_name| {
@@ -326,11 +326,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             confirm: true, // Stripe requires confirm to be true if return URL is present
 
             description: item.description.clone(),
-            off_session: item.request.off_session,
             shipping: shipping_address,
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
+            off_session,
             mandate,
         })
     }
@@ -696,7 +696,7 @@ pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][line2]")]
     pub line2: Option<Secret<String>>,
     #[serde(rename = "shipping[address][postal_code]")]
-    pub postal_code: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
     #[serde(rename = "shipping[address][state]")]
     pub state: Option<Secret<String>>,
     #[serde(rename = "shipping[name]")]

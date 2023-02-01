@@ -133,7 +133,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
 fn make_card_request(
     address: &types::PaymentAddress,
     req: &types::PaymentsAuthorizeData,
-    ccard: &api_models::CCard,
+    ccard: &api_models::Card,
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let card_number = ccard.card_number.peek().as_ref();
     let expiry_year = ccard.card_exp_year.peek().clone();
@@ -211,7 +211,7 @@ fn build_customer_info(
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
         get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "billing.address.country".into(),
+            field_name: "billing.address.country",
         })?;
 
     let number_with_country_code = billing.phone.as_ref().and_then(|phone| {

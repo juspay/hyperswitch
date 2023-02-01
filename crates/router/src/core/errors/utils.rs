@@ -86,9 +86,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                 errors::ApiErrorResponse::PaymentAuthorizationFailed { data }
             }
             errors::ConnectorError::MissingRequiredField { field_name } => {
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: field_name.clone(),
-                }
+                errors::ApiErrorResponse::MissingRequiredField { field_name }
             }
             errors::ConnectorError::NotImplemented(reason) => {
                 errors::ApiErrorResponse::NotImplemented {

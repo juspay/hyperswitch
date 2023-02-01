@@ -30,7 +30,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 100,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+            payment_method_data: types::api::PaymentMethod::Card(api::Card {
                 card_number: "4242424242424242".to_string().into(),
                 card_exp_month: "10".to_string().into(),
                 card_exp_year: "35".to_string().into(),
@@ -84,6 +84,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             refund_amount: 10,
             connector_metadata: None,
             reason: None,
+            connector_refund_id: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,

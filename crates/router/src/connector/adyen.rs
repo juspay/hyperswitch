@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use storage_models::enums as storage_enums;
 
 use self::transformers as adyen;
 use crate::{
@@ -288,7 +289,8 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_manual_capture = false;
+        let is_manual_capture =
+            data.request.capture_method == Some(storage_enums::CaptureMethod::Manual);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,

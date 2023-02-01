@@ -143,13 +143,13 @@ mod pii_masking_strategy_tests {
     #[test]
     fn test_valid_card_number_masking() {
         let secret: Secret<String, CardNumber> = Secret::new("1234567890987654".to_string());
-        assert_eq!("123456**********", format!("{:?}", secret));
+        assert_eq!("123456**********", format!("{secret:?}"));
     }
 
     #[test]
     fn test_invalid_card_number_masking() {
         let secret: Secret<String, CardNumber> = Secret::new("1234567890".to_string());
-        assert_eq!("123456****", format!("{:?}", secret));
+        assert_eq!("123456****", format!("{secret:?}"));
     }
 
     /*
@@ -172,34 +172,34 @@ mod pii_masking_strategy_tests {
     #[test]
     fn test_valid_email_masking() {
         let secret: Secret<String, Email> = Secret::new("myemail@gmail.com".to_string());
-        assert_eq!("*******@gmail.com", format!("{:?}", secret));
+        assert_eq!("*******@gmail.com", format!("{secret:?}"));
     }
 
     #[test]
     fn test_invalid_email_masking() {
         let secret: Secret<String, Email> = Secret::new("myemailgmail.com".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
         let secret: Secret<String, Email> = Secret::new("myemail@gmail@com".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 
     #[test]
     fn test_valid_ip_addr_masking() {
         let secret: Secret<String, IpAddress> = Secret::new("123.23.1.78".to_string());
-        assert_eq!("123.**.**.**", format!("{:?}", secret));
+        assert_eq!("123.**.**.**", format!("{secret:?}"));
     }
 
     #[test]
     fn test_invalid_ip_addr_masking() {
         let secret: Secret<String, IpAddress> = Secret::new("123.4.56".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
         let secret: Secret<String, IpAddress> = Secret::new("123.4567.12.4".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
         let secret: Secret<String, IpAddress> = Secret::new("123..4.56".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 
     #[test]
@@ -208,7 +208,7 @@ mod pii_masking_strategy_tests {
             Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret_tLjTz9tAQxUVEFqfmOIP".to_string());
         assert_eq!(
             "pay_uszFB2QGe9MmLY65ojhT_***************************",
-            format!("{:?}", secret)
+            format!("{secret:?}")
         );
     }
 
@@ -216,6 +216,6 @@ mod pii_masking_strategy_tests {
     fn test_invalid_client_secret_masking() {
         let secret: Secret<String, IpAddress> =
             Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{:?}", secret));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 }

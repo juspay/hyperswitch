@@ -36,7 +36,7 @@ pub trait Vaultable: Sized {
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError>;
 }
 
-impl Vaultable for api::CCard {
+impl Vaultable for api::Card {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
@@ -91,7 +91,7 @@ impl Vaultable for api::CCard {
 
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,
-            payment_method_id: None,
+            payment_method_id: value2.payment_method_id,
         };
 
         Ok((card, supp_data))
@@ -201,7 +201,7 @@ impl Vaultable for api::PaymentMethod {
 
         match (value1, value2) {
             (VaultPaymentMethod::Card(mvalue1), VaultPaymentMethod::Card(mvalue2)) => {
-                let (card, supp_data) = api::CCard::from_values(mvalue1, mvalue2)?;
+                let (card, supp_data) = api::Card::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Card(card), supp_data))
             }
             (VaultPaymentMethod::Wallet(mvalue1), VaultPaymentMethod::Wallet(mvalue2)) => {
