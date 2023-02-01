@@ -131,6 +131,11 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features "postgres"
    ```
 
+5. Make sure your system has openssl installed (specially in case on `Windows`)
+   ```shell
+   winget install openssl
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -337,6 +342,18 @@ Once you're done with configuring the application, proceed with
       column for the `api_key` variable.
    2. Add the merchant ID you obtained in the previous step under the "current
       value" column for the `merchant_id` variable.
+
+#### Local Postman Variables 
+
+|variable|default|current|
+|:------:|:-----:|:-----:|
+|baseUrl||http://localhost:8080|
+|admin_api_key||test_admin|
+
+NOTE :- 
+To test stripe add stripe secret key to variable `connector_api_key`.
+eg. `sk_test_5142342342323iuh2b34jb2jh3432`  
+
 
 ### Set up a payment connector account
 

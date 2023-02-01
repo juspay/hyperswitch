@@ -16,3 +16,5 @@ Steps to generate the new collection.
     ```bash
     portman --cliOptionsFile postman/portman-cli.json
     ```
+
+Note :- Please verify postman collection variables before trying out api's.
