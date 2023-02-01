@@ -72,6 +72,22 @@ impl ConnectorCommon for Rapyd {
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![])
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: rapyd::RapydPaymentsResponse = res
+            .response
+            .parse_struct("Rapyd ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.status.error_code,
+            message: response.status.status,
+            reason: response.status.message,
+        })
+    }
 }
 
 impl api::ConnectorAccessToken for Rapyd {}
@@ -186,16 +202,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status,
-            reason: response.status.message,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -297,16 +304,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status,
-            reason: response.status.message,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -381,16 +379,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status,
-            reason: response.status.message,
-        })
+        self.build_error_response(res)
     }
 
     fn handle_response(
@@ -514,16 +503,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status,
-            reason: response.status.message,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -629,16 +609,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status,
-            reason: response.status.message,
-        })
+        self.build_error_response(res)
     }
 }
 
