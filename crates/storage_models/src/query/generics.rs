@@ -97,7 +97,7 @@ where
         <V as AsChangeset>::Changeset,
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + Clone,
     R: Send + 'static,
-    
+
     // For cloning query (UpdateStatement)
     <<T as FilterDsl<P>>::Output as HasTable>::Table: Clone,
     <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause: Clone,
