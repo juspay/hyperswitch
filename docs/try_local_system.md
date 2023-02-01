@@ -132,8 +132,13 @@ for your distribution and follow along.
    ```
 
 5. Make sure your system has openssl installed (specially in case on `Windows`)
+- windows
    ```shell
    winget install openssl
+   ```
+- ubuntu
+   ```shell
+   sudo apt-get install libssl-dev
    ```
 
 Once you're done with setting up the dependencies, proceed with
