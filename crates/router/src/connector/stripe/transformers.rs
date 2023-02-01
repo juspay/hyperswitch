@@ -80,7 +80,6 @@ pub struct PaymentIntentRequest {
     pub metadata_txn_uuid: String,
     pub return_url: String,
     pub confirm: bool,
-    pub off_session: Option<bool>,
     pub mandate: Option<String>,
     pub description: Option<String>,
     #[serde(flatten)]
@@ -163,25 +162,25 @@ fn validate_shipping_address_against_payment_method(
     {
         fp_utils::when(shipping_address.name.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.first_name".to_string(),
+                field_name: "shipping.address.first_name",
             })
         })?;
 
         fp_utils::when(shipping_address.line1.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.line1".to_string(),
+                field_name: "shipping.address.line1",
             })
         })?;
 
         fp_utils::when(shipping_address.country.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.country".to_string(),
+                field_name: "shipping.address.country",
             })
         })?;
 
-        fp_utils::when(shipping_address.postal_code.is_none(), || {
+        fp_utils::when(shipping_address.zip.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.zip".to_string(),
+                field_name: "shipping.address.zip",
             })
         })?;
     }
@@ -196,13 +195,13 @@ fn validate_billing_address_against_payment_method(
         payments::PaymentMethod::PayLater(payments::PayLaterData::KlarnaRedirect { .. }) => {
             fp_utils::when(billing_address.country.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.address.country".to_string(),
+                    field_name: "billing.address.country",
                 })
             })?;
 
             fp_utils::when(billing_address.email.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "email".to_string(),
+                    field_name: "email",
                 })
             })?;
         }
@@ -212,7 +211,7 @@ fn validate_billing_address_against_payment_method(
         }) => {
             fp_utils::when(billing_address.name.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.address.first_name".to_string(),
+                    field_name: "billing.address.first_name",
                 })
             })?;
         }
@@ -330,7 +329,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
-            off_session,
             mandate,
         })
     }
