@@ -7,7 +7,7 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyFetch))]
 pub async fn config_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
