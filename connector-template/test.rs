@@ -79,7 +79,7 @@ async fn should_sync_authorized_payment() {
         .authorize_payment(None, None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
@@ -182,7 +182,7 @@ async fn should_make_payment() {
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -388,7 +388,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
     let void_response = CONNECTOR
         .void_payment(txn_id.unwrap(), None, None)
