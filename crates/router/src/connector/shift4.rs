@@ -6,6 +6,7 @@ use common_utils::ext_traits::ByteSliceExt;
 use error_stack::ResultExt;
 use transformers as shift4;
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -20,7 +21,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -444,12 +445,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .request
-            .connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}refunds/{}",
             self.base_url(connectors),

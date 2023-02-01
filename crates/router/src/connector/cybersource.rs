@@ -11,6 +11,7 @@ use url::Url;
 
 use crate::{
     configs::settings,
+    connector::utils::RefundsRequestData,
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -19,7 +20,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -95,8 +96,19 @@ impl ConnectorCommon for Cybersource {
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
-            message: response.details.to_string(),
-            reason: None,
+            message: response
+                .message
+                .map(|m| {
+                    format!(
+                        "{} {}",
+                        m,
+                        response.details.map(|d| d.to_string()).unwrap_or_default()
+                    )
+                    .trim()
+                    .to_string()
+                })
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.reason,
         })
     }
 }
@@ -633,13 +645,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .response
-            .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+        let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}tss/v2/transactions/{}",
             self.base_url(connectors),

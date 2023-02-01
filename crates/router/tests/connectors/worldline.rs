@@ -49,8 +49,7 @@ impl WorldlineTest {
                 }),
                 ..Default::default()
             }),
-            auth_type: None,
-            access_token: None,
+            ..Default::default()
         })
     }
 
@@ -196,7 +195,8 @@ async fn should_sync_manual_auth_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response).unwrap_or_default();
     let sync_response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
@@ -228,7 +228,8 @@ async fn should_sync_auto_auth_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Pending);
-    let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response).unwrap_or_default();
     let sync_response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
@@ -260,7 +261,8 @@ async fn should_capture_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response).unwrap_or_default();
     let capture_response = WorldlineTest {}
         .capture_payment(connector_payment_id, None, None)
         .await
@@ -298,7 +300,8 @@ async fn should_cancel_unauthorized_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
         .await
@@ -321,7 +324,8 @@ async fn should_cancel_uncaptured_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Pending);
-    let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response).unwrap_or_default();
     let cancel_response = connector
         .void_payment(connector_payment_id, None, None)
         .await
@@ -356,7 +360,8 @@ async fn should_fail_refund_with_invalid_payment_status() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id = utils::get_connector_transaction_id(response).unwrap_or_default();
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response).unwrap_or_default();
     let refund_response = connector
         .refund_payment(connector_payment_id, None, None)
         .await
