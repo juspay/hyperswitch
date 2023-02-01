@@ -160,7 +160,7 @@ where
                 vec_r.pop().ok_or(errors::DatabaseError::Others)
             }
             .into_report()
-            .attach_printable_lazy(|| format!("Maybe not queried using a unique key"))
+            .attach_printable("Maybe not queried using a unique key")
         })?
 }
 
