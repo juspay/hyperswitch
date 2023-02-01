@@ -1,4 +1,4 @@
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -83,8 +83,9 @@ impl ConfigInterface for Store {
                         .change_context(errors::StorageError::KVError)?;
                     config
                 }
-                err => Err(report!(errors::StorageError::KVError)
-                    .attach_printable(format!("Error while fetching config {err}")))?,
+                _ => Err(err
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable(format!("Error while fetching config")))?,
             },
             Ok(val) => val,
         })
