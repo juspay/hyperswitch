@@ -64,9 +64,10 @@ mod storage {
                 .await
             {
                 Ok(v) if v.contains(&HsetnxReply::KeyNotSet) => {
-                    Err(errors::StorageError::DuplicateValue(
-                        "Ephemeral key already exists".to_string(),
-                    )
+                    Err(errors::StorageError::DuplicateValue {
+                        entity: "ephimeral key",
+                        key: None,
+                    }
                     .into())
                 }
                 Ok(_) => {

@@ -187,6 +187,28 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
+    async fn capture_payment_and_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        capture_data: Option<types::PaymentsCaptureData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
+        //make a successful payment
+        let response = self
+            .authorize_and_capture_payment(authorize_data, capture_data, payment_info.clone())
+            .await
+            .unwrap();
+        let txn_id = self.get_connector_transaction_id_from_capture_data(response);
+
+        //try refund for previous payment
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        Ok(self
+            .refund_payment(txn_id.unwrap(), refund_data, payment_info)
+            .await
+            .unwrap())
+    }
+
     async fn make_payment_and_refund(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -326,6 +348,19 @@ pub trait ConnectorActions: Connector {
             access_token: info.and_then(|a| a.access_token),
         }
     }
+
+    fn get_connector_transaction_id_from_capture_data(
+        &self,
+        response: types::PaymentsCaptureRouterData,
+    ) -> Option<String> {
+        match response.response {
+            Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
+                resource_id.get_connector_transaction_id().ok()
+            }
+            Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+            Err(_) => None,
+        }
+    }
 }
 
 async fn call_connector<
@@ -377,12 +412,12 @@ pub struct PaymentCaptureType(pub types::PaymentsCaptureData);
 pub struct PaymentCancelType(pub types::PaymentsCancelData);
 pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
-pub struct CCardType(pub api::CCard);
+pub struct CCardType(pub api::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
 
 impl Default for CCardType {
     fn default() -> Self {
-        Self(api::CCard {
+        Self(api::Card {
             card_number: Secret::new("4200000000000000".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),

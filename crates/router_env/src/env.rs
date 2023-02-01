@@ -75,8 +75,8 @@ pub fn workspace_path() -> PathBuf {
 
 /// Version of the crate containing the following information:
 ///
-/// - Semantic Version from the latest git tag. If tags are not present in the repository, crate
-///   version from the crate manifest is used instead.
+/// - The latest git tag. If tags are not present in the repository, the short commit hash is used
+///   instead.
 /// - Short hash of the latest git commit.
 /// - Timestamp of the latest git commit.
 ///
@@ -85,9 +85,9 @@ pub fn workspace_path() -> PathBuf {
 macro_rules! version {
     () => {
         concat!(
-            env!("VERGEN_GIT_SEMVER"),
+            env!("VERGEN_GIT_DESCRIBE"),
             "-",
-            env!("VERGEN_GIT_SHA_SHORT"),
+            env!("VERGEN_GIT_SHA"),
             "-",
             env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
         )
@@ -95,7 +95,7 @@ macro_rules! version {
 }
 
 ///
-/// A string uniquely idendify build of the service.
+/// A string uniquely identify build of the service.
 ///
 /// Consists of combination of
 /// - Version defined in the crate file
@@ -113,7 +113,7 @@ macro_rules! build {
         concat!(
             env!("CARGO_PKG_VERSION"),
             "-",
-            env!("VERGEN_GIT_SHA_SHORT"),
+            env!("VERGEN_GIT_SHA"),
             "-",
             env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
             "-",
@@ -180,6 +180,6 @@ macro_rules! service_name {
 #[macro_export]
 macro_rules! profile {
     () => {
-        env!("VERGEN_CARGO_PROFILE")
+        env!("CARGO_PROFILE")
     };
 }

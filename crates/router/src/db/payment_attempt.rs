@@ -391,9 +391,10 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
                         .await
                     {
-                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
-                            format!("Payment Attempt already exists for payment_id: {key}"),
-                        ))
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                            entity: "payment attempt",
+                            key: Some(key),
+                        })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
