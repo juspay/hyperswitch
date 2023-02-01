@@ -40,7 +40,7 @@ impl MerchantAccount {
         }
     }
 
-    pub async fn normal_update(
+    pub async fn update_with_specific_fields(
         conn: &PgPooledConn,
         merchant_id: &str,
         merchant_account: MerchantAccountUpdate,

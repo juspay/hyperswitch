@@ -26,7 +26,7 @@ pub trait MerchantAccountInterface {
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
 
-    async fn normal_update_merchant(
+    async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
@@ -85,13 +85,13 @@ impl MerchantAccountInterface for Store {
             .into_report()
     }
 
-    async fn normal_update_merchant(
+    async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::normal_update(&conn, merchant_id, merchant_account)
+        storage::MerchantAccount::update_with_specific_fields(&conn, merchant_id, merchant_account)
             .await
             .map_err(Into::into)
             .into_report()
@@ -193,7 +193,7 @@ impl MerchantAccountInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn normal_update_merchant(
+    async fn update_specific_fields_in_merchant(
         &self,
         _merchant_id: &str,
         _merchant_account: storage::MerchantAccountUpdate,

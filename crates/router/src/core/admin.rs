@@ -169,13 +169,12 @@ pub async fn merchant_account_update(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
         metadata: req.metadata,
-        merchant_id: None,
         api_key: None,
         publishable_key: None,
     };
 
     let response = db
-        .normal_update_merchant(merchant_id, updated_merchant_account)
+        .update_specific_fields_in_merchant(merchant_id, updated_merchant_account)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
