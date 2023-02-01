@@ -4,7 +4,7 @@ The [Postman](https://www.postman.com/) [collection](./collection.postman.json) 
 
 Steps to generate the new collection.
 
-- Get latest Postman Collection from [here](https://www.postman.com/hyperswitch/workspace/hyperswitch/collection/25176183-e36f8e3d-078c-4067-a273-f456b6b724ed).\
+- Get latest Postman Collection from [here](https://www.postman.com/hyperswitch/workspace/hyperswitch/collection/25176183-e36f8e3d-078c-4067-a273-f456b6b724ed).
 
     ```url
     https://www.postman.com/hyperswitch/workspace/hyperswitch/collection/25176183-e36f8e3d-078c-4067-a273-f456b6b724ed
