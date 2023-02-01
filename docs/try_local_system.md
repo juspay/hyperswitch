@@ -131,12 +131,7 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features "postgres"
    ```
 
-5. Make sure your system has openssl installed (specially in case on `Windows`)
-- windows
-   ```shell
-   winget install openssl
-   ```
-- ubuntu
+5. Make sure your system has openssl installed if not please install it.
    ```shell
    sudo apt-get install libssl-dev
    ```
@@ -146,6 +141,34 @@ Once you're done with setting up the dependencies, proceed with
 
 [postgresql-install]: https://www.postgresql.org/download/
 [redis-install]: https://redis.io/docs/getting-started/installation/
+
+### Set up dependencies on Windows
+where possible we'll be using `winget` package manager.
+
+1. Download and install postgres Database. official source given below
+   ```url
+   https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+   ```
+
+2. Download and install redis. Official Source given below.
+   ```url
+   https://redis.io/docs/getting-started/installation/install-redis-on-windows
+   ```
+
+3. Install rust with `winget`
+   ```shell
+   winget install -e --id Rustlang.Rust.GNU
+   ```
+
+4. Install diesel for data migration
+   ```shell
+   cargo install diesel_cli --no-default-features --features "postgres"
+   ```
+
+5. Install openssl with `winget`
+   ```shell
+   winget install openssl
+   ```
 
 ### Set up dependencies on MacOS
 
