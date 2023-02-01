@@ -285,6 +285,17 @@ impl From<F<storage_enums::Currency>> for F<api_enums::Currency> {
     }
 }
 
+impl From<F<storage::Config>> for F<api_types::Config> {
+    fn from(config: F<storage::Config>) -> Self {
+        let config = config.0;
+        api_types::Config {
+            key: config.key,
+            value: config.config,
+        }
+        .into()
+    }
+}
+
 impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
     fn from(address: F<&api_types::Address>) -> Self {
         let address = address.0;
