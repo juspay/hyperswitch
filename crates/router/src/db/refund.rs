@@ -245,7 +245,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<storage_types::Refund>(
-                            key,
+                            &lookup.pk_id,
                             &lookup.sk_id,
                             "Refund",
                         )
@@ -319,16 +319,6 @@ mod storage {
                                     lookup_id: format!(
                                         "{}_{}",
                                         created_refund.merchant_id, created_refund.refund_id
-                                    ),
-                                    pk_id: key.clone(),
-                                    source: "refund".to_string(),
-                                },
-                                storage_types::ReverseLookupNew {
-                                    sk_id: field.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}",
-                                        created_refund.merchant_id,
-                                        created_refund.connector_transaction_id
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
@@ -434,7 +424,7 @@ mod storage {
                         .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                    let key = format!("{}_{}", this.merchant_id, this.refund_id);
 
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -454,7 +444,7 @@ mod storage {
                         .change_context(errors::StorageError::SerializationFailed)?;
 
                     self.redis_conn
-                        .set_hash_fields(&key, (field, redis_value))
+                        .set_hash_fields(&lookup.pk_id, (field, redis_value))
                         .await
                         .change_context(errors::StorageError::KVError)?;
 
@@ -518,7 +508,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<storage_types::Refund>(
-                            key,
+                            &lookup.pk_id,
                             &lookup.sk_id,
                             "Refund",
                         )
