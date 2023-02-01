@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 
 use crate::{
@@ -187,9 +187,10 @@ pub fn get_header_key_value(
             header_value
                 .to_str()
                 .map(String::from)
-                .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
                 .into_report()
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)
         })
-        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .into_report()?
+        .ok_or(report!(
+            errors::ConnectorError::WebhookSourceVerificationFailed
+        ))?
 }

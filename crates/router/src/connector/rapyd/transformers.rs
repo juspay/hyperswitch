@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
+    consts,
     core::errors,
     pii::{self, Secret},
     services,
@@ -238,86 +239,6 @@ pub struct ResponseData {
     pub failure_message: Option<String>,
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
-    for types::PaymentsAuthorizeRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::PaymentsResponseRouterData<RapydPaymentsResponse>,
-    ) -> Result<Self, Self::Error> {
-        let (status, response) = match &item.response.data {
-            Some(data) => {
-                let attempt_status = enums::AttemptStatus::foreign_from((
-                    data.status.to_owned(),
-                    data.next_action.to_owned(),
-                ));
-                match attempt_status {
-                    storage_models::enums::AttemptStatus::Failure => (
-                        enums::AttemptStatus::Failure,
-                        Err(types::ErrorResponse {
-                            code: data
-                                .failure_code
-                                .to_owned()
-                                .unwrap_or(item.response.status.error_code),
-                            status_code: item.http_code,
-                            message: item.response.status.status,
-                            reason: data.failure_message.to_owned(),
-                        }),
-                    ),
-                    _ => {
-                        let redirection_data =
-                            match (data.next_action.as_str(), data.redirect_url.to_owned()) {
-                                ("3d_verification", Some(url)) => {
-                                    let url = Url::parse(&url).into_report().change_context(
-                                        errors::ConnectorError::ResponseHandlingFailed,
-                                    )?;
-                                    let mut base_url = url.clone();
-                                    base_url.set_query(None);
-                                    Some(services::RedirectForm {
-                                        url: base_url.to_string(),
-                                        method: services::Method::Get,
-                                        form_fields: std::collections::HashMap::from_iter(
-                                            url.query_pairs()
-                                                .map(|(k, v)| (k.to_string(), v.to_string())),
-                                        ),
-                                    })
-                                }
-                                (_, _) => None,
-                            };
-                        (
-                            attempt_status,
-                            Ok(types::PaymentsResponseData::TransactionResponse {
-                                resource_id: types::ResponseId::ConnectorTransactionId(
-                                    data.id.to_owned(),
-                                ), //transaction_id is also the field but this id is used to initiate a refund
-                                redirect: redirection_data.is_some(),
-                                redirection_data,
-                                mandate_reference: None,
-                                connector_metadata: None,
-                            }),
-                        )
-                    }
-                }
-            }
-            None => (
-                enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
-                    code: item.response.status.error_code,
-                    status_code: item.http_code,
-                    message: item.response.status.status,
-                    reason: item.response.status.message,
-                }),
-            ),
-        };
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
-}
-
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
@@ -440,12 +361,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     }
 }
 
-impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
-    for types::PaymentsCaptureRouterData
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, RapydPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>,
+        item: types::ResponseRouterData<F, RapydPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
@@ -466,136 +388,39 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                             reason: data.failure_message.to_owned(),
                         }),
                     ),
-                    _ => (
-                        attempt_status,
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                data.id.to_owned(),
-                            ), //transaction_id is also the field but this id is used to initiate a refund
-                            redirection_data: None,
-                            redirect: false,
-                            mandate_reference: None,
-                            connector_metadata: None,
-                        }),
-                    ),
-                }
-            }
-            None => (
-                enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
-                    code: item.response.status.error_code,
-                    status_code: item.http_code,
-                    message: item.response.status.status,
-                    reason: item.response.status.message,
-                }),
-            ),
-        };
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
-    for types::PaymentsCancelRouterData
-{
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(
-        item: types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>,
-    ) -> Result<Self, Self::Error> {
-        let (status, response) = match &item.response.data {
-            Some(data) => {
-                let attempt_status = enums::AttemptStatus::foreign_from((
-                    data.status.to_owned(),
-                    data.next_action.to_owned(),
-                ));
-                match attempt_status {
-                    storage_models::enums::AttemptStatus::Failure => (
-                        enums::AttemptStatus::Failure,
-                        Err(types::ErrorResponse {
-                            code: data
-                                .failure_code
-                                .to_owned()
-                                .unwrap_or(item.response.status.error_code),
-                            status_code: item.http_code,
-                            message: item.response.status.status,
-                            reason: data.failure_message.to_owned(),
-                        }),
-                    ),
-                    _ => (
-                        attempt_status,
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                data.id.to_owned(),
-                            ), //transaction_id is also the field but this id is used to initiate a refund
-                            redirection_data: None,
-                            redirect: false,
-                            mandate_reference: None,
-                            connector_metadata: None,
-                        }),
-                    ),
-                }
-            }
-            None => (
-                enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
-                    code: item.response.status.error_code,
-                    status_code: item.http_code,
-                    message: item.response.status.status,
-                    reason: item.response.status.message,
-                }),
-            ),
-        };
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::PaymentsSyncResponseRouterData<RapydPaymentsResponse>>
-    for types::PaymentsSyncRouterData
-{
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(
-        item: types::PaymentsSyncResponseRouterData<RapydPaymentsResponse>,
-    ) -> Result<Self, Self::Error> {
-        let (status, response) = match &item.response.data {
-            Some(data) => {
-                let attempt_status = enums::AttemptStatus::foreign_from((
-                    data.status.to_owned(),
-                    data.next_action.to_owned(),
-                ));
-                match attempt_status {
-                    storage_models::enums::AttemptStatus::Failure => (
-                        enums::AttemptStatus::Failure,
-                        Err(types::ErrorResponse {
-                            code: data
-                                .failure_code
-                                .to_owned()
-                                .unwrap_or(item.response.status.error_code),
-                            status_code: item.http_code,
-                            message: item.response.status.status,
-                            reason: data.failure_message.to_owned(),
-                        }),
-                    ),
-                    _ => (
-                        attempt_status,
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                data.id.to_owned(),
-                            ), //transaction_id is also the field but this id is used to initiate a refund
-                            redirection_data: None,
-                            redirect: false,
-                            mandate_reference: None,
-                            connector_metadata: None,
-                        }),
-                    ),
+                    _ => {
+                        let redirection_data =
+                            match (data.next_action.as_str(), data.redirect_url.to_owned()) {
+                                ("3d_verification", Some(url)) => {
+                                    let url = Url::parse(&url).into_report().change_context(
+                                        errors::ConnectorError::ResponseHandlingFailed,
+                                    )?;
+                                    let mut base_url = url.clone();
+                                    base_url.set_query(None);
+                                    Some(services::RedirectForm {
+                                        url: base_url.to_string(),
+                                        method: services::Method::Get,
+                                        form_fields: std::collections::HashMap::from_iter(
+                                            url.query_pairs()
+                                                .map(|(k, v)| (k.to_string(), v.to_string())),
+                                        ),
+                                    })
+                                }
+                                (_, _) => None,
+                            };
+                        (
+                            attempt_status,
+                            Ok(types::PaymentsResponseData::TransactionResponse {
+                                resource_id: types::ResponseId::ConnectorTransactionId(
+                                    data.id.to_owned(),
+                                ), //transaction_id is also the field but this id is used to initiate a refund
+                                redirect: redirection_data.is_some(),
+                                redirection_data,
+                                mandate_reference: None,
+                                connector_metadata: None,
+                            }),
+                        )
+                    }
                 }
             }
             None => (
@@ -662,7 +487,7 @@ impl From<ResponseData> for RapydPaymentsResponse {
     fn from(value: ResponseData) -> Self {
         Self {
             status: Status {
-                error_code: "".to_owned(),
+                error_code: consts::NO_ERROR_CODE.to_owned(),
                 status: "SUCCESS".to_owned(),
                 message: None,
                 response_code: None,
@@ -677,7 +502,7 @@ impl From<RefundResponseData> for RefundResponse {
     fn from(value: RefundResponseData) -> Self {
         Self {
             status: Status {
-                error_code: "".to_owned(),
+                error_code: consts::NO_ERROR_CODE.to_owned(),
                 status: "SUCCESS".to_owned(),
                 message: None,
                 response_code: None,

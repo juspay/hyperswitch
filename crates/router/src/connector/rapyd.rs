@@ -719,7 +719,7 @@ impl api::IncomingWebhook for Rapyd {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
         let secret = db
             .get_key(&key)
             .await
@@ -827,9 +827,9 @@ impl api::IncomingWebhook for Rapyd {
             }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
         }?;
-        let res_json = serde_json::to_value(response)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let res_json =
+            utils::Encode::<transformers::RapydPaymentsResponse>::encode_to_value(&response)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
     }
