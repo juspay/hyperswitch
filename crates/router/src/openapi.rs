@@ -154,7 +154,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsResponse,
-        api_models::payment_methods::PaymentExperience,
+        api_models::enums::PaymentExperience,
         api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,

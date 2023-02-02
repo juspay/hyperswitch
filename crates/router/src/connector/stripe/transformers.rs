@@ -135,15 +135,13 @@ pub struct StripePayLaterData {
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
-    Klarna(StripePayLaterData),
-    Affirm(StripePayLaterData),
-    AfterpayClearpay(StripePayLaterData),
+    PayLater(StripePayLaterData),
     Bank,
     Wallet,
     Paypal,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     Card,
@@ -154,12 +152,9 @@ pub enum StripePaymentMethodType {
 
 fn validate_shipping_address_against_payment_method(
     shipping_address: &StripeShippingAddress,
-    payment_method: &payments::PaymentMethod,
+    payment_method: &StripePaymentMethodType,
 ) -> Result<(), errors::ConnectorError> {
-    if let payments::PaymentMethod::PayLater(payments::PayLaterData::AfterpayClearpayRedirect {
-        ..
-    }) = payment_method
-    {
+    if let StripePaymentMethodType::AfterpayClearpay = payment_method {
         fp_utils::when(shipping_address.name.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "shipping.address.first_name",
@@ -189,10 +184,10 @@ fn validate_shipping_address_against_payment_method(
 
 fn validate_billing_address_against_payment_method(
     billing_address: &StripeBillingAddress,
-    payment_method: &payments::PaymentMethod,
+    payment_method: &StripePaymentMethodType,
 ) -> Result<(), errors::ConnectorError> {
     match payment_method {
-        payments::PaymentMethod::PayLater(payments::PayLaterData::KlarnaRedirect { .. }) => {
+        StripePaymentMethodType::Klarna => {
             fp_utils::when(billing_address.country.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
                     field_name: "billing.address.country",
@@ -206,9 +201,7 @@ fn validate_billing_address_against_payment_method(
             })?;
         }
 
-        payments::PaymentMethod::PayLater(payments::PayLaterData::AfterpayClearpayRedirect {
-            ..
-        }) => {
+        StripePaymentMethodType::AfterpayClearpay => {
             fp_utils::when(billing_address.name.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
                     field_name: "billing.address.first_name",
@@ -220,30 +213,84 @@ fn validate_billing_address_against_payment_method(
     Ok(())
 }
 
+fn infer_stripe_pay_later_issuer(
+    issuer: &enums::PaymentIssuer,
+    experience: &enums::PaymentExperience,
+) -> Result<StripePaymentMethodType, errors::ConnectorError> {
+    if let enums::PaymentExperience::RedirectToUrl = experience {
+        match issuer {
+            enums::PaymentIssuer::Klarna => Ok(StripePaymentMethodType::Klarna),
+            enums::PaymentIssuer::Affirm => Ok(StripePaymentMethodType::Affirm),
+            enums::PaymentIssuer::AfterpayClearpay => Ok(StripePaymentMethodType::AfterpayClearpay),
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: format!("{issuer} payments by {experience}"),
+                connector: "stripe",
+            }),
+        }
+    } else {
+        Err(errors::ConnectorError::NotSupported {
+            payment_method: format!("{issuer} payments by {experience}"),
+            connector: "stripe",
+        })
+    }
+}
+
+fn create_stripe_payment_method(
+    issuer: Option<&enums::PaymentIssuer>,
+    experience: Option<&enums::PaymentExperience>,
+    payment_method: &api_models::payments::PaymentMethod,
+    auth_type: enums::AuthenticationType,
+) -> Result<(StripePaymentMethodData, StripePaymentMethodType), errors::ConnectorError> {
+    match payment_method {
+        payments::PaymentMethod::Card(card_details) => {
+            let payment_method_auth_type = match auth_type {
+                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+            };
+            Ok((
+                StripePaymentMethodData::Card(StripeCardData {
+                    payment_method_types: StripePaymentMethodType::Card,
+                    payment_method_data_type: StripePaymentMethodType::Card,
+                    payment_method_data_card_number: card_details.card_number.clone(),
+                    payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
+                    payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
+                    payment_method_data_card_cvc: card_details.card_cvc.clone(),
+                    payment_method_auth_type,
+                }),
+                StripePaymentMethodType::Card,
+            ))
+        }
+        payments::PaymentMethod::PayLater(_) => {
+            let pm_issuer = issuer.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_issuer",
+            })?;
+
+            let pm_experience = experience.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_experience",
+            })?;
+
+            let pm_type = infer_stripe_pay_later_issuer(pm_issuer, pm_experience)?;
+
+            Ok((
+                StripePaymentMethodData::PayLater(StripePayLaterData {
+                    payment_method_types: pm_type.clone(),
+                    payment_method_data_type: pm_type.clone(),
+                }),
+                pm_type,
+            ))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "stripe does not support this payment method".to_string(),
+        )),
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     type Error = errors::ConnectorError;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string(); //Fetch autogenerated txn_uuid from Database.
-                                                            // let api::PaymentMethod::Card(a) = item.payment_method_data;
-                                                            // let api::PaymentMethod::Card(a) = item.payment_method_data;
-
-        let (payment_data, mandate) = {
-            match item
-                .request
-                .mandate_id
-                .clone()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
-            {
-                None => {
-                    let payment_method: StripePaymentMethodData =
-                        (item.request.payment_method_data.clone(), item.auth_type).try_into()?;
-                    (Some(payment_method), None)
-                }
-                Some(mandate_id) => (None, Some(mandate_id)),
-            }
-        };
 
         let shipping_address = match item.address.shipping.clone() {
             Some(mut shipping) => StripeShippingAddress {
@@ -299,17 +346,38 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeBillingAddress::default(),
         };
 
-        crate::logger::debug!(?billing_address);
+        let (payment_data, mandate) = {
+            match item
+                .request
+                .mandate_id
+                .clone()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
+            {
+                None => {
+                    let (payment_method_data, payment_method_type) = create_stripe_payment_method(
+                        item.request.payment_issuer.as_ref(),
+                        item.request.payment_experience.as_ref(),
+                        &item.request.payment_method_data,
+                        item.auth_type,
+                    )?;
 
-        validate_shipping_address_against_payment_method(
-            &shipping_address,
-            &item.request.payment_method_data,
-        )?;
+                    validate_shipping_address_against_payment_method(
+                        &shipping_address,
+                        &payment_method_type,
+                    )?;
 
-        validate_billing_address_against_payment_method(
-            &billing_address,
-            &item.request.payment_method_data,
-        )?;
+                    validate_billing_address_against_payment_method(
+                        &billing_address,
+                        &payment_method_type,
+                    )?;
+
+                    (Some(payment_method_data), None)
+                }
+                Some(mandate_id) => (None, Some(mandate_id)),
+            }
+        };
+
+        crate::logger::debug!(?billing_address); //FIXME: only for debugging purposes
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -341,8 +409,14 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string();
 
-        let payment_data: StripePaymentMethodData =
-            (item.request.payment_method_data.clone(), item.auth_type).try_into()?;
+        //Only cards supported for mandates
+        let pm_type = StripePaymentMethodType::Card;
+        let payment_data: StripePaymentMethodData = (
+            item.request.payment_method_data.clone(),
+            item.auth_type,
+            pm_type,
+        )
+            .try_into()?;
 
         Ok(Self {
             confirm: true,
@@ -858,10 +932,20 @@ pub struct StripeWebhookObjectId {
     pub data: StripeWebhookDataId,
 }
 
-impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentMethodData {
+impl
+    TryFrom<(
+        api::PaymentMethod,
+        enums::AuthenticationType,
+        StripePaymentMethodType,
+    )> for StripePaymentMethodData
+{
     type Error = errors::ConnectorError;
     fn try_from(
-        (pm_data, auth_type): (api::PaymentMethod, enums::AuthenticationType),
+        (pm_data, auth_type, pm_type): (
+            api::PaymentMethod,
+            enums::AuthenticationType,
+            StripePaymentMethodType,
+        ),
     ) -> Result<Self, Self::Error> {
         match pm_data {
             api::PaymentMethod::Card(ref ccard) => Ok(Self::Card({
@@ -880,29 +964,10 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                 }
             })),
             api::PaymentMethod::BankTransfer => Ok(Self::Bank),
-            api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
-                api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
-                    Ok(Self::Klarna(StripePayLaterData {
-                        payment_method_types: StripePaymentMethodType::Klarna,
-                        payment_method_data_type: StripePaymentMethodType::Klarna,
-                    }))
-                }
-                api_models::payments::PayLaterData::AffirmRedirect { .. } => {
-                    Ok(Self::Affirm(StripePayLaterData {
-                        payment_method_types: StripePaymentMethodType::Affirm,
-                        payment_method_data_type: StripePaymentMethodType::Affirm,
-                    }))
-                }
-                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                    Ok(Self::AfterpayClearpay(StripePayLaterData {
-                        payment_method_types: StripePaymentMethodType::AfterpayClearpay,
-                        payment_method_data_type: StripePaymentMethodType::AfterpayClearpay,
-                    }))
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(String::from(
-                    "Stripe does not support payment through provided payment method",
-                ))),
-            },
+            api::PaymentMethod::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
+                payment_method_types: pm_type.clone(),
+                payment_method_data_type: pm_type,
+            })),
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),
         }
