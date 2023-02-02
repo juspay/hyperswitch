@@ -240,7 +240,14 @@ fn create_stripe_payment_method(
     experience: Option<&enums::PaymentExperience>,
     payment_method: &api_models::payments::PaymentMethod,
     auth_type: enums::AuthenticationType,
-) -> Result<(StripePaymentMethodData, StripePaymentMethodType), errors::ConnectorError> {
+) -> Result<
+    (
+        StripePaymentMethodData,
+        StripePaymentMethodType,
+        StripeBillingAddress,
+    ),
+    errors::ConnectorError,
+> {
     match payment_method {
         payments::PaymentMethod::Card(card_details) => {
             let payment_method_auth_type = match auth_type {
@@ -258,9 +265,10 @@ fn create_stripe_payment_method(
                     payment_method_auth_type,
                 }),
                 StripePaymentMethodType::Card,
+                StripeBillingAddress::default(),
             ))
         }
-        payments::PaymentMethod::PayLater(_) => {
+        payments::PaymentMethod::PayLater(pay_later_data) => {
             let pm_issuer = issuer.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_issuer",
             })?;
@@ -271,12 +279,19 @@ fn create_stripe_payment_method(
 
             let pm_type = infer_stripe_pay_later_issuer(pm_issuer, pm_experience)?;
 
+            let billing_address = StripeBillingAddress {
+                email: pay_later_data.billing_email.clone(),
+                country: pay_later_data.billing_country.clone(),
+                name: pay_later_data.billing_name.clone(),
+            };
+
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
                     payment_method_types: pm_type.clone(),
                     payment_method_data_type: pm_type.clone(),
                 }),
                 pm_type,
+                billing_address,
             ))
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -322,31 +337,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeShippingAddress::default(),
         };
 
-        let billing_address = match item.address.billing.clone() {
-            Some(mut billing) => StripeBillingAddress {
-                email: item.request.email.clone(),
-                country: billing
-                    .address
-                    .as_ref()
-                    .and_then(|address| address.country.clone()),
-                name: billing.address.as_mut().and_then(|a| {
-                    a.first_name.as_ref().map(|first_name| {
-                        format!(
-                            "{} {}",
-                            first_name.clone().expose(),
-                            a.last_name.clone().expose_option().unwrap_or_default()
-                        )
-                    })
-                }),
-                line1: billing
-                    .address
-                    .as_ref()
-                    .and_then(|address| address.line1.clone()),
-            },
-            None => StripeBillingAddress::default(),
-        };
+        // let billing_address = match item.address.billing.clone() {
+        //     Some(mut billing) => StripeBillingAddress {
+        //         email: item.request.email.clone(),
+        //         country: billing
+        //             .address
+        //             .as_ref()
+        //             .and_then(|address| address.country.clone()),
+        //         name: billing.address.as_mut().and_then(|a| {
+        //             a.first_name.as_ref().map(|first_name| {
+        //                 format!(
+        //                     "{} {}",
+        //                     first_name.clone().expose(),
+        //                     a.last_name.clone().expose_option().unwrap_or_default()
+        //                 )
+        //             })
+        //         }),
+        //         line1: billing
+        //             .address
+        //             .as_ref()
+        //             .and_then(|address| address.line1.clone()),
+        //     },
+        //     None => StripeBillingAddress::default(),
+        // };
 
-        let (payment_data, mandate) = {
+        let (payment_data, mandate, billing_address) = {
             match item
                 .request
                 .mandate_id
@@ -354,12 +369,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
             {
                 None => {
-                    let (payment_method_data, payment_method_type) = create_stripe_payment_method(
-                        item.request.payment_issuer.as_ref(),
-                        item.request.payment_experience.as_ref(),
-                        &item.request.payment_method_data,
-                        item.auth_type,
-                    )?;
+                    let (payment_method_data, payment_method_type, billing_address) =
+                        create_stripe_payment_method(
+                            item.request.payment_issuer.as_ref(),
+                            item.request.payment_experience.as_ref(),
+                            &item.request.payment_method_data,
+                            item.auth_type,
+                        )?;
 
                     validate_shipping_address_against_payment_method(
                         &shipping_address,
@@ -371,9 +387,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         &payment_method_type,
                     )?;
 
-                    (Some(payment_method_data), None)
+                    (Some(payment_method_data), None, billing_address)
                 }
-                Some(mandate_id) => (None, Some(mandate_id)),
+                Some(mandate_id) => (None, Some(mandate_id), StripeBillingAddress::default()),
             }
         };
 
@@ -784,9 +800,7 @@ pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
     pub country: Option<String>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
-    pub name: Option<String>,
-    #[serde(rename = "payment_method_data[billing_details][address][line1]")]
-    pub line1: Option<Secret<String>>,
+    pub name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
@@ -795,7 +809,7 @@ pub struct StripeRedirectResponse {
     pub payment_intent_client_secret: String,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
-    pub source_type: Option<String>,
+    pub source_type: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Clone, Copy)]

@@ -343,9 +343,9 @@ pub enum AfterpayClearpayIssuer {
 #[serde(rename_all = "snake_case")]
 pub struct PayLaterData {
     pub token: Option<String>,
-    pub billing_email: Option<String>,
-    pub billing_address: Option<AddressDetails>,
-    pub shipping_address: Option<AddressDetails>,
+    pub billing_email: Option<Secret<String, pii::Email>>,
+    pub billing_country: Option<String>,
+    pub billing_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize, ToSchema)]
