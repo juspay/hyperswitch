@@ -24,6 +24,14 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 
+[replica_database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+
 [proxy]
 # http_url = "http proxy URL"
 # https_url = "https proxy URL"
@@ -100,3 +108,11 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv"]
+
+
+[scheduler]
+stream = "SCHEDULER_STREAM"
+
+[scheduler.consumer]
+disabled = false
+consumer_group = "SCHEDULER_GROUP"
