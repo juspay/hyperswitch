@@ -38,7 +38,7 @@ async fn should_only_authorize_payment() {
     let response = Rapyd {}
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4111111111111111".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
@@ -60,7 +60,7 @@ async fn should_authorize_and_capture_payment() {
     let response = Rapyd {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("4111111111111111".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
@@ -81,7 +81,7 @@ async fn should_capture_already_authorized_payment() {
     let connector = Rapyd {};
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -100,7 +100,7 @@ async fn voiding_already_authorized_payment_fails() {
     let connector = Rapyd {};
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -120,7 +120,7 @@ async fn should_refund_succeeded_payment() {
     let response = connector.make_payment(None, None).await.unwrap();
 
     //try refund for previous payment
-    if let Some(transaction_id) = utils::get_connector_transaction_id(response) {
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response) {
         let response = connector
             .refund_payment(transaction_id, None, None)
             .await
@@ -137,7 +137,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = Rapyd {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::CCard {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
                     card_number: Secret::new("0000000000000000".to_string()),
                     ..utils::CCardType::default().0
                 }),

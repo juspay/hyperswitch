@@ -226,7 +226,7 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
     }
 }
 #[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourcePaymentStatus {
     Authorized,
     Succeeded,
@@ -235,6 +235,7 @@ pub enum CybersourcePaymentStatus {
     Reversed,
     Pending,
     Declined,
+    AuthorizedPendingReview,
     Transmitted,
     #[default]
     Processing,
@@ -243,7 +244,8 @@ pub enum CybersourcePaymentStatus {
 impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
     fn from(item: CybersourcePaymentStatus) -> Self {
         match item {
-            CybersourcePaymentStatus::Authorized => Self::Authorized,
+            CybersourcePaymentStatus::Authorized
+            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Authorized,
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
@@ -258,7 +260,9 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
 impl From<CybersourcePaymentStatus> for enums::RefundStatus {
     fn from(item: CybersourcePaymentStatus) -> Self {
         match item {
-            CybersourcePaymentStatus::Succeeded => Self::Success,
+            CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
+                Self::Success
+            }
             CybersourcePaymentStatus::Failed => Self::Failure,
             _ => Self::Pending,
         }
@@ -388,9 +392,10 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
-    pub status: String,
+    pub status: Option<String>,
     pub message: Option<String>,
-    pub details: serde_json::Value,
+    pub reason: Option<String>,
+    pub details: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -411,7 +416,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
-                    total_amount: item.request.amount.to_string(),
+                    total_amount: item.request.refund_amount.to_string(),
                     currency: item.request.currency.to_string(),
                 },
             },
