@@ -1,9 +1,11 @@
+use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
     core::errors,
     pii::PeekInterface,
     types::{self, api},
+    utils::OptionExt,
 };
 
 pub fn missing_field_err(
@@ -38,6 +40,19 @@ pub trait PaymentsRequestData {
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+}
+
+pub trait RefundsRequestData {
+    fn get_connector_refund_id(&self) -> Result<String, Error>;
+}
+
+impl RefundsRequestData for types::RefundsData {
+    fn get_connector_refund_id(&self) -> Result<String, Error> {
+        self.connector_refund_id
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+    }
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
