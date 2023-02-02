@@ -19,9 +19,16 @@ impl RefundNew {
 impl Refund {
     #[instrument(skip(conn))]
     pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
-            self.id,
+            dsl::refund_id
+                .eq(self.refund_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             RefundUpdateInternal::from(refund),
         )
         .await
