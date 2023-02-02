@@ -1,6 +1,5 @@
 use std::{thread::sleep, time::Duration};
 
-use futures::future::OptionFuture;
 use masking::Secret;
 use router::types::{
     self,
@@ -55,8 +54,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             }),
             ..Default::default()
         }),
-        auth_type: None,
-        access_token: None,
+        ..Default::default()
     })
 }
 
@@ -81,22 +79,17 @@ async fn should_authorize_and_capture_payment() {
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Globalpay {};
-    let authorize_response = connector
-        .authorize_payment(None, get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
-    let response: OptionFuture<_> = txn_id
-        .map(|transaction_id| async move {
-            connector
-                .capture_payment(transaction_id, None, get_default_payment_info())
-                .await
-                .unwrap()
-                .status
-        })
-        .into();
-    assert_eq!(response.await, Some(enums::AttemptStatus::Charged));
+    let response = connector
+        .authorize_and_capture_payment(
+            None,
+            Some(types::PaymentsCaptureData {
+                amount_to_capture: Some(50),
+                ..utils::PaymentCaptureType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await;
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Charged);
 }
 
 #[actix_web::test]
@@ -106,10 +99,11 @@ async fn should_sync_payment() {
         .authorize_payment(None, get_default_payment_info())
         .await
         .unwrap();
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     sleep(Duration::from_secs(5)); // to avoid 404 error as globalpay takes some time to process the new transaction
     let response = connector
-        .sync_payment(
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
@@ -146,16 +140,8 @@ async fn should_fail_payment_for_incorrect_cvc() {
 #[actix_web::test]
 async fn should_refund_succeeded_payment() {
     let connector = Globalpay {};
-    //make a successful payment
     let response = connector
-        .make_payment(None, get_default_payment_info())
-        .await
-        .unwrap();
-
-    //try refund for previous payment
-    let transaction_id = utils::get_connector_transaction_id(response).unwrap();
-    let response = connector
-        .refund_payment(transaction_id, None, get_default_payment_info())
+        .make_payment_and_refund(None, None, get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(
@@ -167,39 +153,26 @@ async fn should_refund_succeeded_payment() {
 #[actix_web::test]
 async fn should_void_already_authorized_payment() {
     let connector = Globalpay {};
-    let authorize_response = connector
-        .authorize_payment(None, get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
-    let response: OptionFuture<_> = txn_id
-        .map(|transaction_id| async move {
-            connector
-                .void_payment(transaction_id, None, None)
-                .await
-                .unwrap()
-                .status
-        })
-        .into();
-    assert_eq!(response.await, Some(enums::AttemptStatus::Voided));
+    let response = connector
+        .authorize_and_void_payment(None, None, get_default_payment_info())
+        .await;
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Voided);
 }
 
 #[actix_web::test]
 async fn should_sync_refund() {
     let connector = Globalpay {};
-    let response = connector
-        .make_payment(None, get_default_payment_info())
+    let refund_response = connector
+        .make_payment_and_refund(None, None, get_default_payment_info())
         .await
         .unwrap();
-    let transaction_id = utils::get_connector_transaction_id(response).unwrap();
-    connector
-        .refund_payment(transaction_id.clone(), None, get_default_payment_info())
-        .await
-        .unwrap();
-    sleep(Duration::from_secs(5)); // to avoid 404 error as globalpay takes some time to process the new transaction
     let response = connector
-        .sync_refund(transaction_id, None, get_default_payment_info())
+        .rsync_retry_till_status_matches(
+            enums::RefundStatus::Success,
+            refund_response.response.unwrap().connector_refund_id,
+            None,
+            get_default_payment_info(),
+        )
         .await
         .unwrap();
     assert_eq!(

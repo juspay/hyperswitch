@@ -11,7 +11,7 @@ fi
 cd $SCRIPT/..
 # remove template files if already created for this connector
 rm -rf $conn/$pg $conn/$pg.rs
-git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/Development.toml config/docker_compose.toml config/config.example.toml loadtest/config/Development.toml crates/router/src/configs/defaults.toml crates/api_models/src/enums.rs
+git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/Development.toml config/docker_compose.toml config/config.example.toml loadtest/config/Development.toml crates/api_models/src/enums.rs
 # add enum for this connector in required places
 sed -i'' -e "s/pub use self::{/pub mod ${pg};\n\npub use self::{/" $conn.rs
 sed -i'' -e "s/};/${pg}::${pgc},\n};/" $conn.rs 
@@ -25,10 +25,9 @@ sed -i'' -e "s/\[connectors.supported\]/[connectors.${pg}]\nbase_url = ""\n\n[co
 sed  -r -i'' -e "s/cards = \[(.*)\]/cards = [\1, \"${pg}\"]/" config/config.example.toml
 sed -i'' -e "s/\[connectors.supported\]/[connectors.${pg}]\nbase_url = ""\n\n[connectors.supported]/" loadtest/config/Development.toml
 sed  -r -i'' -e "s/cards = \[(.*)\]/cards = [\1, \"${pg}\"]/" loadtest/config/Development.toml
-sed -i'' -e "s/\[connectors.supported\]/[connectors.${pg}]\nbase_url = ""\n\n[connectors.supported]/" crates/router/src/configs/defaults.toml
 sed -i'' -e "s/Dummy,/Dummy,\n\t${pgc},/" crates/api_models/src/enums.rs
 # remove temporary files created in above step
-rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/Development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/Development.toml-e crates/router/src/configs/defaults.toml-e crates/api_models/src/enums.rs-e
+rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/Development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/Development.toml-e crates/api_models/src/enums.rs-e
 cd $conn/ 
 # generate template files for the connector
 cargo install cargo-generate
