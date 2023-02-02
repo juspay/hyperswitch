@@ -190,13 +190,13 @@ fn validate_billing_address_against_payment_method(
         StripePaymentMethodType::Klarna => {
             fp_utils::when(billing_address.country.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.address.country",
+                    field_name: "billing_country",
                 })
             })?;
 
             fp_utils::when(billing_address.email.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "email",
+                    field_name: "billing_email",
                 })
             })?;
         }
@@ -204,7 +204,12 @@ fn validate_billing_address_against_payment_method(
         StripePaymentMethodType::AfterpayClearpay => {
             fp_utils::when(billing_address.name.is_none(), || {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.address.first_name",
+                    field_name: "billing_name",
+                })
+            })?;
+            fp_utils::when(billing_address.email.is_none(), || {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_email",
                 })
             })?;
         }
