@@ -245,7 +245,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<storage_types::Refund>(
-                            &lookup.pk_id,
+                            key,
                             &lookup.sk_id,
                             "Refund",
                         )
@@ -319,6 +319,16 @@ mod storage {
                                     lookup_id: format!(
                                         "{}_{}",
                                         created_refund.merchant_id, created_refund.refund_id
+                                    ),
+                                    pk_id: key.clone(),
+                                    source: "refund".to_string(),
+                                },
+                                storage_types::ReverseLookupNew {
+                                    sk_id: field.clone(),
+                                    lookup_id: format!(
+                                        "{}_{}",
+                                        created_refund.merchant_id,
+                                        created_refund.connector_transaction_id
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
@@ -508,7 +518,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<storage_types::Refund>(
-                            &lookup.pk_id,
+                            key,
                             &lookup.sk_id,
                             "Refund",
                         )
