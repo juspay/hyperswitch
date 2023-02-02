@@ -12,7 +12,7 @@ use crate::{
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::app::AppStateInfo,
     types::{
         api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
@@ -26,11 +26,15 @@ use crate::{
 pub struct PaymentCancel;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<A, F: Send + Clone> GetTracker<A, F, PaymentData<F>, api::PaymentsCancelRequest>
+    for PaymentCancel
+where
+    A: AppStateInfo,
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a A,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,

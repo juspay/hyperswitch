@@ -11,7 +11,7 @@ use crate::{
         payments::{self, helpers, operations},
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{AppState, app::AppStateInfo},
     types::{
         api::{self, PaymentIdTypeExt},
         storage::{self, enums},
@@ -25,8 +25,10 @@ use crate::{
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<A, F: Send + Clone> GetTracker<A, F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
+where
+    A: AppStateInfo,
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(

@@ -16,7 +16,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{AppState, app::AppStateInfo},
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
@@ -60,11 +60,15 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl<A, F: Send + Clone> GetTracker<A, F, PaymentData<F>, api::VerifyRequest>
+    for PaymentMethodValidate
+where
+    A: AppStateInfo,
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a A,
         payment_id: &api::PaymentIdType,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,

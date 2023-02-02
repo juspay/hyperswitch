@@ -13,7 +13,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::AppState,
+    routes::{app::AppStateInfo, AppState},
     services,
     types::{
         api,
@@ -26,36 +26,40 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_MS: u64 = 5000;
 
 #[instrument(skip_all)]
-async fn payments_incoming_webhook_flow(
-    state: AppState,
+async fn payments_incoming_webhook_flow<A>(
+    state: A,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::WebhooksFlowError>
+where
+    A: AppStateInfo,
+{
     let consume_or_trigger_flow = if source_verified {
         payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
     } else {
         payments::CallConnectorAction::Trigger
     };
 
-    let payments_response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
-        &state,
-        merchant_account.clone(),
-        payments::operations::PaymentStatus,
-        api::PaymentsRetrieveRequest {
-            resource_id: api::PaymentIdType::ConnectorTransactionId(
-                webhook_details.object_reference_id,
-            ),
-            merchant_id: Some(merchant_account.merchant_id.clone()),
-            force_sync: true,
-            connector: None,
-            param: None,
-        },
-        services::AuthFlow::Merchant,
-        consume_or_trigger_flow,
-    )
-    .await
-    .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+    let payments_response =
+        payments::payments_core::<A, api::PSync, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account.clone(),
+            payments::operations::PaymentStatus,
+            api::PaymentsRetrieveRequest {
+                resource_id: api::PaymentIdType::ConnectorTransactionId(
+                    webhook_details.object_reference_id,
+                ),
+                merchant_id: Some(merchant_account.merchant_id.clone()),
+                force_sync: true,
+                connector: None,
+                param: None,
+            },
+            services::AuthFlow::Merchant,
+            consume_or_trigger_flow,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
     match payments_response {
         services::ApplicationResponse::Json(payments_response) => {
@@ -194,15 +198,18 @@ async fn trigger_webhook_to_merchant(
 }
 
 #[instrument(skip_all)]
-pub async fn webhooks_core(
-    state: &AppState,
+pub async fn webhooks_core<A>(
+    state: &A,
     req: &actix_web::HttpRequest,
     merchant_account: storage::MerchantAccount,
     connector_name: &str,
     body: actix_web::web::Bytes,
-) -> RouterResponse<serde_json::Value> {
+) -> RouterResponse<serde_json::Value>
+where
+    A: AppStateInfo,
+{
     let connector = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
+        &state.get_conf().connectors,
         connector_name,
         api::GetToken::Connector,
     )
@@ -213,7 +220,7 @@ pub async fn webhooks_core(
 
     let source_verified = connector
         .verify_webhook_source(
-            &*state.store,
+            &*state.get_store(),
             req.headers(),
             &body,
             &merchant_account.merchant_id,
@@ -224,7 +231,7 @@ pub async fn webhooks_core(
 
     let decoded_body = connector
         .decode_webhook_body(
-            &*state.store,
+            &*state.get_store(),
             req.headers(),
             &body,
             &merchant_account.merchant_id,
@@ -239,7 +246,7 @@ pub async fn webhooks_core(
         .attach_printable("Could not find event type in incoming webhook body")?;
 
     let process_webhook_further = utils::lookup_webhook_event(
-        &*state.store,
+        &*state.get_store(),
         connector_name,
         &merchant_account.merchant_id,
         &event_type,

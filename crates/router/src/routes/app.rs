@@ -20,6 +20,24 @@ pub struct AppState {
     pub conf: Settings,
 }
 
+pub trait AppStateInfo {
+    fn get_flow_name(&self) -> String;
+    fn get_store(&self) -> Box<dyn StorageInterface>;
+    fn get_conf(&self) -> Settings;
+}
+
+impl AppStateInfo for AppState {
+    fn get_conf(&self) -> Settings {
+        self.conf.to_owned()
+    }
+    fn get_flow_name(&self) -> String {
+        self.flow_name.to_owned()
+    }
+    fn get_store(&self) -> Box<dyn StorageInterface> {
+        self.store.to_owned()
+    }
+}
+
 impl AppState {
     pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> Self {
         let testable = storage_impl == StorageImpl::PostgresqlTest;

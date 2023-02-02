@@ -24,7 +24,7 @@ use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::AppStateInfo, AppState},
     types::{
         self, api,
         storage::{self, enums},
@@ -39,9 +39,12 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
     }
-    fn to_get_tracker(
+    fn to_get_tracker<A>(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, PaymentData<F>, T> + Send + Sync)> {
+    ) -> RouterResult<&(dyn GetTracker<A, F, PaymentData<F>, T> + Send + Sync)>
+    where
+        A: AppStateInfo,
+    {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
@@ -81,16 +84,18 @@ pub trait ValidateRequest<F, R> {
 }
 
 #[async_trait]
-pub trait GetTracker<F, D, R>: Send {
+pub trait GetTracker<A, F, D, R>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a A,
         payment_id: &api::PaymentIdType,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
+    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>
+    where
+        A: AppStateInfo;
 }
 
 #[async_trait]

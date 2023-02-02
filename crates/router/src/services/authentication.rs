@@ -7,35 +7,53 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    routes::AppState,
+    routes::app::AppStateInfo,
     services::api,
     types::storage,
     utils::OptionExt,
 };
 
 #[async_trait]
-pub trait AuthenticateAndFetch<T> {
+pub trait AuthenticateAndFetch<T, A> {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
-    ) -> RouterResult<T>;
+        state: &A,
+    ) -> RouterResult<T>
+    where
+        A: AppStateInfo;
 }
 
 #[derive(Debug)]
 pub struct ApiKeyAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for ApiKeyAuth {
+impl<T> AuthenticateAndFetch<storage::MerchantAccount, T> for ApiKeyAuth
+where
+    T: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &T,
     ) -> RouterResult<storage::MerchantAccount> {
         let api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        // state
+        //     .store
+        //     .find_merchant_account_by_api_key(api_key)
+        //     .await
+        //     .change_context(errors::ApiErrorResponse::Unauthorized)
+        //     .attach_printable("Merchant not authenticated")
+
+        // AppState::get_store()
+        //     .find_merchant_account_by_api_key(api_key)
+        //     .await
+        //     .change_context(errors::ApiErrorResponse::Unauthorized)
+        //     .attach_printable("Merchant not authenticated")
+
         state
-            .store
+            .get_store()
             .find_merchant_account_by_api_key(api_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
@@ -47,15 +65,18 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for ApiKeyAuth {
 pub struct AdminApiAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<()> for AdminApiAuth {
+impl<T> AuthenticateAndFetch<(), T> for AdminApiAuth
+where
+    T: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &T,
     ) -> RouterResult<()> {
         let admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        if admin_api_key != state.conf.secrets.admin_api_key {
+        if admin_api_key != state.get_conf().secrets.admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -67,14 +88,17 @@ impl AuthenticateAndFetch<()> for AdminApiAuth {
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for MerchantIdAuth {
+impl<T> AuthenticateAndFetch<storage::MerchantAccount, T> for MerchantIdAuth
+where
+    T: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         _request_headers: &HeaderMap,
-        state: &AppState,
+        state: &T,
     ) -> RouterResult<storage::MerchantAccount> {
         state
-            .store
+            .get_store()
             .find_merchant_account_by_merchant_id(self.0.as_ref())
             .await
             .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized))
@@ -85,16 +109,19 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for MerchantIdAuth {
 pub struct PublishableKeyAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for PublishableKeyAuth {
+impl<T> AuthenticateAndFetch<storage::MerchantAccount, T> for PublishableKeyAuth
+where
+    T: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &T,
     ) -> RouterResult<storage::MerchantAccount> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         state
-            .store
+            .get_store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
@@ -112,11 +139,14 @@ struct JwtAuthPayloadFetchUnit {
 }
 
 #[async_trait]
-impl AuthenticateAndFetch<()> for JWTAuth {
+impl<T> AuthenticateAndFetch<(), T> for JWTAuth
+where
+    T: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &T,
     ) -> RouterResult<()> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
@@ -130,17 +160,20 @@ struct JwtAuthPayloadFetchMerchantAccount {
 }
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for JWTAuth {
+impl<T> AuthenticateAndFetch<storage::MerchantAccount, T> for JWTAuth
+where
+    T: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &T,
     ) -> RouterResult<storage::MerchantAccount> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
         let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state)?;
         state
-            .store
+            .get_store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)
@@ -163,12 +196,13 @@ impl ClientSecretFetch for ListPaymentMethodRequest {
     }
 }
 
-pub fn jwt_auth_or<'a, T>(
-    default_auth: &'a dyn AuthenticateAndFetch<T>,
+pub fn jwt_auth_or<'a, A, T>(
+    default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     headers: &HeaderMap,
-) -> Box<&'a dyn AuthenticateAndFetch<T>>
+) -> Box<&'a dyn AuthenticateAndFetch<T, A>>
 where
-    JWTAuth: AuthenticateAndFetch<T>,
+    JWTAuth: AuthenticateAndFetch<T, A>,
+    A: AppStateInfo,
 {
     if is_jwt_auth(headers) {
         return Box::new(&JWTAuth);
@@ -176,12 +210,15 @@ where
     Box::new(default_auth)
 }
 
-pub fn get_auth_type_and_flow(
+pub fn get_auth_type_and_flow<A>(
     headers: &HeaderMap,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount>>,
+    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
     api::AuthFlow,
-)> {
+)>
+where
+    A: AppStateInfo + Sync,
+{
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
@@ -190,13 +227,16 @@ pub fn get_auth_type_and_flow(
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
-pub fn check_client_secret_and_get_auth(
+pub fn check_client_secret_and_get_auth<A>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount>>,
+    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
     api::AuthFlow,
-)> {
+)>
+where
+    A: AppStateInfo + Sync,
+{
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
@@ -219,11 +259,14 @@ pub fn check_client_secret_and_get_auth(
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
-pub async fn is_ephemeral_auth(
+pub async fn is_ephemeral_auth<A>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>>
+where
+    A: AppStateInfo + Sync,
+{
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
@@ -246,11 +289,11 @@ fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
-pub fn decode_jwt<T>(token: &str, state: &AppState) -> RouterResult<T>
+pub fn decode_jwt<T>(token: &str, state: &dyn AppStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    let secret = state.conf.secrets.jwt_secret.as_bytes();
+    let secret = state.get_conf().secrets.jwt_secret.as_bytes();
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)

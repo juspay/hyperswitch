@@ -27,7 +27,7 @@ use crate::{
     },
     db::StorageInterface,
     logger, pii,
-    routes::AppState,
+    routes::{app::AppStateInfo, AppState},
     scheduler::utils as pt_utils,
     services,
     types::{
@@ -38,8 +38,8 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn payments_operation_core<F, Req, Op, FData>(
-    state: &AppState,
+pub async fn payments_operation_core<A, F, Req, Op, FData>(
+    state: &A,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
@@ -52,6 +52,7 @@ where
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    A: AppStateInfo,
 
     // To construct connector flow specific api
     dyn types::api::Connector:
@@ -83,7 +84,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
-            &*state.store,
+            &*state.get_store(),
             &mut payment_data,
             customer_details,
             validate_result.merchant_id,
@@ -194,8 +195,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<F, Res, Req, Op, FData>(
-    state: &AppState,
+pub async fn payments_core<A, F, Res, Req, Op, FData>(
+    state: &A,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
@@ -211,7 +212,7 @@ where
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
-
+    A: AppStateInfo,
     // To construct connector flow specific api
     dyn types::api::Connector:
         services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,

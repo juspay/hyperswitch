@@ -4,6 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::admin::*,
+    routes::app::AppStateInfo,
     services::{api, authentication as auth},
     types::api::admin,
 };
@@ -25,7 +26,7 @@ use crate::{
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
-    state: web::Data<AppState>,
+    state: web::Data<impl AppStateInfo>,
     req: HttpRequest,
     json_payload: web::Json<admin::CreateMerchantAccount>,
 ) -> HttpResponse {

@@ -4,16 +4,20 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::webhooks,
+    routes::app::AppStateInfo,
     services::{api, authentication as auth},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
-pub async fn receive_incoming_webhook(
-    state: web::Data<AppState>,
+pub async fn receive_incoming_webhook<A>(
+    state: web::Data<A>,
     req: HttpRequest,
     body: web::Bytes,
     path: web::Path<(String, String)>,
-) -> impl Responder {
+) -> impl Responder
+where
+    A: AppStateInfo,
+{
     let (merchant_id, connector_name) = path.into_inner();
 
     api::server_wrap(
