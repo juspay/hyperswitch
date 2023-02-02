@@ -167,25 +167,25 @@ fn validate_shipping_address_against_payment_method(
     {
         fp_utils::when(shipping_address.name.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.first_name".to_string(),
+                field_name: "shipping.first_name",
             })
         })?;
 
         fp_utils::when(shipping_address.line1.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.line1".to_string(),
+                field_name: "shipping.line1",
             })
         })?;
 
         fp_utils::when(shipping_address.country.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.country".to_string(),
+                field_name: "shipping.country",
             })
         })?;
 
         fp_utils::when(shipping_address.zip.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.zip".to_string(),
+                field_name: "shipping.zip",
             })
         })?;
     }

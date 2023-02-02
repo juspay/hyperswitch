@@ -102,9 +102,10 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
                     {
-                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue(
-                            format!("Payment Intent already exists for payment_id: {key}"),
-                        ))
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                            entity: "payment_intent",
+                            key: Some(key),
+                        })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
                             let redis_entry = kv::TypedSql {

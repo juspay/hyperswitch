@@ -3,6 +3,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::RefundsRequestData,
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
@@ -316,7 +317,7 @@ impl<F, T>
             })
             .transpose()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata".to_string(),
+                field_name: "connector_metadata",
             })?;
 
         Ok(Self {
@@ -372,7 +373,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             .as_ref()
             .get_required_value("connector_metadata")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata".to_string(),
+                field_name: "connector_metadata",
             })?
             .clone();
 
@@ -384,7 +385,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             payment: payment_details
                 .parse_value("PaymentDetails")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_details".to_string(),
+                    field_name: "payment_details",
                 })?,
             currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
@@ -466,12 +467,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncReque
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let transaction_id = item
-            .request
-            .connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
+        let transaction_id = item.request.get_connector_refund_id()?;
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let payload = Self {
