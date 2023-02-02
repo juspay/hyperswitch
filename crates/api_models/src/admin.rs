@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::{enums as api_enums, payment_methods};
+use crate::enums as api_enums;
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -325,7 +325,7 @@ pub struct PaymentMethods {
     pub installment_payment_enabled: bool,
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<payment_methods::PaymentExperience>>,
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

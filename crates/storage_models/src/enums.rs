@@ -6,11 +6,12 @@ pub mod diesel_exports {
         DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
-        DbMerchantStorageScheme as MerchantStorageScheme, DbPaymentFlow as PaymentFlow,
+        DbMerchantStorageScheme as MerchantStorageScheme, DbPaymentExperience as PaymentExperience,
+        DbPaymentFlow as PaymentFlow, DbPaymentIssuer as PaymentIssuer,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
-        DbRefundType as RefundType, DbRoutingAlgorithm as RoutingAlgorithm,
+        DbRefundType as RefundType,
     };
 }
 
@@ -671,4 +672,65 @@ pub enum MandateStatus {
     Inactive,
     Pending,
     Revoked,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    router_derive::DieselEnum,
+)]
+#[router_derive::diesel_enum]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentIssuer {
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    AmericanExpress,
+    BankOfAmerica,
+    Barclays,
+    CapitalOne,
+    Chase,
+    Citi,
+    Discover,
+    NavyFederalCreditUnion,
+    PentagonFederalCreditUnion,
+    SynchronyBank,
+    WellsFargo,
+}
+
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+    strum::Display,
+    strum::EnumString,
+    router_derive::DieselEnum,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentExperience {
+    #[default]
+    RedirectToUrl,
+    InvokeSdkClient,
+    DisplayQrCode,
+    OneClick,
+    LinkWallet,
+    InvokePaymentApp,
 }
