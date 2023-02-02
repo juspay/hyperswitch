@@ -158,6 +158,18 @@ impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMet
     }
 }
 
+impl From<F<api_enums::PaymentIssuer>> for F<storage_enums::PaymentIssuer> {
+    fn from(issuer: F<api_enums::PaymentIssuer>) -> Self {
+        Self(frunk::labelled_convert_from(issuer.0))
+    }
+}
+
+impl From<F<api_enums::PaymentExperience>> for F<storage_enums::PaymentExperience> {
+    fn from(experience: F<api_enums::PaymentExperience>) -> Self {
+        Self(frunk::labelled_convert_from(experience.0))
+    }
+}
+
 impl From<F<storage_enums::IntentStatus>> for F<api_enums::IntentStatus> {
     fn from(status: F<storage_enums::IntentStatus>) -> Self {
         Self(frunk::labelled_convert_from(status.0))

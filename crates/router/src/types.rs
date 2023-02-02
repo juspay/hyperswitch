@@ -115,6 +115,8 @@ pub struct PaymentsAuthorizeData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<api_models::payments::OrderDetails>,
+    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone)]

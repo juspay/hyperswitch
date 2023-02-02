@@ -201,8 +201,6 @@ diesel::table! {
         tax_amount -> Nullable<Int8>,
         payment_method_id -> Nullable<Varchar>,
         payment_method -> Nullable<PaymentMethodType>,
-        payment_flow -> Nullable<PaymentFlow>,
-        redirect -> Nullable<Bool>,
         connector_transaction_id -> Nullable<Varchar>,
         capture_method -> Nullable<CaptureMethod>,
         capture_on -> Nullable<Timestamp>,
@@ -218,6 +216,8 @@ diesel::table! {
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
+        payment_issuer -> Nullable<PaymentIssuer>,
+        payment_experience -> Nullable<PaymentExperience>,
     }
 }
 

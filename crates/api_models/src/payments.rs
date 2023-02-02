@@ -132,6 +132,8 @@ pub struct PaymentsRequest {
         "java_script_enabled":true
     }"#)]
     pub browser_info: Option<serde_json::Value>,
+    pub payment_issuer: Option<api_enums::PaymentIssuer>,
+    pub payment_experience: Option<api_enums::PaymentExperience>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -340,10 +342,10 @@ pub enum AfterpayClearpayIssuer {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PayLaterData {
-    token: Option<String>,
-    billing_email: Option<String>,
-    billing_address: Option<AddressDetails>,
-    shipping_address: Option<AddressDetails>,
+    pub token: Option<String>,
+    pub billing_email: Option<String>,
+    pub billing_address: Option<AddressDetails>,
+    pub shipping_address: Option<AddressDetails>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize, ToSchema)]
