@@ -108,7 +108,7 @@ pub async fn trigger_refund_to_gateway(
 
     let currency = payment_attempt.currency.ok_or_else(|| {
         report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "currency".to_string()
+            field_name: "currency"
         })
         .attach_printable("Transaction in invalid")
     })?;
@@ -295,9 +295,11 @@ pub async fn sync_refund_with_gateway(
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
-    match add_access_token_result.access_token_result {
-        Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => router_data.response = Err(connector_error),
+    if add_access_token_result.connector_supports_access_token {
+        match add_access_token_result.access_token_result {
+            Ok(access_token) => router_data.access_token = access_token,
+            Err(connector_error) => router_data.response = Err(connector_error),
+        }
     }
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
@@ -382,9 +384,7 @@ pub async fn refund_update_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!("Unable to update refund with refund_id: {}", refund_id)
-        })?;
+        .attach_printable_lazy(|| format!("Unable to update refund with refund_id: {refund_id}"))?;
 
     Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
@@ -691,7 +691,7 @@ pub async fn sync_refund_with_gateway_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{}", id))
+                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{id}"))
                 .await?
         }
         _ => {
@@ -804,7 +804,7 @@ pub async fn trigger_refund_execute_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(db, format!("COMPLETED_BY_PT_{}", id))
+                .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
                 .await?;
         }
     };
@@ -914,7 +914,7 @@ pub async fn get_refund_sync_process_schedule_time(
     let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
         db::get_and_deserialize_key(
             db,
-            &format!("pt_mapping_refund_sync_{}", connector),
+            &format!("pt_mapping_refund_sync_{connector}"),
             "ConnectorPTMapping",
         )
         .await;

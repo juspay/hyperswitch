@@ -383,7 +383,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 }
             },
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method".to_string(),
+                field_name: "payment_method",
             }),
         }?;
 
@@ -411,7 +411,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             reference,
             return_url: item.router_return_url.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "router_return_url".into(),
+                    field_name: "router_return_url",
                 },
             )?,
             shopper_interaction,

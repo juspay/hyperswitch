@@ -64,9 +64,10 @@ mod storage {
                 .await
             {
                 Ok(v) if v.contains(&HsetnxReply::KeyNotSet) => {
-                    Err(errors::StorageError::DuplicateValue(
-                        "Ephemeral key already exists".to_string(),
-                    )
+                    Err(errors::StorageError::DuplicateValue {
+                        entity: "ephimeral key",
+                        key: None,
+                    }
                     .into())
                 }
                 Ok(_) => {
@@ -88,7 +89,7 @@ mod storage {
             &self,
             key: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            let key = format!("epkey_{}", key);
+            let key = format!("epkey_{key}");
             self.redis_conn
                 .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
                 .await

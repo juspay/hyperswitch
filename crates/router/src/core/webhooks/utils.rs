@@ -13,7 +13,7 @@ pub async fn lookup_webhook_event(
     merchant_id: &str,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_{}_{}", merchant_id, connector_id);
+    let redis_key = format!("whconf_{merchant_id}_{connector_id}");
     let webhook_config: api::MerchantWebhookConfig =
         get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig")
             .await

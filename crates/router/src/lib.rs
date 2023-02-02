@@ -16,6 +16,7 @@ pub mod routes;
 pub mod scheduler;
 
 mod middleware;
+#[cfg(feature = "openapi")]
 pub mod openapi;
 pub mod services;
 pub mod types;
@@ -120,6 +121,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
         .workers(server.workers)
+        .shutdown_timeout(server.shutdown_timeout)
         .run();
 
     Ok((server, app_state))

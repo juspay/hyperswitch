@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::{core::errors,pii::PeekInterface,types::{self,api, storage::enums}};
+use crate::{core::errors,types::{self,api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -14,7 +14,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct {{project-name | downcase | pascal_case}}AuthType {}
+pub struct {{project-name | downcase | pascal_case}}AuthType {
+    pub(super) api_key: String
+}
 
 impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -45,7 +47,10 @@ impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::Att
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {}
+pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {
+    status: {{project-name | downcase | pascal_case}}PaymentStatus,
+    id: String,
+}
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
@@ -57,6 +62,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
+                connector_metadata: None,
             }),
             ..item.data
         })
@@ -87,8 +93,8 @@ pub enum RefundStatus {
     Processing,
 }
 
-impl From<self::RefundStatus> for enums::RefundStatus {
-    fn from(item: self::RefundStatus) -> Self {
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
@@ -108,7 +114,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         todo!()
     }

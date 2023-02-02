@@ -59,10 +59,14 @@ pub type PaymentsSessionType =
     dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
+
 pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
+
+pub type RefreshTokenType =
+    dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
@@ -213,6 +217,8 @@ impl ResponseId {
 pub struct RefundsData {
     pub refund_id: String,
     pub connector_transaction_id: String,
+
+    pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
