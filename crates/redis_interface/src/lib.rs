@@ -21,7 +21,8 @@ pub mod commands;
 pub mod errors;
 pub mod types;
 
-use fred::prelude::RedisError;
+use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 
 pub use self::{commands::*, types::*};
@@ -34,7 +35,7 @@ pub struct RedisConnectionPool {
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
-    pub async fn new(conf: &RedisSettings) -> Result<Self, RedisError> {
+    pub async fn new(conf: &RedisSettings) -> CustomResult<Self, errors::RedisError> {
         let redis_connection_url = match conf.cluster_enabled {
             // Fred relies on this format for specifying cluster where the host port is ignored & only query parameters are used for node addresses
             // redis-cluster://username:password@host:port?node=bar.com:30002&node=baz.com:30003
@@ -53,7 +54,9 @@ impl RedisConnectionPool {
                 conf.host, conf.port,
             ),
         };
-        let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)?;
+        let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
 
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
@@ -63,10 +66,15 @@ impl RedisConnectionPool {
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
         );
-        let pool = fred::pool::RedisPool::new(config, conf.pool_size)?;
+        let pool = fred::pool::RedisPool::new(config, conf.pool_size)
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
 
         let join_handles = pool.connect(Some(policy));
-        pool.wait_for_connect().await?;
+        pool.wait_for_connect()
+            .await
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
 
         let config = RedisConfig::from(conf);
 
