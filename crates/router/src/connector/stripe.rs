@@ -6,6 +6,7 @@ use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use self::transformers as stripe;
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -19,7 +20,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
+    utils::{self, crypto, ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -779,12 +780,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RefundsRouterData<api::RSync>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req
-            .request
-            .connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let id = req.request.get_connector_refund_id()?;
         Ok(format!("{}v1/refunds/{}", self.base_url(connectors), id))
     }
 

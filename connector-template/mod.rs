@@ -1,8 +1,6 @@
 mod transformers;
 
 use std::fmt::Debug;
-
-use bytes::Bytes;
 use error_stack::{ResultExt, IntoReport};
 
 use crate::{
@@ -52,8 +50,8 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
         connectors.{{project-name}}.base_url.as_ref()
     }
 
-    fn get_auth_header(&self,_auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-        let auth: {{project-name | downcase | pascal_case}}::{{project-name | downcase | pascal_case}}AuthType = auth_type
+    fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
+        let auth: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
@@ -82,6 +80,13 @@ impl
     > for {{project-name | downcase | pascal_case}}
 {}
 
+impl api::ConnectorAccessToken for {{project-name | downcase | pascal_case}} {}
+
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for {{project-name | downcase | pascal_case}}
+{
+}
+
 impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
 impl
     ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -109,8 +114,8 @@ impl
 
     fn build_request(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -123,15 +128,15 @@ impl
 
     fn get_error_response(
         &self,
-        _res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsSyncRouterData,
-        _res: Response,
+        data: &types::PaymentsSyncRouterData,
+        res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
         let response: {{project-name | downcase}}:: {{project-name | downcase | pascal_case}}PaymentsResponse = res
@@ -185,8 +190,8 @@ impl
 
     fn build_request(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
@@ -201,8 +206,8 @@ impl
 
     fn handle_response(
         &self,
-        _data: &types::PaymentsCaptureRouterData,
-        _res: Response,
+        data: &types::PaymentsCaptureRouterData,
+        res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
             .response
@@ -220,7 +225,7 @@ impl
 
     fn get_error_response(
         &self,
-        _res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -299,7 +304,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
@@ -357,7 +362,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
@@ -407,7 +412,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
