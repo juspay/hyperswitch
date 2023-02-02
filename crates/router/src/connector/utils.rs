@@ -191,16 +191,15 @@ impl AddressDetailsData for api::AddressDetails {
     }
 }
 
-pub fn get_header_key_value(
+pub fn get_header_key_value<'a>(
     key: &str,
-    headers: &actix_web::http::header::HeaderMap,
-) -> CustomResult<String, errors::ConnectorError> {
+    headers: &'a actix_web::http::header::HeaderMap,
+) -> CustomResult<&'a str, errors::ConnectorError> {
     headers
         .get(key)
         .map(|header_value| {
             header_value
                 .to_str()
-                .map(String::from)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)
         })
