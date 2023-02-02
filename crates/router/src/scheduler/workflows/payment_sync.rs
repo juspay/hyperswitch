@@ -85,7 +85,7 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
-        consumer::some_error_handler(state, process, error).await
+        consumer::consumer_error_handler(state, process, error).await
     }
 }
 
