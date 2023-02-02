@@ -183,7 +183,6 @@ pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        redirect: bool,
         mandate_reference: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },

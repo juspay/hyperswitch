@@ -167,7 +167,6 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::try_from(item.response.links)?,
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),

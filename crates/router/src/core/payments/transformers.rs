@@ -65,7 +65,6 @@ where
         .map(|id| types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
             redirection_data: None,
-            redirect: false,
             mandate_reference: None,
             connector_metadata: None,
         });

@@ -570,7 +570,6 @@ impl<F, T>
             // three_ds_form,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
@@ -622,7 +621,6 @@ impl<F, T>
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,

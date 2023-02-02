@@ -246,7 +246,6 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -289,7 +288,6 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -332,7 +330,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -404,7 +401,6 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.to_owned(),
                 ),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

@@ -268,7 +268,6 @@ impl TryFrom<types::PaymentsResponseRouterData<RapydPaymentsResponse>>
                         enums::AttemptStatus::foreign_from((data.status, data.next_action)),
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
-                            redirect: redirection_data.is_some(),
                             redirection_data,
                             mandate_reference: None,
                             connector_metadata: None,
@@ -449,7 +448,6 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<RapydPaymentsResponse>>
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
                         redirection_data: None,
-                        redirect: false,
                         mandate_reference: None,
                         connector_metadata: None,
                     }),
@@ -506,7 +504,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<RapydPaymentsResponse>>
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(data.id), //transaction_id is also the field but this id is used to initiate a refund
                         redirection_data: None,
-                        redirect: false,
                         mandate_reference: None,
                         connector_metadata: None,
                     }),

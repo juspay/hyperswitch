@@ -165,7 +165,6 @@ fn get_payment_response(
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
             redirection_data: None,
-            redirect: false,
             mandate_reference: None,
             connector_metadata: None,
         }),
