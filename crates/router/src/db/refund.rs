@@ -323,16 +323,17 @@ mod storage {
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
                                 },
-                                storage_types::ReverseLookupNew {
-                                    sk_id: field.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}",
-                                        created_refund.merchant_id,
-                                        created_refund.connector_transaction_id
-                                    ),
-                                    pk_id: key.clone(),
-                                    source: "refund".to_string(),
-                                },
+                                // [#492]: A discussion is required on whether this is required?
+                                // storage_types::ReverseLookupNew {
+                                //     sk_id: field.clone(),
+                                //     lookup_id: format!(
+                                //         "{}_{}",
+                                //         created_refund.merchant_id,
+                                //         created_refund.connector_transaction_id
+                                //     ),
+                                //     pk_id: key.clone(),
+                                //     source: "refund".to_string(),
+                                // },
                                 storage_types::ReverseLookupNew {
                                     sk_id: field.clone(),
                                     lookup_id: format!(
