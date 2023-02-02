@@ -403,17 +403,8 @@ mod storage {
                             ReverseLookupNew {
                                 lookup_id: format!(
                                     "{}_{}",
-                                    /*
-                                     * BREAKING CHANGE:
-                                     * Once the relationship between payment_intent & payment_attempt is established as one to many
-                                     * Once the functionality in the `find_payment_attempt_by_payment_id_merchant_id`
-                                     * Apply this diff
-                                     * ```diff
-                                     * - &created_attempt.payment_id
-                                     * + &created_attempt.attempt_id
-                                     * ```
-                                     */
                                     &created_attempt.merchant_id,
+                                    // [#439]: Change this to `attempt_id`
                                     &created_attempt.payment_id,
                                 ),
                                 pk_id: key,
@@ -556,10 +547,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    /*
-                     * BREAKING CHANGE:
-                     * Once this function supports `-> CustomResult<Vec<PaymentAttempt>, _>` then change this implementation
-                     */
+                    // [#439]: get the attempt_id from payment_intent
                     let key = format!("{merchant_id}_{payment_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
@@ -610,7 +598,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &lookup.pk_id,
+                            key,
                             &lookup.sk_id,
                             "PaymentAttempt",
                         )
@@ -671,7 +659,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &lookup.pk_id,
+                            key,
                             &lookup.sk_id,
                             "PaymentAttempt",
                         )
@@ -706,7 +694,7 @@ mod storage {
                     let key = &lookup.pk_id;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &lookup.pk_id,
+                            key,
                             &lookup.sk_id,
                             "PaymentAttempt",
                         )
