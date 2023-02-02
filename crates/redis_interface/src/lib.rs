@@ -21,6 +21,7 @@ pub mod commands;
 pub mod errors;
 pub mod types;
 
+use fred::prelude::RedisError;
 use router_env::logger;
 
 pub use self::{commands::*, types::*};
@@ -28,17 +29,12 @@ pub use self::{commands::*, types::*};
 pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
-    _join_handles: Vec<fred::types::ConnectHandle>,
+    join_handles: Vec<fred::types::ConnectHandle>,
 }
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
-    ///
-    /// # Panics
-    ///
-    /// Panics if a connection to Redis is not successful.
-    #[allow(clippy::expect_used)]
-    pub async fn new(conf: &RedisSettings) -> Self {
+    pub async fn new(conf: &RedisSettings) -> Result<Self, RedisError> {
         let redis_connection_url = match conf.cluster_enabled {
             // Fred relies on this format for specifying cluster where the host port is ignored & only query parameters are used for node addresses
             // redis-cluster://username:password@host:port?node=bar.com:30002&node=baz.com:30003
@@ -57,8 +53,8 @@ impl RedisConnectionPool {
                 conf.host, conf.port,
             ),
         };
-        let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
-            .expect("Invalid Redis connection URL");
+        let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)?;
+
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
         }
@@ -67,25 +63,23 @@ impl RedisConnectionPool {
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
         );
-        let pool = fred::pool::RedisPool::new(config, conf.pool_size)
-            .expect("Unable to construct Redis pool");
+        let pool = fred::pool::RedisPool::new(config, conf.pool_size)?;
 
-        let _join_handles = pool.connect(Some(policy));
-        pool.wait_for_connect()
-            .await
-            .expect("Error connecting to Redis");
+        let join_handles = pool.connect(Some(policy));
+        pool.wait_for_connect().await?;
+
         let config = RedisConfig::from(conf);
 
-        Self {
+        Ok(Self {
             pool,
             config,
-            _join_handles,
-        }
+            join_handles,
+        })
     }
 
     pub async fn close_connections(&mut self) {
         self.pool.quit_pool().await;
-        for handle in self._join_handles.drain(..) {
+        for handle in self.join_handles.drain(..) {
             match handle.await {
                 Ok(Ok(_)) => (),
                 Ok(Err(error)) => logger::error!(%error),
