@@ -178,7 +178,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
             types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                redirect,
                 connector_metadata,
                 ..
             } => {
