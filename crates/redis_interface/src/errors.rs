@@ -52,6 +52,6 @@ pub enum RedisError {
     NotFound,
     #[error("Invalid RedisEntryId provided")]
     InvalidRedisEntryId,
-    #[error("Failed to establish connection to redis")]
+    #[error("Failed to establish Redis connection")]
     RedisConnectionError,
 }
