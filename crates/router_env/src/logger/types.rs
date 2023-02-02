@@ -76,6 +76,8 @@ pub enum Flow {
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
     ConfigKeyFetch,
+    /// ConfigKey Update flow.
+    ConfigKeyUpdate,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.

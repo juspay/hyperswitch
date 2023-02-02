@@ -30,6 +30,12 @@ pub trait ConfigInterface {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
+    async fn update_config_cached(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -65,6 +71,20 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+    async fn update_config_cached(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let config = self.update_config_by_key(key, config_update).await?;
+        self.redis_conn
+            .delete_key(key)
+            .await
+            .change_context(errors::StorageError::KVError)
+            .attach_printable("Error while deleting the config key")?;
+        Ok(config)
+    }
+
     async fn find_config_by_key_cached(
         &self,
         key: &str,
@@ -119,6 +139,14 @@ impl ConfigInterface for MockDb {
     }
 
     async fn update_config_by_key(
+        &self,
+        _key: &str,
+        _config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+    async fn update_config_cached(
         &self,
         _key: &str,
         _config_update: storage::ConfigUpdate,

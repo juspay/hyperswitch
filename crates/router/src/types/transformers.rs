@@ -285,17 +285,6 @@ impl From<F<storage_enums::Currency>> for F<api_enums::Currency> {
     }
 }
 
-impl From<F<storage::Config>> for F<api_types::Config> {
-    fn from(config: F<storage::Config>) -> Self {
-        let config = config.0;
-        api_types::Config {
-            key: config.key,
-            value: config.config,
-        }
-        .into()
-    }
-}
-
 impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
     fn from(address: F<&api_types::Address>) -> Self {
         let address = address.0;
@@ -311,6 +300,27 @@ impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
             last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
             phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+        }
+        .into()
+    }
+}
+
+impl From<F<storage::Config>> for F<api_types::Config> {
+    fn from(config: F<storage::Config>) -> Self {
+        let config = config.0;
+        api_types::Config {
+            key: config.key,
+            value: config.config,
+        }
+        .into()
+    }
+}
+
+impl<'a> From<F<&'a api_types::ConfigUpdate>> for F<storage::ConfigUpdate> {
+    fn from(config: F<&api_types::ConfigUpdate>) -> Self {
+        let config_update = config.0;
+        storage::ConfigUpdate::Update {
+            config: Some(config_update.value.clone()),
         }
         .into()
     }
