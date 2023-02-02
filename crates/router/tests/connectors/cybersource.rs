@@ -1,12 +1,13 @@
-use futures::future::OptionFuture;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{
+    self, api,
+    storage::{self, enums},
+};
 
 use crate::{
     connector_auth,
     utils::{self, ConnectorActions, PaymentAuthorizeType},
 };
-
 struct Cybersource;
 impl ConnectorActions for Cybersource {}
 impl utils::Connector for Cybersource {
@@ -18,7 +19,6 @@ impl utils::Connector for Cybersource {
             get_token: types::api::GetToken::Connector,
         }
     }
-
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
@@ -26,7 +26,6 @@ impl utils::Connector for Cybersource {
                 .expect("Missing connector authentication configuration"),
         )
     }
-
     fn get_name(&self) -> String {
         "cybersource".to_string()
     }
@@ -56,9 +55,9 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         ..Default::default()
     })
 }
-
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
+        currency: storage::enums::Currency::USD,
         email: Some(Secret::new("abc@gmail.com".to_string())),
         ..PaymentAuthorizeType::default().0
     })
@@ -74,130 +73,221 @@ async fn should_only_authorize_payment() {
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
-
 #[actix_web::test]
-async fn should_authorize_and_capture_payment() {
-    let connector = Cybersource {};
-    let response = connector
+async fn should_make_payment() {
+    let response = Cybersource {}
         .make_payment(
             get_default_payment_authorize_data(),
             get_default_payment_info(),
         )
-        .await;
-    let sync_response = connector
-        .sync_payment(
-            Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    utils::get_connector_transaction_id(response.unwrap()).unwrap(),
-                ),
-                encoded_data: None,
-                capture_method: None,
-            }),
-            get_default_payment_info(),
-        )
         .await
         .unwrap();
-    //cybersource takes sometime to settle the transaction,so it will be in pending for long time
-    assert_eq!(sync_response.status, enums::AttemptStatus::Pending);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
-
-#[actix_web::test]
-async fn should_sync_capture_payment() {
-    let sync_response = Cybersource {}
-        .sync_payment(
-            Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    "6736046645576085004953".to_string(),
-                ),
-                encoded_data: None,
-                capture_method: None,
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(sync_response.status, enums::AttemptStatus::Charged);
-}
-
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Cybersource {};
-    let authorize_response = connector
-        .authorize_payment(
+    let response = connector
+        .authorize_and_capture_payment(
             get_default_payment_authorize_data(),
+            None,
             get_default_payment_info(),
+        )
+        .await;
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Pending);
+}
+#[actix_web::test]
+async fn should_partially_capture_already_authorized_payment() {
+    let connector = Cybersource {};
+    let response = connector
+        .authorize_and_capture_payment(
+            get_default_payment_authorize_data(),
+            Some(types::PaymentsCaptureData {
+                amount_to_capture: Some(50),
+                ..utils::PaymentCaptureType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await;
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Pending);
+}
+
+#[actix_web::test]
+async fn should_sync_payment() {
+    let connector = Cybersource {};
+    let response = connector
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::Charged,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    "6699597903496176903954".to_string(),
+                ),
+                encoded_data: None,
+                capture_method: None,
+            }),
+            None,
         )
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
-    let response: OptionFuture<_> = txn_id
-        .map(|transaction_id| async move {
-            connector
-                .capture_payment(transaction_id, None, get_default_payment_info())
-                .await
-                .unwrap()
-                .status
-        })
-        .into();
-    //cybersource takes sometime to settle the transaction,so it will be in pending for long time
-    assert_eq!(response.await, Some(enums::AttemptStatus::Pending));
+    assert_eq!(response.status, enums::AttemptStatus::Charged,);
 }
-
 #[actix_web::test]
 async fn should_void_already_authorized_payment() {
     let connector = Cybersource {};
-    let authorize_response = connector
-        .authorize_payment(
+    let response = connector
+        .authorize_and_void_payment(
             get_default_payment_authorize_data(),
+            Some(types::PaymentsCancelData {
+                connector_transaction_id: "".to_string(),
+                cancellation_reason: Some("requested_by_customer".to_string()),
+            }),
+            get_default_payment_info(),
+        )
+        .await;
+    assert_eq!(response.unwrap().status, enums::AttemptStatus::Voided);
+}
+#[actix_web::test]
+async fn should_fail_payment_for_incorrect_card_number() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                    card_number: Secret::new("4024007134364111".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
             get_default_payment_info(),
         )
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
-    let response: OptionFuture<_> = txn_id
-        .map(|transaction_id| async move {
-            connector
-                .void_payment(transaction_id, None, get_default_payment_info())
-                .await
-                .unwrap()
-                .status
-        })
-        .into();
-    assert_eq!(response.await, Some(enums::AttemptStatus::Voided));
+    let x = response.response.unwrap_err();
+    assert_eq!(x.message, "Decline - Invalid account number",);
 }
-
 #[actix_web::test]
-async fn should_refund_succeeded_payment() {
+async fn should_fail_payment_for_no_card_number() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                    card_number: Secret::new("".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    let x = response.response.unwrap_err();
+    assert_eq!(x.message, "The order has been rejected by Decision Manager",);
+}
+#[actix_web::test]
+async fn should_fail_payment_for_invalid_exp_month() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                    card_exp_month: Secret::new("13".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    let x = response.response.unwrap_err();
+    assert_eq!(
+        x.message,
+        r#"Declined - One or more fields in the request contains invalid data [{"field":"paymentInformation.card.expirationMonth","reason":"INVALID_DATA"}]"#,
+    );
+}
+#[actix_web::test]
+async fn should_fail_payment_for_invalid_exp_year() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                    card_exp_year: Secret::new("2022".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    let x = response.response.unwrap_err();
+    assert_eq!(x.message, "Decline - Expired card. You might also receive this if the expiration date you provided does not match the date the issuing bank has on file.",);
+}
+#[actix_web::test]
+async fn should_fail_payment_for_invalid_card_cvc() {
+    let response = Cybersource {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                    card_cvc: Secret::new("2131233213".to_string()),
+                    ..utils::CCardType::default().0
+                }),
+                ..get_default_payment_authorize_data().unwrap()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    let x = response.response.unwrap_err();
+    assert_eq!(
+        x.message,
+        r#"Declined - One or more fields in the request contains invalid data [{"field":"paymentInformation.card.securityCode","reason":"INVALID_DATA"}]"#,
+    );
+}
+// Voids a payment using automatic capture flow (Non 3DS).
+#[actix_web::test]
+async fn should_fail_void_payment_for_reversed_payment() {
     let connector = Cybersource {};
-    //make a successful payment
-    let response = connector
+    // Authorize
+    let authorize_response = connector
         .make_payment(
             get_default_payment_authorize_data(),
             get_default_payment_info(),
         )
         .await
         .unwrap();
-
-    //try refund for previous payment
-    let transaction_id = utils::get_connector_transaction_id(response).unwrap();
-    let response = connector
-        .refund_payment(transaction_id, None, get_default_payment_info())
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
+    assert_ne!(txn_id, None, "Empty connector transaction id");
+    // Void
+    let void_response = connector
+        .void_payment("6736046645576085004953".to_string(), None, None)
         .await
         .unwrap();
+    let res = void_response.response.unwrap_err();
     assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Pending, //cybersource takes sometime to refund the transaction,so it will be in pending state for long time
+        res.message,
+        "Decline - The authorization has already been reversed."
     );
 }
-
 #[actix_web::test]
-async fn should_sync_refund() {
+async fn should_fail_capture_for_invalid_payment() {
     let connector = Cybersource {};
     let response = connector
-        .sync_refund(
-            "6738063831816571404953".to_string(),
+        .capture_payment("12345".to_string(), None, get_default_payment_info())
+        .await
+        .unwrap();
+    let err = response.response.unwrap_err();
+    assert_eq!(
+        err.message,
+        r#"Declined - One or more fields in the request contains invalid data [{"field":"id","reason":"INVALID_DATA"}]"#
+    );
+    assert_eq!(err.code, "No error code".to_string());
+}
+#[actix_web::test]
+async fn should_refund_succeeded_payment() {
+    let connector = Cybersource {};
+    let response = connector
+        .make_payment_and_refund(
+            get_default_payment_authorize_data(),
             None,
             get_default_payment_info(),
         )
@@ -205,49 +295,98 @@ async fn should_sync_refund() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Pending, //cybersource takes sometime to refund the transaction,so it will be in pending state for long time
+        enums::RefundStatus::Pending,
     );
 }
-
 #[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = Cybersource {}
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_number: Secret::new("424242442424242".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..get_default_payment_authorize_data().unwrap()
+async fn should_refund_manually_captured_payment() {
+    let connector = Cybersource {};
+    let response = connector
+        .auth_capture_and_refund(
+            get_default_payment_authorize_data(),
+            None,
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Pending,
+    );
+}
+#[actix_web::test]
+async fn should_partially_refund_succeeded_payment() {
+    let connector = Cybersource {};
+    let refund_response = connector
+        .make_payment_and_refund(
+            get_default_payment_authorize_data(),
+            Some(types::RefundsData {
+                refund_amount: 50,
+                ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
         )
         .await
         .unwrap();
-    assert_eq!(response.status, enums::AttemptStatus::Failure);
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Decline - Invalid account number".to_string(),);
+    assert_eq!(
+        refund_response.response.unwrap().refund_status,
+        enums::RefundStatus::Pending,
+    );
 }
 
 #[actix_web::test]
-async fn should_fail_payment_for_incorrect_exp_month() {
-    let response = Cybersource {}
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_number: Secret::new("4242424242424242".to_string()),
-                    card_exp_month: Secret::new("101".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..get_default_payment_authorize_data().unwrap()
+async fn should_partially_refund_manually_captured_payment() {
+    let connector = Cybersource {};
+    let response = connector
+        .auth_capture_and_refund(
+            get_default_payment_authorize_data(),
+            Some(types::RefundsData {
+                refund_amount: 50,
+                ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
         )
-        .await;
-    let x = response.unwrap().response.unwrap_err();
+        .await
+        .unwrap();
     assert_eq!(
-        x.message,
-        r#"[{"field":"paymentInformation.card.expirationMonth","reason":"INVALID_DATA"}]"#
-            .to_string(),
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Pending,
+    );
+}
+
+#[actix_web::test]
+async fn should_fail_refund_for_invalid_amount() {
+    let connector = Cybersource {};
+    let response = connector
+        .make_payment_and_refund(
+            get_default_payment_authorize_data(),
+            Some(types::RefundsData {
+                refund_amount: 15000,
+                ..utils::PaymentRefundType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Pending,
+    );
+}
+#[actix_web::test]
+async fn should_sync_refund() {
+    let connector = Cybersource {};
+    let response = connector
+        .rsync_retry_till_status_matches(
+            enums::RefundStatus::Success,
+            "6699597076726585603955".to_string(),
+            None,
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
     );
 }

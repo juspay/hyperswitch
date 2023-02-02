@@ -29,6 +29,7 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
+    pub router_return_url: Option<String>,
 }
 
 #[async_trait]
@@ -41,7 +42,7 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::PaymentsAuthorizeData {
-                confirm: false,
+                confirm: true,
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
             },
@@ -57,7 +58,11 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
-            payment_data.unwrap_or_else(|| PaymentAuthorizeType::default().0),
+            types::PaymentsAuthorizeData {
+                confirm: true,
+                capture_method: Some(storage_models::enums::CaptureMethod::Automatic),
+                ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
             payment_info,
         );
         call_connector(request, integration).await
@@ -125,7 +130,7 @@ pub trait ConnectorActions: Connector {
             .await
             .unwrap();
         assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-        let txn_id = get_connector_transaction_id(authorize_response);
+        let txn_id = get_connector_transaction_id(authorize_response.response);
         let response = self
             .capture_payment(txn_id.unwrap(), capture_data, payment_info)
             .await
@@ -161,7 +166,7 @@ pub trait ConnectorActions: Connector {
             .await
             .unwrap();
         assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-        let txn_id = get_connector_transaction_id(authorize_response);
+        let txn_id = get_connector_transaction_id(authorize_response.response);
         tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
         let response = self
             .void_payment(txn_id.unwrap(), void_data, payment_info)
@@ -222,7 +227,28 @@ pub trait ConnectorActions: Connector {
             .unwrap();
 
         //try refund for previous payment
-        let transaction_id = get_connector_transaction_id(response).unwrap();
+        let transaction_id = get_connector_transaction_id(response.response).unwrap();
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
+        Ok(self
+            .refund_payment(transaction_id, refund_data, payment_info)
+            .await
+            .unwrap())
+    }
+
+    async fn auth_capture_and_refund(
+        &self,
+        authorize_data: Option<types::PaymentsAuthorizeData>,
+        refund_data: Option<types::RefundsData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
+        //make a successful payment
+        let response = self
+            .authorize_and_capture_payment(authorize_data, None, payment_info.clone())
+            .await
+            .unwrap();
+
+        //try refund for previous payment
+        let transaction_id = get_connector_transaction_id(response.response).unwrap();
         tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
         Ok(self
             .refund_payment(transaction_id, refund_data, payment_info)
@@ -243,7 +269,7 @@ pub trait ConnectorActions: Connector {
             .unwrap();
 
         //try refund for previous payment
-        let transaction_id = get_connector_transaction_id(response).unwrap();
+        let transaction_id = get_connector_transaction_id(response.response).unwrap();
         for _x in 0..2 {
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
             let refund_response = self
@@ -324,7 +350,7 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: Some(uuid::Uuid::new_v4().to_string()),
             status: enums::AttemptStatus::default(),
-            router_return_url: None,
+            router_return_url: info.clone().and_then(|a| a.router_return_url),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -516,9 +542,9 @@ impl Default for PaymentRefundType {
 }
 
 pub fn get_connector_transaction_id(
-    response: types::PaymentsAuthorizeRouterData,
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<String> {
-    match response.response {
+    match response {
         Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
             resource_id.get_connector_transaction_id().ok()
         }
