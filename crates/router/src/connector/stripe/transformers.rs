@@ -406,12 +406,11 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
 
         //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
-        let payment_data: StripePaymentMethodData = (
+        let payment_data = StripePaymentMethodData::try_from((
             item.request.payment_method_data.clone(),
             item.auth_type,
             pm_type,
-        )
-            .try_into()?;
+        ))?;
 
         Ok(Self {
             confirm: true,
