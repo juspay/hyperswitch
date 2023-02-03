@@ -45,7 +45,7 @@ pub async fn read_from_stream(
     })
     .await;
 
-    metrics::REDIS_STREAM_READ_TIME.observe(
+    metrics::REDIS_STREAM_READ_TIME.record(
         &metrics::CONTEXT,
         execution_time,
         &[metrics::KeyValue::new("stream", stream_name.to_owned())],
@@ -82,7 +82,7 @@ pub async fn trim_from_stream(
         })
         .await;
 
-    metrics::REDIS_STREAM_TRIM_TIME.observe(
+    metrics::REDIS_STREAM_TRIM_TIME.record(
         &metrics::CONTEXT,
         execution_time,
         &[metrics::KeyValue::new("stream", stream_name.to_owned())],
