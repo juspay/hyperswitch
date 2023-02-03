@@ -19,7 +19,7 @@ where
     let redis_val = redis
         .get_and_deserialize_key::<T>(key, std::any::type_name::<T>())
         .await;
-    Ok(match redis_val {
+    match redis_val {
         Err(err) => match err.current_context() {
             errors::RedisError::NotFound => {
                 let data = fun().await?;
@@ -27,14 +27,14 @@ where
                     .serialize_and_set_key(key, &data)
                     .await
                     .change_context(errors::StorageError::KVError)?;
-                data
+                Ok(data)
             }
             _ => Err(err
                 .change_context(errors::StorageError::KVError)
-                .attach_printable("Error while fetching config"))?,
+                .attach_printable("Error while fetching config")),
         },
-        Ok(val) => val,
-    })
+        Ok(val) => Ok(val),
+    }
 }
 
 pub async fn redact_cache<T, F, Fut>(
