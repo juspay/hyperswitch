@@ -348,7 +348,7 @@ pub struct ListPaymentMethod {
     pub installment_payment_enabled: bool,
 
     /// Type of payment experience enabled with the connector
-    #[schema(example = json!(["redirect_to_url"]))]
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 }
 
