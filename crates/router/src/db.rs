@@ -1,4 +1,5 @@
 pub mod address;
+pub mod cache;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
