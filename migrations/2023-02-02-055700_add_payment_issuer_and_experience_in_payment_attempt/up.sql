@@ -26,7 +26,7 @@ CREATE TYPE "PaymentExperience" AS ENUM (
 );
 
 ALTER TABLE payment_attempt
-ADD IF NOT EXISTS payment_issuer "PaymentIssuer";
+ADD COLUMN IF NOT EXISTS payment_issuer "PaymentIssuer";
 
 ALTER TABLE payment_attempt
-ADD IF NOT EXISTS payment_experience "PaymentExperience";
+ADD COLUMN IF NOT EXISTS payment_experience "PaymentExperience";

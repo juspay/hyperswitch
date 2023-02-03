@@ -9,7 +9,7 @@ CREATE TYPE "PaymentFlow" AS ENUM (
 );
 
 ALTER TABLE payment_attempt
-ADD payment_flow "PaymentFlow";
+ADD COLUMN payment_flow "PaymentFlow";
 
 ALTER TABLE payment_attempt
-ADD redirect BOOLEAN;
+ADD COLUMN redirect BOOLEAN;
