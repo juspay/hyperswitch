@@ -390,11 +390,9 @@ pub enum PaymentIssuer {
     strum::Display,
     frunk::LabelledGeneric,
 )]
-#[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentExperience {
-    /// The URL to which the customer needs to be redirected for completing the payment.The URL to
-    /// which the customer needs to be redirected for completing the payment.
+    /// The URL to which the customer needs to be redirected for completing the payment.
     #[default]
     RedirectToUrl,
     /// Contains the data for invoking the sdk client for completing the payment.
