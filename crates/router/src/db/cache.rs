@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 
 use super::Store;
 use crate::core::errors::{self, CustomResult};
@@ -29,8 +29,9 @@ where
                     .change_context(errors::StorageError::KVError)?;
                 data
             }
-            err => Err(report!(errors::StorageError::KVError)
-                .attach_printable(format!("Error while fetching config {err}")))?,
+            _ => Err(err
+                .change_context(errors::StorageError::KVError)
+                .attach_printable(format!("Error while fetching config")))?,
         },
         Ok(val) => val,
     })
