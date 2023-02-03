@@ -7,8 +7,7 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme, DbPaymentExperience as PaymentExperience,
-        DbPaymentFlow as PaymentFlow, DbPaymentIssuer as PaymentIssuer,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbPaymentIssuer as PaymentIssuer, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
         DbRefundType as RefundType,
@@ -391,30 +390,6 @@ pub enum MerchantStorageScheme {
     #[default]
     PostgresOnly,
     RedisKv,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    serde::Serialize,
-    serde::Deserialize,
-    router_derive::DieselEnum,
-)]
-#[router_derive::diesel_enum]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentFlow {
-    Vsc,
-    Emi,
-    Otp,
-    UpiIntent,
-    UpiCollect,
-    UpiScanAndPay,
-    Sdk,
 }
 
 #[derive(
