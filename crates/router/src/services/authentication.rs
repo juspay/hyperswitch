@@ -236,7 +236,7 @@ pub async fn is_ephemeral_auth(
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
     if ephemeral_key.customer_id.ne(customer_id) {
-        return Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey));
+        return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
     }
 
     Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))

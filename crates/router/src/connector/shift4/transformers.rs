@@ -177,7 +177,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }
