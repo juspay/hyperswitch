@@ -1,14 +1,18 @@
 mod connection;
+pub mod env;
 pub mod errors;
 pub mod services;
 pub mod settings;
 mod utils;
 use std::sync::Arc;
 
+pub use env as logger;
+use logger::{instrument, tracing};
 use storage_models::kv;
 
 use crate::{connection::pg_connection, services::Store};
 
+#[instrument(skip(store))]
 pub async fn start_drainer(
     store: Arc<Store>,
     number_of_streams: u8,
@@ -32,8 +36,8 @@ async fn drainer_handler(
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
     let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
 
-    if let Err(_e) = drainer_result {
-        //TODO: LOG errors
+    if let Err(error) = drainer_result {
+        logger::error!(?error)
     }
 
     let flag_stream_name = utils::get_stream_key_flag(store.clone(), stream_index);
@@ -122,8 +126,8 @@ mod macro_util {
     macro_rules! handle_resp {
         ($result:expr,$op_type:expr, $table:expr) => {
             match $result {
-                Ok(aa) => println!("Ok|{}|{}|{:?}|", $op_type, $table, aa),
-                Err(err) => println!("Err|{}|{}|{:?}|", $op_type, $table, err),
+                Ok(aa) => logger::info!("Ok|{}|{}|{:?}|", $op_type, $table, aa),
+                Err(err) => logger::error!("Err|{}|{}|{:?}|", $op_type, $table, err),
             }
         };
     }
