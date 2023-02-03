@@ -60,7 +60,7 @@ async fn drainer(
     let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
     let read_count = entries.len();
 
-    metrics::JOBS_PICKED_PER_STREAM.observe(
+    metrics::JOBS_PICKED_PER_STREAM.add(
         &metrics::CONTEXT,
         u64::try_from(read_count).unwrap_or(u64::MAX),
         &[metrics::KeyValue {
@@ -109,7 +109,7 @@ async fn drainer(
                     }
                 })
                 .await;
-                metrics::QUERY_EXECUTION_TIME.observe(
+                metrics::QUERY_EXECUTION_TIME.record(
                     &metrics::CONTEXT,
                     execution_time,
                     &[metrics::KeyValue {
@@ -145,7 +145,7 @@ async fn drainer(
                     }
                 })
                 .await;
-                metrics::QUERY_EXECUTION_TIME.observe(
+                metrics::QUERY_EXECUTION_TIME.record(
                     &metrics::CONTEXT,
                     execution_time,
                     &[metrics::KeyValue {
