@@ -222,7 +222,7 @@ fn infer_stripe_pay_later_issuer(
     issuer: &enums::PaymentIssuer,
     experience: &enums::PaymentExperience,
 ) -> Result<StripePaymentMethodType, errors::ConnectorError> {
-    if let enums::PaymentExperience::RedirectToUrl = experience {
+    if &enums::PaymentExperience::RedirectToUrl == experience {
         match issuer {
             enums::PaymentIssuer::Klarna => Ok(StripePaymentMethodType::Klarna),
             enums::PaymentIssuer::Affirm => Ok(StripePaymentMethodType::Affirm),
@@ -342,30 +342,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeShippingAddress::default(),
         };
 
-        // let billing_address = match item.address.billing.clone() {
-        //     Some(mut billing) => StripeBillingAddress {
-        //         email: item.request.email.clone(),
-        //         country: billing
-        //             .address
-        //             .as_ref()
-        //             .and_then(|address| address.country.clone()),
-        //         name: billing.address.as_mut().and_then(|a| {
-        //             a.first_name.as_ref().map(|first_name| {
-        //                 format!(
-        //                     "{} {}",
-        //                     first_name.clone().expose(),
-        //                     a.last_name.clone().expose_option().unwrap_or_default()
-        //                 )
-        //             })
-        //         }),
-        //         line1: billing
-        //             .address
-        //             .as_ref()
-        //             .and_then(|address| address.line1.clone()),
-        //     },
-        //     None => StripeBillingAddress::default(),
-        // };
-
         let (payment_data, mandate, billing_address) = {
             match item
                 .request
@@ -397,8 +373,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 Some(mandate_id) => (None, Some(mandate_id), StripeBillingAddress::default()),
             }
         };
-
-        crate::logger::debug!(?billing_address); //FIXME: only for debugging purposes
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
