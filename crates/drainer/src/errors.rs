@@ -14,7 +14,7 @@ pub enum DrainerError {
     #[error("Error while configuring signals: {0}")]
     SignalError(String),
     #[error("Unexpected error occurred: {0}")]
-    UnExpectedError(String),
+    UnexpectedError(String),
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;
