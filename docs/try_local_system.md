@@ -20,6 +20,7 @@ Check the Table Of Contents to jump to the relevant section.
 - [Set up hyperswitch using Docker Compose](#set-up-hyperswitch-using-docker-compose)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
+  - [Set up dependencies on Windows](#set-up-dependencies-on-windows)
   - [Set up dependencies on MacOS](#set-up-dependencies-on-macos)
   - [Set up the database](#set-up-the-database)
   - [Configure the application](#configure-the-application)
@@ -131,9 +132,10 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features "postgres"
    ```
 
-5. Make sure your system has openssl installed if not please install it.
+5. Make sure your system has OpenSSL installed:
+
    ```shell
-   sudo apt-get install libssl-dev
+   sudo apt install libssl-dev
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -143,32 +145,37 @@ Once you're done with setting up the dependencies, proceed with
 [redis-install]: https://redis.io/docs/getting-started/installation/
 
 ### Set up dependencies on Windows
-where possible we'll be using `winget` package manager.
 
-1. Download and install postgres Database. official source given below
-   ```url
-   https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
-   ```
+We'll be using [`winget`][winget] in this section of the guide, where possible.
+You can opt to use your favorite package manager instead.
 
-2. Download and install redis. Official Source given below.
-   ```url
-   https://redis.io/docs/getting-started/installation/install-redis-on-windows
-   ```
+1. Install PostgreSQL database, following the
+   [official installation docs][postgresql-install-windows].
 
-3. Install rust with `winget`
+2. Install Redis, following the
+   [official installation docs][redis-install-windows].
+
+3. Install rust with `winget`:
+
    ```shell
    winget install -e --id Rustlang.Rust.GNU
    ```
 
-4. Install diesel for data migration
+4. Install `diesel_cli` using `cargo`:
+
    ```shell
    cargo install diesel_cli --no-default-features --features "postgres"
    ```
 
-5. Install openssl with `winget`
+5. Install OpenSSL with `winget`:
+
    ```shell
    winget install openssl
    ```
+
+[winget]: https://github.com/microsoft/winget-cli
+[postgresql-install-windows]: https://www.postgresql.org/download/windows/
+[redis-install-windows]: https://redis.io/docs/getting-started/installation/install-redis-on-windows
 
 ### Set up dependencies on MacOS
 
@@ -339,8 +346,13 @@ Once you're done with configuring the application, proceed with
 1. Sign up or sign in to [Postman][postman].
 2. Open our [Postman collection][postman-collection] and switch to the
    ["Variables" tab][variables].
-   Add the admin API key you configured in the application configuration under
-   the "current value" column for the `admin_api_key` variable.
+   Update the value under the "current value" column for the `baseUrl` variable
+   to have the hostname and port of the locally running server
+   (`http://localhost:8080` by default).
+
+3. While on the "Variables" tab, add the admin API key you configured in the
+   application configuration under the "current value" column for the
+   `admin_api_key` variable.
 
    1. If you're running Docker Compose, you can find the configuration file at
       [`config/docker_compose.toml`][config-docker-compose], search for
@@ -349,8 +361,8 @@ Once you're done with configuring the application, proceed with
       file at [`config/Development.toml`][config-development], search for
       `admin_api_key` to find the admin API key
 
-3. Open the ["Quick Start" folder][quick-start] in the collection.
-4. Open the ["Merchant Account - Create"][merchant-account-create] request,
+4. Open the ["Quick Start" folder][quick-start] in the collection.
+5. Open the ["Merchant Account - Create"][merchant-account-create] request,
    switch to the "Body" tab and update any request parameters as required.
 
    - If you want to use a different connector for making payments with
@@ -363,25 +375,13 @@ Once you're done with configuring the application, proceed with
    Store the merchant ID, API key and publishable key returned in the response
    securely.
 
-5. Open the ["Variables" tab][variables] in the
+6. Open the ["Variables" tab][variables] in the
    [Postman collection][postman-collection] and add the following variables:
 
    1. Add the API key you obtained in the previous step under the "current value"
       column for the `api_key` variable.
    2. Add the merchant ID you obtained in the previous step under the "current
       value" column for the `merchant_id` variable.
-
-#### Local Postman Variables 
-
-|variable|default|current|
-|:------:|:-----:|:-----:|
-|baseUrl||http://localhost:8080|
-|admin_api_key||test_admin|
-
-NOTE :- 
-To test stripe add stripe secret key to variable `connector_api_key`.
-eg. `sk_test_5142342342323iuh2b34jb2jh3432`  
-
 
 ### Set up a payment connector account
 
@@ -394,6 +394,9 @@ eg. `sk_test_5142342342323iuh2b34jb2jh3432`
      `connector_account_details` fields and update them.
      You can find connector-specific details to be included in this
      [spreadsheet][connector-specific-details].
+   - Open the ["Variables" tab][variables] in the
+     [Postman collection][postman-collection] and set the `connector_api_key`
+     variable to your connector's API key.
 
    Click on the "Send" button to create a payment connector account.
    You should obtain a response containing most of the data included in the
