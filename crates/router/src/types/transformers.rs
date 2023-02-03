@@ -88,18 +88,6 @@ where
     }
 }
 
-impl From<F<api_enums::RoutingAlgorithm>> for F<storage_enums::RoutingAlgorithm> {
-    fn from(algo: F<api_enums::RoutingAlgorithm>) -> Self {
-        Self(frunk::labelled_convert_from(algo.0))
-    }
-}
-
-impl From<F<storage_enums::RoutingAlgorithm>> for F<api_enums::RoutingAlgorithm> {
-    fn from(algo: F<storage_enums::RoutingAlgorithm>) -> Self {
-        Self(frunk::labelled_convert_from(algo.0))
-    }
-}
-
 impl From<F<api_enums::ConnectorType>> for F<storage_enums::ConnectorType> {
     fn from(conn: F<api_enums::ConnectorType>) -> Self {
         Self(frunk::labelled_convert_from(conn.0))

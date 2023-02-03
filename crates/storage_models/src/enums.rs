@@ -603,29 +603,6 @@ pub enum RefundType {
     RetryRefund,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    router_derive::DieselEnum,
-    frunk::LabelledGeneric,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum]
-pub enum RoutingAlgorithm {
-    RoundRobin,
-    MaxConversion,
-    MinCost,
-    Custom,
-}
-
 // Mandate
 #[derive(
     Clone,
