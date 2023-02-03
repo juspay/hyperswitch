@@ -31,7 +31,7 @@ where
             }
             _ => Err(err
                 .change_context(errors::StorageError::KVError)
-                .attach_printable(format!("Error while fetching config")))?,
+                .attach_printable("Error while fetching config"))?,
         },
         Ok(val) => val,
     })
