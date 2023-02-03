@@ -9,6 +9,8 @@ pub enum DrainerError {
     RedisError(error_stack::Report<redis::errors::RedisError>),
     #[error("Application configuration error: {0}")]
     ConfigurationError(config::ConfigError),
+    #[error("Metrics initialization error")]
+    MetricsError,
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;
