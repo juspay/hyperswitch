@@ -608,3 +608,27 @@ impl From<AttemptStatus> for IntentStatus {
         }
     }
 }
+
+
+// use strum maybe
+impl From<RoutableConnectors> for Connector {
+    fn from(item: RoutableConnectors) -> Self {
+        match item {
+            RoutableConnectors::Aci => Connector::Aci,
+            RoutableConnectors::Adyen => Connector::Adyen,
+            RoutableConnectors::Authorizedotnet => Connector::Authorizedotnet,
+            RoutableConnectors::Braintree => Connector::Braintree,
+            RoutableConnectors::Checkout => Connector::Checkout,
+            RoutableConnectors::Cybersource => Connector::Cybersource,
+            RoutableConnectors::Fiserv => Connector::Fiserv,
+            RoutableConnectors::Globalpay => Connector::Globalpay,
+            RoutableConnectors::Klarna => Connector::Klarna,
+            RoutableConnectors::Payu => Connector::Payu,
+            RoutableConnectors::Rapyd => Connector::Rapyd,
+            RoutableConnectors::Shift4 => Connector::Shift4,
+            RoutableConnectors::Stripe => Connector::Stripe,
+            RoutableConnectors::Worldline => Connector::Worldline,
+            RoutableConnectors::Worldpay => Connector::Worldpay,
+        }
+    }
+}
