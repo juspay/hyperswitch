@@ -48,7 +48,6 @@ pub struct MerchantAccountNew {
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
-        merchant_id: String,
         merchant_name: Option<String>,
         api_key: Option<StrongSecret<String>>,
         merchant_details: Option<serde_json::Value>,
@@ -69,7 +68,6 @@ pub enum MerchantAccountUpdate {
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
-    merchant_id: Option<String>,
     merchant_name: Option<String>,
     api_key: Option<StrongSecret<String>>,
     merchant_details: Option<serde_json::Value>,
@@ -90,7 +88,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         match merchant_account_update {
             MerchantAccountUpdate::Update {
-                merchant_id,
                 merchant_name,
                 api_key,
                 merchant_details,
@@ -106,7 +103,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
             } => Self {
-                merchant_id: Some(merchant_id),
                 merchant_name,
                 api_key,
                 merchant_details,

@@ -37,7 +37,7 @@ services:
       - ./config:/etc/loki
 
   otel-collector:
-    image: lsampras/otelcontribcol:latest
+    image: otel/opentelemetry-collector-contrib:latest
     command: --config=/etc/otel-collector.yaml
     networks:
       - router_net
@@ -100,7 +100,7 @@ services:
       start_period: 20s
       timeout: 10s
 
-  orca-producer:
+  hyperswitch-producer:
     image: rust:1.65
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
@@ -114,10 +114,13 @@ services:
       - CARGO_TARGET_DIR=/cargo_build_cache
       - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
       - SCHEDULER_FLOW=producer
+    depends_on:
+      hyperswitch-consumer:
+        condition: service_healthy
     labels:
       logs: "promtail"
     
-  orca-consumer:
+  hyperswitch-consumer:
     image: rust:1.65
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
@@ -131,8 +134,20 @@ services:
       - CARGO_TARGET_DIR=/cargo_build_cache
       - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
       - SCHEDULER_FLOW=consumer
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+    
     labels:
       logs: "promtail"
+    
+    healthcheck:
+      test: (ps -e | grep scheduler) || exit 1
+      interval: 120s
+      retries: 3
+      start_period: 30s
+      timeout: 10s
+    
     
 
   redis-queue:

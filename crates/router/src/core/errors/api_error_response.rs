@@ -119,6 +119,8 @@ pub enum ApiErrorResponse {
     RefundNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Customer does not exist in our records")]
     CustomerNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "RE_02", message = "Config key does not exist in our records.")]
+    ConfigNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment does not exist in our records")]
     PaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method does not exist in our records")]
@@ -228,6 +230,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::SuccessfulPaymentNotFound
             | Self::IncorrectConnectorNameGiven
             | Self::ResourceIdNotFound
+            | Self::ConfigNotFound
             | Self::AddressNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
