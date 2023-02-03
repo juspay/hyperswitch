@@ -352,8 +352,6 @@ pub enum PaymentMethodIssuerCode {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
-    strum::Display,
-    strum::EnumString,
     frunk::LabelledGeneric,
     ToSchema,
 )]
@@ -386,7 +384,6 @@ pub enum PaymentIssuer {
     serde::Deserialize,
     ToSchema,
     Default,
-    strum::Display,
     frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
