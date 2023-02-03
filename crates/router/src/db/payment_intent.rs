@@ -51,10 +51,7 @@ mod storage {
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{enums, kv, payment_intent::*},
-        utils::{
-            self, db_utils,
-            storage_partitioning::{self},
-        },
+        utils::{self, storage_partitioning},
     };
 
     #[async_trait::async_trait]
@@ -113,8 +110,7 @@ mod storage {
                                     insertable: kv::Insertable::PaymentIntent(new),
                                 },
                             };
-                            db_utils::push_to_drainer_stream::<PaymentIntent>(
-                                self,
+                            self.push_to_drainer_stream::<PaymentIntent>(
                                 redis_entry,
                                 storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                     merchant_id: &created_intent.merchant_id,
@@ -173,8 +169,7 @@ mod storage {
                         },
                     };
 
-                    db_utils::push_to_drainer_stream::<PaymentIntent>(
-                        self,
+                    self.push_to_drainer_stream::<PaymentIntent>(
                         redis_entry,
                         storage_partitioning::PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_intent.merchant_id,

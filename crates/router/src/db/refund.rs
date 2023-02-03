@@ -341,8 +341,7 @@ mod storage {
                                     insertable: kv::Insertable::Refund(new),
                                 },
                             };
-                            db_utils::push_to_drainer_stream::<storage_types::Refund>(
-                                self,
+                            self.push_to_drainer_stream::<storage_types::Refund>(
                                 redis_entry,
                                 PartitionKey::MerchantIdPaymentId {
                                     merchant_id: &created_refund.merchant_id,
@@ -445,8 +444,7 @@ mod storage {
                             }),
                         },
                     };
-                    db_utils::push_to_drainer_stream::<storage_types::Refund>(
-                        self,
+                    self.push_to_drainer_stream::<storage_types::Refund>(
                         redis_entry,
                         PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_refund.merchant_id,

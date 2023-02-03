@@ -324,7 +324,6 @@ mod storage {
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{enums, kv, payment_attempt::*, ReverseLookupNew},
-        utils::db_utils,
     };
 
     #[async_trait::async_trait]
@@ -421,8 +420,7 @@ mod storage {
                                     insertable: kv::Insertable::PaymentAttempt(payment_attempt),
                                 },
                             };
-                            db_utils::push_to_drainer_stream::<PaymentAttempt>(
-                                self,
+                            self.push_to_drainer_stream::<PaymentAttempt>(
                                 redis_entry,
                                 crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                                     merchant_id: &created_attempt.merchant_id,
@@ -500,8 +498,7 @@ mod storage {
                             ),
                         },
                     };
-                    db_utils::push_to_drainer_stream::<PaymentAttempt>(
-                        self,
+                    self.push_to_drainer_stream::<PaymentAttempt>(
                         redis_entry,
                         crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
                             merchant_id: &updated_attempt.merchant_id,
