@@ -97,6 +97,9 @@ locker_decryption_key2 = "" # private key 2 in pem format, corresponding public 
 max_attempts = 10 # Number of refund attempts allowed
 max_age = 365     # Max age of a refund in days.
 
+[webhooks]
+outgoing_enabled = true
+
 # Validity of an Ephemeral Key in Hours
 [eph_key]
 validity = 1
@@ -166,7 +169,10 @@ cards = [
 # It defines the the streams/queues name and configuration as well as event selection variables
 [scheduler]
 stream = "SCHEDULER_STREAM"
+
+[scheduler.consumer]
 consumer_group = "SCHEDULER_GROUP"
+disabled = false                   # This flag decides if the consumer should actively consume task
 
 [scheduler.producer]
 upper_fetch_limit = 0             # Upper limit for fetching entries from the redis queue (in seconds)

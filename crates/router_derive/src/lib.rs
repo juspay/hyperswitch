@@ -160,7 +160,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // pub fn set_n(&mut self,n: u32)
     let build_methods = fields.iter().map(|f| {
         let name = f.ident.as_ref().unwrap();
-        let method_name = format!("set_{}", name);
+        let method_name = format!("set_{name}");
         let method_ident = syn::Ident::new(&method_name, name.span());
         let ty = &f.ty;
         if check_if_auth_based_attr_is_present(f, "auth_based") {

@@ -33,7 +33,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 100,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(types::api::CCard {
+            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
                 card_number: Secret::new("5424000000000015".to_string()),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
@@ -153,7 +153,7 @@ async fn payments_create_failure() {
         > = connector.connector.get_connector_integration();
         let mut request = construct_payment_router_data();
 
-        request.request.payment_method_data = types::api::PaymentMethod::Card(types::api::CCard {
+        request.request.payment_method_data = types::api::PaymentMethod::Card(types::api::Card {
             card_number: Secret::new("542400000000001".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),

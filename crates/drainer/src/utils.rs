@@ -5,7 +5,7 @@ use redis_interface as redis;
 
 use crate::{
     errors::{self, DrainerError},
-    services,
+    logger, services,
 };
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
@@ -20,7 +20,8 @@ pub async fn is_stream_available(stream_index: u8, store: Arc<services::Store>) 
         .await
     {
         Ok(resp) => resp == redis::types::SetnxReply::KeySet,
-        Err(_e) => {
+        Err(error) => {
+            logger::error!(?error);
             // Add metrics or logs
             false
         }
@@ -111,5 +112,5 @@ pub(crate) fn get_stream_key_flag(store: Arc<services::Store>, stream_index: u8)
 }
 
 pub(crate) fn get_drainer_stream_name(store: Arc<services::Store>, stream_index: u8) -> String {
-    store.drainer_stream(format!("shard_{}", stream_index).as_str())
+    store.drainer_stream(format!("shard_{stream_index}").as_str())
 }

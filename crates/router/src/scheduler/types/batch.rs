@@ -107,7 +107,7 @@ impl ProcessTrackerBatch {
             .into_report()
             .change_context(errors::ParsingError)
             .attach_printable_lazy(|| {
-                format!("Unable to parse trackers from JSON string: {:?}", trackers)
+                format!("Unable to parse trackers from JSON string: {trackers:?}")
             })
             .change_context(errors::ProcessTrackerError::DeserializationFailed)?;
 

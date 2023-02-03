@@ -235,7 +235,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{}_{}", merchant_id, internal_reference_id);
+                    let lookup_id = format!("{merchant_id}_{internal_reference_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&lookup_id)
                         .await
@@ -305,13 +305,11 @@ mod storage {
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_refund)
                         .await
                     {
-                        Ok(HsetnxReply::KeyNotSet) => {
-                            Err(errors::StorageError::DuplicateValue(format!(
-                                "Refund already exists refund_id: {}",
-                                &created_refund.refund_id
-                            )))
-                            .into_report()
-                        }
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                            entity: "refund",
+                            key: Some(created_refund.refund_id),
+                        })
+                        .into_report(),
                         Ok(HsetnxReply::KeySet) => {
                             let conn = pg_connection(&self.master_pool).await;
 
@@ -325,16 +323,7 @@ mod storage {
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
                                 },
-                                storage_types::ReverseLookupNew {
-                                    sk_id: field.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}",
-                                        created_refund.merchant_id,
-                                        created_refund.connector_transaction_id
-                                    ),
-                                    pk_id: key.clone(),
-                                    source: "refund".to_string(),
-                                },
+                                // [#492]: A discussion is required on whether this is required?
                                 storage_types::ReverseLookupNew {
                                     sk_id: field.clone(),
                                     lookup_id: format!(
@@ -436,7 +425,7 @@ mod storage {
                         .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                    let key = format!("{}_{}", this.merchant_id, this.refund_id);
 
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -456,7 +445,7 @@ mod storage {
                         .change_context(errors::StorageError::SerializationFailed)?;
 
                     self.redis_conn
-                        .set_hash_fields(&key, (field, redis_value))
+                        .set_hash_fields(&lookup.pk_id, (field, redis_value))
                         .await
                         .change_context(errors::StorageError::KVError)?;
 
@@ -560,7 +549,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("{merchant_id}_{payment_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
                         .await

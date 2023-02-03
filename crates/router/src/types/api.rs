@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod configs;
 pub mod customers;
 pub mod enums;
 pub mod mandates;
@@ -11,7 +12,9 @@ use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
 
-pub use self::{admin::*, customers::*, payment_methods::*, payments::*, refunds::*, webhooks::*};
+pub use self::{
+    admin::*, configs::*, customers::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
+};
 use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,

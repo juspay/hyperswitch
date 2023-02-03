@@ -204,7 +204,7 @@ pub fn check_client_secret_and_get_auth(
             .get_client_secret()
             .check_value_present("client_secret")
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret".to_owned(),
+                field_name: "client_secret",
             })?;
         return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
     }
@@ -236,7 +236,7 @@ pub async fn is_ephemeral_auth(
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
     if ephemeral_key.customer_id.ne(customer_id) {
-        return Err(report!(errors::ApiErrorResponse::InvalidEphermeralKey));
+        return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
     }
 
     Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))

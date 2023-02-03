@@ -11,8 +11,8 @@ kv_store = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
-async-trait = "0.1.61"
-diesel = { version = "2.0.2", features = ["postgres", "serde_json", "time"] }
+async-trait = "0.1.63"
+diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time"] }
 error-stack = "0.2.4"
 frunk = "0.4.1"
 frunk_core = "0.4.1"

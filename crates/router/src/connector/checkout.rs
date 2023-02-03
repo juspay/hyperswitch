@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as checkout;
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -19,7 +20,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -674,12 +675,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         data: &types::RefundsRouterData<api::RSync>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
-        let refund_action_id = data
-            .request
-            .connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let refund_action_id = data.request.get_connector_refund_id()?;
 
         let response: Vec<checkout::ActionResponse> = res
             .response

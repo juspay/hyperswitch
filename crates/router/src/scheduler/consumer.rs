@@ -71,6 +71,12 @@ pub async fn start_consumer(
         match rx.try_recv() {
             Err(oneshot::error::TryRecvError::Empty) => {
                 interval.tick().await;
+
+                // A guard from env to disable the consumer
+                if settings.consumer.disabled {
+                    continue;
+                }
+
                 tokio::task::spawn(pt_utils::consumer_operation_handler(
                     state.clone(),
                     options.clone(),
@@ -112,7 +118,7 @@ pub async fn consumer_operations(
     settings: &settings::SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
-    let group_name = settings.consumer_group.clone();
+    let group_name = settings.consumer.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
 
     let group_created = &mut state
@@ -192,13 +198,14 @@ pub async fn fetch_consumer_tasks(
 }
 
 // Accept flow_options if required
-#[instrument(skip(state))]
+#[instrument(skip(state), fields(workflow_id))]
 pub async fn start_workflow(
     state: AppState,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
     runner: workflows::PTRunner,
 ) {
+    tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     workflows::perform_workflow_execution(&state, process, runner).await
 }
 
@@ -227,12 +234,12 @@ pub async fn run_executor<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn some_error_handler<E: fmt::Display>(
+pub async fn consumer_error_handler<E: fmt::Display + fmt::Debug>(
     state: &AppState,
     process: storage::ProcessTracker,
     error: E,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    logger::error!(pt.name = ?process.name, pt.id = %process.id, %error, "Failed while executing workflow");
+    logger::error!(pt.name = ?process.name, pt.id = %process.id, ?error, "ERROR: Failed while executing workflow");
 
     let db: &dyn StorageInterface = &*state.store;
     db.process_tracker_update_process_status_by_ids(

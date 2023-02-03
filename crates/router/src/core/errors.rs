@@ -54,8 +54,11 @@ pub enum StorageError {
     DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
-    #[error("DuplicateValue: {0}")]
-    DuplicateValue(String),
+    #[error("DuplicateValue: {entity} already exists {key:?}")]
+    DuplicateValue {
+        entity: &'static str,
+        key: Option<String>,
+    },
     #[error("KV error")]
     KVError,
     #[error("Serialization failure")]
@@ -224,7 +227,7 @@ pub enum ConnectorError {
     #[error("Failed to handle connector response")]
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: String },
+    MissingRequiredField { field_name: &'static str },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
@@ -274,7 +277,7 @@ pub enum VaultError {
     #[error("The given payment method is currently not supported in vault")]
     PaymentMethodNotSupported,
     #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: String },
+    MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
 }
@@ -306,9 +309,9 @@ pub enum ProcessTrackerError {
     #[error("Failed to fetch processes from database")]
     ProcessFetchingFailed,
     #[error("Failed while fetching: {resource_name}")]
-    ResourceFetchingFailed { resource_name: String },
+    ResourceFetchingFailed { resource_name: &'static str },
     #[error("Failed while executing: {flow}")]
-    FlowExecutionError { flow: String },
+    FlowExecutionError { flow: &'static str },
     #[error("Not Implemented")]
     NotImplemented,
     #[error("Job not found")]

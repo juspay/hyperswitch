@@ -8,17 +8,20 @@ use crate::{
     types::api::admin,
 };
 
-/// Merchant Account - Create
+// ### Merchant Account - Create
+
 ///
 /// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
 #[utoipa::path(
     post,
-    path = "/account",
+    path = "/accounts",
     request_body= CreateMerchantAccount,
     responses(
         (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
         (status = 400, description = "Invalid data")
-    )
+    ),
+    tag = "Merchant Account",
+    operation_id = "Create a Merchant Account"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
@@ -36,16 +39,20 @@ pub async fn merchant_account_create(
     .await
 }
 
-/// Merchant Account - Retrieve
+// Merchant Account - Retrieve
+
+///
 /// Retrieve a merchant account details.
 #[utoipa::path(
     get,
-    path = "/account/{account_id}",
+    path = "/accounts/{account_id}",
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
-    )
+    ),
+    tag = "Merchant Account",
+    operation_id = "Retrieve a Merchant Account"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
 pub async fn retrieve_merchant_account(
@@ -67,17 +74,21 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
-/// Merchant Account - Update
-/// Update a merchant account details.
+// Merchant Account - Update
+
+///
+/// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
     post,
-    path = "/account/{account_id}",
+    path = "/accounts/{account_id}",
     request_body = CreateMerchantAccount,
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
-    )
+    ),
+    tag = "Merchant Account",
+    operation_id = "Update a Merchant Account"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
 pub async fn update_merchant_account(
@@ -97,16 +108,20 @@ pub async fn update_merchant_account(
     .await
 }
 
-/// Merchant Account - Delete
-/// Delete a merchant account details.
+// Merchant Account - Delete
+
+///
+/// To delete a merchant account
 #[utoipa::path(
     delete,
-    path = "/account/{account_id}",
+    path = "/accounts/{account_id}",
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Deleted", body = DeleteResponse),
+        (status = 200, description = "Merchant Account Deleted", body = DeleteMerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
-    )
+    ),
+    tag = "Merchant Account",
+    operation_id = "Delete a Merchant Account"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
 // #[delete("/{id}")]
@@ -129,17 +144,20 @@ pub async fn delete_merchant_account(
     .await
 }
 
-/// PaymentsConnectors - Create
+// PaymentsConnectors - Create
+
 ///
 /// Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[utoipa::path(
     post,
-    path = "/account/{account_id}/connectors",
+    path = "/accounts/{account_id}/connectors",
     request_body = PaymentConnectorCreate,
     responses(
         (status = 200, description = "Payment Connector Created", body = PaymentConnectorCreate),
-        (status = 400, description = "Missing Mandatory fields")
-    )
+        (status = 400, description = "Missing Mandatory fields"),
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Create a Merchant Connector"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsCreate))]
 pub async fn payment_connector_create(
@@ -159,12 +177,13 @@ pub async fn payment_connector_create(
     .await
 }
 
-/// Payment Connector - Retrieve
+// Payment Connector - Retrieve
+
 ///
 /// Retrieve Payment Connector Details
 #[utoipa::path(
     get,
-    path = "/account/{account_id}/connectors/{connector_id}",
+    path = "/accounts/{account_id}/connectors/{connector_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("connector_id" = i32, Path, description = "The unique identifier for the payment connector")
@@ -173,7 +192,9 @@ pub async fn payment_connector_create(
         (status = 200, description = "Payment Connector retrieved successfully", body = PaymentConnectorCreate),
         (status = 404, description = "Payment Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
-    )
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Retrieve a Merchant Connector"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsRetrieve))]
 pub async fn payment_connector_retrieve(
@@ -199,12 +220,13 @@ pub async fn payment_connector_retrieve(
     .await
 }
 
-/// Payment Connector - List
+// Payment Connector - List
+
 ///
 /// List Payment Connector Details for the merchant
 #[utoipa::path(
     get,
-    path = "/account/{account_id}/connectors",
+    path = "/accounts/{account_id}/connectors",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
@@ -212,7 +234,9 @@ pub async fn payment_connector_retrieve(
         (status = 200, description = "Payment Connector list retrieved successfully", body = Vec<PaymentConnectorCreate>),
         (status = 404, description = "Payment Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
-    )
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "List all Merchant Connectors"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsList))]
 pub async fn payment_connector_list(
@@ -231,12 +255,13 @@ pub async fn payment_connector_list(
     .await
 }
 
-/// Payment Connector - Update
+// Payment Connector - Update
+
 ///
-/// To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc
+/// To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
 #[utoipa::path(
     post,
-    path = "/account/{account_id}/connectors/{connector_id}",
+    path = "/accounts/{account_id}/connectors/{connector_id}",
     request_body = PaymentConnectorCreate,
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
@@ -246,7 +271,9 @@ pub async fn payment_connector_list(
         (status = 200, description = "Payment Connector Updated", body = PaymentConnectorCreate),
         (status = 404, description = "Payment Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
-    )
+    ),
+   tag = "Merchant Connector Account",
+   operation_id = "Update a Merchant Connector"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsUpdate))]
 pub async fn payment_connector_update(
@@ -268,11 +295,13 @@ pub async fn payment_connector_update(
     .await
 }
 
-/// Payment Connector - Delete
+// Payment Connector - Delete
+
+///
 /// Delete or Detach a Payment Connector from Merchant Account
 #[utoipa::path(
     delete,
-    path = "/account/{account_id}/connectors/{connector_id}",
+    path = "/accounts/{account_id}/connectors/{connector_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("connector_id" = i32, Path, description = "The unique identifier for the payment connector")
@@ -281,7 +310,9 @@ pub async fn payment_connector_update(
         (status = 200, description = "Payment Connector Deleted", body = DeleteMcaResponse),
         (status = 404, description = "Payment Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
-    )
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Delete a Merchant Connector"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsDelete))]
 pub async fn payment_connector_delete(
