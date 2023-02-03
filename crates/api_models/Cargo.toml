@@ -19,3 +19,6 @@ utoipa = { version = "3.0.1", features = ["preserve_order"] }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+actix-web = "4.3.0"
+reqwest = "0.11.14"
+mime = "0.3.16"

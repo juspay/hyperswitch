@@ -304,11 +304,14 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 name = "api_models"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "common_utils",
  "error-stack",
  "frunk",
  "frunk_core",
  "masking",
+ "mime",
+ "reqwest",
  "router_derive",
  "serde",
  "serde_json",
