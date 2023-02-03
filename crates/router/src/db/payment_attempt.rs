@@ -340,10 +340,7 @@ mod storage {
                     payment_attempt
                         .insert(&conn)
                         .await
-                        .map_err(|error| {
-                            crate::logger::error!(db_error=?error);
-                            Into::into(error)
-                        }) //FIXME: context is lost
+                        .map_err(Into::into)
                         .into_report()
                 }
 
