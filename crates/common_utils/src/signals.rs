@@ -5,6 +5,9 @@ use router_env::logger;
 pub use tokio::sync::oneshot;
 
 ///
+/// This functions is meant to run in parallel to the application.
+/// It will send a signal to the receiver when a SIGTERM or SIGINT is received
+///
 pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: oneshot::Sender<()>) {
     if let Some(signal) = sig.next().await {
         logger::info!(
@@ -27,6 +30,8 @@ pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: oneshot
     }
 }
 
+///
+/// This function is used to generate a list of signals that the signal_handler should listen for
 ///
 pub fn get_allowed_signals() -> Result<signal_hook_tokio::SignalsInfo, std::io::Error> {
     signal_hook_tokio::Signals::new([signal_hook::consts::SIGTERM, signal_hook::consts::SIGINT])

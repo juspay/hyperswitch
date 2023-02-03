@@ -26,11 +26,12 @@ pub async fn start_drainer(
     let mut shutdown_interval =
         tokio::time::interval(std::time::Duration::from_millis(shutdown_interval.into()));
 
-    let signal = get_allowed_signals().into_report().change_context(
-        errors::DrainerError::ConfigurationError(
-            "Failed while getting allowed signals".to_string(),
-        ),
-    )?;
+    let signal =
+        get_allowed_signals()
+            .into_report()
+            .change_context(errors::DrainerError::SignalError(
+                "Failed while getting allowed signals".to_string(),
+            ))?;
     let (sx, mut rx) = oneshot::channel();
     let handle = signal.handle();
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
@@ -73,7 +74,7 @@ pub async fn start_drainer(
     task_handle
         .await
         .into_report()
-        .change_context(errors::DrainerError::ConfigurationError(
+        .change_context(errors::DrainerError::UnExpectedError(
             "Failed while joining signal handler".to_string(),
         ))?;
 
