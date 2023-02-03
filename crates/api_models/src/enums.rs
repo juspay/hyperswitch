@@ -357,7 +357,6 @@ pub enum PaymentMethodIssuerCode {
     frunk::LabelledGeneric,
     ToSchema,
 )]
-#[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentIssuer {
     Klarna,
