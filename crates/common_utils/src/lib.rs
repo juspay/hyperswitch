@@ -9,6 +9,7 @@ pub mod errors;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod pii;
+pub mod signals;
 pub mod validation;
 
 /// Date-time utilities.

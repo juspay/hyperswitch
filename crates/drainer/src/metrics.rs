@@ -67,12 +67,12 @@ pub(crate) static REDIS_STREAM_TRIM_TIME: Lazy<ObservableGauge<f64>> = Lazy::new
         .init()
 });
 
-pub(crate) static _SHUTDOWN_SIGNAL_RECEIVED: Lazy<Counter<u64>> =
+pub(crate) static SHUTDOWN_SIGNAL_RECEIVED: Lazy<Counter<u64>> =
     Lazy::new(|| DRAINER_METER.u64_counter("SHUTDOWN_SIGNAL_RECEIVED").init());
 
-pub(crate) static _SUCCESSFUL_SHUTDOWN: Lazy<Counter<u64>> =
+pub(crate) static SUCCESSFUL_SHUTDOWN: Lazy<Counter<u64>> =
     Lazy::new(|| DRAINER_METER.u64_counter("SUCCESSFUL_SHUTDOWN").init());
 
 // Time in (ms) milliseconds
-pub(crate) static _CLEANUP_TIME: Lazy<ObservableGauge<f64>> =
+pub(crate) static CLEANUP_TIME: Lazy<ObservableGauge<f64>> =
     Lazy::new(|| DRAINER_METER.f64_observable_gauge("CLEANUP_TIME").init());

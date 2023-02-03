@@ -5,12 +5,12 @@ use std::{
     sync::{self, atomic},
 };
 
+use common_utils::signals::{get_allowed_signals, oneshot};
 use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{
@@ -53,19 +53,16 @@ pub async fn start_consumer(
     ));
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
-    let signal = signal_hook_tokio::Signals::new([
-        signal_hook::consts::SIGTERM,
-        signal_hook::consts::SIGINT,
-    ])
-    .map_err(|error| {
-        logger::error!("Signal Handler Error: {:?}", error);
-        errors::ProcessTrackerError::ConfigurationError
-    })
-    .into_report()
-    .attach_printable("Failed while creating a signals handler")?;
+    let signal = get_allowed_signals()
+        .map_err(|error| {
+            logger::error!("Signal Handler Error: {:?}", error);
+            errors::ProcessTrackerError::ConfigurationError
+        })
+        .into_report()
+        .attach_printable("Failed while creating a signals handler")?;
     let (sx, mut rx) = oneshot::channel();
     let handle = signal.handle();
-    let task_handle = tokio::spawn(pt_utils::signal_handler(signal, sx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
 
     loop {
         match rx.try_recv() {

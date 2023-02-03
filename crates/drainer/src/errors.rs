@@ -8,16 +8,18 @@ pub enum DrainerError {
     #[error("Error during redis operation : {0}")]
     RedisError(error_stack::Report<redis::errors::RedisError>),
     #[error("Application configuration error: {0}")]
-    ConfigurationError(config::ConfigError),
+    ApplicationError(config::ConfigError),
     #[error("Metrics initialization error")]
     MetricsError,
+    #[error("Error while configuring: {0}")]
+    ConfigurationError(String),
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;
 
 impl From<config::ConfigError> for DrainerError {
     fn from(err: config::ConfigError) -> Self {
-        Self::ConfigurationError(err)
+        Self::ApplicationError(err)
     }
 }
 
