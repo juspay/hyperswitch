@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -19,7 +19,18 @@ pub trait ConfigInterface {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
+    async fn find_config_by_key_cached(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn update_config_by_key(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
+    async fn update_config_cached(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
@@ -60,6 +71,45 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+    async fn update_config_cached(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let config = self.update_config_by_key(key, config_update).await?;
+        self.redis_conn
+            .delete_key(key)
+            .await
+            .change_context(errors::StorageError::KVError)
+            .attach_printable("Error while deleting the config key")?;
+        Ok(config)
+    }
+
+    async fn find_config_by_key_cached(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let redis = &self.redis_conn;
+        let redis_val = redis
+            .get_and_deserialize_key::<storage::Config>(key, "Config")
+            .await;
+        Ok(match redis_val {
+            Err(err) => match err.current_context() {
+                errors::RedisError::NotFound => {
+                    let config = self.find_config_by_key(key).await?;
+                    redis
+                        .serialize_and_set_key(&config.key, &config)
+                        .await
+                        .change_context(errors::StorageError::KVError)?;
+                    config
+                }
+                _ => Err(err
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Error while fetching config"))?,
+            },
+            Ok(val) => val,
+        })
+    }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
@@ -96,8 +146,24 @@ impl ConfigInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
+    async fn update_config_cached(
+        &self,
+        _key: &str,
+        _config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
 
     async fn delete_config_by_key(&self, _key: &str) -> CustomResult<bool, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_config_by_key_cached(
+        &self,
+        _key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
