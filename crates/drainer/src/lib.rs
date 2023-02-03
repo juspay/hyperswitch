@@ -8,10 +8,12 @@ mod utils;
 use std::sync::Arc;
 
 pub use env as logger;
+use logger::{instrument, tracing};
 use storage_models::kv;
 
 use crate::{connection::pg_connection, services::Store};
 
+#[instrument(skip(store))]
 pub async fn start_drainer(
     store: Arc<Store>,
     number_of_streams: u8,
