@@ -13,7 +13,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": ["bungcip.better-toml", "rust-lang.rust-analyzer"]
+      "extensions": ["tamasfe.even-better-toml", "rust-lang.rust-analyzer"]
     }
   },
 
