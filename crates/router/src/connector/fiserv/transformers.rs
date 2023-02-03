@@ -1,14 +1,14 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{ValueExt, StringExt};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
     pii::{self, Secret},
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums,}, connector::utils,
 };
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservPaymentsRequest {
     amount: Amount,
@@ -18,11 +18,13 @@ pub struct FiservPaymentsRequest {
     transaction_interaction: TransactionInteraction,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Source {
-    source_type: String,
-    card: CardData,
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(tag = "sourceType")]
+pub enum Source {
+    PaymentCard {card: CardData},
+    GooglePay{data: String,
+        signature: String,
+        version: String,},
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -35,6 +37,14 @@ pub struct CardData {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayToken {
+    signature: String,
+    signed_message: String,
+    protocol_version: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Amount {
     total: i64,
     currency: String,
@@ -43,14 +53,25 @@ pub struct Amount {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
-    capture_flag: bool,
+    capture_flag: Option<bool>,
+    reversal_reason_code: Option<ReversalReasonCodes>,
+}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq, Deserialize, strum::EnumString)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ReversalReasonCodes {
+    Void,
+    Timeout,
+    SuspectedFraud,
+    CardOverride,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: String,
-    terminal_id: String,
+    terminal_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -64,60 +85,74 @@ pub struct TransactionInteraction {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
-                let amount = Amount {
-                    total: item.request.amount,
-                    currency: item.request.currency.to_string(),
-                };
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let amount = Amount {
+            total: item.request.amount,
+            currency: item.request.currency.to_string(),
+        };
+        let transaction_details = TransactionDetails {
+            capture_flag: Some(matches!(
+                item.request.capture_method,
+                Some(enums::CaptureMethod::Automatic) | None
+            )),
+            reversal_reason_code: None,
+        };
+        let metadata = item
+            .connector_meta_data
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: SessionObject = metadata
+            .parse_value("SessionObject")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
+        let merchant_details = MerchantDetails {
+            merchant_id: auth.merchant_account,
+            terminal_id: Some(session.terminal_id),
+        };
+
+        let transaction_interaction = TransactionInteraction {
+            origin: "ECOM".to_string(), //Payment is being made in online mode, card not present
+            eci_indicator: "CHANNEL_ENCRYPTED".to_string(), // transaction encryption such as SSL/TLS, but authentication was not performed
+            pos_condition_code: "CARD_NOT_PRESENT_ECOM".to_string(), //card not present in online transaction
+        };
+        let source = match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ref ccard) => {
                 let card = CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: ccard.card_cvc.clone(),
                 };
-                let source = Source {
-                    source_type: "PaymentCard".to_string(),
-                    card,
-                };
-                let transaction_details = TransactionDetails {
-                    capture_flag: matches!(
-                        item.request.capture_method,
-                        Some(enums::CaptureMethod::Automatic) | None
-                    ),
-                };
-                let metadata = item
-                    .connector_meta_data
-                    .clone()
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                let session: SessionObject = metadata
-                    .parse_value("SessionObject")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                let merchant_details = MerchantDetails {
-                    merchant_id: auth.merchant_account,
-                    terminal_id: session.terminal_id,
-                };
-
-                let transaction_interaction = TransactionInteraction {
-                    origin: "ECOM".to_string(), //Payment is being made in online mode, card not present
-                    eci_indicator: "CHANNEL_ENCRYPTED".to_string(), // transaction encryption such as SSL/TLS, but authentication was not performed
-                    pos_condition_code: "CARD_NOT_PRESENT_ECOM".to_string(), //card not present in online transaction
-                };
-                Ok(Self {
-                    amount,
-                    source,
-                    transaction_details,
-                    merchant_details,
-                    transaction_interaction,
-                })
+                Source::PaymentCard {card}
+            }
+            api::PaymentMethod::Wallet(wallet_data) => {
+                // let json_value = wallet_data.token
+                // .ok_or_else(utils::missing_field_err("Wallet token"))?
+                // .parse_struct("GooglePayToken")
+                // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                // println!("oooooooooo{:?}", json_value);
+                match wallet_data.issuer_name{
+                    api_models::enums::WalletIssuer::GooglePay => Source::GooglePay {
+                        data: r#"{\"encryptedMessage\":\"XqpMeRFRqQJkusxA/yCsxLHwW/KaSWGAEjqoo0uinoLGbzZJ3oMqir/Ldq+FhSSDHH+jNfIrT0Zfv32F0LzjxRgjjUiu6bhgBa4376JEhtH7NmrEb76pS0KZiqdIqghtpUY0eLMkVz4bpGghsr7SFAEPyjzvHxSSRAik3ZCM5vKDuA4pGCsH6zCYr12JGUafB6Mvbauu3+GVsIcJhnG/j6qr1Jos8b1V5ywEyY1Xgs9fyD2IwGQ04ni7BqVqYNyPzqTEXNcRVnW7nzk1KXBhcT/S2Ug36rax0hDNUQxAS09gqw4Xof6ixLcXCpXhgSGNje3l1AFdWu1chRI6fVZe77mgR66FMAVCdLYEQmouUIBtBCT5WCQKPxxg4Hiu/DU3bhOw09ZYT6v8n0U4ai5wJOj2QwqRHEaGUhBN+2WuJofhxDixprdyVdLdmkuxdKzLyQ\\u003d\\u003d\",\"ephemeralPublicKey\":\"BIfDllJB8/HGArug55HLXzrlepO6QyiA3MiOeT515jVMYcOhvld+XjGiGAeFtvD2a0IFPSaENwZQQvCMDmiRBAY\\u003d\",\"tag\":\"Lv5GX9dq2axzKagRML8S1FrU6/T4hGhrB7sv714NCmw\\u003d\"}"#.to_string(),
+                        signature: r#"MEUCIHV5hJ3ijgF+pOdqviqX6NYoIOKdAQvLOevFDW+WF2iGAiEA1vnaeat8ZoSuIp8V6o2aiPcC9TdDyeR0RvImCY8vQWs\u003d"#.to_string(),
+                        version: "ECv1".to_string() 
+                    },
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Unknown Wallet in Payment Method".to_string(),
+                    ))?,
+                }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment Methods".to_string(),
             ))?,
-        }
+        };
+        Ok(Self {
+            amount,
+            source,
+            transaction_details,
+            merchant_details,
+            transaction_interaction,
+        })
     }
 }
 
@@ -144,6 +179,43 @@ impl TryFrom<&types::ConnectorAuthType> for FiservAuthType {
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservCancelRequest {
+    transaction_details: TransactionDetails,
+    merchant_details: MerchantDetails,
+    reference_transaction_details: ReferenceTransactionDetails,
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let metadata = item
+            .connector_meta_data
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: SessionObject = metadata
+            .parse_value("SessionObject")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let cancellation_reason = item.request.cancellation_reason.clone().ok_or_else(utils::missing_field_err("cancellation_reason"))?;
+        Ok(Self {
+            merchant_details: MerchantDetails {
+                merchant_id: auth.merchant_account,
+                terminal_id: Some(session.terminal_id),
+            },
+            reference_transaction_details: ReferenceTransactionDetails {
+                reference_transaction_id: item.request.connector_transaction_id.to_string(),
+            },
+            transaction_details: TransactionDetails {
+                capture_flag: None,
+                // reversal_reason_code:Some(ReversalReasonCodes::try_from(cancellation_reason)?),
+                reversal_reason_code: Some(cancellation_reason.parse_enum("ReversalReasonCodes").change_context(errors::ConnectorError::MissingRequiredField { field_name: "cancellation reason should be: VOID, TIMEOUT, SUSPECTED_FRAUD, CARD_OVERRIDE" })?)
+            },
+        })
     }
 }
 
@@ -184,6 +256,16 @@ impl From<FiservPaymentStatus> for enums::AttemptStatus {
             FiservPaymentStatus::Processing => Self::Authorizing,
             FiservPaymentStatus::Voided => Self::Voided,
             FiservPaymentStatus::Authorized => Self::Authorized,
+        }
+    }
+}
+
+impl From<FiservPaymentStatus> for enums::RefundStatus {
+    fn from(item: FiservPaymentStatus) -> Self {
+        match item {
+            FiservPaymentStatus::Succeeded | FiservPaymentStatus::Authorized | FiservPaymentStatus::Captured => Self::Success,
+            FiservPaymentStatus::Declined | FiservPaymentStatus::Failed => Self::Failure,
+            _ => Self::Pending,
         }
     }
 }
@@ -250,6 +332,13 @@ pub struct ReferenceTransactionDetails {
     reference_transaction_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservTransactionTypes {
+    Charges,
+    Refunds,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionObject {
@@ -276,10 +365,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
                 total: amount,
                 currency: item.request.currency.to_string(),
             },
-            transaction_details: TransactionDetails { capture_flag: true },
+            transaction_details: TransactionDetails {
+                capture_flag: Some(true),
+                reversal_reason_code: None,
+            },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
-                terminal_id: session.terminal_id,
+                terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {
                 reference_transaction_id: item.request.connector_transaction_id.to_string(),
@@ -288,46 +380,106 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
     }
 }
 
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservSyncRequest {
+    merchant_details: MerchantDetails,
+    reference_transaction_details: ReferenceTransactionDetails,
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for FiservSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            merchant_details: MerchantDetails {
+                merchant_id: auth.merchant_account,
+                terminal_id: None,
+            },
+            reference_transaction_details: ReferenceTransactionDetails {
+                reference_transaction_id: item.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+            },
+        })
+    }
+}
+
+impl TryFrom<&types::RefundSyncRouterData> for FiservSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            merchant_details: MerchantDetails {
+                merchant_id: auth.merchant_account,
+                terminal_id: None,
+            },
+            reference_transaction_details: ReferenceTransactionDetails {
+                reference_transaction_id: item.request.connector_refund_id.clone().ok_or_else(||errors::ConnectorError::RequestEncodingFailed)?,
+            },
+        })
+    }
+}
+
+
 #[derive(Default, Debug, Serialize)]
-pub struct FiservRefundRequest {}
+#[serde(rename_all = "camelCase")]
+pub struct FiservRefundRequest {
+    amount: Amount,
+    merchant_details: MerchantDetails,
+    reference_transaction_details: ReferenceTransactionDetails,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        println!("$$$${:?}", item.request);
+        let metadata = item
+            .connector_meta_data
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: SessionObject = metadata
+            .parse_value("SessionObject")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Self {
+            amount: Amount {
+                total: item.request.refund_amount,
+                currency: item.request.currency.to_string(),
+            },
+            merchant_details: MerchantDetails {
+                merchant_id: auth.merchant_account,
+                terminal_id: Some(session.terminal_id),
+            },
+            reference_transaction_details: ReferenceTransactionDetails {
+                reference_transaction_id: item.request.connector_transaction_id.to_string(),
+            },
+        })
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundResponse {
+    gateway_response: GatewayResponse,
 }
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-        }
-    }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {}
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item
+                    .response
+                    .gateway_response
+                    .transaction_processing_details
+                    .transaction_id,
+                refund_status: item.response.gateway_response.transaction_state.into(),
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -336,8 +488,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
+        
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item
+                    .response
+                    .gateway_response
+                    .transaction_processing_details
+                    .transaction_id,
+                refund_status: item.response.gateway_response.transaction_state.into(),
+            }),
+            ..item.data
+        })
     }
 }
