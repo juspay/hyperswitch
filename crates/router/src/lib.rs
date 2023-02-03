@@ -78,6 +78,7 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
+            .service(routes::Configs::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::Payouts::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))

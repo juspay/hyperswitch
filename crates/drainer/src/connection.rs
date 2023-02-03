@@ -5,10 +5,13 @@ use crate::settings::Database;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
+#[allow(clippy::expect_used)]
 pub async fn redis_connection(
     conf: &crate::settings::Settings,
 ) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(&conf.redis).await
+    redis_interface::RedisConnectionPool::new(&conf.redis)
+        .await
+        .expect("Failed to create Redis connection Pool")
 }
 
 #[allow(clippy::expect_used)]

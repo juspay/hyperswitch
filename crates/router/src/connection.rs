@@ -26,10 +26,13 @@ impl CustomizeConnection<PgPooledConn, ConnectionError> for TestTransaction {
     }
 }
 
+#[allow(clippy::expect_used)]
 pub async fn redis_connection(
     conf: &crate::configs::settings::Settings,
 ) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(&conf.redis).await
+    redis_interface::RedisConnectionPool::new(&conf.redis)
+        .await
+        .expect("Failed to create Redis Connection Pool")
 }
 
 #[allow(clippy::expect_used)]
