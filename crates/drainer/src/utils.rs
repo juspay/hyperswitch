@@ -122,7 +122,9 @@ pub fn parse_stream_entries<'a>(
         .into_report()
 }
 
-pub fn increment_stream_index(index: u8, jobs_picked: u8, total_streams: u8) -> (u8, u8) {
+// Here the output is in the format (stream_index, jobs_picked),
+// similar to the first argument of the function
+pub fn increment_stream_index((index, jobs_picked): (u8, u8), total_streams: u8) -> (u8, u8) {
     if index == total_streams - 1 {
         match jobs_picked {
             0 => metrics::CYCLES_COMPLETED_UNSUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),

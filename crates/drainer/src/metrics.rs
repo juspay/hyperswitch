@@ -9,13 +9,6 @@ use router_env::opentelemetry::{
 pub(crate) static CONTEXT: Lazy<Context> = Lazy::new(Context::current);
 static DRAINER_METER: Lazy<Meter> = Lazy::new(|| global::meter("DRAINER"));
 
-// macro_rules! create_counter {
-//     ($name:ident, $meter:ident,) => {
-//         pub(crate) static $name: Lazy<Counter<u64>> =
-//             Lazy::new(|| $meter.u64_counter(stringify!($name)).init());
-//     };
-// }
-
 // Time in (ms) milliseconds
 pub(crate) static QUERY_EXECUTION_TIME: Lazy<Histogram<f64>> =
     Lazy::new(|| DRAINER_METER.f64_histogram("QUERY_EXECUTION_TIME").init());

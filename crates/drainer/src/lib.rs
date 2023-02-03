@@ -27,7 +27,7 @@ pub async fn start_drainer(
             jobs_picked += 1;
         }
         (stream_index, jobs_picked) =
-            utils::increment_stream_index(stream_index, jobs_picked, number_of_streams);
+            utils::increment_stream_index((stream_index, jobs_picked), number_of_streams);
     }
 }
 
@@ -168,7 +168,8 @@ async fn drainer(
         logger::error!(
             read_entries = %read_count,
             trimmed_entries = %entries_trimmed,
-            ?entries
+            ?entries,
+            "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
         );
     }
 
