@@ -62,7 +62,7 @@ async fn drainer(
 
     metrics::JOBS_PICKED_PER_STREAM.add(
         &metrics::CONTEXT,
-        u64::try_from(read_count).unwrap_or(u64::MAX),
+        u64::try_from(read_count).unwrap_or(u64::MIN),
         &[metrics::KeyValue {
             key: "stream".into(),
             value: stream_name.to_string().into(),
