@@ -215,7 +215,7 @@ pub struct RapydPaymentsResponse {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Status {
     pub error_code: String,
-    pub status: String,
+    pub status: Option<String>,
     pub message: Option<String>,
     pub response_code: Option<String>,
     pub operation_id: Option<String>,
@@ -384,7 +384,7 @@ impl<F, T>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code),
                             status_code: item.http_code,
-                            message: item.response.status.status,
+                            message: item.response.status.status.unwrap_or_default(),
                             reason: data.failure_message.to_owned(),
                         }),
                     ),
@@ -428,7 +428,7 @@ impl<F, T>
                 Err(types::ErrorResponse {
                     code: item.response.status.error_code,
                     status_code: item.http_code,
-                    message: item.response.status.status,
+                    message: item.response.status.status.unwrap_or_default(),
                     reason: item.response.status.message,
                 }),
             ),
@@ -488,7 +488,7 @@ impl From<ResponseData> for RapydPaymentsResponse {
         Self {
             status: Status {
                 error_code: consts::NO_ERROR_CODE.to_owned(),
-                status: "SUCCESS".to_owned(),
+                status: None,
                 message: None,
                 response_code: None,
                 operation_id: None,
@@ -503,7 +503,7 @@ impl From<RefundResponseData> for RefundResponse {
         Self {
             status: Status {
                 error_code: consts::NO_ERROR_CODE.to_owned(),
-                status: "SUCCESS".to_owned(),
+                status: None,
                 message: None,
                 response_code: None,
                 operation_id: None,

@@ -84,7 +84,7 @@ impl ConnectorCommon for Rapyd {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.error_code,
-            message: response.status.status,
+            message: response.status.status.unwrap_or_default(),
             reason: response.status.message,
         })
     }
