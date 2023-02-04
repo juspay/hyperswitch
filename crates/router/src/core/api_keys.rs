@@ -1,8 +1,16 @@
-use common_utils::{errors::CustomResult, fp_utils};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{date_time, errors::CustomResult, fp_utils};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
+use router_env::{instrument, tracing};
 
-use crate::{consts, core::errors};
+use crate::{
+    consts,
+    core::errors::{self, RouterResponse, StorageErrorExt},
+    db::StorageInterface,
+    services::ApplicationResponse,
+    types::{api, storage, transformers::ForeignInto},
+    utils,
+};
 
 // Defining new types `PlaintextApiKey` and `HashedApiKey` in the hopes of reducing the possibility
 // of plaintext API key being stored in the data store.
@@ -83,6 +91,109 @@ impl PlaintextApiKey {
         fp_utils::when(provided_api_key_hash != stored_api_key_hash, || {
             Err(errors::ApiKeyError::HashVerificationFailed).into_report()
         })
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn create_api_key(
+    store: &dyn StorageInterface,
+    api_key: api::CreateApiKeyRequest,
+    merchant_id: String,
+) -> RouterResponse<api::CreateApiKeyResponse> {
+    let hash_key = PlaintextApiKey::new_hash_key();
+    let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
+    let api_key = storage::ApiKeyNew {
+        key_id: utils::generate_id(consts::ID_LENGTH, "key"),
+        merchant_id,
+        name: api_key.name,
+        description: api_key.description,
+        hash_key: Secret::from(hex::encode(hash_key)),
+        hashed_api_key: plaintext_api_key.keyed_hash(&hash_key).into(),
+        prefix: plaintext_api_key.prefix(),
+        created_at: date_time::now(),
+        expires_at: api_key.expiration.into(),
+        last_used: None,
+    };
+
+    let api_key = store
+        .insert_api_key(api_key)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert new API key")?;
+
+    Ok(ApplicationResponse::Json(
+        (api_key, plaintext_api_key).foreign_into(),
+    ))
+}
+
+#[instrument(skip_all)]
+pub async fn retrieve_api_key(
+    store: &dyn StorageInterface,
+    key_id: &str,
+) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    let api_key = store
+        .find_api_key_optional(key_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+        .attach_printable("Failed to retrieve new API key")?
+        .ok_or(report!(errors::ApiErrorResponse::ApiKeyNotFound))?; // If retrieve returned `None`
+
+    Ok(ApplicationResponse::Json(api_key.foreign_into()))
+}
+
+#[instrument(skip_all)]
+pub async fn update_api_key(
+    store: &dyn StorageInterface,
+    key_id: &str,
+    api_key: api::UpdateApiKeyRequest,
+) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    let api_key = store
+        .update_api_key(key_id.to_owned(), api_key.foreign_into())
+        .await
+        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
+
+    Ok(ApplicationResponse::Json(api_key.foreign_into()))
+}
+
+#[instrument(skip_all)]
+pub async fn revoke_api_key(
+    store: &dyn StorageInterface,
+    key_id: &str,
+) -> RouterResponse<api::RevokeApiKeyResponse> {
+    let revoked = store
+        .revoke_api_key(key_id)
+        .await
+        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
+
+    Ok(ApplicationResponse::Json(api::RevokeApiKeyResponse {
+        key_id: key_id.to_owned(),
+        revoked,
+    }))
+}
+
+#[instrument(skip_all)]
+pub async fn list_api_keys(
+    store: &dyn StorageInterface,
+    merchant_id: String,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> RouterResponse<Vec<api::RetrieveApiKeyResponse>> {
+    let api_keys = store
+        .list_api_keys_by_merchant_id(&merchant_id, limit, offset)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to list merchant API keys")?;
+    let api_keys = api_keys
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect();
+
+    Ok(ApplicationResponse::Json(api_keys))
+}
+
+impl From<HashedApiKey> for storage::HashedApiKey {
+    fn from(hashed_api_key: HashedApiKey) -> Self {
+        hashed_api_key.0.into()
     }
 }
 
