@@ -1,4 +1,5 @@
 pub mod address;
+pub mod api_keys;
 pub mod cache;
 pub mod configs;
 pub mod connector_response;
@@ -36,6 +37,7 @@ pub trait StorageInterface:
     + Sync
     + dyn_clone::DynClone
     + address::AddressInterface
+    + api_keys::ApiKeyInterface
     + configs::ConfigInterface
     + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
