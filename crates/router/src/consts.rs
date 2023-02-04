@@ -22,3 +22,5 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
 
 pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
+
+pub(crate) const API_KEY_LENGTH: usize = 128;
