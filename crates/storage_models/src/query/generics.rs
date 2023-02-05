@@ -5,6 +5,7 @@ use diesel::{
     associations::HasTable,
     debug_query,
     dsl::{Find, Limit},
+    helper_types::IntoBoxed,
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
     query_builder::{
@@ -12,11 +13,11 @@ use diesel::{
         QueryId, UpdateStatement,
     },
     query_dsl::{
-        methods::{FilterDsl, FindDsl, LimitDsl},
+        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
-    Insertable, QuerySource, Table,
+    Expression, Insertable, QueryDsl, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
@@ -381,36 +382,48 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub async fn generic_filter<T, P, R>(
+pub async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
+    offset: Option<i64>,
+    order: Option<O>,
 ) -> StorageResult<Vec<R>>
 where
-    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg>,
-    <T as FilterDsl<P>>::Output: LimitDsl + Send + 'static,
-    <<T as FilterDsl<P>>::Output as LimitDsl>::Output:
-        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + 'static,
+    IntoBoxed<'static, T, Pg>: FilterDsl<P, Output = IntoBoxed<'static, T, Pg>>
+        + LimitDsl<Output = IntoBoxed<'static, T, Pg>>
+        + OffsetDsl<Output = IntoBoxed<'static, T, Pg>>
+        + OrderDsl<O, Output = IntoBoxed<'static, T, Pg>>
+        + LoadQuery<'static, PgConnection, R>
+        + QueryFragment<Pg>
+        + Send,
+    O: Expression,
     R: Send + 'static,
 {
-    let query = <T as HasTable>::table().filter(predicate);
+    let mut query = T::table().into_boxed();
+    query = query.filter(predicate);
 
-    match limit {
-        Some(limit) => {
-            let query = query.limit(limit);
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            query.get_results_async(conn)
-        }
-        None => {
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            query.get_results_async(conn)
-        }
+    if let Some(limit) = limit {
+        query = query.limit(limit);
     }
-    .await
-    .into_report()
-    .change_context(errors::DatabaseError::NotFound)
-    .attach_printable_lazy(|| "Error filtering records by predicate")
+
+    if let Some(offset) = offset {
+        query = query.offset(offset);
+    }
+
+    if let Some(order) = order {
+        query = query.order(order);
+    }
+
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+    query
+        .get_results_async(conn)
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
