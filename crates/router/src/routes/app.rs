@@ -4,7 +4,9 @@ use actix_web::{web, Scope};
 use super::admin::*;
 use super::health::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{
+    api_keys::*, configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*,
+};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -326,6 +328,24 @@ impl Configs {
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update)),
+            )
+    }
+}
+
+pub struct ApiKeys;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl ApiKeys {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/api_keys")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(api_key_create)))
+            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(
+                web::resource("/{key_id}")
+                    .route(web::get().to(api_key_retrieve))
+                    .route(web::post().to(api_key_update))
+                    .route(web::delete().to(api_key_revoke)),
             )
     }
 }
