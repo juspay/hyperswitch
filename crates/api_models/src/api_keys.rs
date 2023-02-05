@@ -221,6 +221,31 @@ mod never {
     }
 }
 
+impl<'a> ToSchema<'a> for ApiKeyExpiration {
+    fn schema() -> (
+        &'a str,
+        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+    ) {
+        use utoipa::openapi::{KnownFormat, ObjectBuilder, OneOfBuilder, SchemaFormat, SchemaType};
+
+        (
+            "ApiKeyExpiration",
+            OneOfBuilder::new()
+                .item(
+                    ObjectBuilder::new()
+                        .schema_type(SchemaType::String)
+                        .enum_values(Some(["never"])),
+                )
+                .item(
+                    ObjectBuilder::new()
+                        .schema_type(SchemaType::String)
+                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::DateTime))),
+                )
+                .into(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod api_key_expiration_tests {
     #![allow(clippy::unwrap_used)]
