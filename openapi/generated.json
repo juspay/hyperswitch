@@ -70,7 +70,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -106,7 +105,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -152,7 +150,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -190,7 +187,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -268,7 +264,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -278,7 +273,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -318,7 +312,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -328,7 +321,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -378,7 +370,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -388,7 +379,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -667,7 +657,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -703,7 +692,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -749,7 +737,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -787,7 +774,6 @@
             "in": "path",
             "description": "The identifier for mandate",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -825,7 +811,6 @@
             "in": "path",
             "description": "The identifier for mandate",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -899,7 +884,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -909,7 +893,6 @@
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -922,7 +905,6 @@
             "in": "path",
             "description": "The three-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -935,7 +917,6 @@
             "in": "query",
             "description": "The minimum amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -946,7 +927,6 @@
             "in": "query",
             "description": "The maximum amount amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -957,7 +937,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -967,7 +946,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -1008,7 +986,6 @@
             "in": "path",
             "description": "The unique identifier for the customer account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1018,7 +995,6 @@
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -1031,7 +1007,6 @@
             "in": "path",
             "description": "The three-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -1044,7 +1019,6 @@
             "in": "query",
             "description": "The minimum amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1055,7 +1029,6 @@
             "in": "query",
             "description": "The maximum amount amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1066,7 +1039,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -1076,7 +1048,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -1117,7 +1088,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1153,7 +1123,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1199,7 +1168,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1273,7 +1241,6 @@
             "in": "query",
             "description": "The identifier for the customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1283,7 +1250,6 @@
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1293,7 +1259,6 @@
             "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1303,7 +1268,6 @@
             "in": "query",
             "description": "Limit on the number of objects to return",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1314,7 +1278,6 @@
             "in": "query",
             "description": "The time at which payment is created",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1325,7 +1288,6 @@
             "in": "query",
             "description": "Time less than the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1336,7 +1298,6 @@
             "in": "query",
             "description": "Time greater than the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1347,7 +1308,6 @@
             "in": "query",
             "description": "Time less than or equals to the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1358,7 +1318,6 @@
             "in": "query",
             "description": "Time greater than or equals to the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1426,7 +1385,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1472,7 +1430,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1520,7 +1477,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1561,7 +1517,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1609,7 +1564,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1693,7 +1647,6 @@
             "in": "query",
             "description": "The identifier for the payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1703,7 +1656,6 @@
             "in": "query",
             "description": "Limit on the number of objects to return",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1714,7 +1666,6 @@
             "in": "query",
             "description": "The time at which refund is created",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1725,7 +1676,6 @@
             "in": "query",
             "description": "Time less than the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1736,7 +1686,6 @@
             "in": "query",
             "description": "Time greater than the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1747,7 +1696,6 @@
             "in": "query",
             "description": "Time less than or equals to the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1758,7 +1706,6 @@
             "in": "query",
             "description": "Time greater than or equals to the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1797,7 +1744,6 @@
             "in": "path",
             "description": "The identifier for refund",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1833,7 +1779,6 @@
             "in": "path",
             "description": "The identifier for refund",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
