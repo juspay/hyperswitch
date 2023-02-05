@@ -416,6 +416,207 @@
         "deprecated": false
       }
     },
+    "/api_keys": {
+      "post": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Create",
+        "description": "API Key - Create\n\nCreate a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
+        "operationId": "Create an API Key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/list": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - List",
+        "description": "API Key - List\n\nList all API Keys associated with your merchant account.",
+        "operationId": "List all API Keys associated with a merchant account",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of API Keys to include in the response",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "The number of API Keys to skip when retrieving the list of API keys.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API Keys retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{key_id}": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Retrieve",
+        "description": "API Key - Retrieve\n\nRetrieve information about the specified API Key.",
+        "operationId": "Retrieve an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      },
+      "post": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Update",
+        "description": "API Key - Update\n\nUpdate information for the specified API Key.",
+        "operationId": "Update an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      },
+      "delete": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Revoke",
+        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "operationId": "Revoke an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      }
+    },
     "/customers": {
       "post": {
         "tags": [
@@ -1758,6 +1959,20 @@
           "afterpay_clearpay"
         ]
       },
+      "ApiKeyExpiration": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "never"
+            ]
+          },
+          {
+            "type": "string",
+            "format": "date-time"
+          }
+        ]
+      },
       "AuthenticationType": {
         "type": "string",
         "enum": [
@@ -1904,6 +2119,83 @@
           "banking_entities",
           "non_banking_finance"
         ]
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "description": "The request body for creating an API Key.",
+        "required": [
+          "name",
+          "expiration"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "A description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "CreateApiKeyResponse": {
+        "type": "object",
+        "description": "The response body for creating an API Key.",
+        "required": [
+          "key_id",
+          "merchant_id",
+          "name",
+          "api_key",
+          "created",
+          "expiration"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "The identifier for the API Key.",
+            "example": "5hEEqkgJUyuxgSKGArHA4mWSnX",
+            "maxLength": 64
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "description": "The unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "The description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "api_key": {
+            "type": "string",
+            "description": "The plaintext API Key used for server-side API access. Ensure you store the API Key\nsecurely as you will not be able to see it again.",
+            "maxLength": 64
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which the API Key was created.",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
       },
       "CreateMerchantAccount": {
         "type": "object",
@@ -4376,6 +4668,79 @@
           }
         }
       },
+      "RetrieveApiKeyResponse": {
+        "type": "object",
+        "description": "The response body for retrieving an API Key.",
+        "required": [
+          "key_id",
+          "merchant_id",
+          "name",
+          "prefix",
+          "created",
+          "expiration"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "The identifier for the API Key.",
+            "example": "5hEEqkgJUyuxgSKGArHA4mWSnX",
+            "maxLength": 64
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "description": "The unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "The description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "prefix": {
+            "type": "string",
+            "description": "The first few characters of the plaintext API Key to help you identify it.",
+            "maxLength": 16
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which the API Key was created.",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "RevokeApiKeyResponse": {
+        "type": "object",
+        "description": "The response body for revoking an API Key.",
+        "required": [
+          "key_id",
+          "revoked"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "The identifier for the API Key.",
+            "example": "5hEEqkgJUyuxgSKGArHA4mWSnX",
+            "maxLength": 64
+          },
+          "revoked": {
+            "type": "boolean",
+            "description": "Indicates whether the API key was revoked or not.",
+            "example": "true"
+          }
+        }
+      },
       "RoutingAlgorithm": {
         "type": "string",
         "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
@@ -4552,6 +4917,27 @@
           "gpay"
         ]
       },
+      "UpdateApiKeyRequest": {
+        "type": "object",
+        "description": "The request body for updating an API Key.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "A description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
       "UpdatePaymentMethod": {
         "type": "object",
         "properties": {
@@ -4633,25 +5019,36 @@
   },
   "tags": [
     {
-      "name": "Merchant Account"
+      "name": "Merchant Account",
+      "description": "Create and manage merchant accounts"
     },
     {
-      "name": "Merchant Connector Account"
+      "name": "Merchant Connector Account",
+      "description": "Create and manage merchant connector accounts"
     },
     {
-      "name": "Payments"
+      "name": "Payments",
+      "description": "Create and manage one-time payments, recurring payments and mandates"
     },
     {
-      "name": "Refunds"
+      "name": "Refunds",
+      "description": "Create and manage refunds for successful payments"
     },
     {
-      "name": "Mandates"
+      "name": "Mandates",
+      "description": "Manage mandates"
     },
     {
-      "name": "Customers"
+      "name": "Customers",
+      "description": "Create and manage customers"
     },
     {
-      "name": "Payment Methods"
+      "name": "Payment Methods",
+      "description": "Create and manage payment methods of customers"
+    },
+    {
+      "name": "API Key",
+      "description": "Create and manage API Keys"
     }
   ]
 }
