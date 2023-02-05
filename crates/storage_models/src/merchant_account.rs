@@ -21,8 +21,8 @@ pub struct MerchantAccount {
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,8 +41,8 @@ pub struct MerchantAccountNew {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub publishable_key: Option<String>,
     pub locker_id: Option<String>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -60,8 +60,8 @@ pub enum MerchantAccountUpdate {
         redirect_to_merchant_with_http_post: Option<bool>,
         publishable_key: Option<String>,
         locker_id: Option<String>,
-        routing_algorithm: Option<serde_json::Value>,
         metadata: Option<serde_json::Value>,
+        routing_algorithm: Option<serde_json::Value>,
     },
 }
 
@@ -80,8 +80,8 @@ pub struct MerchantAccountUpdateInternal {
     redirect_to_merchant_with_http_post: Option<bool>,
     publishable_key: Option<String>,
     locker_id: Option<String>,
-    routing_algorithm: Option<serde_json::Value>,
     metadata: Option<serde_json::Value>,
+    routing_algorithm: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
