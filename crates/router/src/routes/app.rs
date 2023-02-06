@@ -21,19 +21,19 @@ pub struct AppState {
 }
 
 pub trait AppStateInfo {
-    fn get_conf(&self) -> Settings;
-    fn get_flow_name(&self) -> String;
-    fn get_store(&self) -> Box<dyn StorageInterface>;
+    fn conf(&self) -> Settings;
+    fn flow_name(&self) -> String;
+    fn store(&self) -> Box<dyn StorageInterface>;
 }
 
 impl AppStateInfo for AppState {
-    fn get_conf(&self) -> Settings {
+    fn conf(&self) -> Settings {
         self.conf.to_owned()
     }
-    fn get_flow_name(&self) -> String {
+    fn flow_name(&self) -> String {
         self.flow_name.to_owned()
     }
-    fn get_store(&self) -> Box<dyn StorageInterface> {
+    fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
 }
