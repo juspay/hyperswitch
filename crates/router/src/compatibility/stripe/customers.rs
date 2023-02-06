@@ -35,10 +35,11 @@ pub async fn customer_create(
         _,
         _,
         _,
+        _,
         types::CreateCustomerResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         create_cust_req,
         |state, merchant_account, req| {
@@ -66,10 +67,11 @@ pub async fn customer_retrieve(
         _,
         _,
         _,
+        _,
         types::CustomerRetrieveResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -106,10 +108,11 @@ pub async fn customer_update(
         _,
         _,
         _,
+        _,
         types::CustomerUpdateResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         cust_update_req,
         |state, merchant_account, req| {
@@ -137,10 +140,11 @@ pub async fn customer_delete(
         _,
         _,
         _,
+        _,
         types::CustomerDeleteResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         customers::delete_customer,
@@ -164,10 +168,11 @@ pub async fn list_customer_payment_method_api(
         _,
         _,
         _,
+        _,
         types::CustomerPaymentMethodListResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         customer_id.as_ref(),
         cards::list_customer_payment_method,

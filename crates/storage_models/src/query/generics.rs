@@ -95,20 +95,73 @@ where
         <<T as FilterDsl<P>>::Output as HasTable>::Table,
         <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + Clone,
     R: Send + 'static,
+
+    // For cloning query (UpdateStatement)
+    <<T as FilterDsl<P>>::Output as HasTable>::Table: Clone,
+    <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause: Clone,
+    <V as AsChangeset>::Changeset: Clone,
+    <<<T as FilterDsl<P>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
-    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_results_async(conn)
+    match query.to_owned().get_results_async(conn).await {
+        Ok(result) => {
+            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+            Ok(result)
+        }
+        Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
+            Err(report!(errors::DatabaseError::NoFieldsToUpdate))
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+        }
+        Err(ConnectionError::Query(DieselError::NotFound)) => {
+            Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+        }
+        _ => Err(report!(errors::DatabaseError::Others))
+            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
+    }
+}
+
+#[instrument(level = "DEBUG", skip_all)]
+pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
+    conn: &PgPooledConn,
+    predicate: P,
+    values: V,
+) -> StorageResult<R>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug + 'static,
+    <T as FilterDsl<P>>::Output: IntoUpdateTarget + 'static,
+    UpdateStatement<
+        <<T as FilterDsl<P>>::Output as HasTable>::Table,
+        <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
+        <V as AsChangeset>::Changeset,
+    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    R: Send + 'static,
+
+    // For cloning query (UpdateStatement)
+    <<T as FilterDsl<P>>::Output as HasTable>::Table: Clone,
+    <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause: Clone,
+    <V as AsChangeset>::Changeset: Clone,
+    <<<T as FilterDsl<P>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
+{
+    generic_update_with_results::<<T as HasTable>::Table, _, _, _>(conn, predicate, values)
         .await
-        .into_report()
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+        .map(|mut vec_r| {
+            if vec_r.is_empty() {
+                Err(errors::DatabaseError::NotFound)
+            } else if vec_r.len() != 1 {
+                Err(errors::DatabaseError::Others)
+            } else {
+                vec_r.pop().ok_or(errors::DatabaseError::Others)
+            }
+            .into_report()
+            .attach_printable("Maybe not queried using a unique key")
+        })?
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -148,7 +201,8 @@ where
             Ok(result)
         }
         Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
-            generic_find_by_id_core::<T, _, _>(conn, id).await
+            Err(report!(errors::DatabaseError::NoFieldsToUpdate))
+                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
         }
         Err(ConnectionError::Query(DieselError::NotFound)) => {
             Err(report!(errors::DatabaseError::NotFound))

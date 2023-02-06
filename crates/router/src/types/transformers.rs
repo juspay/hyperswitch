@@ -305,6 +305,27 @@ impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
     }
 }
 
+impl From<F<storage::Config>> for F<api_types::Config> {
+    fn from(config: F<storage::Config>) -> Self {
+        let config = config.0;
+        api_types::Config {
+            key: config.key,
+            value: config.config,
+        }
+        .into()
+    }
+}
+
+impl<'a> From<F<&'a api_types::ConfigUpdate>> for F<storage::ConfigUpdate> {
+    fn from(config: F<&api_types::ConfigUpdate>) -> Self {
+        let config_update = config.0;
+        storage::ConfigUpdate::Update {
+            config: Some(config_update.value.clone()),
+        }
+        .into()
+    }
+}
+
 impl<'a> From<F<&'a storage::Address>> for F<api_types::Address> {
     fn from(address: F<&storage::Address>) -> Self {
         let address = address.0;

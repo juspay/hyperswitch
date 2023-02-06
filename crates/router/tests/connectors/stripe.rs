@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -53,7 +51,7 @@ async fn should_only_authorize_payment() {
 }
 
 #[actix_web::test]
-async fn should_authorize_and_capture_payment() {
+async fn should_make_payment() {
     let response = Stripe {}
         .make_payment(get_payment_authorize_data(), None)
         .await
@@ -87,13 +85,13 @@ async fn should_partially_capture_already_authorized_payment() {
 }
 
 #[actix_web::test]
-async fn should_sync_payment() {
+async fn should_sync_authorized_payment() {
     let connector = Stripe {};
     let authorize_response = connector
         .authorize_payment(get_payment_authorize_data(), None)
         .await
         .unwrap();
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response = connector
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
@@ -112,13 +110,38 @@ async fn should_sync_payment() {
 }
 
 #[actix_web::test]
+async fn should_sync_payment() {
+    let connector = Stripe {};
+    let authorize_response = connector
+        .make_payment(get_payment_authorize_data(), None)
+        .await
+        .unwrap();
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
+    let response = connector
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::Charged,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    txn_id.unwrap(),
+                ),
+                encoded_data: None,
+                capture_method: None,
+            }),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Charged,);
+}
+
+#[actix_web::test]
 async fn should_void_already_authorized_payment() {
     let connector = Stripe {};
     let response = connector
         .authorize_and_void_payment(
             get_payment_authorize_data(),
             Some(types::PaymentsCancelData {
-                connector_transaction_id: "".to_string(),
+                connector_transaction_id: "".to_string(), // this connector_transaction_id will be ignored and the transaction_id from payment authorize data will be used for void
                 cancellation_reason: Some("requested_by_customer".to_string()),
             }),
             None,
@@ -228,15 +251,33 @@ async fn should_fail_payment_for_invalid_card_cvc() {
     assert_eq!(x.message, "Your card's security code is invalid.",);
 }
 
+// Voids a payment using automatic capture flow (Non 3DS).
+#[actix_web::test]
+async fn should_fail_void_payment_for_auto_capture() {
+    let connector = Stripe {};
+    // Authorize
+    let authorize_response = connector
+        .make_payment(get_payment_authorize_data(), None)
+        .await
+        .unwrap();
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
+    assert_ne!(txn_id, None, "Empty connector transaction id");
+
+    // Void
+    let void_response = connector
+        .void_payment(txn_id.unwrap(), None, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        void_response.response.unwrap_err().message,
+        "You cannot cancel this PaymentIntent because it has a status of succeeded. Only a PaymentIntent with one of the following statuses may be canceled: requires_payment_method, requires_capture, requires_confirmation, requires_action, processing."
+    );
+}
+
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
     let connector = Stripe {};
-    let authorize_response = connector
-        .authorize_payment(get_payment_authorize_data(), None)
-        .await
-        .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    tokio::time::sleep(Duration::from_secs(5)).await; // to avoid 404 error as stripe takes some time to process the new transaction
     let response = connector
         .capture_payment("12345".to_string(), None, None)
         .await
@@ -251,6 +292,19 @@ async fn should_refund_succeeded_payment() {
     let connector = Stripe {};
     let response = connector
         .make_payment_and_refund(get_payment_authorize_data(), None, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+#[actix_web::test]
+async fn should_refund_manually_captured_payment() {
+    let connector = Stripe {};
+    let response = connector
+        .auth_capture_and_refund(get_payment_authorize_data(), None, None)
         .await
         .unwrap();
     assert_eq!(
@@ -275,6 +329,26 @@ async fn should_partially_refund_succeeded_payment() {
         .unwrap();
     assert_eq!(
         refund_response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+#[actix_web::test]
+async fn should_partially_refund_manually_captured_payment() {
+    let connector = Stripe {};
+    let response = connector
+        .auth_capture_and_refund(
+            get_payment_authorize_data(),
+            Some(types::RefundsData {
+                refund_amount: 50,
+                ..utils::PaymentRefundType::default().0
+            }),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
     );
 }
@@ -319,6 +393,28 @@ async fn should_sync_refund() {
     let connector = Stripe {};
     let refund_response = connector
         .make_payment_and_refund(get_payment_authorize_data(), None, None)
+        .await
+        .unwrap();
+    let response = connector
+        .rsync_retry_till_status_matches(
+            enums::RefundStatus::Success,
+            refund_response.response.unwrap().connector_refund_id,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+#[actix_web::test]
+async fn should_sync_manually_captured_refund() {
+    let connector = Stripe {};
+    let refund_response = connector
+        .auth_capture_and_refund(get_payment_authorize_data(), None, None)
         .await
         .unwrap();
     let response = connector

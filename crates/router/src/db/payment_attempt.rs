@@ -403,7 +403,9 @@ mod storage {
                             ReverseLookupNew {
                                 lookup_id: format!(
                                     "{}_{}",
-                                    &created_attempt.merchant_id, &created_attempt.attempt_id,
+                                    &created_attempt.merchant_id,
+                                    // [#439]: Change this to `attempt_id`
+                                    &created_attempt.payment_id,
                                 ),
                                 pk_id: key,
                                 sk_id: field,
@@ -545,6 +547,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
+                    // [#439]: get the attempt_id from payment_intent
                     let key = format!("{merchant_id}_{payment_id}");
                     let lookup = self
                         .get_lookup_by_lookup_id(&key)
@@ -553,7 +556,7 @@ mod storage {
                         .into_report()?;
                     self.redis_conn
                         .get_hash_field_and_deserialize::<PaymentAttempt>(
-                            &key,
+                            &lookup.pk_id,
                             &lookup.sk_id,
                             "PaymentAttempt",
                         )
