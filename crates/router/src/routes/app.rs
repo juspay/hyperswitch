@@ -4,7 +4,7 @@ use actix_web::{web, Scope};
 use super::admin::*;
 use super::health::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -18,6 +18,24 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+}
+
+pub trait AppStateInfo {
+    fn conf(&self) -> Settings;
+    fn flow_name(&self) -> String;
+    fn store(&self) -> Box<dyn StorageInterface>;
+}
+
+impl AppStateInfo for AppState {
+    fn conf(&self) -> Settings {
+        self.conf.to_owned()
+    }
+    fn flow_name(&self) -> String {
+        self.flow_name.to_owned()
+    }
+    fn store(&self) -> Box<dyn StorageInterface> {
+        self.store.to_owned()
+    }
 }
 
 impl AppState {
@@ -293,6 +311,21 @@ impl Webhooks {
             .service(
                 web::resource("/{merchant_id}/{connector}")
                     .route(web::post().to(receive_incoming_webhook)),
+            )
+    }
+}
+
+pub struct Configs;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update)),
             )
     }
 }

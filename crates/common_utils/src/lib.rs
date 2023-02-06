@@ -13,7 +13,7 @@ pub mod validation;
 
 /// Date-time utilities.
 pub mod date_time {
-    use time::{OffsetDateTime, PrimitiveDateTime};
+    use time::{Instant, OffsetDateTime, PrimitiveDateTime};
     /// Struct to represent milliseconds in time sensitive data fields
     #[derive(Debug)]
     pub struct Milliseconds(i32);
@@ -32,6 +32,15 @@ pub mod date_time {
     /// Return the UNIX timestamp of the current date and time in UTC
     pub fn now_unix_timestamp() -> i64 {
         OffsetDateTime::now_utc().unix_timestamp()
+    }
+
+    /// Calculate execution time for a async block in milliseconds
+    pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(
+        block: F,
+    ) -> (T, f64) {
+        let start = Instant::now();
+        let result = block().await;
+        (result, start.elapsed().as_seconds_f64() * 1000f64)
     }
 }
 

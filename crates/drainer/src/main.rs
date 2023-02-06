@@ -1,4 +1,5 @@
-use drainer::{errors::DrainerResult, services, settings, start_drainer};
+use drainer::{errors, errors::DrainerResult, logger::logger, services, settings, start_drainer};
+use error_stack::ResultExt;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -18,7 +19,12 @@ async fn main() -> DrainerResult<()> {
     let number_of_streams = store.config.drainer_num_partitions;
     let max_read_count = conf.drainer.max_read_count;
 
-    start_drainer(store, number_of_streams, max_read_count).await?;
+    let _guard = logger::setup(&conf.log).change_context(errors::DrainerError::MetricsError)?;
 
+    logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
+
+    start_drainer(store.clone(), number_of_streams, max_read_count).await?;
+
+    store.close().await;
     Ok(())
 }

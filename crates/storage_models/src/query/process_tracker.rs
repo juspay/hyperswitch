@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -72,12 +72,19 @@ impl ProcessTracker {
         status: enums::ProcessTrackerStatus,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::schedule_time
                 .between(time_lower_limit, time_upper_limit)
                 .and(dsl::status.eq(status)),
             limit,
+            None,
+            None,
         )
         .await
     }
@@ -90,12 +97,19 @@ impl ProcessTracker {
         runner: &str,
         limit: usize,
     ) -> StorageResult<Vec<Self>> {
-        let mut x: Vec<Self> = generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        let mut x: Vec<Self> = generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::schedule_time
                 .between(time_lower_limit, time_upper_limit)
                 .and(dsl::status.eq(enums::ProcessTrackerStatus::ProcessStarted))
                 .and(dsl::runner.eq(runner.to_owned())),
+            None,
+            None,
             None,
         )
         .await?;

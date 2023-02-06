@@ -73,6 +73,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such customer")]
     CustomerNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such config")]
+    ConfigNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
 
@@ -367,6 +370,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::IncorrectConnectorNameGiven => Self::InternalServerError,
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
             errors::ApiErrorResponse::RefundNotFound => Self::RefundNotFound,
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
@@ -442,6 +446,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicateRefundRequest
             | Self::RefundNotFound
             | Self::CustomerNotFound
+            | Self::ConfigNotFound
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
