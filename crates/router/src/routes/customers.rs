@@ -30,7 +30,7 @@ pub async fn customers_create(
     json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| create_customer(&*state.store, merchant_account, req),
@@ -72,7 +72,7 @@ pub async fn customers_retrieve(
         };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
@@ -107,7 +107,7 @@ pub async fn customers_update(
     let customer_id = path.into_inner();
     json_payload.customer_id = customer_id;
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| update_customer(&*state.store, merchant_account, req),
@@ -141,7 +141,14 @@ pub async fn customers_delete(
         customer_id: path.into_inner(),
     })
     .into_inner();
-    api::server_wrap(&state, &req, payload, delete_customer, &auth::ApiKeyAuth).await
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        payload,
+        delete_customer,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
@@ -155,7 +162,7 @@ pub async fn get_customer_mandates(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         customer_id,
         |state, merchant_account, req| {

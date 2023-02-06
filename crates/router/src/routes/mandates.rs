@@ -36,7 +36,7 @@ pub async fn get_mandate(
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         mandate_id,
         mandate::get_mandate,
@@ -73,7 +73,7 @@ pub async fn revoke_mandate(
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         mandate_id,
         |state, merchant_account, req| {
