@@ -66,11 +66,23 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let fetch_func = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_cache(self, merchant_id, fetch_func).await
+        }
     }
 
     async fn update_merchant(

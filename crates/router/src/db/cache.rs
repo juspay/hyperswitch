@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use error_stack::ResultExt;
 
 use super::Store;

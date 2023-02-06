@@ -3,7 +3,17 @@ use masking::StrongSecret;
 
 use crate::{enums as storage_enums, schema::merchant_account};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    router_derive::DebugAsDisplay,
+)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccount {
     pub id: i32,
