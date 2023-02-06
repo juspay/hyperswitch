@@ -21,9 +21,10 @@ pub struct AppState {
 }
 
 pub trait AppStateInfo {
+    fn get_conf(&self) -> Settings;
     fn get_flow_name(&self) -> String;
     fn get_store(&self) -> Box<dyn StorageInterface>;
-    fn get_conf(&self) -> Settings;
+
 }
 
 impl AppStateInfo for AppState {

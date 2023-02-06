@@ -14,7 +14,10 @@ use crate::{
 };
 
 #[async_trait]
-pub trait AuthenticateAndFetch<T, A> {
+pub trait AuthenticateAndFetch<T, A>
+where
+    A: AppStateInfo,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -163,7 +166,7 @@ impl ClientSecretFetch for ListPaymentMethodRequest {
     }
 }
 
-pub fn jwt_auth_or<'a, T, A>(
+pub fn jwt_auth_or<'a, T, A: AppStateInfo>(
     default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     headers: &HeaderMap,
 ) -> Box<&'a dyn AuthenticateAndFetch<T, A>>
