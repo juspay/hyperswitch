@@ -5,7 +5,7 @@ use redis_interface as redis;
 
 use crate::{
     errors::{self, DrainerError},
-    logger, services,
+    logger, metrics, services,
 };
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
@@ -35,12 +35,23 @@ pub async fn read_from_stream(
 ) -> errors::DrainerResult<StreamReadResult> {
     // "0-0" id gives first entry
     let stream_id = "0-0";
-    let entries = redis
-        .stream_read_entries(stream_name, stream_id, Some(max_read_count))
-        .await
-        .map_err(DrainerError::from)
-        .into_report()?;
-    Ok(entries)
+    let (output, execution_time) = common_utils::date_time::time_it(|| async {
+        let entries = redis
+            .stream_read_entries(stream_name, stream_id, Some(max_read_count))
+            .await
+            .map_err(DrainerError::from)
+            .into_report()?;
+        Ok(entries)
+    })
+    .await;
+
+    metrics::REDIS_STREAM_READ_TIME.record(
+        &metrics::CONTEXT,
+        execution_time,
+        &[metrics::KeyValue::new("stream", stream_name.to_owned())],
+    );
+
+    output
 }
 
 pub async fn trim_from_stream(
@@ -51,22 +62,34 @@ pub async fn trim_from_stream(
     let trim_kind = redis::StreamCapKind::MinID;
     let trim_type = redis::StreamCapTrim::Exact;
     let trim_id = minimum_entry_id;
-    let trim_result = redis
-        .stream_trim_entries(stream_name, (trim_kind, trim_type, trim_id))
-        .await
-        .map_err(DrainerError::from)
-        .into_report()?;
+    let (trim_result, execution_time) =
+        common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
+            let trim_result = redis
+                .stream_trim_entries(stream_name, (trim_kind, trim_type, trim_id))
+                .await
+                .map_err(DrainerError::from)
+                .into_report()?;
 
-    // Since xtrim deletes entries below given id excluding the given id.
-    // Hence, deleting the minimum entry id
-    redis
-        .stream_delete_entries(stream_name, minimum_entry_id)
-        .await
-        .map_err(DrainerError::from)
-        .into_report()?;
+            // Since xtrim deletes entries below given id excluding the given id.
+            // Hence, deleting the minimum entry id
+            redis
+                .stream_delete_entries(stream_name, minimum_entry_id)
+                .await
+                .map_err(DrainerError::from)
+                .into_report()?;
+
+            Ok(trim_result)
+        })
+        .await;
+
+    metrics::REDIS_STREAM_TRIM_TIME.record(
+        &metrics::CONTEXT,
+        execution_time,
+        &[metrics::KeyValue::new("stream", stream_name.to_owned())],
+    );
 
     // adding 1 because we are deleting the given id too
-    Ok(trim_result + 1)
+    Ok(trim_result? + 1)
 }
 
 pub async fn make_stream_available(
@@ -99,11 +122,17 @@ pub fn parse_stream_entries<'a>(
         .into_report()
 }
 
-pub fn increment_stream_index(index: u8, total_streams: u8) -> u8 {
+// Here the output is in the format (stream_index, jobs_picked),
+// similar to the first argument of the function
+pub fn increment_stream_index((index, jobs_picked): (u8, u8), total_streams: u8) -> (u8, u8) {
     if index == total_streams - 1 {
-        0
+        match jobs_picked {
+            0 => metrics::CYCLES_COMPLETED_UNSUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
+            _ => metrics::CYCLES_COMPLETED_SUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
+        }
+        (0, 0)
     } else {
-        index + 1
+        (index + 1, jobs_picked)
     }
 }
 
