@@ -74,7 +74,7 @@ pub async fn start_drainer(
     task_handle
         .await
         .into_report()
-        .change_context(errors::DrainerError::UnExpectedError(
+        .change_context(errors::DrainerError::UnexpectedError(
             "Failed while joining signal handler".to_string(),
         ))?;
 
