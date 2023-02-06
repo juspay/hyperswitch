@@ -204,7 +204,7 @@ mod storage {
     use super::RefundInterface;
     use crate::{
         connection::pg_connection,
-        core::errors::{self, utils::RedisErrorExt, CustomResult},
+        core::errors::{self, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         logger,
         services::Store,
@@ -243,14 +243,19 @@ mod storage {
                         .into_report()?;
 
                     let key = &lookup.pk_id;
-                    self.redis_conn
-                        .get_hash_field_and_deserialize::<storage_types::Refund>(
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn.get_hash_field_and_deserialize(
                             key,
                             &lookup.sk_id,
                             "Refund",
-                        )
-                        .await
-                        .map_err(|error| error.to_redis_failed_response(key))
+                        ),
+                        self.find_refund_by_internal_reference_id_merchant_id(
+                            internal_reference_id,
+                            merchant_id,
+                            enums::MerchantStorageScheme::PostgresOnly,
+                        ),
+                    )
+                    .await
                 }
             }
         }
@@ -507,14 +512,19 @@ mod storage {
                         .into_report()?;
 
                     let key = &lookup.pk_id;
-                    self.redis_conn
-                        .get_hash_field_and_deserialize::<storage_types::Refund>(
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn.get_hash_field_and_deserialize(
                             key,
                             &lookup.sk_id,
                             "Refund",
-                        )
-                        .await
-                        .map_err(|error| error.to_redis_failed_response(key))
+                        ),
+                        self.find_refund_by_merchant_id_refund_id(
+                            merchant_id,
+                            refund_id,
+                            enums::MerchantStorageScheme::PostgresOnly,
+                        ),
+                    )
+                    .await
                 }
             }
         }

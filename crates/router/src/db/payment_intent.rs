@@ -52,7 +52,7 @@ mod storage {
         services::Store,
         types::storage::{enums, kv, payment_intent::*},
         utils::{
-            self,
+            self, db_utils,
             storage_partitioning::{self, KvStorePartition},
         },
     };
@@ -222,20 +222,17 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    self.redis_conn
-                        .get_hash_field_and_deserialize::<PaymentIntent>(
-                            &key,
-                            "pi",
-                            "PaymentIntent",
-                        )
-                        .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Intent does not exist for {key}"),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn
+                            .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
+                        self.find_payment_intent_by_payment_id_merchant_id(
+                            payment_id,
+                            merchant_id,
+                            enums::MerchantStorageScheme::PostgresOnly,
+                        ),
+                    )
+                    .await
+
                     // Check for database presence as well Maybe use a read replica here ?
                 }
             }
