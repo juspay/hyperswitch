@@ -88,6 +88,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         _headers: &actix_web::http::header::HeaderMap,
         _body: &[u8],
+        _merchant_id: &str,
+        _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -106,12 +108,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let signature = self
             .get_webhook_source_verification_signature(headers, body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let message = self
-            .get_webhook_source_verification_message(headers, body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(db, merchant_id)
             .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let message = self
+            .get_webhook_source_verification_message(headers, body, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         algorithm
