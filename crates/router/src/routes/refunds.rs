@@ -31,7 +31,7 @@ pub async fn refunds_create(
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         refund_create_core,
@@ -67,7 +67,7 @@ pub async fn refunds_retrieve(
     let refund_id = path.into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         refund_id,
         |state, merchant_account, refund_id| {
@@ -106,7 +106,7 @@ pub async fn refunds_update(
 ) -> HttpResponse {
     let refund_id = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| {
@@ -149,7 +149,7 @@ pub async fn refunds_list(
     payload: web::Query<api_models::refunds::RefundListRequest>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload.into_inner(),
         |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),

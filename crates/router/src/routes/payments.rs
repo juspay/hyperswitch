@@ -38,7 +38,7 @@ pub async fn payments_create(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -86,7 +86,7 @@ pub async fn payments_start(
         attempt_id: attempt_id.clone(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -143,7 +143,7 @@ pub async fn payments_retrieve(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -203,7 +203,7 @@ pub async fn payments_update(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -263,7 +263,7 @@ pub async fn payments_confirm(
         };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -312,7 +312,7 @@ pub async fn payments_capture(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         capture_payload,
         |state, merchant_account, payload| {
@@ -354,7 +354,7 @@ pub async fn payments_connector_session(
     let sessions_payload = json_payload.into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         sessions_payload,
         |state, merchant_account, payload| {
@@ -413,7 +413,7 @@ pub async fn payments_redirect_response(
         connector: Some(connector),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -459,7 +459,7 @@ pub async fn payments_cancel(
     payload.payment_id = payment_id;
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -512,7 +512,7 @@ pub async fn payments_list(
 ) -> impl Responder {
     let payload = payload.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
