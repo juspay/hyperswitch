@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod configs;
 pub mod customers;
 pub mod errors;
 pub mod mandate;

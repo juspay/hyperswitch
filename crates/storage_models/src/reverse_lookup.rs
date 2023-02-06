@@ -13,10 +13,10 @@ use crate::schema::reverse_lookup;
 pub struct ReverseLookup {
     /// Primary key. The key id.
     pub lookup_id: String,
-    /// the value id. i.e the id you want to access KV table.
-    pub pk_id: String,
     /// the `field` in KV database. Which is used to differentiate between two same keys
     pub sk_id: String,
+    /// the value id. i.e the id you want to access KV table.
+    pub pk_id: String,
     /// the source of insertion for reference
     pub source: String,
 }
