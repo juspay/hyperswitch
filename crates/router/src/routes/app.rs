@@ -4,7 +4,7 @@ use actix_web::{web, Scope};
 use super::admin::*;
 use super::health::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -293,6 +293,21 @@ impl Webhooks {
             .service(
                 web::resource("/{merchant_id}/{connector}")
                     .route(web::post().to(receive_incoming_webhook)),
+            )
+    }
+}
+
+pub struct Configs;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update)),
             )
     }
 }

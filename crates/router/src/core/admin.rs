@@ -114,13 +114,6 @@ pub async fn merchant_account_update(
     merchant_id: &String,
     req: api::CreateMerchantAccount,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id)
-        .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
-
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
             field_name: "parent_merchant_id"
@@ -167,10 +160,8 @@ pub async fn merchant_account_update(
 
         parent_merchant_id: get_parent_merchant(
             db,
-            req.sub_merchants_enabled
-                .or(merchant_account.sub_merchants_enabled),
-            req.parent_merchant_id
-                .or_else(|| merchant_account.parent_merchant_id.clone()),
+            req.sub_merchants_enabled,
+            req.parent_merchant_id,
         )
         .await?,
         enable_payment_response_hash: req.enable_payment_response_hash,
@@ -178,13 +169,12 @@ pub async fn merchant_account_update(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
         metadata: req.metadata,
-        merchant_id: merchant_account.merchant_id.to_owned(),
         api_key: None,
         publishable_key: None,
     };
 
     let response = db
-        .update_merchant(merchant_account, updated_merchant_account)
+        .update_specific_fields_in_merchant(merchant_id, updated_merchant_account)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -230,7 +220,9 @@ async fn get_parent_merchant(
                 })
                 .map(|id| validate_merchant_id(db, id).change_context(
                     errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
-                ))?.await?.merchant_id
+                ))?
+                .await?
+                .merchant_id
             )
         }
         _ => None,
