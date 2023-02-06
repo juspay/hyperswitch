@@ -7,25 +7,26 @@ use serde::Serialize;
 
 use crate::{
     core::errors::{self, RouterResult},
-    routes,
+    routes::app::AppStateInfo,
     services::{api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
-pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E>(
-    state: &'b routes::AppState,
+pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
+    state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: &dyn auth::AuthenticateAndFetch<U>,
+    api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b routes::AppState, U, T) -> Fut,
+    F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
     Q: Serialize + std::fmt::Debug + 'a,
     S: From<Q> + Serialize,
     E: From<errors::ApiErrorResponse> + Serialize + error_stack::Context + actix_web::ResponseError,
     T: std::fmt::Debug,
+    A: AppStateInfo,
 {
     let resp = api::server_wrap_util(state, request, payload, func, api_authentication).await;
     match resp {

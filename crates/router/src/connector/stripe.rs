@@ -907,6 +907,8 @@ impl api::IncomingWebhook for Stripe {
         &self,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
+        _merchant_id: &str,
+        _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(headers)?;
 
