@@ -90,7 +90,7 @@ impl MerchantAccountInterface for Store {
         this: storage::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let merchant_id = this.merchant_id.clone();
+        let _merchant_id = this.merchant_id.clone();
         let update_func = || async {
             let conn = pg_connection(&self.master_pool).await;
             this.update(&conn, merchant_account)
@@ -106,7 +106,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &merchant_id, update_func).await
+            super::cache::redact_cache(self, &_merchant_id, update_func).await
         }
     }
 
