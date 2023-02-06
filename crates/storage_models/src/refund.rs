@@ -160,13 +160,15 @@ impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
         let pa_update: RefundUpdateInternal = self.into();
         Refund {
-            connector_refund_id: pa_update.connector_refund_id,
+            connector_refund_id: pa_update.connector_refund_id.or(source.connector_refund_id),
             refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
             sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
-            refund_error_message: pa_update.refund_error_message,
-            refund_error_code: pa_update.refund_error_code,
-            refund_arn: pa_update.refund_arn,
-            metadata: pa_update.metadata,
+            refund_error_message: pa_update
+                .refund_error_message
+                .or(source.refund_error_message),
+            refund_error_code: pa_update.refund_error_code.or(source.refund_error_code),
+            refund_arn: pa_update.refund_arn.or(source.refund_arn),
+            metadata: pa_update.metadata.or(source.metadata),
             ..source
         }
     }
