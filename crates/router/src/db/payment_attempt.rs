@@ -463,7 +463,7 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", this.merchant_id, this.payment_id);
-
+                    let old_connector_transaction_id = &this.connector_transaction_id;
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
                     let redis_value = serde_json::to_string(&updated_attempt)
@@ -479,23 +479,27 @@ mod storage {
 
                     let conn = pg_connection(&self.master_pool).await;
                     // Reverse lookup for connector_transaction_id
-                    if let Some(ref connector_transaction_id) =
-                        updated_attempt.connector_transaction_id
-                    {
-                        let field = format!("pa_{}", updated_attempt.attempt_id);
-                        ReverseLookupNew {
-                            lookup_id: format!(
-                                "{}_{}",
-                                &updated_attempt.merchant_id, connector_transaction_id
-                            ),
-                            pk_id: key.clone(),
-                            sk_id: field.clone(),
-                            source: "payment_attempt".to_string(),
+                    match (
+                        old_connector_transaction_id,
+                        &updated_attempt.connector_transaction_id,
+                    ) {
+                        (old, new @ Some(connector_transaction_id)) if old != new => {
+                            let field = format!("pa_{}", updated_attempt.attempt_id);
+                            ReverseLookupNew {
+                                lookup_id: format!(
+                                    "{}_{}",
+                                    &updated_attempt.merchant_id, connector_transaction_id
+                                ),
+                                pk_id: key.clone(),
+                                sk_id: field.clone(),
+                                source: "payment_attempt".to_string(),
+                            }
+                            .insert(&conn)
+                            .await
+                            .map_err(Into::<errors::StorageError>::into)
+                            .into_report()?;
                         }
-                        .insert(&conn)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                        _ => {}
                     }
 
                     let redis_entry = kv::TypedSql {
