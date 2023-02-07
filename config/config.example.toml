@@ -187,3 +187,4 @@ batch_size = 200 # Specifies the batch size the producer will push under a singl
 stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
 num_partitions = 64            # Specifies the number of partitions the stream will be divided into
 max_read_count = 100           # Specifies the maximum number of entries that would be read from redis stream in one call
+shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution
