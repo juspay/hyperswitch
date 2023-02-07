@@ -30,7 +30,7 @@ pub async fn create_payment_method_api(
     json_payload: web::Json<payment_methods::CreatePaymentMethod>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| async move {
@@ -79,7 +79,7 @@ pub async fn list_payment_method_api(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -130,7 +130,7 @@ pub async fn list_customer_payment_method_api(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, _| {
@@ -170,7 +170,7 @@ pub async fn payment_method_retrieve_api(
     .into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, pm| cards::retrieve_payment_method(state, pm, merchant_account),
@@ -207,7 +207,7 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, payload| {
@@ -250,7 +250,7 @@ pub async fn payment_method_delete_api(
         payment_method_id: payment_method_id.into_inner().0,
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         pm,
         cards::delete_payment_method,

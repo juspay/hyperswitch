@@ -21,8 +21,8 @@ pub struct MerchantAccount {
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,14 +41,13 @@ pub struct MerchantAccountNew {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub publishable_key: Option<String>,
     pub locker_id: Option<String>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
-        merchant_id: String,
         merchant_name: Option<String>,
         api_key: Option<StrongSecret<String>>,
         merchant_details: Option<serde_json::Value>,
@@ -61,15 +60,14 @@ pub enum MerchantAccountUpdate {
         redirect_to_merchant_with_http_post: Option<bool>,
         publishable_key: Option<String>,
         locker_id: Option<String>,
-        routing_algorithm: Option<serde_json::Value>,
         metadata: Option<serde_json::Value>,
+        routing_algorithm: Option<serde_json::Value>,
     },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
-    merchant_id: Option<String>,
     merchant_name: Option<String>,
     api_key: Option<StrongSecret<String>>,
     merchant_details: Option<serde_json::Value>,
@@ -82,15 +80,14 @@ pub struct MerchantAccountUpdateInternal {
     redirect_to_merchant_with_http_post: Option<bool>,
     publishable_key: Option<String>,
     locker_id: Option<String>,
-    routing_algorithm: Option<serde_json::Value>,
     metadata: Option<serde_json::Value>,
+    routing_algorithm: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         match merchant_account_update {
             MerchantAccountUpdate::Update {
-                merchant_id,
                 merchant_name,
                 api_key,
                 merchant_details,
@@ -106,7 +103,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
             } => Self {
-                merchant_id: Some(merchant_id),
                 merchant_name,
                 api_key,
                 merchant_details,
