@@ -188,15 +188,22 @@ pub async fn api_key_list(
 }
 
 fn get_merchant_id_header(req: &HttpRequest) -> RouterResult<String> {
+    use crate::headers::X_MERCHANT_ID;
+
     req.headers()
-        .get(crate::headers::X_MERCHANT_ID)
-        .ok_or(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("Missing header: `{}`", crate::headers::X_MERCHANT_ID),
+        .get(X_MERCHANT_ID)
+        .ok_or_else(|| errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Missing header: `{X_MERCHANT_ID}`"),
         })
         .into_report()?
         .to_str()
         .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert header value to string")
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: X_MERCHANT_ID,
+        })
+        .attach_printable(
+            "Failed to convert header value to string, \
+             possibly contains non-printable or non-ASCII characters",
+        )
         .map(|s| s.to_owned())
 }
