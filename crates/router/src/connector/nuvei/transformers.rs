@@ -177,7 +177,7 @@ fn encode_payload(
     let digest = crypto::Sha256
         .generate_digest(data.as_bytes())
         .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("error enocding the payload")?;
+        .attach_printable("error encoding the payload")?;
     Ok(hex::encode(digest))
 }
 
