@@ -64,6 +64,9 @@ impl super::Router for PaymentsRequest {}
 // Core related api layer.
 #[derive(Debug, Clone)]
 pub struct Authorize;
+
+#[derive(Debug, Clone)]
+pub struct PreAuthorize;
 #[derive(Debug, Clone)]
 pub struct Capture;
 
