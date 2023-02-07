@@ -89,7 +89,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
     async fn execute_pretasks(
         &self,
-        _router_data: &mut types::PaymentsAuthorizeRouterData,
+        _router_data: &mut types::RouterData<T, Req, Resp>,
         _app_state: &AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
@@ -99,7 +99,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
     async fn execute_posttasks(
         &self,
-        _router_data: &mut types::PaymentsAuthorizeRouterData,
+        _router_data: &mut types::RouterData<T, Req, Resp>,
         _app_state: &AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
