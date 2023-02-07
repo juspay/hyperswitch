@@ -1045,8 +1045,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "signal-hook",
+ "signal-hook-tokio",
  "thiserror",
  "time",
+ "tokio",
 ]
 
 [[package]]

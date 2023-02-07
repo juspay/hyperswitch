@@ -88,6 +88,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethodType>,
+        payment_token: Option<String>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -170,9 +171,9 @@ impl PaymentAttemptUpdate {
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
-            browser_info: pa_update.browser_info,
+            browser_info: pa_update.browser_info.or(source.browser_info),
             modified_at: common_utils::date_time::now(),
-            payment_token: pa_update.payment_token,
+            payment_token: pa_update.payment_token.or(source.payment_token),
             ..source
         }
     }
@@ -188,6 +189,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 // connector_transaction_id,
                 authentication_type,
                 payment_method,
+                payment_token,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -195,6 +197,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 // connector_transaction_id,
                 authentication_type,
                 payment_method,
+                payment_token,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },

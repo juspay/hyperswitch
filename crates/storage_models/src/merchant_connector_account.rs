@@ -12,7 +12,7 @@ pub struct MerchantConnectorAccount {
     pub connector_account_details: serde_json::Value,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
-    pub merchant_connector_id: i32,
+    pub merchant_connector_id: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
@@ -28,7 +28,7 @@ pub struct MerchantConnectorAccountNew {
     pub connector_account_details: Option<Secret<serde_json::Value>>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
-    pub merchant_connector_id: Option<i32>,
+    pub merchant_connector_id: String,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<serde_json::Value>,
 }
@@ -42,7 +42,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_account_details: Option<Secret<serde_json::Value>>,
         test_mode: Option<bool>,
         disabled: Option<bool>,
-        merchant_connector_id: Option<i32>,
+        merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<serde_json::Value>,
     },
@@ -56,7 +56,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     connector_account_details: Option<Secret<serde_json::Value>>,
     test_mode: Option<bool>,
     disabled: Option<bool>,
-    merchant_connector_id: Option<i32>,
+    merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<serde_json::Value>,
 }
