@@ -19,6 +19,7 @@ async fn main() -> DrainerResult<()> {
     let number_of_streams = store.config.drainer_num_partitions;
     let max_read_count = conf.drainer.max_read_count;
     let shutdown_intervals = conf.drainer.shutdown_interval;
+    let loop_interval = conf.drainer.loop_interval;
 
     let _guard = logger::setup(&conf.log).change_context(errors::DrainerError::MetricsError)?;
 
@@ -29,6 +30,7 @@ async fn main() -> DrainerResult<()> {
         number_of_streams,
         max_read_count,
         shutdown_intervals,
+        loop_interval,
     )
     .await?;
 

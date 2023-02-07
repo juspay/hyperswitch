@@ -194,6 +194,8 @@ pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
     pub max_read_count: u64,
+    pub shutdown_interval: u32, // in milliseconds
+    pub loop_interval: u32,     // in milliseconds
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
