@@ -1,6 +1,6 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::IntoReport;
 
-use super::{MockDb, Store};
+use super::{cache, MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -76,39 +76,18 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let config = self.update_config_by_key(key, config_update).await?;
-        self.redis_conn
-            .delete_key(key)
-            .await
-            .change_context(errors::StorageError::KVError)
-            .attach_printable("Error while deleting the config key")?;
-        Ok(config)
+        cache::redact_cache(self, key, || async {
+            self.update_config_by_key(key, config_update).await
+        })
+        .await
     }
 
     async fn find_config_by_key_cached(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let redis = &self.redis_conn;
-        let redis_val = redis
-            .get_and_deserialize_key::<storage::Config>(key, "Config")
-            .await;
-        Ok(match redis_val {
-            Err(err) => match err.current_context() {
-                errors::RedisError::NotFound => {
-                    let config = self.find_config_by_key(key).await?;
-                    redis
-                        .serialize_and_set_key(&config.key, &config)
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
-                    config
-                }
-                _ => Err(err
-                    .change_context(errors::StorageError::KVError)
-                    .attach_printable("Error while fetching config"))?,
-            },
-            Ok(val) => val,
-        })
+        cache::get_or_populate_cache(self, key, || async { self.find_config_by_key(key).await })
+            .await
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
