@@ -32,9 +32,9 @@ pub async fn start_drainer(
             .change_context(errors::DrainerError::SignalError(
                 "Failed while getting allowed signals".to_string(),
             ))?;
-    let (sx, mut rx) = oneshot::channel();
+    let (tx, mut rx) = oneshot::channel();
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
     let active_tasks = Arc::new(atomic::AtomicU64::new(0));
     'event: loop {
@@ -74,7 +74,7 @@ pub async fn start_drainer(
     task_handle
         .await
         .into_report()
-        .change_context(errors::DrainerError::UnExpectedError(
+        .change_context(errors::DrainerError::UnexpectedError(
             "Failed while joining signal handler".to_string(),
         ))?;
 
