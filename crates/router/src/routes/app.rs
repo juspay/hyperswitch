@@ -334,7 +334,7 @@ impl Configs {
 
 pub struct ApiKeys;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "olap")]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
         web::scope("/api_keys")
