@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -78,11 +78,18 @@ impl Refund {
         merchant_id: &str,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
+            None,
+            None,
             None,
         )
         .await
@@ -94,11 +101,18 @@ impl Refund {
         payment_id: &str,
         merchant_id: &str,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
             None,
         )
         .await
