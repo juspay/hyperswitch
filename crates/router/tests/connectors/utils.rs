@@ -454,7 +454,7 @@ pub struct BrowserInfoType(pub types::BrowserInformation);
 impl Default for CCardType {
     fn default() -> Self {
         Self(api::Card {
-            card_number: Secret::new("4000027891380961".to_string()),
+            card_number: Secret::new("4200000000000000".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
