@@ -44,7 +44,7 @@ impl MerchantConnectorAccount {
     pub async fn delete_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -74,7 +74,7 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
