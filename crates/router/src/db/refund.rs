@@ -204,7 +204,7 @@ mod storage {
     use super::RefundInterface;
     use crate::{
         connection::pg_connection,
-        core::errors::{self, utils::RedisErrorExt, CustomResult},
+        core::errors::{self, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         logger,
         services::Store,
@@ -219,18 +219,19 @@ mod storage {
             merchant_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                storage_types::Refund::find_by_internal_reference_id_merchant_id(
+                    &conn,
+                    internal_reference_id,
+                    merchant_id,
+                )
+                .await
+                .map_err(Into::into)
+                .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    storage_types::Refund::find_by_internal_reference_id_merchant_id(
-                        &conn,
-                        internal_reference_id,
-                        merchant_id,
-                    )
-                    .await
-                    .map_err(Into::into)
-                    .into_report()
-                }
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{internal_reference_id}");
                     let lookup = self
@@ -240,14 +241,15 @@ mod storage {
                         .into_report()?;
 
                     let key = &lookup.pk_id;
-                    self.redis_conn
-                        .get_hash_field_and_deserialize::<storage_types::Refund>(
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn.get_hash_field_and_deserialize(
                             key,
                             &lookup.sk_id,
                             "Refund",
-                        )
-                        .await
-                        .map_err(|error| error.to_redis_failed_response(key))
+                        ),
+                        database_call,
+                    )
+                    .await
                 }
             }
         }
@@ -463,18 +465,15 @@ mod storage {
             refund_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    storage_types::Refund::find_by_merchant_id_refund_id(
-                        &conn,
-                        merchant_id,
-                        refund_id,
-                    )
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                     .await
                     .map_err(Into::into)
                     .into_report()
-                }
+            };
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{refund_id}");
                     let lookup = self
@@ -484,14 +483,15 @@ mod storage {
                         .into_report()?;
 
                     let key = &lookup.pk_id;
-                    self.redis_conn
-                        .get_hash_field_and_deserialize::<storage_types::Refund>(
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn.get_hash_field_and_deserialize(
                             key,
                             &lookup.sk_id,
                             "Refund",
-                        )
-                        .await
-                        .map_err(|error| error.to_redis_failed_response(key))
+                        ),
+                        database_call,
+                    )
+                    .await
                 }
             }
         }
