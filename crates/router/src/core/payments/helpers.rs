@@ -86,6 +86,39 @@ pub async fn get_address_for_payment_request(
     })
 }
 
+pub async fn create_and_insert_address_if_present(
+    db: &dyn StorageInterface,
+    address_from_request: Option<&api::Address>,
+    merchant_id: &str,
+    customer_id: Option<&String>,
+    address_id: Option<&String>,
+) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
+    match (address_from_request, address_id) {
+        (Some(address), Some(address_id)) => {
+            let address_details = address.address.clone().unwrap_or_default();
+            let customer_id = customer_id
+                .get_required_value("customer_id")
+                .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+
+            let address = db
+                .insert_address(storage::AddressNew {
+                    phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
+                    country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+                    customer_id: customer_id.to_string(),
+                    merchant_id: merchant_id.to_string(),
+                    address_id: address_id.to_string(),
+
+                    ..address_details.foreign_into()
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add address to database")?;
+            Ok(Some(address))
+        }
+        _ => Ok(None),
+    }
+}
+
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
