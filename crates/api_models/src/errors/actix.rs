@@ -13,6 +13,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
+            Self::ConnectorError(_, code) => *code,
         }
     }
 

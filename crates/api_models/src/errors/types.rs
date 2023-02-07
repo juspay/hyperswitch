@@ -1,3 +1,5 @@
+use reqwest::StatusCode;
+
 pub enum ErrorType {
     InvalidRequestError,
     RouterError,
@@ -11,7 +13,7 @@ pub struct ApiError {
     pub error_message: &'static str,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug)]
 pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     ForbiddenCommonResource(ApiError),
@@ -21,6 +23,7 @@ pub enum ApiErrorResponse {
     Unprocessable(ApiError),
     InternalServerError(ApiError),
     NotImplemented(ApiError),
+    ConnectorError(ApiError, StatusCode),
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -28,7 +31,41 @@ impl ::core::fmt::Display for ApiErrorResponse {
         write!(
             f,
             r#"{{"error":{}}}"#,
-            serde_json::to_string(self).unwrap_or_else(|_| "API error response".to_string())
+            serde_json::to_string(self.get_internal_error())
+                .unwrap_or_else(|_| "API error response".to_string())
         )
     }
+}
+
+impl ApiErrorResponse {
+    pub(crate) fn get_internal_error(&self) -> &ApiError {
+        match self {
+            Self::Unauthorized(i)
+            | Self::ForbiddenCommonResource(i)
+            | Self::ForbiddenPrivateResource(i)
+            | Self::Conflict(i)
+            | Self::Gone(i)
+            | Self::Unprocessable(i)
+            | Self::InternalServerError(i)
+            | Self::NotImplemented(i)
+            | Self::ConnectorError(i, _) => i,
+        }
+    }
+
+    pub(crate) fn error_type(&self) -> &str {
+        match self {
+            Self::Unauthorized(_) => "invalid_request",
+            Self::ForbiddenCommonResource(_) => "invalid_request",
+            Self::ForbiddenPrivateResource(_) => "invalid_request",
+            Self::Conflict(_) => "invalid_request",
+            Self::Gone(_) => "invalid_request",
+            Self::Unprocessable(_) => "invalid_request",
+            Self::InternalServerError(_) => "api",
+            Self::NotImplemented(_) => "invalid_request",
+            Self::ConnectorError(_, _) => "connector",
+        }
+    }
+    // pub fn new() -> Self {
+
+    // }
 }
