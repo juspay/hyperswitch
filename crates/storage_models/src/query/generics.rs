@@ -5,6 +5,7 @@ use diesel::{
     associations::HasTable,
     debug_query,
     dsl::{Find, Limit},
+    helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
     query_builder::{
@@ -12,11 +13,11 @@ use diesel::{
         QueryId, UpdateStatement,
     },
     query_dsl::{
-        methods::{FilterDsl, FindDsl, LimitDsl},
+        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
-    Insertable, QuerySource, Table,
+    Expression, Insertable, QueryDsl, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
@@ -60,11 +61,11 @@ pub async fn generic_update<T, V, P>(
 ) -> StorageResult<usize>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug,
-    <T as FilterDsl<P>>::Output: IntoUpdateTarget,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug,
+    Filter<T, P>: IntoUpdateTarget,
     UpdateStatement<
-        <<T as FilterDsl<P>>::Output as HasTable>::Table,
-        <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
     >: AsQuery + QueryFragment<Pg> + QueryId + Send + 'static,
 {
@@ -89,20 +90,20 @@ pub async fn generic_update_with_results<T, V, P, R>(
 ) -> StorageResult<Vec<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug + 'static,
-    <T as FilterDsl<P>>::Output: IntoUpdateTarget + 'static,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static,
+    Filter<T, P>: IntoUpdateTarget + 'static,
     UpdateStatement<
-        <<T as FilterDsl<P>>::Output as HasTable>::Table,
-        <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + Clone,
     R: Send + 'static,
 
     // For cloning query (UpdateStatement)
-    <<T as FilterDsl<P>>::Output as HasTable>::Table: Clone,
-    <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause: Clone,
+    <Filter<T, P> as HasTable>::Table: Clone,
+    <Filter<T, P> as IntoUpdateTarget>::WhereClause: Clone,
     <V as AsChangeset>::Changeset: Clone,
-    <<<T as FilterDsl<P>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
+    <<Filter<T, P> as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
     let debug_values = format!("{values:?}");
 
@@ -134,20 +135,20 @@ pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
 ) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    V: AsChangeset<Target = <<T as FilterDsl<P>>::Output as HasTable>::Table> + Debug + 'static,
-    <T as FilterDsl<P>>::Output: IntoUpdateTarget + 'static,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static,
+    Filter<T, P>: IntoUpdateTarget + 'static,
     UpdateStatement<
-        <<T as FilterDsl<P>>::Output as HasTable>::Table,
-        <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
     R: Send + 'static,
 
     // For cloning query (UpdateStatement)
-    <<T as FilterDsl<P>>::Output as HasTable>::Table: Clone,
-    <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause: Clone,
+    <Filter<T, P> as HasTable>::Table: Clone,
+    <Filter<T, P> as IntoUpdateTarget>::WhereClause: Clone,
     <V as AsChangeset>::Changeset: Clone,
-    <<<T as FilterDsl<P>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
+    <<Filter<T, P> as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
     generic_update_with_results::<<T as HasTable>::Table, _, _, _>(conn, predicate, values)
         .await
@@ -172,12 +173,11 @@ pub async fn generic_update_by_id<T, V, Pk, R>(
 ) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    V: AsChangeset<Target = <<T as FindDsl<Pk>>::Output as HasTable>::Table> + Debug,
-    <T as FindDsl<Pk>>::Output:
-        IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
+    V: AsChangeset<Target = <Find<T, Pk> as HasTable>::Table> + Debug,
+    Find<T, Pk>: IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
     UpdateStatement<
-        <<T as FindDsl<Pk>>::Output as HasTable>::Table,
-        <<T as FindDsl<Pk>>::Output as IntoUpdateTarget>::WhereClause,
+        <Find<T, Pk> as HasTable>::Table,
+        <Find<T, Pk> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
     Find<T, Pk>: LimitDsl,
@@ -186,10 +186,10 @@ where
     Pk: Clone + Debug,
 
     // For cloning query (UpdateStatement)
-    <<T as FindDsl<Pk>>::Output as HasTable>::Table: Clone,
-    <<T as FindDsl<Pk>>::Output as IntoUpdateTarget>::WhereClause: Clone,
+    <Find<T, Pk> as HasTable>::Table: Clone,
+    <Find<T, Pk> as IntoUpdateTarget>::WhereClause: Clone,
     <V as AsChangeset>::Changeset: Clone,
-    <<<T as FindDsl<Pk>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
+    <<Find<T, Pk> as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
     let debug_values = format!("{values:?}");
 
@@ -217,10 +217,10 @@ where
 pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output: IntoUpdateTarget,
+    Filter<T, P>: IntoUpdateTarget,
     DeleteStatement<
-        <<T as FilterDsl<P>>::Output as HasTable>::Table,
-        <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
     >: AsQuery + QueryFragment<Pg> + QueryId + Send + 'static,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
@@ -251,10 +251,10 @@ pub async fn generic_delete_one_with_result<T, P, R>(
 ) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output: IntoUpdateTarget,
+    Filter<T, P>: IntoUpdateTarget,
     DeleteStatement<
-        <<T as FilterDsl<P>>::Output as HasTable>::Table,
-        <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause,
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + Clone + 'static,
 {
@@ -279,8 +279,7 @@ where
 async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Find<T, Pk>: LimitDsl,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
     Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
     Pk: Clone + Debug,
     R: Send + 'static,
@@ -304,8 +303,7 @@ where
 pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    <T as FindDsl<Pk>>::Output: QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Find<T, Pk>: LimitDsl,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
     Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
     Pk: Clone + Debug,
     R: Send + 'static,
@@ -321,9 +319,7 @@ pub async fn generic_find_by_id_optional<T, Pk, R>(
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as HasTable>::Table: FindDsl<Pk>,
-    <<T as HasTable>::Table as FindDsl<Pk>>::Output: RunQueryDsl<PgConnection> + Send + 'static,
-    <T as FindDsl<Pk>>::Output: QueryFragment<Pg>,
-    Find<T, Pk>: LimitDsl,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
     Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
     Pk: Clone + Debug,
     R: Send + 'static,
@@ -335,8 +331,7 @@ where
 async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output:
-        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static,
 {
     let query = <T as HasTable>::table().filter(predicate);
@@ -359,8 +354,7 @@ where
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output:
-        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static,
 {
     generic_find_one_core::<T, _, _>(conn, predicate).await
@@ -373,44 +367,55 @@ pub async fn generic_find_one_optional<T, P, R>(
 ) -> StorageResult<Option<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output:
-        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static,
 {
     to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub async fn generic_filter<T, P, R>(
+pub async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
+    offset: Option<i64>,
+    order: Option<O>,
 ) -> StorageResult<Vec<R>>
 where
-    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg>,
-    <T as FilterDsl<P>>::Output: LimitDsl + Send + 'static,
-    <<T as FilterDsl<P>>::Output as LimitDsl>::Output:
-        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + 'static,
+    IntoBoxed<'static, T, Pg>: FilterDsl<P, Output = IntoBoxed<'static, T, Pg>>
+        + LimitDsl<Output = IntoBoxed<'static, T, Pg>>
+        + OffsetDsl<Output = IntoBoxed<'static, T, Pg>>
+        + OrderDsl<O, Output = IntoBoxed<'static, T, Pg>>
+        + LoadQuery<'static, PgConnection, R>
+        + QueryFragment<Pg>
+        + Send,
+    O: Expression,
     R: Send + 'static,
 {
-    let query = <T as HasTable>::table().filter(predicate);
+    let mut query = T::table().into_boxed();
+    query = query.filter(predicate);
 
-    match limit {
-        Some(limit) => {
-            let query = query.limit(limit);
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            query.get_results_async(conn)
-        }
-        None => {
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            query.get_results_async(conn)
-        }
+    if let Some(limit) = limit {
+        query = query.limit(limit);
     }
-    .await
-    .into_report()
-    .change_context(errors::DatabaseError::NotFound)
-    .attach_printable_lazy(|| "Error filtering records by predicate")
+
+    if let Some(offset) = offset {
+        query = query.offset(offset);
+    }
+
+    if let Some(order) = order {
+        query = query.order(order);
+    }
+
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+    query
+        .get_results_async(conn)
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

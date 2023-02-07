@@ -158,8 +158,8 @@ diesel::table! {
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         locker_id -> Nullable<Varchar>,
-        routing_algorithm -> Nullable<Json>,
         metadata -> Nullable<Jsonb>,
+        routing_algorithm -> Nullable<Json>,
     }
 }
 
