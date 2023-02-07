@@ -188,25 +188,22 @@ mod storage {
             merchant_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
                     db_utils::try_redis_get_else_try_database_get(
                         self.redis_conn
                             .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
-                        self.find_payment_intent_by_payment_id_merchant_id(
-                            payment_id,
-                            merchant_id,
-                            enums::MerchantStorageScheme::PostgresOnly,
-                        ),
+                        database_call,
                     )
                     .await
                 }

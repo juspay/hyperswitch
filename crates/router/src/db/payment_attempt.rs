@@ -518,15 +518,15 @@ mod storage {
             merchant_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    PaymentAttempt::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
-
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     // [#439]: get the attempt_id from payment_intent
                     let key = format!("{merchant_id}_{payment_id}");
@@ -542,11 +542,7 @@ mod storage {
                             &lookup.sk_id,
                             "PaymentAttempt",
                         ),
-                        self.find_payment_attempt_by_payment_id_merchant_id(
-                            payment_id,
-                            merchant_id,
-                            enums::MerchantStorageScheme::PostgresOnly,
-                        ),
+                        database_call,
                     )
                     .await
                 }
@@ -560,19 +556,20 @@ mod storage {
             merchant_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                PaymentAttempt::find_by_connector_transaction_id_payment_id_merchant_id(
+                    &conn,
+                    connector_transaction_id,
+                    payment_id,
+                    merchant_id,
+                )
+                .await
+                .map_err(Into::into)
+                .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    PaymentAttempt::find_by_connector_transaction_id_payment_id_merchant_id(
-                        &conn,
-                        connector_transaction_id,
-                        payment_id,
-                        merchant_id,
-                    )
-                    .await
-                    .map_err(Into::into)
-                    .into_report()
-                }
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
                     let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
@@ -584,13 +581,12 @@ mod storage {
                     let key = &lookup.pk_id;
 
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn
-                            .get_hash_field_and_deserialize(
-                                key,
-                                &lookup.sk_id,
-                                "PaymentAttempt",
-                            ),
-                        self.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, enums::MerchantStorageScheme::PostgresOnly),
+                        self.redis_conn.get_hash_field_and_deserialize(
+                            key,
+                            &lookup.sk_id,
+                            "PaymentAttempt",
+                        ),
+                        database_call,
                     )
                     .await
                 }
@@ -624,18 +620,19 @@ mod storage {
             connector_txn_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                PaymentAttempt::find_by_merchant_id_connector_txn_id(
+                    &conn,
+                    merchant_id,
+                    connector_txn_id,
+                )
+                .await
+                .map_err(Into::into)
+                .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    PaymentAttempt::find_by_merchant_id_connector_txn_id(
-                        &conn,
-                        merchant_id,
-                        connector_txn_id,
-                    )
-                    .await
-                    .map_err(Into::into)
-                    .into_report()
-                }
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_txn_id}");
@@ -652,11 +649,7 @@ mod storage {
                             &lookup.sk_id,
                             "PaymentAttempt",
                         ),
-                        self.find_payment_attempt_by_merchant_id_connector_txn_id(
-                            merchant_id,
-                            connector_txn_id,
-                            enums::MerchantStorageScheme::PostgresOnly,
-                        ),
+                        database_call,
                     )
                     .await
                 }
@@ -669,14 +662,15 @@ mod storage {
             attempt_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                PaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    PaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{attempt_id}");
@@ -692,11 +686,7 @@ mod storage {
                             &lookup.sk_id,
                             "PaymentAttempt",
                         ),
-                        self.find_payment_attempt_by_merchant_id_attempt_id(
-                            merchant_id,
-                            attempt_id,
-                            enums::MerchantStorageScheme::PostgresOnly,
-                        ),
+                        database_call,
                     )
                     .await
                 }
