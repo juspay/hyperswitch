@@ -40,10 +40,11 @@ pub async fn payment_intents_create(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         create_payment_req,
         |state, merchant_account, req| {
@@ -87,10 +88,11 @@ pub async fn payment_intents_retrieve(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, payload| {
@@ -145,10 +147,11 @@ pub async fn payment_intents_update(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -205,10 +208,11 @@ pub async fn payment_intents_confirm(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -254,10 +258,11 @@ pub async fn payment_intents_capture(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         capture_payload,
         |state, merchant_account, payload| {
@@ -308,10 +313,11 @@ pub async fn payment_intents_cancel(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -347,10 +353,11 @@ pub async fn payment_intent_list(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentListResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {

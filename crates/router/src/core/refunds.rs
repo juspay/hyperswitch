@@ -491,7 +491,7 @@ pub async fn validate_and_create_refund(
                 .set_merchant_id(merchant_account.merchant_id.clone())
                 .set_connector_transaction_id(connecter_transaction_id.to_string())
                 .set_connector(connector)
-                .set_refund_type(enums::RefundType::RegularRefund)
+                .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
                 .set_total_amount(payment_attempt.amount)
                 .set_refund_amount(refund_amount)
                 .set_currency(currency)

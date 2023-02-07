@@ -17,7 +17,7 @@ pub async fn receive_incoming_webhook(
     let (merchant_id, connector_name) = path.into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         body,
         |state, merchant_account, body| {

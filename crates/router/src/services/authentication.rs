@@ -7,18 +7,21 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::AppStateInfo, AppState},
     services::api,
     types::storage,
     utils::OptionExt,
 };
 
 #[async_trait]
-pub trait AuthenticateAndFetch<T> {
+pub trait AuthenticateAndFetch<T, A>
+where
+    A: AppStateInfo,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<T>;
 }
 
@@ -26,7 +29,7 @@ pub trait AuthenticateAndFetch<T> {
 pub struct ApiKeyAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for ApiKeyAuth {
+impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for ApiKeyAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -47,7 +50,7 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for ApiKeyAuth {
 pub struct AdminApiAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<()> for AdminApiAuth {
+impl AuthenticateAndFetch<(), AppState> for AdminApiAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -67,7 +70,7 @@ impl AuthenticateAndFetch<()> for AdminApiAuth {
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for MerchantIdAuth {
+impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for MerchantIdAuth {
     async fn authenticate_and_fetch(
         &self,
         _request_headers: &HeaderMap,
@@ -85,7 +88,7 @@ impl AuthenticateAndFetch<storage::MerchantAccount> for MerchantIdAuth {
 pub struct PublishableKeyAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for PublishableKeyAuth {
+impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for PublishableKeyAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -112,7 +115,7 @@ struct JwtAuthPayloadFetchUnit {
 }
 
 #[async_trait]
-impl AuthenticateAndFetch<()> for JWTAuth {
+impl AuthenticateAndFetch<(), AppState> for JWTAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -130,7 +133,7 @@ struct JwtAuthPayloadFetchMerchantAccount {
 }
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount> for JWTAuth {
+impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for JWTAuth {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -163,12 +166,12 @@ impl ClientSecretFetch for ListPaymentMethodRequest {
     }
 }
 
-pub fn jwt_auth_or<'a, T>(
-    default_auth: &'a dyn AuthenticateAndFetch<T>,
+pub fn jwt_auth_or<'a, T, A: AppStateInfo>(
+    default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     headers: &HeaderMap,
-) -> Box<&'a dyn AuthenticateAndFetch<T>>
+) -> Box<&'a dyn AuthenticateAndFetch<T, A>>
 where
-    JWTAuth: AuthenticateAndFetch<T>,
+    JWTAuth: AuthenticateAndFetch<T, A>,
 {
     if is_jwt_auth(headers) {
         return Box::new(&JWTAuth);
@@ -179,7 +182,7 @@ where
 pub fn get_auth_type_and_flow(
     headers: &HeaderMap,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount>>,
+    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, AppState>>,
     api::AuthFlow,
 )> {
     let api_key = get_api_key(headers)?;
@@ -190,13 +193,18 @@ pub fn get_auth_type_and_flow(
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
-pub fn check_client_secret_and_get_auth(
+pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount>>,
+    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, T>>,
     api::AuthFlow,
-)> {
+)>
+where
+    T: AppStateInfo,
+    ApiKeyAuth: AuthenticateAndFetch<storage::MerchantAccount, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<storage::MerchantAccount, T>,
+{
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
@@ -223,7 +231,7 @@ pub async fn is_ephemeral_auth(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, AppState>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
