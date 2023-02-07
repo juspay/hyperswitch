@@ -11,6 +11,10 @@ pub enum DrainerError {
     ConfigurationError(config::ConfigError),
     #[error("Metrics initialization error")]
     MetricsError,
+    #[error("Error while configuring signals: {0}")]
+    SignalError(String),
+    #[error("Unexpected error occurred: {0}")]
+    UnexpectedError(String),
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;

@@ -17,7 +17,7 @@ pub async fn config_key_retrieve(
     let key = path.into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         &key,
         |state, _, key| configs::read_config(&*state.store, key),
@@ -38,7 +38,7 @@ pub async fn config_key_update(
     payload.key = key;
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         &payload,
         |state, _, payload| configs::update_config(&*state.store, payload),

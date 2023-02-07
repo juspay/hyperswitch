@@ -1018,8 +1018,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "signal-hook",
+ "signal-hook-tokio",
  "thiserror",
  "time",
+ "tokio",
 ]
 
 [[package]]
@@ -1263,6 +1266,7 @@ dependencies = [
  "config",
  "diesel",
  "error-stack",
+ "once_cell",
  "redis_interface",
  "router_env",
  "serde",
