@@ -376,7 +376,7 @@ pub async fn update_payment_connector(
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
-            &merchant_connector_id,
+            merchant_connector_id,
         )
         .await
         .map_err(|error| {
