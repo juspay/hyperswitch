@@ -15,10 +15,9 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
+    let type_name = std::any::type_name::<T>();
     let redis = &store.redis_conn;
-    let redis_val = redis
-        .get_and_deserialize_key::<T>(key, std::any::type_name::<T>())
-        .await;
+    let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
     match redis_val {
         Err(err) => match err.current_context() {
             errors::RedisError::NotFound => {
@@ -31,7 +30,7 @@ where
             }
             _ => Err(err
                 .change_context(errors::StorageError::KVError)
-                .attach_printable("Error while fetching config")),
+                .attach_printable(format!("Error while fetching cache for {type_name}"))),
         },
         Ok(val) => Ok(val),
     }
