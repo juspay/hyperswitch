@@ -469,27 +469,24 @@ mod storage {
 
                     let conn = pg_connection(&self.master_pool).await;
                     // Reverse lookup for connector_transaction_id
-                    match (
+                    if let (None, Some(connector_transaction_id)) = (
                         old_connector_transaction_id,
                         &updated_attempt.connector_transaction_id,
                     ) {
-                        (old, new @ Some(connector_transaction_id)) if old != new => {
-                            let field = format!("pa_{}", updated_attempt.attempt_id);
-                            ReverseLookupNew {
-                                lookup_id: format!(
-                                    "{}_{}",
-                                    &updated_attempt.merchant_id, connector_transaction_id
-                                ),
-                                pk_id: key.clone(),
-                                sk_id: field.clone(),
-                                source: "payment_attempt".to_string(),
-                            }
-                            .insert(&conn)
-                            .await
-                            .map_err(Into::<errors::StorageError>::into)
-                            .into_report()?;
+                        let field = format!("pa_{}", updated_attempt.attempt_id);
+                        ReverseLookupNew {
+                            lookup_id: format!(
+                                "{}_{}",
+                                &updated_attempt.merchant_id, connector_transaction_id
+                            ),
+                            pk_id: key.clone(),
+                            sk_id: field.clone(),
+                            source: "payment_attempt".to_string(),
                         }
-                        _ => {}
+                        .insert(&conn)
+                        .await
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
                     }
 
                     let redis_entry = kv::TypedSql {
