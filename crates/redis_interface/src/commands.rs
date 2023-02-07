@@ -10,7 +10,7 @@ use std::fmt::Debug;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, Encode, StringExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
 use error_stack::{IntoReport, ResultExt};
@@ -207,11 +207,17 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisMap> + Debug,
         V::Error: Into<fred::error::RedisError>,
     {
-        self.pool
+        let output: Result<(), _> = self
+            .pool
             .hset(key, values)
             .await
             .into_report()
-            .change_context(errors::RedisError::SetHashFailed)
+            .change_context(errors::RedisError::SetHashFailed);
+
+        // setting expiry for the key
+        output
+            .async_and_then(|_| self.set_expiry(key, self.config.default_hash_ttl.into()))
+            .await
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -225,11 +231,20 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug,
         V::Error: Into<fred::error::RedisError>,
     {
-        self.pool
+        let output: Result<HsetnxReply, _> = self
+            .pool
             .hsetnx(key, field, value)
             .await
             .into_report()
-            .change_context(errors::RedisError::SetHashFieldFailed)
+            .change_context(errors::RedisError::SetHashFieldFailed);
+
+        output
+            .async_and_then(|inner| async {
+                self.set_expiry(key, self.config.default_hash_ttl.into())
+                    .await?;
+                Ok(inner)
+            })
+            .await
     }
 
     #[instrument(level = "DEBUG", skip(self))]
