@@ -216,8 +216,8 @@ diesel::table! {
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
-        payment_issuer -> Nullable<PaymentIssuer>,
-        payment_experience -> Nullable<PaymentExperience>,
+        payment_issuer -> Nullable<Varchar>,
+        payment_experience -> Nullable<Varchar>,
     }
 }
 

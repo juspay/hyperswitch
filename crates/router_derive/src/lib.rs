@@ -97,15 +97,17 @@ pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 #[proc_macro_derive(DieselEnumText)]
 pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
-    let tokens = macros::diesel_enum_string_derive_inner(&ast)
+    let tokens = macros::diesel_enum_text_derive_inner(&ast)
         .unwrap_or_else(|error| error.to_compile_error());
     tokens.into()
 }
 
 /// Derives the boilerplate code required for using an enum with `diesel` and a PostgreSQL database.
+///
 /// Storage Type can either be "text" or "pg_enum"
 /// Choosing text will store the enum as text in the database, whereas pg_enum will map it to the
 /// database enum
+///
 /// Works in tandem with the [`DieselEnum`][DieselEnum] derive macro to achieve the desired results.
 /// The enum is required to implement (or derive) the [`ToString`][ToString] and the
 /// [`FromStr`][FromStr] traits for the [`DieselEnum`][DieselEnum] derive macro to be used.
