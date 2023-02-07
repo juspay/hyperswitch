@@ -209,8 +209,6 @@ mod storage {
                         ),
                     )
                     .await
-
-                    // Check for database presence as well Maybe use a read replica here ?
                 }
             }
         }
