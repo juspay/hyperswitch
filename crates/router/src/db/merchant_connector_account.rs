@@ -110,7 +110,7 @@ pub trait MerchantConnectorAccountInterface {
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError>;
 
     async fn find_merchant_connector_account_by_merchant_id_list(
@@ -127,7 +127,7 @@ pub trait MerchantConnectorAccountInterface {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -152,7 +152,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
@@ -199,7 +199,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
         storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
@@ -236,7 +236,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         _merchant_id: &str,
-        _merchant_connector_id: &i32,
+        _merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
@@ -256,7 +256,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_account_details: t.connector_account_details.unwrap_or_default().expose(),
             test_mode: t.test_mode,
             disabled: t.disabled,
-            merchant_connector_id: t.merchant_connector_id.unwrap_or_default(),
+            merchant_connector_id: t.merchant_connector_id,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
             connector_type: t
@@ -287,7 +287,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         _merchant_id: &str,
-        _merchant_connector_id: &i32,
+        _merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
