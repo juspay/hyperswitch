@@ -171,9 +171,9 @@ impl PaymentAttemptUpdate {
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
-            browser_info: pa_update.browser_info,
+            browser_info: pa_update.browser_info.or(source.browser_info),
             modified_at: common_utils::date_time::now(),
-            payment_token: pa_update.payment_token,
+            payment_token: pa_update.payment_token.or(source.payment_token),
             ..source
         }
     }
