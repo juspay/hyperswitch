@@ -73,6 +73,9 @@ pub enum MerchantAccountUpdate {
         metadata: Option<serde_json::Value>,
         routing_algorithm: Option<serde_json::Value>,
     },
+    StorageSchemaUpdate {
+        storage_schema: storage_enums::MerchantStorageScheme,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -89,6 +92,7 @@ pub struct MerchantAccountUpdateInternal {
     payment_response_hash_key: Option<String>,
     redirect_to_merchant_with_http_post: Option<bool>,
     publishable_key: Option<String>,
+    storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     locker_id: Option<String>,
     metadata: Option<serde_json::Value>,
     routing_algorithm: Option<serde_json::Value>,
@@ -127,6 +131,11 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                ..Default::default()
+            },
+            MerchantAccountUpdate::StorageSchemaUpdate { storage_schema } => Self {
+                storage_scheme: Some(storage_schema),
+                ..Default::default()
             },
         }
     }
