@@ -1120,29 +1120,62 @@ pub enum SessionToken {
     },
     /// The session response structure for Apple Pay
     Applepay {
-        /// Timestamp at which session is requested
-        epoch_timestamp: u64,
-        /// Timestamp at which session expires
-        expires_at: u64,
-        /// The identifier for the merchant session
-        merchant_session_identifier: String,
-        /// Applepay generates unique ID (UUID) value
-        nonce: String,
-        /// The identifier for the merchant
-        merchant_identifier: String,
-        /// The domain name of the merchant which is registered in Apple Pay
-        domain_name: String,
-        /// The name to be displayed on Apple Pay button
-        display_name: String,
-        /// A string which represents the properties of a payment
-        signature: String,
-        /// The identifier for the operational analytics
-        operational_analytics_identifier: String,
-        /// The number of retries to get the session response
-        retries: u8,
-        /// The identifier for the connector transaction
-        psp_id: String,
+        /// Session object for Apple Pay
+        session_object: Box<ApplePaySessionObject>,
+        /// Payment request object for Apple Pay
+        payment_request_object: ApplePayRequest,
     },
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePaySessionObject {
+    /// Timestamp at which session is requested
+    pub epoch_timestamp: u64,
+    /// Timestamp at which session expires
+    pub expires_at: u64,
+    /// The identifier for the merchant session
+    pub merchant_session_identifier: String,
+    /// Applepay generates unique ID (UUID) value
+    pub nonce: String,
+    /// The identifier for the merchant
+    pub merchant_identifier: String,
+    /// The domain name of the merchant which is registered in Apple Pay
+    pub domain_name: String,
+    /// The name to be displayed on Apple Pay button
+    pub display_name: String,
+    /// A string which represents the properties of a payment
+    pub signature: String,
+    /// The identifier for the operational analytics
+    pub operational_analytics_identifier: String,
+    /// The number of retries to get the session response
+    pub retries: u8,
+    /// The identifier for the connector transaction
+    pub psp_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayRequest {
+    /// The code for country
+    pub country_code: String,
+    /// The code for currency
+    pub currency_code: String,
+    /// Represents the total for the payment.
+    pub total: AmountInfo,
+    /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
+    pub merchant_capabilities: Vec<String>,
+    /// The list of supported networks
+    pub supported_networks: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct AmountInfo {
+    /// the label must be non-empty to pass validation.
+    pub label: String,
+    /// The type of label
+    #[serde(rename = "type")]
+    pub label_type: String,
+    /// The total amount for the payment
+    pub amount: String,
 }
 
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]

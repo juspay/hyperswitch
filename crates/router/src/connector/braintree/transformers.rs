@@ -235,9 +235,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Paypal {
+                session_token: Box::new(types::api::SessionToken::Paypal {
                     session_token: item.response.client_token.value,
-                },
+                }),
             }),
             ..item.data
         })
