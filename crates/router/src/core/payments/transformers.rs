@@ -99,6 +99,7 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
+        session_token: None,
     };
 
     Ok(router_data)
@@ -473,6 +474,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
             connector_transaction_id: payment_data
                 .payment_attempt
                 .connector_transaction_id
