@@ -327,6 +327,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     status: get_attempt_status(),
                     authentication_type: None,
                     payment_method,
+                    payment_token: payment_data.token.clone(),
                 },
                 storage_scheme,
             )
