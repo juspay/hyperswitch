@@ -128,6 +128,11 @@ pub enum ConnectorCallType {
     Single(ConnectorData),
 }
 
+pub enum NextConnectorCallType {
+    Multiple(Vec<ConnectorData>),
+    Single(Vec<ConnectorData>),
+}
+
 impl ConnectorCallType {
     pub fn is_single(&self) -> bool {
         matches!(self, Self::Single(_))
