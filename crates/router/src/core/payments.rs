@@ -158,14 +158,15 @@ where
                     call_connector_action,
                 )
                 .await?;
-                
+
                 post_update_trackers(
                     state,
                     router_data,
                     &validate_result.payment_id,
                     payment_data,
                     merchant_account.storage_scheme,
-                ).await?
+                )
+                .await?
             }
             api::NextConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
@@ -454,7 +455,7 @@ pub async fn post_update_trackers<F, FData>(
 ) -> RouterResult<PaymentData<F>>
 where
     F: Clone + Send,
-    PaymentResponse: Operation<F, FData>
+    PaymentResponse: Operation<F, FData>,
 {
     let operation = Box::new(PaymentResponse);
     let db = &*state.store;
