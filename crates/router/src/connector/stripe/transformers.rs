@@ -182,41 +182,44 @@ fn validate_shipping_address_against_payment_method(
     Ok(())
 }
 
-fn validate_billing_address_against_payment_method(
-    billing_address: &StripeBillingAddress,
-    payment_method: &StripePaymentMethodType,
-) -> Result<(), errors::ConnectorError> {
-    match payment_method {
-        StripePaymentMethodType::Klarna => {
-            fp_utils::when(billing_address.country.is_none(), || {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_country",
-                })
-            })?;
+// This might be required later on if we decide to take billing address from billing address
+// instead of from payment method
 
-            fp_utils::when(billing_address.email.is_none(), || {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_email",
-                })
-            })?;
-        }
+// fn validate_billing_address_against_payment_method(
+//     billing_address: &StripeBillingAddress,
+//     payment_method: &StripePaymentMethodType,
+// ) -> Result<(), errors::ConnectorError> {
+//     match payment_method {
+//         StripePaymentMethodType::Klarna => {
+//             fp_utils::when(billing_address.country.is_none(), || {
+//                 Err(errors::ConnectorError::MissingRequiredField {
+//                     field_name: "billing_country",
+//                 })
+//             })?;
 
-        StripePaymentMethodType::AfterpayClearpay => {
-            fp_utils::when(billing_address.name.is_none(), || {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_name",
-                })
-            })?;
-            fp_utils::when(billing_address.email.is_none(), || {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_email",
-                })
-            })?;
-        }
-        _ => (),
-    }
-    Ok(())
-}
+//             fp_utils::when(billing_address.email.is_none(), || {
+//                 Err(errors::ConnectorError::MissingRequiredField {
+//                     field_name: "billing_email",
+//                 })
+//             })?;
+//         }
+
+//         StripePaymentMethodType::AfterpayClearpay => {
+//             fp_utils::when(billing_address.name.is_none(), || {
+//                 Err(errors::ConnectorError::MissingRequiredField {
+//                     field_name: "billing_name",
+//                 })
+//             })?;
+//             fp_utils::when(billing_address.email.is_none(), || {
+//                 Err(errors::ConnectorError::MissingRequiredField {
+//                     field_name: "billing_email",
+//                 })
+//             })?;
+//         }
+//         _ => (),
+//     }
+//     Ok(())
+// }
 
 fn infer_stripe_pay_later_issuer(
     issuer: &enums::PaymentIssuer,
@@ -237,6 +240,54 @@ fn infer_stripe_pay_later_issuer(
             payment_method: format!("{issuer} payments by {experience}"),
             connector: "stripe",
         })
+    }
+}
+
+impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
+    for StripeBillingAddress
+{
+    type Error = errors::ConnectorError;
+
+    fn try_from(
+        (payment_method, pm_type): (&api_models::payments::PayLaterData, StripePaymentMethodType),
+    ) -> Result<Self, Self::Error> {
+        match payment_method {
+            payments::PayLaterData::KlarnaRedirect {
+                billing_email,
+                billing_country,
+            } => {
+                if pm_type == StripePaymentMethodType::Klarna {
+                    Ok(StripeBillingAddress {
+                        email: Some(billing_email.to_owned()),
+                        ..StripeBillingAddress::default()
+                    })
+                } else {
+                    Err(errors::ConnectorError::MismatchedPaymentData)
+                }
+            }
+            payments::PayLaterData::AffirmRedirect {} => {
+                if pm_type == StripePaymentMethodType::Affirm {
+                    Ok(StripeBillingAddress::default())
+                } else {
+                    Err(errors::ConnectorError::MismatchedPaymentData)
+                }
+            }
+            payments::PayLaterData::AfterpayClearpayRedirect {
+                billing_email,
+                billing_name,
+            } => {
+                if pm_type == StripePaymentMethodType::AfterpayClearpay {
+                    Ok(StripeBillingAddress {
+                        email: Some(billing_email.to_owned()),
+                        name: Some(billing_name.to_owned()),
+                        ..StripeBillingAddress::default()
+                    })
+                } else {
+                    Err(errors::ConnectorError::MismatchedPaymentData)
+                }
+            }
+            _ => Ok(StripeBillingAddress::default()),
+        }
     }
 }
 
@@ -284,11 +335,8 @@ fn create_stripe_payment_method(
 
             let pm_type = infer_stripe_pay_later_issuer(pm_issuer, pm_experience)?;
 
-            let billing_address = StripeBillingAddress {
-                email: pay_later_data.billing_email.clone(),
-                country: pay_later_data.billing_country.clone(),
-                name: pay_later_data.billing_name.clone(),
-            };
+            let billing_address =
+                StripeBillingAddress::try_from((pay_later_data, pm_type.clone()))?;
 
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
@@ -363,10 +411,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         &payment_method_type,
                     )?;
 
-                    validate_billing_address_against_payment_method(
-                        &billing_address,
-                        &payment_method_type,
-                    )?;
+                    // validate_billing_address_against_payment_method(
+                    //     &billing_address,
+                    //     &payment_method_type,
+                    // )?;
 
                     (Some(payment_method_data), None, billing_address)
                 }

@@ -14,7 +14,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -233,20 +233,13 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
         match payment_method_data {
-            api_payments::PaymentMethod::PayLater(pay_later_data) => {
-                let token = pay_later_data
-                    .token
-                    .as_ref()
-                    .get_required_value("payment_method_data.token")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "pament_method_data.token",
-                    })?;
-                Ok(format!(
-                    "{}payments/v1/authorizations/{}/order",
-                    self.base_url(connectors),
-                    token
-                ))
-            }
+            api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
+                token,
+            }) => Ok(format!(
+                "{}payments/v1/authorizations/{}/order",
+                self.base_url(connectors),
+                token
+            )),
             _ => Err(error_stack::report!(
                 errors::ConnectorError::NotImplemented(
                     "We only support wallet payments through klarna".to_string(),
