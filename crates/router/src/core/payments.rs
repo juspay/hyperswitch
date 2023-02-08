@@ -6,7 +6,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
-use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::{instrument, tracing};
@@ -154,24 +153,8 @@ where
                     call_connector_action,
                 )
                 .await;
-
-                router_data
-                    .async_and_then(|response| async {
-                        let operation = Box::new(PaymentResponse);
-                        let db = &*state.store;
-                        let payment_data = operation
-                            .to_post_update_tracker()?
-                            .update_tracker(
-                                db,
-                                &validate_result.payment_id,
-                                payment_data,
-                                response,
-                                merchant_account.storage_scheme,
-                            )
-                            .await?;
-                        Ok(payment_data)
-                    })
-                    .await?
+                payment_data
+                // post_update_trackers
             }
             api::NextConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
@@ -447,6 +430,26 @@ where
         call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
+    Ok(payment_data)
+}
+
+pub async fn post_update_trackers<F, FData>(
+    state: &AppState,
+    router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
+    payment_id: &api::PaymentIdType,
+    payment_data: PaymentData<F>,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> RouterResult<PaymentData<F>>
+where
+    F: Clone + Send,
+    PaymentResponse: Operation<F, FData>
+{
+    let operation = Box::new(PaymentResponse);
+    let db = &*state.store;
+    let payment_data = operation
+        .to_post_update_tracker()?
+        .update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
+        .await?;
     Ok(payment_data)
 }
 
