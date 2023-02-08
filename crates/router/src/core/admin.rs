@@ -485,7 +485,7 @@ pub async fn kv_for_merchant(
         (true, enums::MerchantStorageScheme::PostgresOnly) => {
             db.update_merchant(
                 merchant_account,
-                merchant_account::MerchantAccountUpdate::StorageSchemaUpdate {
+                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: enums::MerchantStorageScheme::RedisKv,
                 },
             )
@@ -494,7 +494,7 @@ pub async fn kv_for_merchant(
         (false, enums::MerchantStorageScheme::RedisKv) => {
             db.update_merchant(
                 merchant_account,
-                merchant_account::MerchantAccountUpdate::StorageSchemaUpdate {
+                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
                 },
             )

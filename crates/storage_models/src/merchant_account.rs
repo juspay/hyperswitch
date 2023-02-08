@@ -73,7 +73,7 @@ pub enum MerchantAccountUpdate {
         metadata: Option<serde_json::Value>,
         routing_algorithm: Option<serde_json::Value>,
     },
-    StorageSchemaUpdate {
+    StorageSchemeUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
     },
 }
@@ -133,7 +133,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata,
                 ..Default::default()
             },
-            MerchantAccountUpdate::StorageSchemaUpdate { storage_scheme } => Self {
+            MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
                 ..Default::default()
             },
