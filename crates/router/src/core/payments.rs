@@ -5,7 +5,6 @@ pub mod operations;
 pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
-
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -140,20 +139,45 @@ where
 
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
-            api::ConnectorCallType::Single(connector) => {
-                call_connector_service(
+            api::NextConnectorCallType::Single(mut connectors) => {
+                connectors.reverse();
+
+                let connector = connectors
+                    .pop()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("Failed to get connector from vector of connectors")?;
+
+                let router_data = call_connector_service(
                     state,
                     &merchant_account,
-                    &validate_result.payment_id,
                     connector,
                     &operation,
-                    payment_data,
+                    &payment_data,
                     &customer,
                     call_connector_action,
                 )
-                .await?
+                .await;
+
+                router_data
+                    .async_and_then(|response| async {
+                        let operation = Box::new(PaymentResponse);
+                        let db = &*state.store;
+                        let payment_data = operation
+                            .to_post_update_tracker()?
+                            .update_tracker(
+                                db,
+                                &validate_result.payment_id,
+                                payment_data,
+                                response,
+                                merchant_account.storage_scheme,
+                            )
+                            .await?;
+                        Ok(payment_data)
+                    })
+                    .await?
             }
-            api::ConnectorCallType::Multiple(connectors) => {
+            api::NextConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -161,34 +185,6 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                )
-                .await?
-            }
-            api::ConnectorCallType::Routing => {
-                let connector = payment_data
-                    .payment_attempt
-                    .connector
-                    .clone()
-                    .get_required_value("connector")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("No connector selected for routing")?;
-
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &connector,
-                    api::GetToken::Connector,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-                call_connector_service(
-                    state,
-                    &merchant_account,
-                    &validate_result.payment_id,
-                    connector_data,
-                    &operation,
-                    payment_data,
-                    &customer,
-                    call_connector_action,
                 )
                 .await?
             }
@@ -328,13 +324,12 @@ pub async fn payments_response_for_redirection_flows<'a>(
 pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    payment_id: &api::PaymentIdType,
     connector: api::ConnectorData,
     _operation: &Op,
-    payment_data: PaymentData<F>,
+    payment_data: &PaymentData<F>,
     customer: &Option<storage::Customer>,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<PaymentData<F>>
+) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
     Op: Debug + Sync,
     F: Send + Clone,
@@ -349,7 +344,6 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
-    let db = &*state.store;
 
     let stime_connector = Instant::now();
 
@@ -383,28 +377,11 @@ where
         Ok(router_data)
     };
 
-    let response = router_data_res
-        .async_and_then(|response| async {
-            let operation = helpers::response_operation::<F, Req>();
-            let payment_data = operation
-                .to_post_update_tracker()?
-                .update_tracker(
-                    db,
-                    payment_id,
-                    payment_data,
-                    response,
-                    merchant_account.storage_scheme,
-                )
-                .await?;
-            Ok(payment_data)
-        })
-        .await?;
-
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
-    Ok(response)
+    router_data_res
 }
 
 pub async fn call_multiple_connectors_service<F, Op, Req>(
@@ -673,7 +650,7 @@ pub async fn route_connector<F>(
     merchant_account: &storage::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     connector_call_type: api::ConnectorCallType,
-) -> RouterResult<api::ConnectorCallType>
+) -> RouterResult<api::NextConnectorCallType>
 where
     F: Send + Clone,
 {
@@ -681,7 +658,7 @@ where
         api::ConnectorCallType::Single(connector) => {
             payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
 
-            Ok(api::ConnectorCallType::Single(connector))
+            Ok(api::NextConnectorCallType::Single(vec![connector]))
         }
 
         api::ConnectorCallType::Routing => {
@@ -706,9 +683,11 @@ where
 
             payment_data.payment_attempt.connector = Some(connector_name);
 
-            Ok(api::ConnectorCallType::Single(connector_data))
+            Ok(api::NextConnectorCallType::Single(vec![connector_data]))
         }
 
-        call_type @ api::ConnectorCallType::Multiple(_) => Ok(call_type),
+        api::ConnectorCallType::Multiple(connectors) => {
+            Ok(api::NextConnectorCallType::Multiple(connectors))
+        }
     }
 }
