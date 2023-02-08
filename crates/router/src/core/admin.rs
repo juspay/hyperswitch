@@ -486,7 +486,7 @@ pub async fn kv_for_merchant(
             db.update_merchant(
                 merchant_account,
                 merchant_account::MerchantAccountUpdate::StorageSchemaUpdate {
-                    storage_schema: enums::MerchantStorageScheme::RedisKv,
+                    storage_scheme: enums::MerchantStorageScheme::RedisKv,
                 },
             )
             .await
@@ -495,7 +495,7 @@ pub async fn kv_for_merchant(
             db.update_merchant(
                 merchant_account,
                 merchant_account::MerchantAccountUpdate::StorageSchemaUpdate {
-                    storage_schema: enums::MerchantStorageScheme::PostgresOnly,
+                    storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
                 },
             )
             .await
@@ -504,7 +504,7 @@ pub async fn kv_for_merchant(
     .map_err(|error| {
         error
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to switch merchant_storage_schema")
+            .attach_printable("failed to switch merchant_storage_scheme")
     })?;
     let kv_status = match updated_merchant_account.storage_scheme {
         enums::MerchantStorageScheme::PostgresOnly => false,
