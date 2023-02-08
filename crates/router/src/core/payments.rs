@@ -152,9 +152,15 @@ where
                     &customer,
                     call_connector_action,
                 )
-                .await;
-                payment_data
-                // post_update_trackers
+                .await?;
+                
+                post_update_trackers(
+                    state,
+                    router_data,
+                    &validate_result.payment_id,
+                    payment_data,
+                    merchant_account.storage_scheme,
+                ).await?
             }
             api::NextConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
