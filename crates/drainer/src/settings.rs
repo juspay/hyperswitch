@@ -45,6 +45,7 @@ pub struct DrainerSettings {
     pub num_partitions: u8,
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
+    pub loop_interval: u32,     // in milliseconds
 }
 
 impl Default for Database {
@@ -67,6 +68,7 @@ impl Default for DrainerSettings {
             num_partitions: 64,
             max_read_count: 100,
             shutdown_interval: 1000, // in milliseconds
+            loop_interval: 500,      // in milliseconds
         }
     }
 }
