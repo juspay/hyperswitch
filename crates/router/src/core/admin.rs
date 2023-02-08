@@ -506,10 +506,10 @@ pub async fn kv_for_merchant(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to switch merchant_storage_scheme")
     })?;
-    let kv_status = match updated_merchant_account.storage_scheme {
-        enums::MerchantStorageScheme::PostgresOnly => false,
-        enums::MerchantStorageScheme::RedisKv => true,
-    };
+    let kv_status = matches!(
+        updated_merchant_account.storage_scheme,
+        enums::MerchantStorageScheme::RedisKv
+    );
 
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::ToggleKVResponse {
@@ -531,10 +531,10 @@ pub async fn check_merchant_account_kv_status(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let kv_status = match merchant_account.storage_scheme {
-        enums::MerchantStorageScheme::PostgresOnly => false,
-        enums::MerchantStorageScheme::RedisKv => true,
-    };
+    let kv_status = matches!(
+        merchant_account.storage_scheme,
+        enums::MerchantStorageScheme::RedisKv
+    );
 
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::ToggleKVResponse {
