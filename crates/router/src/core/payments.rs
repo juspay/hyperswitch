@@ -5,6 +5,7 @@ pub mod operations;
 pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
+
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -339,7 +340,6 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
-
     let stime_connector = Instant::now();
 
     let mut router_data = payment_data
