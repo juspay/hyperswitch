@@ -1,11 +1,12 @@
-use common_utils::ext_traits::{ValueExt, StringExt};
+use common_utils::ext_traits::{StringExt, ValueExt};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils,
     core::errors,
     pii::{self, Secret},
-    types::{self, api, storage::enums,}, connector::utils,
+    types::{self, api, storage::enums},
 };
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -21,10 +22,14 @@ pub struct FiservPaymentsRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(tag = "sourceType")]
 pub enum Source {
-    PaymentCard {card: CardData},
-    GooglePay{data: String,
+    PaymentCard {
+        card: CardData,
+    },
+    GooglePay {
+        data: String,
         signature: String,
-        version: String,},
+        version: String,
+    },
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -123,7 +128,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: ccard.card_cvc.clone(),
                 };
-                Source::PaymentCard {card}
+                Source::PaymentCard { card }
             }
             api::PaymentMethod::Wallet(wallet_data) => {
                 // let json_value = wallet_data.token
@@ -201,7 +206,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let cancellation_reason = item.request.cancellation_reason.clone().ok_or_else(utils::missing_field_err("cancellation_reason"))?;
+        let cancellation_reason = item
+            .request
+            .cancellation_reason
+            .clone()
+            .ok_or_else(utils::missing_field_err("cancellation_reason"))?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -263,7 +272,9 @@ impl From<FiservPaymentStatus> for enums::AttemptStatus {
 impl From<FiservPaymentStatus> for enums::RefundStatus {
     fn from(item: FiservPaymentStatus) -> Self {
         match item {
-            FiservPaymentStatus::Succeeded | FiservPaymentStatus::Authorized | FiservPaymentStatus::Captured => Self::Success,
+            FiservPaymentStatus::Succeeded
+            | FiservPaymentStatus::Authorized
+            | FiservPaymentStatus::Captured => Self::Success,
             FiservPaymentStatus::Declined | FiservPaymentStatus::Failed => Self::Failure,
             _ => Self::Pending,
         }
@@ -332,13 +343,6 @@ pub struct ReferenceTransactionDetails {
     reference_transaction_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum FiservTransactionTypes {
-    Charges,
-    Refunds,
-}
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionObject {
@@ -397,7 +401,11 @@ impl TryFrom<&types::PaymentsSyncRouterData> for FiservSyncRequest {
                 terminal_id: None,
             },
             reference_transaction_details: ReferenceTransactionDetails {
-                reference_transaction_id: item.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+                reference_transaction_id: item
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             },
         })
     }
@@ -413,12 +421,15 @@ impl TryFrom<&types::RefundSyncRouterData> for FiservSyncRequest {
                 terminal_id: None,
             },
             reference_transaction_details: ReferenceTransactionDetails {
-                reference_transaction_id: item.request.connector_refund_id.clone().ok_or_else(||errors::ConnectorError::RequestEncodingFailed)?,
+                reference_transaction_id: item
+                    .request
+                    .connector_refund_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             },
         })
     }
 }
-
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -490,7 +501,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item

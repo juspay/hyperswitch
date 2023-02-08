@@ -15,13 +15,33 @@ use crate::{
     services::{self, logger},
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::{self, BytesExt}, db::configs::ConfigInterface,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
 pub struct Authorizedotnet;
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Authorizedotnet
+where
+    Self: services::ConnectorIntegration<Flow, Request, Response>,
+{
+    fn build_headers(
+        &self,
+        _req: &types::RouterData<Flow, Request, Response>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        // This connector does not require an auth header, the authentication details are sent in the request body
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ])
+    }
+}
 
 impl ConnectorCommon for Authorizedotnet {
     fn id(&self) -> &'static str {
@@ -66,7 +86,11 @@ impl
 }
 
 impl api::PreVerify for Authorizedotnet {}
-
+type Verify = dyn services::ConnectorIntegration<
+    api::Verify,
+    types::VerifyRequestData,
+    types::PaymentsResponseData,
+>;
 impl
     services::ConnectorIntegration<
         api::Verify,
@@ -74,7 +98,103 @@ impl
         types::PaymentsResponseData,
     > for Authorizedotnet
 {
-    // Issue: #173
+    fn get_headers(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RouterData<
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors).to_string())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        logger::debug!(request=?req);
+        let connector_req = authorizedotnet::CreateTransactionRequest::try_from(req)?;
+        let authorizedotnet_req =
+            utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(authorizedotnet_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&Verify::get_url(self, req, connectors)?)
+                .headers(Verify::get_headers(self, req, connectors)?)
+                .header(headers::X_ROUTER, "test")
+                .body(Verify::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+        res: types::Response,
+    ) -> CustomResult<
+        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        use bytes::Buf;
+        logger::debug!(authorizedotnetpayments_create_response=?res);
+
+        // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
+        let encoding = encoding_rs::UTF_8;
+        let intermediate_response = encoding.decode_with_bom_removal(res.response.chunk());
+        let intermediate_response =
+            bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
+
+        let response: authorizedotnet::AuthorizedotnetPaymentsResponse = intermediate_response
+            .parse_struct("AuthorizedotnetPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            false,
+        ))
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(authorizedotnetpayments_create_error_response=?res);
+        get_error_response(res)
+    }
 }
 
 impl
@@ -86,17 +206,10 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -132,7 +245,9 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-            .headers(types::PaymentsCaptureType::get_headers(self, req, connectors)?)
+            .headers(types::PaymentsCaptureType::get_headers(
+                self, req, connectors,
+            )?)
             .body(types::PaymentsCaptureType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
@@ -155,11 +270,14 @@ impl
             .parse_struct("AuthorizedotnetPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        types::RouterData::try_from((types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }, false))
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            false,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -177,17 +295,10 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -271,17 +382,10 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -353,15 +457,15 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auth_only =
             data.request.capture_method == Some(storage_models::enums::CaptureMethod::Manual);
-            types::RouterData::try_from((
-                types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                },
-                is_auth_only,
-            ))
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_auth_only,
+        ))
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -382,16 +486,10 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -452,11 +550,14 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(authorizedotnetpayments_create_response=?response);
 
-        types::RouterData::try_from((types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        },false))
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            false,
+        ))
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
@@ -477,17 +578,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 {
     fn get_headers(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -513,7 +607,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 &connector_req,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            println!("yyyyyy{:?}", authorizedotnet_req);
+        println!("yyyyyy{:?}", authorizedotnet_req);
         Ok(Some(authorizedotnet_req))
     }
 
@@ -573,17 +667,10 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
     fn get_headers(
         &self,
-        _req: &types::RefundsRouterData<api::RSync>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::RSync>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefundSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -674,27 +761,29 @@ impl api::IncomingWebhook for Authorizedotnet {
         _body: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = headers
-        .get("X-ANET-Signature")
-        .map(|header_value| {
-            header_value
-                .to_str()
-                .map(String::from)
-                .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                .into_report()
-        })
-        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-        .into_report()??;
+            .get("X-ANET-Signature")
+            .map(|header_value| {
+                header_value
+                    .to_str()
+                    .map(String::from)
+                    .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
+                    .into_report()
+            })
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
+            .into_report()??;
 
-        let(sig_method, sig_value) = security_header
-        .split_once('=')
-        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .into_report()?;
+        let (_, sig_value) = security_header
+            .split_once('=')
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .into_report()?;
         Ok(sig_value.as_bytes().to_vec())
     }
     fn get_webhook_source_verification_message(
         &self,
         _headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
+        _merchant_id: &str,
+        _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(body.to_vec())
     }
@@ -721,7 +810,7 @@ impl api::IncomingWebhook for Authorizedotnet {
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(details.webhook_id)
+        Ok(details.payload.id)
     }
 
     fn get_webhook_event_type(
@@ -729,12 +818,15 @@ impl api::IncomingWebhook for Authorizedotnet {
         body: &[u8],
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let details: authorizedotnet::AuthorizedotnetWebhookEventType = body
-        .parse_struct("AuthorizedotnetWebhookEventType")
-        .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .parse_struct("AuthorizedotnetWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_type.as_str() {
-            "net.authorize.payment.authorization.created" |
-            "net.authorize.payment.priorAuthCapture.created" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            "net.authorize.payment.authorization.created"
+            | "net.authorize.payment.priorAuthCapture.created"
+            | "net.authorize.payment.authcapture.created" => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }
@@ -744,10 +836,13 @@ impl api::IncomingWebhook for Authorizedotnet {
         body: &[u8],
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         let details: authorizedotnet::AuthorizedotnetWebhookObjectResource = body
-        .parse_struct("AuthorizedotnetWebhookObjectResource")
-        .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        Ok(details.data)
+            .parse_struct("AuthorizedotnetWebhookObjectResource")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let sync_response = authorizedotnet::AuthorizedotnetSyncResponse::from(details);
+        let payload = serde_json::to_value(sync_response)
+            .into_report()
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(payload)
     }
 }
 

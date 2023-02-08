@@ -34,6 +34,64 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
     }
 }
 
+pub trait RouterData {
+    fn get_attempt_id(&self) -> Result<String, Error>;
+    fn get_billing(&self) -> Result<&api::Address, Error>;
+    fn get_billing_country(&self) -> Result<String, Error>;
+    fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
+    fn get_connector_meta(&self) -> Result<serde_json::Value, Error>;
+    fn to_connector_meta<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
+}
+
+impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
+    fn get_attempt_id(&self) -> Result<String, Error> {
+        self.attempt_id
+            .clone()
+            .ok_or_else(missing_field_err("attempt_id"))
+    }
+
+    fn get_billing_country(&self) -> Result<String, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|ad| ad.country.clone())
+            .ok_or_else(missing_field_err("billing.address.country"))
+    }
+
+    fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .and_then(|a| a.phone.as_ref())
+            .ok_or_else(missing_field_err("billing.phone"))
+    }
+
+    fn get_billing(&self) -> Result<&api::Address, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .ok_or_else(missing_field_err("billing"))
+    }
+
+    fn get_connector_meta(&self) -> Result<serde_json::Value, Error> {
+        self.connector_meta_data
+            .clone()
+            .ok_or_else(missing_field_err("connector_meta_data"))
+    }
+
+    fn to_connector_meta<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_value::<T>(self.get_connector_meta()?)
+            .into_report()
+            .change_context(errors::ConnectorError::NoConnectorMetaData)
+    }
+}
+
 pub trait PaymentsRequestData {
     fn get_attempt_id(&self) -> Result<String, Error>;
     fn get_billing(&self) -> Result<&api::Address, Error>;
