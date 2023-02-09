@@ -1,6 +1,6 @@
 use error_stack::IntoReport;
 
-use super::{MockDb, Store};
+use super::{cache, MockDb, Store};
 use crate::{
     connection::pg_connection,
     core::errors::{self, CustomResult},
@@ -19,7 +19,18 @@ pub trait ConfigInterface {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
+    async fn find_config_by_key_cached(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn update_config_by_key(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
+    async fn update_config_cached(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
@@ -60,6 +71,24 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+    async fn update_config_cached(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        cache::redact_cache(self, key, || async {
+            self.update_config_by_key(key, config_update).await
+        })
+        .await
+    }
+
+    async fn find_config_by_key_cached(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        cache::get_or_populate_cache(self, key, || async { self.find_config_by_key(key).await })
+            .await
+    }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
@@ -96,8 +125,24 @@ impl ConfigInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
+    async fn update_config_cached(
+        &self,
+        _key: &str,
+        _config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
 
     async fn delete_config_by_key(&self, _key: &str) -> CustomResult<bool, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_config_by_key_cached(
+        &self,
+        _key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

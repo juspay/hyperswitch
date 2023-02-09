@@ -5,7 +5,7 @@ use router_env::opentelemetry::{
     Context,
 };
 
-pub static CONTEXT: Lazy<Context> = Lazy::new(Context::current);
+pub(crate) static CONTEXT: Lazy<Context> = Lazy::new(Context::current);
 static PT_METER: Lazy<Meter> = Lazy::new(|| global::meter("PROCESS_TRACKER"));
 
 pub(crate) static CONSUMER_STATS: Lazy<Histogram<f64>> =

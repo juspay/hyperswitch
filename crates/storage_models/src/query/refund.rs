@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -19,9 +19,16 @@ impl RefundNew {
 impl Refund {
     #[instrument(skip(conn))]
     pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
-            self.id,
+            dsl::refund_id
+                .eq(self.refund_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             RefundUpdateInternal::from(refund),
         )
         .await
@@ -71,11 +78,18 @@ impl Refund {
         merchant_id: &str,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
+            None,
+            None,
             None,
         )
         .await
@@ -87,11 +101,18 @@ impl Refund {
         payment_id: &str,
         merchant_id: &str,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
             None,
         )
         .await

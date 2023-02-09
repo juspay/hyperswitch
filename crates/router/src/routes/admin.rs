@@ -30,7 +30,7 @@ pub async fn merchant_account_create(
     json_payload: web::Json<admin::CreateMerchantAccount>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| create_merchant_account(&*state.store, req),
@@ -65,7 +65,7 @@ pub async fn retrieve_merchant_account(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| get_merchant_account(&*state.store, req),
@@ -99,7 +99,7 @@ pub async fn update_merchant_account(
 ) -> HttpResponse {
     let merchant_id = mid.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
@@ -135,7 +135,7 @@ pub async fn delete_merchant_account(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
@@ -168,7 +168,7 @@ pub async fn payment_connector_create(
 ) -> HttpResponse {
     let merchant_id = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
@@ -200,7 +200,7 @@ pub async fn payment_connector_create(
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
@@ -209,7 +209,7 @@ pub async fn payment_connector_retrieve(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| {
@@ -246,7 +246,7 @@ pub async fn payment_connector_list(
 ) -> HttpResponse {
     let merchant_id = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         merchant_id,
         |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
@@ -279,16 +279,16 @@ pub async fn payment_connector_list(
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
     json_payload: web::Json<admin::PaymentConnectorCreate>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| {
-            update_payment_connector(&*state.store, &merchant_id, merchant_connector_id, req)
+            update_payment_connector(&*state.store, &merchant_id, &merchant_connector_id, req)
         },
         &auth::AdminApiAuth,
     )
@@ -318,7 +318,7 @@ pub async fn payment_connector_update(
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
@@ -327,7 +327,7 @@ pub async fn payment_connector_delete(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| {

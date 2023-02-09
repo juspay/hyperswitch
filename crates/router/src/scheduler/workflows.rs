@@ -1,9 +1,9 @@
 use async_trait::async_trait;
+use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
 
 use crate::{core::errors, routes::AppState, scheduler::consumer, types::storage};
-
 pub mod payment_sync;
 pub mod refund_router;
 
@@ -22,6 +22,7 @@ macro_rules! runners {
             pub struct $body;
         } )*
 
+        #[instrument(skip(state))]
         pub async fn perform_workflow_execution<'a>(state: &AppState, process: storage::ProcessTracker, runner: PTRunner)
         where
         {
