@@ -362,6 +362,27 @@ pub struct PaymentIntentResponse {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct LastPaymentError {
+    code: String,
+    message: String,
+}
+
+#[derive(Deserialize)]
+pub struct PaymentIntentSyncResponse {
+    #[serde(flatten)]
+    payment_intent_fields: PaymentIntentResponse,
+    pub last_payment_error: Option<LastPaymentError>,
+}
+
+impl std::ops::Deref for PaymentIntentSyncResponse {
+    type Target = PaymentIntentResponse;
+
+    fn deref(&self) -> &Self::Target {
+        &self.payment_intent_fields
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct SetupIntentResponse {
     pub id: String,
@@ -426,6 +447,82 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: None,
             }),
+            amount_captured: Some(item.response.amount_received),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaymentIntentSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item.response.next_action.as_ref().map(
+            |StripeNextActionResponse::RedirectToUrl(response)| {
+                let mut base_url = response.url.clone();
+                base_url.set_query(None);
+                services::RedirectForm {
+                    url: base_url.to_string(),
+                    method: services::Method::Get,
+                    form_fields: std::collections::HashMap::from_iter(
+                        response
+                            .url
+                            .query_pairs()
+                            .map(|(k, v)| (k.to_string(), v.to_string())),
+                    ),
+                }
+            },
+        );
+
+        let mandate_reference =
+            item.response
+                .payment_method_options
+                .as_ref()
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        mandate_options, ..
+                    } => mandate_options
+                        .as_ref()
+                        .map(|mandate_options| mandate_options.reference.clone()),
+                    StripePaymentMethodOptions::Klarna {} => None,
+                    StripePaymentMethodOptions::Affirm {} => None,
+                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
+                });
+
+        let response = item.response.last_payment_error.as_ref().map_or(
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirect: redirection_data.is_some(),
+                redirection_data,
+                mandate_reference,
+                connector_metadata: None,
+            }),
+            |error| {
+                Err(types::ErrorResponse {
+                    code: error.code.clone(),
+                    message: error.message.clone(),
+                    reason: None,
+                    status_code: item.http_code,
+                })
+            },
+        );
+
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status.clone()),
+            // client_secret: Some(item.response.client_secret.clone().as_str()),
+            // description: item.response.description.map(|x| x.as_str()),
+            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
+            // three_ds_form,
+            response,
             amount_captured: Some(item.response.amount_received),
             ..item.data
         })
