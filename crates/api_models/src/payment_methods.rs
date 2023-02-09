@@ -4,7 +4,7 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{enums as api_enums, payments};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -550,11 +550,156 @@ pub struct TokenizedCardValue2 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue1 {
-    pub issuer: String,
-    pub token: Option<String>,
+    // pub issuer: String,
+    // pub gpay_data: Option<GpayWalletData>,
+    // pub applepay_data: Option<ApplePayWalletData>,
+    // pub paypal_data: Option<PayPalWalletData>,
+    pub data: WalletData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum WalletData {
+    GpayWallet(GpayWalletData),
+    ApplePayWallet(ApplePayWalletData),
+    PayPalWallet(PayPalWalletData),
+    Paypal,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct GpayWalletData {
+    pub pm_type: String,
+    pub description: String,
+    pub info: GpayPaymentMethodInfo,
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct GpayPaymentMethodInfo {
+    pub card_network: String,
+    pub card_details: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct GpayTokenizationData {
+    pub token_type: String,
+    pub token: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayWalletData {
+    pub token: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PayPalWalletData {
+    pub token: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue2 {
     pub customer_id: Option<String>,
+}
+
+impl From<payments::WalletData> for WalletData {
+    fn from(value: payments::WalletData) -> Self {
+        match value {
+            payments::WalletData::GpayWallet(data) => Self::GpayWallet(data.into()),
+            payments::WalletData::ApplePayWallet(data) => Self::ApplePayWallet(data.into()),
+            payments::WalletData::PaypalWallet(data) => Self::PayPalWallet(data.into()),
+            payments::WalletData::Paypal => Self::Paypal,
+        }
+    }
+}
+
+impl From<GpayWalletData> for payments::GpayWalletData {
+    fn from(value: GpayWalletData) -> Self {
+        Self {
+            pm_type: value.pm_type,
+            description: value.description,
+            info: value.info.into(),
+            tokenization_data: value.tokenization_data.into(),
+        }
+    }
+}
+
+impl From<ApplePayWalletData> for payments::ApplePayWalletData {
+    fn from(value: ApplePayWalletData) -> Self {
+        Self { token: value.token }
+    }
+}
+
+impl From<PayPalWalletData> for payments::PayPalWalletData {
+    fn from(value: PayPalWalletData) -> Self {
+        Self { token: value.token }
+    }
+}
+
+impl From<GpayPaymentMethodInfo> for payments::GpayPaymentMethodInfo {
+    fn from(value: GpayPaymentMethodInfo) -> Self {
+        Self {
+            card_network: value.card_network,
+            card_details: value.card_details,
+        }
+    }
+}
+
+impl From<GpayTokenizationData> for payments::GpayTokenizationData {
+    fn from(value: GpayTokenizationData) -> Self {
+        Self {
+            token_type: value.token_type,
+            token: value.token,
+        }
+    }
+}
+
+impl From<payments::GpayWalletData> for GpayWalletData {
+    fn from(value: payments::GpayWalletData) -> Self {
+        Self {
+            pm_type: value.pm_type,
+            description: value.description,
+            info: value.info.into(),
+            tokenization_data: value.tokenization_data.into(),
+        }
+    }
+}
+
+impl From<payments::ApplePayWalletData> for ApplePayWalletData {
+    fn from(value: payments::ApplePayWalletData) -> Self {
+        Self { token: value.token }
+    }
+}
+
+impl From<payments::PayPalWalletData> for PayPalWalletData {
+    fn from(value: payments::PayPalWalletData) -> Self {
+        Self { token: value.token }
+    }
+}
+
+impl From<payments::GpayPaymentMethodInfo> for GpayPaymentMethodInfo {
+    fn from(value: payments::GpayPaymentMethodInfo) -> Self {
+        Self {
+            card_network: value.card_network,
+            card_details: value.card_details,
+        }
+    }
+}
+
+impl From<payments::GpayTokenizationData> for GpayTokenizationData {
+    fn from(value: payments::GpayTokenizationData) -> Self {
+        Self {
+            token_type: value.token_type,
+            token: value.token,
+        }
+    }
+}
+
+impl From<WalletData> for payments::WalletData {
+    fn from(value: WalletData) -> Self {
+        match value {
+            WalletData::GpayWallet(data) => Self::GpayWallet(data.into()),
+            WalletData::ApplePayWallet(data) => Self::ApplePayWallet(data.into()),
+            WalletData::PayPalWallet(data) => Self::PaypalWallet(data.into()),
+            WalletData::Paypal => Self::Paypal,
+        }
+    }
 }

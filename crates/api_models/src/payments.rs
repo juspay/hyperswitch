@@ -132,6 +132,9 @@ pub struct PaymentsRequest {
         "java_script_enabled":true
     }"#)]
     pub browser_info: Option<serde_json::Value>,
+    /// The issuer of the wallet
+    #[schema(value_type = WalletIssuer)]
+    pub wallet_issuer_name: Option<api_enums::WalletIssuer>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -386,12 +389,58 @@ pub enum PaymentMethod {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct WalletData {
-    /// The issuer of the wallet
-    #[schema(value_type = WalletIssuer)]
-    pub issuer_name: api_enums::WalletIssuer,
+#[serde(rename_all = "snake_case")]
+pub enum WalletData {
+    /// The wallet data for Google pay
+    GpayWallet(GpayWalletData),
+    /// The wallet data for Apple pay
+    ApplePayWallet(ApplePayWalletData),
+    /// The wallet data for Paypal
+    PaypalWallet(PayPalWalletData),
+    /// This is for paypal redirection
+    Paypal,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GpayWalletData {
+    /// The type of payment method
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    /// User-facing message to describe the payment method that funds this transaction.
+    pub description: String,
+    /// The information of the payment method
+    pub info: GpayPaymentMethodInfo,
+    /// The tokenization data of Google pay
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GpayPaymentMethodInfo {
+    /// The name of the card network
+    pub card_network: String,
+    /// The details of the card
+    pub card_details: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PayPalWalletData {
+    /// Token generated for the Apple pay
+    pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GpayTokenizationData {
+    /// The type of the token
+    #[serde(rename = "type")]
+    pub token_type: String,
     /// Token generated for the wallet
-    pub token: Option<String>,
+    pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayWalletData {
+    /// Token generated for the Apple pay
+    pub token: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]

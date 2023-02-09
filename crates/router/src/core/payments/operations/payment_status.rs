@@ -268,6 +268,7 @@ async fn get_tracker_for_sync<
             refunds,
             sessions_token: vec![],
             card_cvc: None,
+            wallet_issuer_name: None,
         },
         None,
     ))

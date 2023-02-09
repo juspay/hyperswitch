@@ -66,7 +66,7 @@ pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
     #[serde(rename = "details")]
-    apple_pay_token: Option<String>,
+    token: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
@@ -104,14 +104,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                 })
             }
             api_models::payments::PaymentMethod::Wallet(ref wallet_data) => {
-                let digital_wallet = match wallet_data.issuer_name {
+                let digital_wallet = match item
+                    .request
+                    .wallet_issuer_name
+                    .get_required_value("wallet_issuer_name")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                {
                     api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(match wallet_data {
+                            api_models::payments::WalletData::GpayWallet(gpay_wallet_data) => {
+                                Ok(gpay_wallet_data.tokenization_data.token.to_owned())
+                            }
+                            _ => Err(errors::ConnectorError::InvalidWallet),
+                        }?),
                     }),
                     api_models::enums::WalletIssuer::ApplePay => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(match wallet_data {
+                            api_models::payments::WalletData::ApplePayWallet(
+                                applepay_wallet_data,
+                            ) => Ok(applepay_wallet_data.token.to_owned()),
+                            _ => Err(errors::ConnectorError::InvalidWallet),
+                        }?),
                     }),
                     _ => None,
                 };

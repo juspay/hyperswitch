@@ -405,6 +405,7 @@ pub enum PaymentMethodType {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     Hash,
     PartialEq,
@@ -420,6 +421,8 @@ pub enum WalletIssuer {
     GooglePay,
     ApplePay,
     Paypal,
+    #[default]
+    Dummy,
 }
 
 #[derive(

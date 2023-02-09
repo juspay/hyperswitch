@@ -6,6 +6,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
+use api_models::enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -503,6 +504,7 @@ where
     pub token: Option<String>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
+    pub wallet_issuer_name: Option<enums::WalletIssuer>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,

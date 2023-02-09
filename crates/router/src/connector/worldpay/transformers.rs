@@ -27,8 +27,9 @@ where
 }
 
 fn fetch_payment_instrument(
-    payment_method: api::PaymentMethod,
+    item: &types::PaymentsAuthorizeRouterData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
+    let payment_method = item.request.payment_method_data.to_owned();
     match payment_method {
         api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
@@ -38,26 +39,33 @@ fn fetch_payment_instrument(
             card_number: card.card_number.peek().to_string(),
             ..CardPayment::default()
         })),
-        api::PaymentMethod::Wallet(wallet) => match wallet.issuer_name {
+        api::PaymentMethod::Wallet(wallet) => match item
+            .request
+            .wallet_issuer_name
+            .get_required_value("wallet_issuer_name")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        {
             api_models::enums::WalletIssuer::ApplePay => {
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
-                    wallet_token: wallet
-                        .token
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+                    wallet_token: match wallet {
+                        api_models::payments::WalletData::ApplePayWallet(applepay_wallet_data) => {
+                            Ok(applepay_wallet_data.token)
+                        }
+                        _ => Err(errors::ConnectorError::InvalidWallet),
+                    }?,
                     ..WalletPayment::default()
                 }))
             }
             api_models::enums::WalletIssuer::GooglePay => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
-                    wallet_token: wallet
-                        .token
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+                    wallet_token: match wallet {
+                        api_models::payments::WalletData::GpayWallet(googlepay_wallet_data) => {
+                            Ok(googlepay_wallet_data.tokenization_data.token)
+                        }
+                        _ => Err(errors::ConnectorError::InvalidWallet),
+                    }?,
                     ..WalletPayment::default()
                 }))
             }
@@ -83,7 +91,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
-                    item.request.payment_method_data.clone(),
+                    item, //item.request.payment_method_data.clone(),
                 )?,
                 debt_repayment: None,
             },

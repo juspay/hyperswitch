@@ -12,6 +12,7 @@ pub mod transformers;
 
 use std::marker::PhantomData;
 
+use api_models::enums;
 pub use api_models::enums::Connector;
 use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
@@ -102,6 +103,7 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethod,
+    pub wallet_issuer_name: Option<enums::WalletIssuer>,
     pub amount: i64,
     pub email: Option<masking::Secret<String, Email>>,
     pub currency: storage_enums::Currency,

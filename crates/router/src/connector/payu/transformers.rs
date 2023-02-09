@@ -78,19 +78,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     cvv: ccard.card_cvc,
                 }),
             }),
-            api::PaymentMethod::Wallet(wallet_data) => match wallet_data.issuer_name {
+            api::PaymentMethod::Wallet(wallet_data) => match item
+                .request
+                .wallet_issuer_name
+                .get_required_value("wallet_issuer_name")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            {
                 api_models::enums::WalletIssuer::GooglePay => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE.encode(
-                                wallet_data
-                                    .token
-                                    .get_required_value("token")
-                                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                                    .attach_printable("No token passed")?,
-                            ),
+                            authorization_code: consts::BASE64_ENGINE.encode(match wallet_data {
+                                api_models::payments::WalletData::GpayWallet(wallet_data) => {
+                                    Ok(wallet_data.tokenization_data.token)
+                                }
+                                _ => Err(errors::ConnectorError::InvalidWallet),
+                            }?),
                         }
                     }),
                 }),
@@ -99,13 +103,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         PayuWallet {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE.encode(
-                                wallet_data
-                                    .token
-                                    .get_required_value("token")
-                                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                                    .attach_printable("No token passed")?,
-                            ),
+                            authorization_code: consts::BASE64_ENGINE.encode(match wallet_data {
+                                api_models::payments::WalletData::ApplePayWallet(wallet_data) => {
+                                    Ok(wallet_data.token)
+                                }
+                                _ => Err(errors::ConnectorError::InvalidWallet),
+                            }?),
                         }
                     }),
                 }),
