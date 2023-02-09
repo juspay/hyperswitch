@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use api_models::admin::{AcceptedCountries, AcceptedCurrencies};
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -435,20 +436,89 @@ async fn filter_payment_methods(
                     payment_method_object.accepted_countries,
                     req.accepted_countries,
                     filter,
-                ) = filter_accepted_enum_based(
+                ) = match (
                     &payment_method_object.accepted_countries,
                     &req.accepted_countries,
-                );
-
+                ) {
+                    (None, None) => (None, None, true),
+                    (None, Some(req_accepted_countries)) => {
+                        (None, Some(req_accepted_countries.to_owned()), false)
+                    }
+                    (Some(accepted_countries), None) => {
+                        (Some(accepted_countries.to_owned()), None, true)
+                    }
+                    (Some(accepted_countries), Some(req_accepted_countries)) => {
+                        if accepted_countries.enable_all {
+                            (
+                                Some(req_accepted_countries.to_owned()),
+                                Some(req_accepted_countries.to_owned()),
+                                true,
+                            )
+                        } else {
+                            let enable_only = filter_accepted_enum_based(
+                                &accepted_countries.enable_only,
+                                &req_accepted_countries.enable_only,
+                            );
+                            let disable_only = filter_accepted_enum_based(
+                                &accepted_countries.disable_only,
+                                &req_accepted_countries.disable_only,
+                            );
+                            (
+                                Some(AcceptedCountries {
+                                    enable_all: false,
+                                    disable_only,
+                                    enable_only,
+                                }),
+                                Some(req_accepted_countries.to_owned()),
+                                true,
+                            )
+                        }
+                    }
+                };
                 let filter2;
                 (
                     payment_method_object.accepted_currencies,
                     req.accepted_currencies,
                     filter2,
-                ) = filter_accepted_enum_based(
+                ) = match (
                     &payment_method_object.accepted_currencies,
                     &req.accepted_currencies,
-                );
+                ) {
+                    (None, None) => (None, None, true),
+                    (None, Some(req_accepted_countries)) => {
+                        (None, Some(req_accepted_countries.to_owned()), false)
+                    }
+                    (Some(accepted_currencies), None) => {
+                        (Some(accepted_currencies.to_owned()), None, true)
+                    }
+                    (Some(accepted_currencies), Some(req_accepted_currencies)) => {
+                        if accepted_currencies.enable_all {
+                            (
+                                Some(req_accepted_currencies.to_owned()),
+                                Some(req_accepted_currencies.to_owned()),
+                                true,
+                            )
+                        } else {
+                            let enable_only = filter_accepted_enum_based(
+                                &accepted_currencies.enable_only,
+                                &req_accepted_currencies.enable_only,
+                            );
+                            let disable_only = filter_accepted_enum_based(
+                                &accepted_currencies.disable_only,
+                                &req_accepted_currencies.disable_only,
+                            );
+                            (
+                                Some(AcceptedCurrencies {
+                                    enable_all: false,
+                                    disable_only,
+                                    enable_only,
+                                }),
+                                Some(req_accepted_currencies.to_owned()),
+                                true,
+                            )
+                        }
+                    }
+                };
                 let filter3 = if let Some(payment_intent) = payment_intent {
                     filter_payment_country_based(&payment_method_object, address).await?
                         && filter_payment_currency_based(payment_intent, &payment_method_object)
@@ -471,18 +541,17 @@ async fn filter_payment_methods(
 fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
     left: &Option<Vec<T>>,
     right: &Option<Vec<T>>,
-) -> (Option<Vec<T>>, Option<Vec<T>>, bool) {
+) -> Option<Vec<T>> {
     match (left, right) {
         (Some(ref l), Some(ref r)) => {
             let a: HashSet<&T> = HashSet::from_iter(l.iter());
             let b: HashSet<&T> = HashSet::from_iter(r.iter());
 
             let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
-            (Some(y), Some(r.to_vec()), true)
+            Some(y)
         }
-        (Some(ref l), None) => (Some(l.to_vec()), None, true),
-        (None, Some(ref r)) => (None, Some(r.to_vec()), false),
-        (None, None) => (None, None, true),
+        (Some(ref l), None) => Some(l.to_vec()),
+        (_, _) => None,
     }
 }
 
@@ -526,9 +595,17 @@ async fn filter_payment_country_based(
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries
-                .clone()
-                .map_or(true, |ac| ac.contains(country))
+            pm.accepted_countries.clone().map_or(true, |ac| {
+                if ac.enable_all {
+                    true
+                } else {
+                    ac.enable_only
+                        .map_or(false, |enable_countries| enable_countries.contains(country))
+                        || !ac.disable_only.map_or(false, |disable_countries| {
+                            disable_countries.contains(country)
+                        })
+                }
+            })
         })
     }))
 }
@@ -538,9 +615,17 @@ fn filter_payment_currency_based(
     pm: &api::ListPaymentMethod,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
-        pm.accepted_currencies
-            .clone()
-            .map_or(true, |ac| ac.contains(&currency.foreign_into()))
+        pm.accepted_currencies.clone().map_or(true, |ac| {
+            if ac.enable_all {
+                true
+            } else {
+                ac.enable_only.map_or(false, |enable_currencies| {
+                    enable_currencies.contains(&currency.foreign_into())
+                }) || !ac.disable_only.map_or(false, |disable_currencies| {
+                    disable_currencies.contains(&currency.foreign_into())
+                })
+            }
+        })
     })
 }
 

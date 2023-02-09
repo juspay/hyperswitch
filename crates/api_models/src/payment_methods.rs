@@ -4,7 +4,7 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{admin, enums as api_enums};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -168,12 +168,24 @@ pub struct ListPaymentMethodRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[schema(example = json!(["US", "UK", "IN"]))]
-    pub accepted_countries: Option<Vec<String>>,
+    #[schema(example = json!(
+        {
+            "enable_all":false,
+            "disable_only": ["FR", "DE","IN"],
+            "enable_only": ["UK","AU"]
+        }
+    ))]
+    pub accepted_countries: Option<admin::AcceptedCountries>,
 
     /// The three-letter ISO currency code
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
-    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+    #[schema(example = json!(
+        {
+        "enable_all":false,
+        "disable_only": ["INR", "CAD", "AED","JPY"],
+        "enable_only": ["EUR","USD"]
+        }
+    ))]
+    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
 
     /// Filter by amount
     #[schema(example = 60)]
@@ -217,18 +229,18 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
                                 map.next_value()?,
                             )?;
                         }
-                        "accepted_countries" => match output.accepted_countries.as_mut() {
-                            Some(inner) => inner.push(map.next_value()?),
-                            None => {
-                                output.accepted_countries = Some(vec![map.next_value()?]);
-                            }
-                        },
-                        "accepted_currencies" => match output.accepted_currencies.as_mut() {
-                            Some(inner) => inner.push(map.next_value()?),
-                            None => {
-                                output.accepted_currencies = Some(vec![map.next_value()?]);
-                            }
-                        },
+                        // "accepted_countries" => match output.accepted_countries.as_mut() {
+                        //     Some(inner) => inner.push(map.next_value()?),
+                        //     None => {
+                        //         output.accepted_countries = Some(vec![map.next_value()?]);
+                        //     }
+                        // },
+                        // "accepted_currencies" => match output.accepted_currencies.as_mut() {
+                        //     Some(inner) => inner.push(map.next_value()?),
+                        //     None => {
+                        //         output.accepted_currencies = Some(vec![map.next_value()?]);
+                        //     }
+                        // },
                         "amount" => {
                             set_or_reject_duplicate(
                                 &mut output.amount,
@@ -322,12 +334,24 @@ pub struct ListPaymentMethod {
     pub payment_schemes: Option<Vec<String>>,
 
     /// List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["US", "UK", "IN"]))]
-    pub accepted_countries: Option<Vec<String>>,
+    #[schema(example = json!(
+        {
+            "enable_all":false,
+            "disable_only": ["FR", "DE","IN"],
+            "enable_only": ["UK","AU"]
+        }
+    ))]
+    pub accepted_countries: Option<admin::AcceptedCountries>,
 
     /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
-    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+    #[schema(example = json!(
+        {
+        "enable_all":false,
+        "disable_only": ["INR", "CAD", "AED","JPY"],
+        "enable_only": ["EUR","USD"]
+        }
+    ))]
+    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of
     /// the target currency (For example, for USD it should be in cents)
@@ -365,6 +389,8 @@ impl serde::Serialize for ListPaymentMethod {
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
         state.serialize_field("payment_experience", &self.payment_experience)?;
+        state.serialize_field("accepted_currencies", &self.accepted_currencies)?;
+        state.serialize_field("accepted_countries", &self.accepted_countries)?;
         match self.payment_method {
             api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
                 state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
