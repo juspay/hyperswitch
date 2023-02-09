@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use api_models::payments as api_payments;
 use error_stack::{IntoReport, ResultExt};
+use storage_models::enums;
 use transformers as klarna;
 
 use crate::{
@@ -13,6 +14,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        storage::enums as storage_enums,
     },
     utils::{self, BytesExt},
 };
@@ -235,11 +237,27 @@ impl
         match payment_method_data {
             api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
                 token,
-            }) => Ok(format!(
-                "{}payments/v1/authorizations/{}/order",
-                self.base_url(connectors),
-                token
-            )),
+            }) => match (
+                req.request.payment_issuer.as_ref(),
+                req.request.payment_experience.as_ref(),
+            ) {
+                (
+                    Some(storage_enums::PaymentIssuer::Klarna),
+                    Some(storage_enums::PaymentExperience::InvokeSdkClient),
+                ) => Ok(format!(
+                    "{}payments/v1/authorizations/{}/order",
+                    self.base_url(connectors),
+                    token
+                )),
+                (None, _) | (_, None) => Err(error_stack::report!(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_issuer and payment_experience"
+                    }
+                )),
+                _ => Err(error_stack::report!(
+                    errors::ConnectorError::MismatchedPaymentData
+                )),
+            },
             _ => Err(error_stack::report!(
                 errors::ConnectorError::NotImplemented(
                     "We only support wallet payments through klarna".to_string(),
