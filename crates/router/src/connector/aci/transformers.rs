@@ -57,6 +57,8 @@ pub enum PaymentDetails {
     Wallet,
     Klarna,
     Paypal,
+    #[serde(rename = "bankRedirect")]
+    BankRedirect,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -114,6 +116,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
             api::PaymentMethod::Paypal => PaymentDetails::Paypal,
+            api::PaymentMethod::BankRedirect(_) => PaymentDetails::BankRedirect,
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;

@@ -146,6 +146,7 @@ pub enum StripePaymentMethodData {
     Bank,
     Wallet,
     Paypal,
+    BankRedirect,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -814,6 +815,7 @@ impl TryFrom<(api::PaymentMethod, enums::AuthenticationType)> for StripePaymentM
                 }
             })),
             api::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api::PaymentMethod::BankRedirect(_) => Ok(Self::BankRedirect),
             api::PaymentMethod::PayLater(pay_later_data) => match pay_later_data {
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email,

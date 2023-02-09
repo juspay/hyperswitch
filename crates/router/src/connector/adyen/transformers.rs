@@ -300,7 +300,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             api::PaymentMethod::BankTransfer
             | api::PaymentMethod::Wallet(_)
             | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal => None,
+            | api::PaymentMethod::Paypal
+            | api::PaymentMethod::BankRedirect(_) => None,
         };
 
         let wallet_data = match item.request.payment_method_data {

@@ -382,7 +382,43 @@ pub enum PaymentMethod {
     BankTransfer,
     Wallet(WalletData),
     PayLater(PayLaterData),
+    BankRedirect(BankRedirectData),
     Paypal,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectData {
+    Eps(BankRedirectionRequest),
+    Giropay(BankRedirectionRequest),
+    Ideal(BankRedirectionRequest),
+    Sofort(SofortRequestData),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SofortRequestData {
+    /// The billing details for bank redirection
+    pub billing_details: SofortBilling,
+    /// The preferred language
+    pub preferred_language: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SofortBilling {
+    /// The country associated with the billing
+    pub billing_country: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BankRedirectionRequest {
+    /// The billing details for bank redirection
+    pub billing_details: BankRedirectBilling,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BankRedirectBilling {
+    /// The name for which billing is issued
+    pub billing_name: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -410,6 +446,7 @@ pub enum PaymentMethodDataResponse {
     Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
+    BankRedirect(BankRedirectData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -952,6 +989,9 @@ impl From<PaymentMethod> for PaymentMethodDataResponse {
             PaymentMethod::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
             PaymentMethod::Wallet(wallet_data) => Self::Wallet(wallet_data),
             PaymentMethod::Paypal => Self::Paypal,
+            PaymentMethod::BankRedirect(bank_redirect_data) => {
+                Self::BankRedirect(bank_redirect_data)
+            }
         }
     }
 }
