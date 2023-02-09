@@ -416,7 +416,7 @@ pub struct BankRedirectionRequest {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
-    pub billing_name: String,
+    pub billing_name: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
