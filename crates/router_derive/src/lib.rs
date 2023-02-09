@@ -53,13 +53,13 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 /// # Example
 ///
 /// ```
-/// use router_derive::{DieselEnum, diesel_enum};
+/// use router_derive::diesel_enum;
 ///
 /// // Deriving `FromStr` and `ToString` using the `strum` crate, you can also implement it
 /// // yourself if required.
 /// #[derive(strum::Display, strum::EnumString)]
-/// #[derive(Debug, DieselEnum)]
-/// #[diesel_enum]
+/// #[derive(Debug)]
+/// #[diesel_enum(storage_type = "pg_enum")]
 /// enum Color {
 ///     Red,
 ///     Green,
@@ -81,7 +81,7 @@ pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// [DieselEnum]: macro@crate::diesel_enum
 ///
 /// ```
-/// use router_derive::{DieselEnum, diesel_enum};
+/// use router_derive::{diesel_enum};
 ///
 /// // Deriving `FromStr` and `ToString` using the `strum` crate, you can also implement it
 /// // yourself if required.
@@ -108,7 +108,7 @@ pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::
 /// Choosing text will store the enum as text in the database, whereas pg_enum will map it to the
 /// database enum
 ///
-/// Works in tandem with the [`DieselEnum`][DieselEnum] and [`DieselEnumText`][DieselEnumText]derive macro to achieve the desired results.
+/// Works in tandem with the [`DieselEnum`][DieselEnum] and [`DieselEnumText`][DieselEnumText] derive macro to achieve the desired results.
 /// The enum is required to implement (or derive) the [`ToString`][ToString] and the
 /// [`FromStr`][FromStr] traits for the [`DieselEnum`][DieselEnum] derive macro to be used.
 ///
