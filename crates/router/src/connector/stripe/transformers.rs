@@ -257,9 +257,10 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
                 billing_country,
             } => {
                 if pm_type == StripePaymentMethodType::Klarna {
-                    Ok(StripeBillingAddress {
+                    Ok(Self {
                         email: Some(billing_email.to_owned()),
-                        ..StripeBillingAddress::default()
+                        country: Some(billing_country.to_owned()),
+                        ..Self::default()
                     })
                 } else {
                     Err(errors::ConnectorError::MismatchedPaymentData)
@@ -267,7 +268,7 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
             }
             payments::PayLaterData::AffirmRedirect {} => {
                 if pm_type == StripePaymentMethodType::Affirm {
-                    Ok(StripeBillingAddress::default())
+                    Ok(Self::default())
                 } else {
                     Err(errors::ConnectorError::MismatchedPaymentData)
                 }
@@ -277,16 +278,16 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
                 billing_name,
             } => {
                 if pm_type == StripePaymentMethodType::AfterpayClearpay {
-                    Ok(StripeBillingAddress {
+                    Ok(Self {
                         email: Some(billing_email.to_owned()),
                         name: Some(billing_name.to_owned()),
-                        ..StripeBillingAddress::default()
+                        ..Self::default()
                     })
                 } else {
                     Err(errors::ConnectorError::MismatchedPaymentData)
                 }
             }
-            _ => Ok(StripeBillingAddress::default()),
+            _ => Ok(Self::default()),
         }
     }
 }
