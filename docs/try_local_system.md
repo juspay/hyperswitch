@@ -174,6 +174,10 @@ You can opt to use your favorite package manager instead.
    ```
 
 [winget]: https://github.com/microsoft/winget-cli
+
+Once you're done with setting up the database, proceed with
+[configuring the application](#configure-the-application).
+
 [postgresql-install-windows]: https://www.postgresql.org/download/windows/
 [redis-install-windows]: https://redis.io/docs/getting-started/installation/install-redis-on-windows
 
