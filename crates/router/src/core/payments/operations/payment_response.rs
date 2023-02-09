@@ -60,7 +60,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         )
         .await?;
 
-        router_response.clone().map_err(|error_response| {
+        router_response.map_err(|error_response| {
             errors::ApiErrorResponse::ExternalConnectorError {
                 message: error_response.message,
                 code: error_response.code,
@@ -118,7 +118,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         )
         .await?;
 
-        router_response.clone().map_err(|error_response| {
+        router_response.map_err(|error_response| {
             errors::ApiErrorResponse::ExternalConnectorError {
                 message: error_response.message,
                 code: error_response.code,
@@ -158,7 +158,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         )
         .await?;
 
-        router_response.clone().map_err(|error_response| {
+        router_response.map_err(|error_response| {
             errors::ApiErrorResponse::ExternalConnectorError {
                 message: error_response.message,
                 code: error_response.code,
@@ -197,7 +197,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         )
         .await?;
 
-        router_response.clone().map_err(|error_response| {
+        router_response.map_err(|error_response| {
             errors::ApiErrorResponse::ExternalConnectorError {
                 message: error_response.message,
                 code: error_response.code,
@@ -241,7 +241,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
         )
         .await?;
 
-        router_response.clone().map_err(|error_response| {
+        router_response.map_err(|error_response| {
             errors::ApiErrorResponse::ExternalConnectorError {
                 message: error_response.message,
                 code: error_response.code,
