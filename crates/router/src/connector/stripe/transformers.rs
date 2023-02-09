@@ -670,15 +670,12 @@ impl<F, T>
                     } => mandate_options
                         .as_ref()
                         .map(|mandate_options| mandate_options.reference.clone()),
-                    StripePaymentMethodOptions::Klarna {} => None,
-                    StripePaymentMethodOptions::Affirm {} => None,
-                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
+                    _ => None,
                 });
 
         let response = item.response.last_payment_error.as_ref().map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
