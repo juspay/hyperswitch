@@ -51,7 +51,7 @@ mod storage {
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{enums, kv, payment_intent::*},
-        utils::{self, storage_partitioning},
+        utils::{self, db_utils, storage_partitioning},
     };
 
     #[async_trait::async_trait]
@@ -188,32 +188,24 @@ mod storage {
             merchant_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
+            let database_call = || async {
+                let conn = pg_connection(&self.master_pool).await;
+                PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
             match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
-                    PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    self.redis_conn
-                        .get_hash_field_and_deserialize::<PaymentIntent>(
-                            &key,
-                            "pi",
-                            "PaymentIntent",
-                        )
-                        .await
-                        .map_err(|error| match error.current_context() {
-                            errors::RedisError::NotFound => errors::StorageError::ValueNotFound(
-                                format!("Payment Intent does not exist for {key}"),
-                            )
-                            .into(),
-                            _ => error.change_context(errors::StorageError::KVError),
-                        })
-                    // Check for database presence as well Maybe use a read replica here ?
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn
+                            .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
+                        database_call,
+                    )
+                    .await
                 }
             }
         }

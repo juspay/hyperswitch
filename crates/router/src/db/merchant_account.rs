@@ -66,11 +66,23 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let fetch_func = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_cache(self, merchant_id, fetch_func).await
+        }
     }
 
     async fn update_merchant(
@@ -78,11 +90,24 @@ impl MerchantAccountInterface for Store {
         this: storage::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, merchant_account)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let _merchant_id = this.merchant_id.clone();
+        let update_func = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            this.update(&conn, merchant_account)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, &_merchant_id, update_func).await
+        }
     }
 
     async fn update_specific_fields_in_merchant(
@@ -90,11 +115,27 @@ impl MerchantAccountInterface for Store {
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::update_with_specific_fields(&conn, merchant_id, merchant_account)
+        let update_func = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            storage::MerchantAccount::update_with_specific_fields(
+                &conn,
+                merchant_id,
+                merchant_account,
+            )
             .await
             .map_err(Into::into)
             .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, merchant_id, update_func).await
+        }
     }
 
     async fn find_merchant_account_by_api_key(
@@ -123,11 +164,23 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let delete_func = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, merchant_id, delete_func).await
+        }
     }
 }
 

@@ -228,7 +228,7 @@ pub struct MerchantId {
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     pub merchant_id: String,
-    pub merchant_connector_id: i32,
+    pub merchant_connector_id: String,
 }
 
 /// Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -242,8 +242,8 @@ pub struct PaymentConnectorCreate {
     #[schema(example = "stripe")]
     pub connector_name: String,
     /// Unique ID of the connector
-    #[schema(example = 42)]
-    pub merchant_connector_id: Option<i32>,
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub merchant_connector_id: Option<String>,
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<Secret<serde_json::Value>>,
@@ -334,8 +334,8 @@ pub struct DeleteMcaResponse {
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
     /// Unique ID of the connector
-    #[schema(example = 42)]
-    pub merchant_connector_id: i32,
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub merchant_connector_id: String,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,

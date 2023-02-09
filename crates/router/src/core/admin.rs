@@ -3,6 +3,7 @@ use error_stack::{report, FutureExt, ResultExt};
 use uuid::Uuid;
 
 use crate::{
+    consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
     env::{self, Env},
@@ -285,7 +286,7 @@ pub async fn create_payment_connector(
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
-        merchant_connector_id: None,
+        merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
         test_mode: req.test_mode,
@@ -307,7 +308,7 @@ pub async fn create_payment_connector(
 pub async fn retrieve_payment_connector(
     store: &dyn StorageInterface,
     merchant_id: String,
-    merchant_connector_id: i32,
+    merchant_connector_id: String,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(&merchant_id)
@@ -362,7 +363,7 @@ pub async fn list_payment_connectors(
 pub async fn update_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: &str,
-    merchant_connector_id: i32,
+    merchant_connector_id: &str,
     req: api::PaymentConnectorCreate,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
     let _merchant_account = db
@@ -375,7 +376,7 @@ pub async fn update_payment_connector(
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
-            &merchant_connector_id,
+            merchant_connector_id,
         )
         .await
         .map_err(|error| {
@@ -395,7 +396,7 @@ pub async fn update_payment_connector(
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
-        merchant_connector_id: Some(merchant_connector_id),
+        merchant_connector_id: Some(merchant_connector_id.to_string()),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
         test_mode: req.test_mode,
@@ -438,7 +439,7 @@ pub async fn update_payment_connector(
 pub async fn delete_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: String,
-    merchant_connector_id: i32,
+    merchant_connector_id: String,
 ) -> RouterResponse<api::DeleteMcaResponse> {
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id)

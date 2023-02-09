@@ -124,8 +124,13 @@ pub fn parse_stream_entries<'a>(
 
 // Here the output is in the format (stream_index, jobs_picked),
 // similar to the first argument of the function
-pub fn increment_stream_index((index, jobs_picked): (u8, u8), total_streams: u8) -> (u8, u8) {
+pub async fn increment_stream_index(
+    (index, jobs_picked): (u8, u8),
+    total_streams: u8,
+    interval: &mut tokio::time::Interval,
+) -> (u8, u8) {
     if index == total_streams - 1 {
+        interval.tick().await;
         match jobs_picked {
             0 => metrics::CYCLES_COMPLETED_UNSUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
             _ => metrics::CYCLES_COMPLETED_SUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),

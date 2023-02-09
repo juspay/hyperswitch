@@ -100,6 +100,7 @@ impl RedisConnectionPool {
 struct RedisConfig {
     default_ttl: u32,
     default_stream_read_count: u64,
+    default_hash_ttl: u32,
 }
 
 impl From<&RedisSettings> for RedisConfig {
@@ -107,6 +108,7 @@ impl From<&RedisSettings> for RedisConfig {
         Self {
             default_ttl: config.default_ttl,
             default_stream_read_count: config.stream_read_count,
+            default_hash_ttl: config.default_hash_ttl,
         }
     }
 }
