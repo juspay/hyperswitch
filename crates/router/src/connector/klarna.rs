@@ -3,7 +3,6 @@ use std::fmt::Debug;
 
 use api_models::payments as api_payments;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as klarna;
 
 use crate::{
