@@ -359,6 +359,7 @@ where
     access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
+        &call_connector_action,
     );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
