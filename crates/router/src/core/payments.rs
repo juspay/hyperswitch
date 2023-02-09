@@ -109,14 +109,6 @@ where
         )
         .await?;
 
-    let connector_details = route_connector(
-        state,
-        &merchant_account,
-        &mut payment_data,
-        connector_details,
-    )
-    .await?;
-
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -134,6 +126,13 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
+        let connector_details = route_connector(
+            state,
+            &merchant_account,
+            &mut payment_data,
+            connector_details,
+        )
+        .await?;
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 call_connector_service(
