@@ -4,6 +4,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use storage_models::enums;
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
@@ -164,9 +165,9 @@ impl
         types::PaymentsCaptureData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentIntentSyncResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("PaymentIntentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -265,7 +266,7 @@ impl
         types::PaymentsResponseData: Clone,
     {
         logger::debug!(payment_sync_response=?res);
-        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentIntentSyncResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -987,10 +988,20 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        logger::debug!(stripe_redirect_response=?query);
+
         Ok(query
             .redirect_status
-            .map_or(payments::CallConnectorAction::Trigger, |status| {
-                payments::CallConnectorAction::StatusUpdate(status.into())
-            }))
+            .map_or(
+                payments::CallConnectorAction::Trigger,
+                |status| match status {
+                    transformers::StripePaymentStatus::Failed => {
+                        payments::CallConnectorAction::Trigger
+                    }
+                    _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
+                        status,
+                    )),
+                },
+            ))
     }
 }
