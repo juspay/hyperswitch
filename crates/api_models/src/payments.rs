@@ -349,6 +349,7 @@ pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
         /// The billing email
+        #[schema(value_type = String)]
         billing_email: Secret<String, pii::Email>,
         // The billing country code
         billing_country: String,
@@ -363,8 +364,10 @@ pub enum PayLaterData {
     /// For AfterpayClearpay redirect as PayLater Option
     AfterpayClearpayRedirect {
         /// The billing email
+        #[schema(value_type = String)]
         billing_email: Secret<String, pii::Email>,
         /// The billing name
+        #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
 }

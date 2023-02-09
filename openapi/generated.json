@@ -66,7 +66,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -100,7 +99,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -144,7 +142,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -180,7 +177,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -254,7 +250,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -264,7 +259,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -302,7 +296,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -312,7 +305,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -360,7 +352,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -370,7 +361,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -444,7 +434,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -478,7 +467,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -522,7 +510,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -558,7 +545,6 @@
             "in": "path",
             "description": "The identifier for mandate",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -594,7 +580,6 @@
             "in": "path",
             "description": "The identifier for mandate",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -664,7 +649,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -674,7 +658,6 @@
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -687,7 +670,6 @@
             "in": "path",
             "description": "The three-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -700,7 +682,6 @@
             "in": "query",
             "description": "The minimum amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -711,7 +692,6 @@
             "in": "query",
             "description": "The maximum amount amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -722,7 +702,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -732,7 +711,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -771,7 +749,6 @@
             "in": "path",
             "description": "The unique identifier for the customer account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -781,7 +758,6 @@
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -794,7 +770,6 @@
             "in": "path",
             "description": "The three-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -807,7 +782,6 @@
             "in": "query",
             "description": "The minimum amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -818,7 +792,6 @@
             "in": "query",
             "description": "The maximum amount amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -829,7 +802,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -839,7 +811,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -878,7 +849,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -912,7 +882,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -956,7 +925,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1026,7 +994,6 @@
             "in": "query",
             "description": "The identifier for the customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1036,7 +1003,6 @@
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1046,7 +1012,6 @@
             "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1056,7 +1021,6 @@
             "in": "query",
             "description": "Limit on the number of objects to return",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1067,7 +1031,6 @@
             "in": "query",
             "description": "The time at which payment is created",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1078,7 +1041,6 @@
             "in": "query",
             "description": "Time less than the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1089,7 +1051,6 @@
             "in": "query",
             "description": "Time greater than the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1100,7 +1061,6 @@
             "in": "query",
             "description": "Time less than or equals to the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1111,7 +1071,6 @@
             "in": "query",
             "description": "Time greater than or equals to the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1175,7 +1134,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1219,7 +1177,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1265,7 +1222,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1304,7 +1260,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1350,7 +1305,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1430,7 +1384,6 @@
             "in": "query",
             "description": "The identifier for the payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1440,7 +1393,6 @@
             "in": "query",
             "description": "Limit on the number of objects to return",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1451,7 +1403,6 @@
             "in": "query",
             "description": "The time at which refund is created",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1462,7 +1413,6 @@
             "in": "query",
             "description": "Time less than the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1473,7 +1423,6 @@
             "in": "query",
             "description": "Time greater than the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1484,7 +1433,6 @@
             "in": "query",
             "description": "Time less than or equals to the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1495,7 +1443,6 @@
             "in": "query",
             "description": "Time greater than or equals to the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1532,7 +1479,6 @@
             "in": "path",
             "description": "The identifier for refund",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1566,7 +1512,6 @@
             "in": "path",
             "description": "The identifier for refund",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -2269,10 +2214,9 @@
             "maxLength": 255
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32",
+            "type": "string",
             "description": "Unique ID of the connector",
-            "example": 42
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "deleted": {
             "type": "boolean",
@@ -2800,8 +2744,7 @@
             "type": "string"
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32"
+            "type": "string"
           }
         }
       },
@@ -2941,11 +2884,8 @@
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": ["issuer_name", "billing_email", "billing_country"],
+                "required": ["billing_email", "billing_country"],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -2964,11 +2904,8 @@
               "klarna_sdk": {
                 "type": "object",
                 "description": "For Klarna Sdk as PayLater Option",
-                "required": ["issuer_name", "token"],
+                "required": ["token"],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "token": {
                     "type": "string",
                     "description": "The token for the sdk workflow"
@@ -2983,17 +2920,7 @@
             "properties": {
               "affirm_redirect": {
                 "type": "object",
-                "description": "For Affirm redirect as PayLater Option",
-                "required": ["issuer_name", "billing_email"],
-                "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AffirmIssuer"
-                  },
-                  "billing_email": {
-                    "type": "string",
-                    "description": "The billing email"
-                  }
-                }
+                "description": "For Affirm redirect as PayLater Option"
               }
             }
           },
@@ -3004,11 +2931,8 @@
               "afterpay_clearpay_redirect": {
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
-                "required": ["issuer_name", "billing_email", "billing_name"],
+                "required": ["billing_email", "billing_name"],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AfterpayClearpayIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3037,10 +2961,9 @@
             "example": "stripe"
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32",
+            "type": "string",
             "description": "Unique ID of the connector",
-            "example": 42
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "connector_account_details": {
             "type": "object"
@@ -3125,6 +3048,25 @@
               }
             }
           }
+        ]
+      },
+      "PaymentIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna",
+          "affirm",
+          "afterpay_clearpay",
+          "american_express",
+          "bank_of_america",
+          "barclays",
+          "capital_one",
+          "chase",
+          "citi",
+          "discover",
+          "navy_federal_credit_union",
+          "pentagon_federal_credit_union",
+          "synchrony_bank",
+          "wells_fargo"
         ]
       },
       "PaymentListConstraints": {
@@ -3629,6 +3571,12 @@
           },
           "browser_info": {
             "type": "object"
+          },
+          "payment_issuer": {
+            "$ref": "#/components/schemas/PaymentIssuer"
+          },
+          "payment_experience": {
+            "$ref": "#/components/schemas/PaymentExperience"
           }
         }
       },
@@ -4043,9 +3991,6 @@
           "error_code": {
             "type": "string",
             "description": "The code for the error"
-          },
-          "error_code": {
-            "type": "string"
           },
           "created_at": {
             "type": "string",
