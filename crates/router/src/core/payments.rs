@@ -452,7 +452,7 @@ where
                 if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
                     connector_response.response
                 {
-                    payment_data.sessions_token.push(*session_token);
+                    payment_data.sessions_token.push(session_token);
                 }
             }
             Err(connector_error) => {

@@ -47,6 +47,7 @@ pub struct ApplePayMetaData {
 pub struct PaymentObjectMetaData {
     pub supported_networks: Vec<String>,
     pub merchant_capabilities: Vec<String>,
+    pub label: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -131,7 +132,7 @@ impl<F>
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let amount_info = AmountInfo {
-            label: "Demo".to_string(),
+            label: metadata.payment_object.label,
             label_type: "final".to_string(),
             amount: (item.data.request.amount / 100).to_string(),
         };
@@ -142,7 +143,10 @@ impl<F>
                 .request
                 .country
                 .to_owned()
-                .unwrap_or_else(|| "US".to_string()),
+                .get_required_value("country_code")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "country_code",
+                })?,
             currency_code: item.data.request.currency.to_string(),
             total: amount_info,
             merchant_capabilities: metadata.payment_object.merchant_capabilities,
@@ -167,10 +171,10 @@ impl<F>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: {
-                    Box::new(api_models::payments::SessionToken::Applepay {
-                        payment_request_object: payment_request.into(),
+                    api_models::payments::SessionToken::Applepay(Box::new(payments::ApplepayData {
                         session_object: applepay_session_object.into(),
-                    })
+                        payment_request_object: payment_request.into(),
+                    }))
                 },
             }),
             ..item.data
@@ -200,9 +204,9 @@ impl From<AmountInfo> for payments::AmountInfo {
     }
 }
 
-impl From<ApplepaySessionResponse> for Box<payments::ApplePaySessionObject> {
+impl From<ApplepaySessionResponse> for payments::ApplePaySessionObject {
     fn from(value: ApplepaySessionResponse) -> Self {
-        Self::new(payments::ApplePaySessionObject {
+        Self {
             epoch_timestamp: value.epoch_timestamp,
             expires_at: value.expires_at,
             merchant_session_identifier: value.merchant_session_identifier,
@@ -214,6 +218,6 @@ impl From<ApplepaySessionResponse> for Box<payments::ApplePaySessionObject> {
             operational_analytics_identifier: value.operational_analytics_identifier,
             retries: value.retries,
             psp_id: value.psp_id,
-        })
+        }
     }
 }

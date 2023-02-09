@@ -186,7 +186,7 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
     },
     SessionResponse {
-        session_token: Box<api::SessionToken>,
+        session_token: api::SessionToken,
     },
 }
 

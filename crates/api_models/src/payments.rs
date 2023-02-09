@@ -1098,33 +1098,49 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay {
-        /// The merchant info
-        merchant_info: GpayMerchantInfo,
-        /// List of the allowed payment meythods
-        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
-        /// The transaction info Google Pay requires
-        transaction_info: GpayTransactionInfo,
-    },
+    Gpay(Box<GpayData>),
     /// The session response structure for Klarna
-    Klarna {
-        /// The session token for Klarna
-        session_token: String,
-        /// The identifier for the session
-        session_id: String,
-    },
+    Klarna(Box<KlarnaData>),
     /// The session response structure for PayPal
-    Paypal {
-        /// The session token for PayPal
-        session_token: String,
-    },
+    Paypal(Box<PaypalData>),
     /// The session response structure for Apple Pay
-    Applepay {
-        /// Session object for Apple Pay
-        session_object: Box<ApplePaySessionObject>,
-        /// Payment request object for Apple Pay
-        payment_request_object: ApplePayRequest,
-    },
+    Applepay(Box<ApplepayData>),
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpayData {
+    /// The merchant info
+    pub merchant_info: GpayMerchantInfo,
+    /// List of the allowed payment meythods
+    pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+    /// The transaction info Google Pay requires
+    pub transaction_info: GpayTransactionInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct KlarnaData {
+    /// The session token for Klarna
+    pub session_token: String,
+    /// The identifier for the session
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct PaypalData {
+    /// The session token for PayPal
+    pub session_token: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct ApplepayData {
+    /// Session object for Apple Pay
+    pub session_object: ApplePaySessionObject,
+    /// Payment request object for Apple Pay
+    pub payment_request_object: ApplePayRequest,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
