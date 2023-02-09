@@ -132,7 +132,11 @@ pub struct PaymentsRequest {
         "java_script_enabled":true
     }"#)]
     pub browser_info: Option<serde_json::Value>,
+    /// Payment Issuser for the current payment
+    #[schema(value_type = Option<PaymentIssuer>, example = "klarna")]
     pub payment_issuer: Option<api_enums::PaymentIssuer>,
+    /// Payment Experience, works in tandem with payment_issuer
+    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 }
 
