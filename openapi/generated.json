@@ -1827,6 +1827,21 @@
           }
         }
       },
+      "ApplepayData": {
+        "type": "object",
+        "required": [
+          "session_object",
+          "payment_request_object"
+        ],
+        "properties": {
+          "session_object": {
+            "$ref": "#/components/schemas/ApplePaySessionObject"
+          },
+          "payment_request_object": {
+            "$ref": "#/components/schemas/ApplePayRequest"
+          }
+        }
+      },
       "AuthenticationType": {
         "type": "string",
         "enum": [
@@ -2534,6 +2549,28 @@
           }
         }
       },
+      "GpayData": {
+        "type": "object",
+        "required": [
+          "merchant_info",
+          "allowed_payment_methods",
+          "transaction_info"
+        ],
+        "properties": {
+          "merchant_info": {
+            "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "allowed_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+            }
+          },
+          "transaction_info": {
+            "$ref": "#/components/schemas/GpayTransactionInfo"
+          }
+        }
+      },
       "GpayMerchantInfo": {
         "type": "object",
         "required": [
@@ -2619,6 +2656,23 @@
           "requires_confirmation",
           "requires_capture"
         ]
+      },
+      "KlarnaData": {
+        "type": "object",
+        "required": [
+          "session_token",
+          "session_id"
+        ],
+        "properties": {
+          "session_token": {
+            "type": "string",
+            "description": "The session token for Klarna"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "The identifier for the session"
+          }
+        }
       },
       "KlarnaIssuer": {
         "type": "string",
@@ -4239,6 +4293,18 @@
           }
         }
       },
+      "PaypalData": {
+        "type": "object",
+        "required": [
+          "session_token"
+        ],
+        "properties": {
+          "session_token": {
+            "type": "string",
+            "description": "The session token for PayPal"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -4456,102 +4522,88 @@
       "SessionToken": {
         "oneOf": [
           {
-            "type": "object",
-            "description": "The session response structure for Google Pay",
-            "required": [
-              "merchant_info",
-              "allowed_payment_methods",
-              "transaction_info",
-              "wallet_name"
-            ],
-            "properties": {
-              "merchant_info": {
-                "$ref": "#/components/schemas/GpayMerchantInfo"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayData"
               },
-              "allowed_payment_methods": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "gpay"
+                    ]
+                  }
                 }
-              },
-              "transaction_info": {
-                "$ref": "#/components/schemas/GpayTransactionInfo"
-              },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "gpay"
-                ]
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "description": "The session response structure for Klarna",
-            "required": [
-              "session_token",
-              "session_id",
-              "wallet_name"
-            ],
-            "properties": {
-              "session_token": {
-                "type": "string",
-                "description": "The session token for Klarna"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/KlarnaData"
               },
-              "session_id": {
-                "type": "string",
-                "description": "The identifier for the session"
-              },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "klarna"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "klarna"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "description": "The session response structure for PayPal",
-            "required": [
-              "session_token",
-              "wallet_name"
-            ],
-            "properties": {
-              "session_token": {
-                "type": "string",
-                "description": "The session token for PayPal"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalData"
               },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "paypal"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paypal"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "description": "The session response structure for Apple Pay",
-            "required": [
-              "session_object",
-              "payment_request_object",
-              "wallet_name"
-            ],
-            "properties": {
-              "session_object": {
-                "$ref": "#/components/schemas/ApplePaySessionObject"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplepayData"
               },
-              "payment_request_object": {
-                "$ref": "#/components/schemas/ApplePayRequest"
-              },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "applepay"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "applepay"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           }
         ],
         "discriminator": {
