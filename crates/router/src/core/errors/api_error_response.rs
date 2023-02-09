@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
+use http::StatusCode;
+
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorType {
@@ -252,5 +254,129 @@ impl actix_web::ResponseError for ApiErrorResponse {
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
             .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
+    }
+}
+
+impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse>
+    for ApiErrorResponse
+{
+    fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
+        use api_models::errors::types::ApiError;
+        use api_models::errors::types::ApiErrorResponse as AER;
+
+        let error_message = self.error_message();
+        let error_codes = self.error_code();
+        let error_type = self.error_type();
+
+        match self {
+            Self::Unauthorized
+            | Self::InvalidEphemeralKey
+            | Self::InvalidJwtToken
+            | Self::GenericUnauthorized { .. } => AER::Unauthorized(ApiError {
+                sub_code: error_codes,
+                error_identifier: 0,
+                error_message: error_message,
+            }), // 401
+            Self::ExternalConnectorError { status_code, .. } => AER::ConnectorError(
+                ApiError {
+                    error_identifier: 0,
+                    sub_code: error_codes,
+                    error_message: error_message,
+                },
+                StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            ),
+            Self::InvalidRequestUrl => AER::NotFound(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 404
+            Self::InvalidHttpMethod => AER::MethodNotAllowed(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 405
+            Self::MissingRequiredField { .. }
+            | Self::InvalidDataValue { .. }
+            | Self::RefundAmountExceedsPaymentAmount
+            | Self::PreconditionFailed { .. }
+            | Self::MaximumRefundCount => AER::BadRequest(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }),
+            Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
+                AER::Unprocessable(ApiError {
+                    error_identifier: 0,
+                    error_message: error_message,
+                    sub_code: error_codes,
+                })
+            } // 422
+
+            Self::PaymentAuthorizationFailed { .. }
+            | Self::PaymentAuthenticationFailed { .. }
+            | Self::PaymentCaptureFailed { .. }
+            | Self::InvalidCardData { .. }
+            | Self::CardExpired { .. }
+            | Self::RefundFailed { .. }
+            | Self::RefundNotPossible { .. }
+            | Self::VerificationFailed { .. }
+            | Self::PaymentUnexpectedState { .. }
+            | Self::MandateValidationFailed { .. }
+            | Self::DuplicateRefundRequest
+            | Self::DuplicatePayment { .. } => AER::BadRequest(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 400
+
+            Self::InternalServerError => AER::InternalServerError(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }),
+            Self::RefundNotFound
+            | Self::CustomerNotFound
+            | Self::MandateActive
+            | Self::CustomerRedacted
+            | Self::PaymentNotFound
+            | Self::PaymentMethodNotFound
+            | Self::MerchantAccountNotFound
+            | Self::MerchantConnectorAccountNotFound
+            | Self::MandateNotFound
+            | Self::ClientSecretNotGiven
+            | Self::ClientSecretInvalid
+            | Self::SuccessfulPaymentNotFound
+            | Self::IncorrectConnectorNameGiven
+            | Self::ResourceIdNotFound
+            | Self::ConfigNotFound
+            | Self::AddressNotFound => AER::ForbiddenPrivateResource(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 400
+            Self::DuplicateMerchantAccount
+            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicatePaymentMethod
+            | Self::DuplicateMandate => AER::BadRequest(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 400
+            Self::ReturnUrlUnavailable => AER::NotFound(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 503
+            Self::PaymentNotSucceeded => AER::BadRequest(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 400
+            Self::NotImplemented { .. } => AER::NotImplemented(ApiError {
+                error_identifier: 0,
+                error_message: error_message,
+                sub_code: error_codes,
+            }), // 501
+        }
     }
 }

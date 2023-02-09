@@ -8,9 +8,9 @@ pub enum ErrorType {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ApiError {
-    pub sub_code: &'static str,
-    pub error_identifier: u8,
-    pub error_message: &'static str,
+    pub sub_code: String,
+    pub error_identifier: u16,
+    pub error_message: String,
 }
 
 #[derive(Debug)]
@@ -24,6 +24,9 @@ pub enum ApiErrorResponse {
     InternalServerError(ApiError),
     NotImplemented(ApiError),
     ConnectorError(ApiError, StatusCode),
+    NotFound(ApiError),
+    MethodNotAllowed(ApiError),
+    BadRequest(ApiError),
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -48,6 +51,9 @@ impl ApiErrorResponse {
             | Self::Unprocessable(i)
             | Self::InternalServerError(i)
             | Self::NotImplemented(i)
+            | Self::NotFound(i)
+            | Self::MethodNotAllowed(i)
+            | Self::BadRequest(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -63,6 +69,9 @@ impl ApiErrorResponse {
             | Self::NotImplemented(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
             Self::ConnectorError(_, _) => "connector",
+            Self::MethodNotAllowed(_) => "invalid_request",
+            Self::NotFound(_) => "invalid_request",
+            Self::BadRequest(_) => "bad_request",
         }
     }
 }

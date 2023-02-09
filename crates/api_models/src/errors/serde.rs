@@ -17,7 +17,7 @@ impl Serialize for ApiErrorResponse {
                 self.get_internal_error().error_identifier
             ),
         )?;
-        map.serialize_entry("error_message", self.get_internal_error().error_message)?;
+        map.serialize_entry("error_message", &self.get_internal_error().error_message)?;
         map.end()
     }
 }
