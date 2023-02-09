@@ -29,16 +29,19 @@ where
 pub struct ApiKeyAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for ApiKeyAuth {
+impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for ApiKeyAuth
+where
+    A: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
         let api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         state
-            .store
+            .store()
             .find_merchant_account_by_api_key(api_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
@@ -50,15 +53,19 @@ impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for ApiKeyAuth {
 pub struct AdminApiAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<(), AppState> for AdminApiAuth {
+impl<A> AuthenticateAndFetch<(), A> for AdminApiAuth
+where
+    A: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<()> {
         let admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        if admin_api_key != state.conf.secrets.admin_api_key {
+        let conf = state.conf();
+        if admin_api_key != conf.secrets.admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -115,11 +122,14 @@ struct JwtAuthPayloadFetchUnit {
 }
 
 #[async_trait]
-impl AuthenticateAndFetch<(), AppState> for JWTAuth {
+impl<A> AuthenticateAndFetch<(), A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<()> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
@@ -133,17 +143,20 @@ struct JwtAuthPayloadFetchMerchantAccount {
 }
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for JWTAuth {
+impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
         let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state)?;
         state
-            .store
+            .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)
@@ -250,15 +263,16 @@ pub async fn is_ephemeral_auth(
     Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
 }
 
-fn is_jwt_auth(headers: &HeaderMap) -> bool {
+pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
-pub fn decode_jwt<T>(token: &str, state: &AppState) -> RouterResult<T>
+pub fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    let secret = state.conf.secrets.jwt_secret.as_bytes();
+    let conf = state.conf();
+    let secret = conf.secrets.jwt_secret.as_bytes();
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
@@ -266,7 +280,7 @@ where
         .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
-fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
+pub fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get("api-key")
         .get_required_value("api-key")?
@@ -276,7 +290,7 @@ fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
         .attach_printable("Failed to convert API key to string")
 }
 
-fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
+pub fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
@@ -286,7 +300,7 @@ fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
         .attach_printable("Failed to convert JWT token to string")
 }
 
-fn strip_jwt_token(token: &str) -> RouterResult<&str> {
+pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
     token
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
