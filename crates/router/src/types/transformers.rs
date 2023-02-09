@@ -417,11 +417,15 @@ impl
 
         let (api_key, plaintext_api_key) = item.0;
         api_models::api_keys::CreateApiKeyResponse {
-            key_id: api_key.key_id,
+            key_id: api_key.key_id.clone(),
             merchant_id: api_key.merchant_id,
             name: api_key.name,
             description: api_key.description,
-            api_key: StrongSecret::from(plaintext_api_key.peek().to_owned()),
+            api_key: StrongSecret::from(format!(
+                "{}-{}",
+                api_key.key_id,
+                plaintext_api_key.peek().to_owned()
+            )),
             created: api_key.created_at,
             expiration: api_key.expires_at.into(),
         }
@@ -433,11 +437,11 @@ impl From<F<storage_models::api_keys::ApiKey>> for F<api_models::api_keys::Retri
     fn from(item: F<storage_models::api_keys::ApiKey>) -> Self {
         let api_key = item.0;
         api_models::api_keys::RetrieveApiKeyResponse {
-            key_id: api_key.key_id,
+            key_id: api_key.key_id.clone(),
             merchant_id: api_key.merchant_id,
             name: api_key.name,
             description: api_key.description,
-            prefix: api_key.prefix.into(),
+            prefix: format!("{}-{}", api_key.key_id, api_key.prefix).into(),
             created: api_key.created_at,
             expiration: api_key.expires_at.into(),
         }

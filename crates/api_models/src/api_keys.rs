@@ -49,7 +49,7 @@ pub struct CreateApiKeyResponse {
 
     /// The plaintext API Key used for server-side API access. Ensure you store the API Key
     /// securely as you will not be able to see it again.
-    #[schema(value_type = String, max_length = 64)]
+    #[schema(value_type = String, max_length = 128)]
     pub api_key: StrongSecret<String>,
 
     /// The time at which the API Key was created.
@@ -91,7 +91,7 @@ pub struct RetrieveApiKeyResponse {
     pub description: Option<String>,
 
     /// The first few characters of the plaintext API Key to help you identify it.
-    #[schema(value_type = String, max_length = 16)]
+    #[schema(value_type = String, max_length = 64)]
     pub prefix: StrongSecret<String>,
 
     /// The time at which the API Key was created.

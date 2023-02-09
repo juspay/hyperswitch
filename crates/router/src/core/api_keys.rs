@@ -20,21 +20,20 @@ pub struct HashedApiKey(String);
 impl PlaintextApiKey {
     const HASH_KEY_LEN: usize = 32;
 
-    const PREFIX_LEN: usize = 12;
+    const PREFIX_LEN: usize = 8;
 
     pub fn new(length: usize) -> Self {
-        let env = match router_env::env::which() {
-            router_env::Env::Development => "dev",
-            router_env::Env::Sandbox => "snd",
-            router_env::Env::Production => "prd",
-        };
         let key = common_utils::crypto::generate_cryptographically_secure_random_string(length);
-
-        Self(format!("{env}_{key}").into())
+        Self(key.into())
     }
 
     pub fn new_hash_key() -> [u8; Self::HASH_KEY_LEN] {
         common_utils::crypto::generate_cryptographically_secure_random_bytes()
+    }
+
+    pub fn new_key_id() -> String {
+        let env = router_env::env::prefix_for_env();
+        utils::generate_id(consts::ID_LENGTH, env)
     }
 
     pub fn prefix(&self) -> String {
@@ -103,7 +102,7 @@ pub async fn create_api_key(
     let hash_key = PlaintextApiKey::new_hash_key();
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {
-        key_id: utils::generate_id(consts::ID_LENGTH, "key"),
+        key_id: PlaintextApiKey::new_key_id(),
         merchant_id,
         name: api_key.name,
         description: api_key.description,
