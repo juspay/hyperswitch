@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use api_models::{self, payments};
+use api_models::{
+    self,
+    payments::{self},
+};
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -132,6 +135,14 @@ pub struct StripePayLaterData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeBankRedirectData {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
@@ -139,7 +150,7 @@ pub enum StripePaymentMethodData {
     Bank,
     Wallet,
     Paypal,
-    BankRedirect,
+    BankRedirect(StripeBankRedirectData),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -149,6 +160,11 @@ pub enum StripePaymentMethodType {
     Klarna,
     Affirm,
     AfterpayClearpay,
+    #[serde(rename = "eps")]
+    EPS,
+    Giropay,
+    Ideal,
+    Sofort,
 }
 
 fn validate_shipping_address_against_payment_method(
@@ -205,6 +221,18 @@ fn infer_stripe_pay_later_issuer(
     }
 }
 
+//TODO: infer this from the payment_method_type
+fn infer_stripe_bank_redirect_issuer(
+    bank_redirect_data: &payments::BankRedirectData,
+) -> Result<StripePaymentMethodType, errors::ConnectorError> {
+    match bank_redirect_data {
+        payments::BankRedirectData::Eps(_) => Ok(StripePaymentMethodType::EPS),
+        payments::BankRedirectData::Giropay(_) => Ok(StripePaymentMethodType::Giropay),
+        payments::BankRedirectData::Ideal(_) => Ok(StripePaymentMethodType::Ideal),
+        payments::BankRedirectData::Sofort(_) => Ok(StripePaymentMethodType::Sofort),
+    }
+}
+
 impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
     for StripeBillingAddress
 {
@@ -237,6 +265,28 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
             ) => Ok(Self {
                 email: Some(billing_email.to_owned()),
                 name: Some(billing_name.to_owned()),
+                ..Self::default()
+            }),
+            _ => Err(errors::ConnectorError::MismatchedPaymentData),
+        }
+    }
+}
+
+impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
+    type Error = errors::ConnectorError;
+
+    fn try_from(bank_redirection_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
+        match bank_redirection_data {
+            payments::BankRedirectData::Eps(eps_data) => Ok(Self {
+                name: Some(eps_data.billing_details.billing_name.clone()),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::Giropay(giropay_data) => Ok(Self {
+                name: Some(giropay_data.billing_details.billing_name.clone()),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::Ideal(ideal_data) => Ok(Self {
+                name: Some(ideal_data.billing_details.billing_name.clone()),
                 ..Self::default()
             }),
             _ => Err(errors::ConnectorError::MismatchedPaymentData),
@@ -293,6 +343,18 @@ fn create_stripe_payment_method(
 
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
+                    payment_method_types: pm_type.clone(),
+                    payment_method_data_type: pm_type.clone(),
+                }),
+                pm_type,
+                billing_address,
+            ))
+        }
+        payments::PaymentMethod::BankRedirect(bank_redirect_data) => {
+            let billing_address = StripeBillingAddress::try_from(bank_redirect_data)?;
+            let pm_type = infer_stripe_bank_redirect_issuer(bank_redirect_data)?;
+            Ok((
+                StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type.clone(),
                     payment_method_data_type: pm_type.clone(),
                 }),
@@ -526,9 +588,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
-                    StripePaymentMethodOptions::Klarna {} => None,
-                    StripePaymentMethodOptions::Affirm {} => None,
-                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
+                    _ => None,
                 });
 
         Ok(Self {
@@ -581,9 +641,7 @@ impl<F, T>
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
                     } => mandate_options.map(|mandate_option| mandate_option.reference),
-                    StripePaymentMethodOptions::Klarna {} => None,
-                    StripePaymentMethodOptions::Affirm {} => None,
-                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
+                    _ => None,
                 });
 
         Ok(Self {
@@ -827,6 +885,10 @@ pub enum StripePaymentMethodOptions {
     Klarna {},
     Affirm {},
     AfterpayClearpay {},
+    #[serde(rename = "eps")]
+    EPS {},
+    Giropay {},
+    Ideal {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
@@ -954,6 +1016,17 @@ impl
                 payment_method_types: pm_type.clone(),
                 payment_method_data_type: pm_type,
             })),
+            api::PaymentMethod::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+                payments::BankRedirectData::Eps(_) => {
+                    Ok(Self::BankRedirect(StripeBankRedirectData {
+                        payment_method_types: StripePaymentMethodType::EPS,
+                        payment_method_data_type: StripePaymentMethodType::EPS,
+                    }))
+                }
+                payments::BankRedirectData::Giropay(_) => todo!(),
+                payments::BankRedirectData::Ideal(_) => todo!(),
+                payments::BankRedirectData::Sofort(_) => todo!(),
+            },
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),
         }
