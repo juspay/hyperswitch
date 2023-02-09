@@ -249,45 +249,35 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
     type Error = errors::ConnectorError;
 
     fn try_from(
-        (payment_method, pm_type): (&api_models::payments::PayLaterData, StripePaymentMethodType),
+        (pay_later_data, pm_type): (&api_models::payments::PayLaterData, StripePaymentMethodType),
     ) -> Result<Self, Self::Error> {
-        match payment_method {
-            payments::PayLaterData::KlarnaRedirect {
-                billing_email,
-                billing_country,
-            } => {
-                if pm_type == StripePaymentMethodType::Klarna {
-                    Ok(Self {
-                        email: Some(billing_email.to_owned()),
-                        country: Some(billing_country.to_owned()),
-                        ..Self::default()
-                    })
-                } else {
-                    Err(errors::ConnectorError::MismatchedPaymentData)
-                }
+        match (pay_later_data, pm_type) {
+            (
+                payments::PayLaterData::KlarnaRedirect {
+                    billing_email,
+                    billing_country,
+                },
+                StripePaymentMethodType::Klarna,
+            ) => Ok(Self {
+                email: Some(billing_email.to_owned()),
+                country: Some(billing_country.to_owned()),
+                ..Self::default()
+            }),
+            (payments::PayLaterData::AffirmRedirect {}, StripePaymentMethodType::Affirm) => {
+                Ok(Self::default())
             }
-            payments::PayLaterData::AffirmRedirect {} => {
-                if pm_type == StripePaymentMethodType::Affirm {
-                    Ok(Self::default())
-                } else {
-                    Err(errors::ConnectorError::MismatchedPaymentData)
-                }
-            }
-            payments::PayLaterData::AfterpayClearpayRedirect {
-                billing_email,
-                billing_name,
-            } => {
-                if pm_type == StripePaymentMethodType::AfterpayClearpay {
-                    Ok(Self {
-                        email: Some(billing_email.to_owned()),
-                        name: Some(billing_name.to_owned()),
-                        ..Self::default()
-                    })
-                } else {
-                    Err(errors::ConnectorError::MismatchedPaymentData)
-                }
-            }
-            _ => Ok(Self::default()),
+            (
+                payments::PayLaterData::AfterpayClearpayRedirect {
+                    billing_email,
+                    billing_name,
+                },
+                StripePaymentMethodType::AfterpayClearpay,
+            ) => Ok(Self {
+                email: Some(billing_email.to_owned()),
+                name: Some(billing_name.to_owned()),
+                ..Self::default()
+            }),
+            _ => Err(errors::ConnectorError::MismatchedPaymentData),
         }
     }
 }
