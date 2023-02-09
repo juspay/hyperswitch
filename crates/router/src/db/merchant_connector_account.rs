@@ -138,7 +138,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         connector: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
@@ -154,7 +154,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,
@@ -169,7 +169,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         t.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -177,7 +177,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(Into::into)
@@ -189,7 +189,7 @@ impl MerchantConnectorAccountInterface for Store {
         this: storage::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         this.update(&conn, merchant_connector_account)
             .await
             .map_err(Into::into)
@@ -201,7 +201,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,
