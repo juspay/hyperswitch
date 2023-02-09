@@ -757,6 +757,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethod::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethod::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,

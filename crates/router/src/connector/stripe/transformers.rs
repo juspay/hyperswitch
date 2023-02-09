@@ -139,6 +139,7 @@ pub enum StripePaymentMethodData {
     Bank,
     Wallet,
     Paypal,
+    BankRedirect,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
