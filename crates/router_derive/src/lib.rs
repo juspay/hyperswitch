@@ -93,7 +93,7 @@ pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///     Green,
 ///     Blue,
 /// }
-///
+/// ```
 #[proc_macro_derive(DieselEnumText)]
 pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
