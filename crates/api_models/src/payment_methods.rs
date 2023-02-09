@@ -168,24 +168,12 @@ pub struct ListPaymentMethodRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[schema(example = json!(
-        {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
-        }
-    ))]
-    pub accepted_countries: Option<admin::AcceptedCountries>,
+    #[schema(example = json!(["US", "UK", "IN"]))]
+    pub accepted_countries: Option<Vec<String>>,
 
     /// The three-letter ISO currency code
-    #[schema(example = json!(
-        {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
-        }
-    ))]
-    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
+    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
     /// Filter by amount
     #[schema(example = 60)]
@@ -229,18 +217,18 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
                                 map.next_value()?,
                             )?;
                         }
-                        // "accepted_countries" => match output.accepted_countries.as_mut() {
-                        //     Some(inner) => inner.push(map.next_value()?),
-                        //     None => {
-                        //         output.accepted_countries = Some(vec![map.next_value()?]);
-                        //     }
-                        // },
-                        // "accepted_currencies" => match output.accepted_currencies.as_mut() {
-                        //     Some(inner) => inner.push(map.next_value()?),
-                        //     None => {
-                        //         output.accepted_currencies = Some(vec![map.next_value()?]);
-                        //     }
-                        // },
+                        "accepted_countries" => match output.accepted_countries.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_countries = Some(vec![map.next_value()?]);
+                            }
+                        },
+                        "accepted_currencies" => match output.accepted_currencies.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_currencies = Some(vec![map.next_value()?]);
+                            }
+                        },
                         "amount" => {
                             set_or_reject_duplicate(
                                 &mut output.amount,
