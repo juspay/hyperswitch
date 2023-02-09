@@ -182,45 +182,6 @@ fn validate_shipping_address_against_payment_method(
     Ok(())
 }
 
-// This might be required later on if we decide to take billing address from billing address
-// instead of from payment method
-
-// fn validate_billing_address_against_payment_method(
-//     billing_address: &StripeBillingAddress,
-//     payment_method: &StripePaymentMethodType,
-// ) -> Result<(), errors::ConnectorError> {
-//     match payment_method {
-//         StripePaymentMethodType::Klarna => {
-//             fp_utils::when(billing_address.country.is_none(), || {
-//                 Err(errors::ConnectorError::MissingRequiredField {
-//                     field_name: "billing_country",
-//                 })
-//             })?;
-
-//             fp_utils::when(billing_address.email.is_none(), || {
-//                 Err(errors::ConnectorError::MissingRequiredField {
-//                     field_name: "billing_email",
-//                 })
-//             })?;
-//         }
-
-//         StripePaymentMethodType::AfterpayClearpay => {
-//             fp_utils::when(billing_address.name.is_none(), || {
-//                 Err(errors::ConnectorError::MissingRequiredField {
-//                     field_name: "billing_name",
-//                 })
-//             })?;
-//             fp_utils::when(billing_address.email.is_none(), || {
-//                 Err(errors::ConnectorError::MissingRequiredField {
-//                     field_name: "billing_email",
-//                 })
-//             })?;
-//         }
-//         _ => (),
-//     }
-//     Ok(())
-// }
-
 fn infer_stripe_pay_later_issuer(
     issuer: &enums::PaymentIssuer,
     experience: &enums::PaymentExperience,
@@ -401,11 +362,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         &shipping_address,
                         &payment_method_type,
                     )?;
-
-                    // validate_billing_address_against_payment_method(
-                    //     &billing_address,
-                    //     &payment_method_type,
-                    // )?;
 
                     (Some(payment_method_data), None, billing_address)
                 }
