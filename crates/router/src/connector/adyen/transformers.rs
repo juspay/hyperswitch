@@ -332,22 +332,6 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     }
 }
 
-impl TryFrom<&types::BrowserInformation> for AdyenBrowserInfo {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::BrowserInformation) -> Result<Self, Self::Error> {
-        Ok(Self {
-            accept_header: item.accept_header.clone(),
-            language: item.language.clone(),
-            screen_height: item.screen_height,
-            screen_width: item.screen_width,
-            color_depth: item.color_depth,
-            user_agent: item.user_agent.clone(),
-            time_zone_offset: item.time_zone,
-            java_enabled: item.java_enabled,
-        })
-    }
-}
-
 // Payment Request Transform
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -385,17 +369,23 @@ fn get_recurring_processing_model(
     }
 }
 
-fn get_browser_info(
-    item: &types::PaymentsAuthorizeRouterData,
-) -> Result<Option<AdyenBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
+fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<AdyenBrowserInfo> {
     if matches!(item.auth_type, storage_enums::AuthenticationType::ThreeDs) {
         item.request
             .browser_info
-            .clone()
-            .map(|d| AdyenBrowserInfo::try_from(&d))
-            .transpose()
+            .as_ref()
+            .map(|info| AdyenBrowserInfo {
+                accept_header: info.accept_header.clone(),
+                language: info.language.clone(),
+                screen_height: info.screen_height,
+                screen_width: info.screen_width,
+                color_depth: info.color_depth,
+                user_agent: info.user_agent.clone(),
+                time_zone_offset: info.time_zone,
+                java_enabled: info.java_enabled,
+            })
     } else {
-        Ok(None)
+        None
     }
 }
 
@@ -416,22 +406,17 @@ fn get_amount_data(item: &types::PaymentsAuthorizeRouterData) -> Amount {
     }
 }
 
-impl From<Option<&api_models::payments::Address>> for Address {
-    fn from(address: Option<&api_models::payments::Address>) -> Self {
-        address.and_then(|a| a.address.as_ref()).map_or_else(
-            || Self {
-                ..Default::default()
-            },
-            |address| Self {
-                city: address.city.clone(),
-                country: address.country.clone(),
-                house_number_or_name: address.line1.clone(),
-                postal_code: address.zip.clone(),
-                state_or_province: address.state.clone(),
-                street: address.line2.clone(),
-            },
-        )
-    }
+fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<Address> {
+    address.and_then(|add| {
+        add.address.as_ref().map(|a| Address {
+            city: a.city.clone(),
+            country: a.country.clone(),
+            house_number_or_name: a.line1.clone(),
+            postal_code: a.zip.clone(),
+            state_or_province: a.state.clone(),
+            street: a.line2.clone(),
+        })
+    })
 }
 
 fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
@@ -560,7 +545,7 @@ fn get_card_specific_payment_data(
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let browser_info = get_browser_info(item)?;
+    let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
     let return_url = item.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
@@ -589,7 +574,7 @@ fn get_wallet_specific_payment_data(
 ) -> Result<AdyenPaymentRequest, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-    let browser_info = get_browser_info(item)?;
+    let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -620,7 +605,7 @@ fn get_paylater_specific_payment_data(
 ) -> Result<AdyenPaymentRequest, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-    let browser_info = get_browser_info(item)?;
+    let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -628,8 +613,8 @@ fn get_paylater_specific_payment_data(
     let return_url = item.get_return_url()?;
     let shopper_name = get_shopper_name(item);
     let shopper_email = item.request.email.clone();
-    let billing_address = Some(Address::from(item.address.billing.as_ref()));
-    let delivery_address = Some(Address::from(item.address.shipping.as_ref()));
+    let billing_address = get_address_info(item.address.billing.as_ref());
+    let delivery_address = get_address_info(item.address.shipping.as_ref());
     let country_code = get_country_code(item);
     let line_items = Some(get_line_items(item));
     let telephone_number = get_telephone_number(item);
