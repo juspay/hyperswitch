@@ -398,15 +398,9 @@ pub enum BankRedirectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortRequestData {
     /// The billing details for bank redirection
-    pub billing_details: SofortBilling,
+    pub country: String,
     /// The preferred language
     pub preferred_language: String,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct SofortBilling {
-    /// The country associated with the billing
-    pub billing_country: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
