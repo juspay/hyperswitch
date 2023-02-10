@@ -138,6 +138,9 @@ pub struct PaymentsRequest {
     /// Payment Experience, works in tandem with payment_issuer
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
+    /// Payment Method Type, works in tandem with payment_issuer
+    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

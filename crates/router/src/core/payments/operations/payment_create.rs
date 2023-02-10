@@ -422,8 +422,8 @@ impl PaymentCreate {
             merchant_id: merchant_id.to_string(),
             attempt_id: Uuid::new_v4().to_string(),
             status,
-            amount: amount.into(),
             currency,
+            amount: amount.into(),
             payment_method,
             capture_method: request.capture_method.map(ForeignInto::foreign_into),
             capture_on: request.capture_on,
@@ -435,6 +435,7 @@ impl PaymentCreate {
             browser_info,
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
             payment_issuer: request.payment_issuer.map(ForeignInto::foreign_into),
+            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
             ..storage::PaymentAttemptNew::default()
         }
     }

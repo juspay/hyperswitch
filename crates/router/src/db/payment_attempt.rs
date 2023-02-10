@@ -244,6 +244,7 @@ impl PaymentAttemptInterface for MockDb {
             connector_metadata: None,
             payment_experience: payment_attempt.payment_experience,
             payment_issuer: payment_attempt.payment_issuer,
+            payment_method_type: payment_attempt.payment_method_type,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -383,6 +384,7 @@ mod storage {
                         connector_metadata: payment_attempt.connector_metadata.clone(),
                         payment_experience: payment_attempt.payment_experience.clone(),
                         payment_issuer: payment_attempt.payment_issuer,
+                        payment_method_type: payment_attempt.payment_method_type,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);

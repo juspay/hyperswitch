@@ -39,6 +39,7 @@ pub struct PaymentAttempt {
     pub connector_metadata: Option<serde_json::Value>,
     pub payment_issuer: Option<storage_enums::PaymentIssuer>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
 }
 
 #[derive(
@@ -78,6 +79,7 @@ pub struct PaymentAttemptNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub payment_issuer: Option<storage_enums::PaymentIssuer>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

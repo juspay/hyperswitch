@@ -117,6 +117,7 @@ pub struct PaymentsAuthorizeData {
     pub order_details: Option<api_models::payments::OrderDetails>,
     pub payment_issuer: Option<storage_enums::PaymentIssuer>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
 }
 
 #[derive(Debug, Clone)]

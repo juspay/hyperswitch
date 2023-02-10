@@ -134,12 +134,50 @@ pub struct StripePayLaterData {
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Default)]
+pub struct StripeBankName {
+    #[serde(rename = "payment_method_data[eps][bank]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eps_bank_name: Option<enums::PaymentIssuer>,
+    #[serde(rename = "payment_method_data[ideal][bank]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ideal_bank_name: Option<enums::PaymentIssuer>,
+}
+
+impl TryFrom<(&StripePaymentMethodType, Option<&enums::PaymentIssuer>)> for StripeBankName {
+    type Error = errors::ConnectorError;
+
+    fn try_from(
+        (stripe_pm_type, pm_issuer): (&StripePaymentMethodType, Option<&enums::PaymentIssuer>),
+    ) -> Result<Self, Self::Error> {
+        match (stripe_pm_type, pm_issuer) {
+            (StripePaymentMethodType::Eps, Some(eps_bank_name)) => Ok(Self {
+                eps_bank_name: Some(eps_bank_name.to_owned()),
+                ..Self::default()
+            }),
+            (StripePaymentMethodType::Ideal, Some(ideal_bank_name)) => Ok(Self {
+                ideal_bank_name: Some(ideal_bank_name.to_owned()),
+                ..Self::default()
+            }),
+            // Passing issuer is compulsory if pm type is eps or ideal
+            (StripePaymentMethodType::Eps | StripePaymentMethodType::Ideal, None) => {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_issuer",
+                })
+            }
+            _ => Err(errors::ConnectorError::MismatchedPaymentData),
+        }
+    }
+}
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankRedirectData {
     #[serde(rename = "payment_method_types[]")]
     pub payment_method_types: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
+    // Required only for eps and ideal
+    #[serde(flatten)]
+    pub bank_name: Option<StripeBankName>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -160,8 +198,7 @@ pub enum StripePaymentMethodType {
     Klarna,
     Affirm,
     AfterpayClearpay,
-    #[serde(rename = "eps")]
-    EPS,
+    Eps,
     Giropay,
     Ideal,
     Sofort,
@@ -223,13 +260,23 @@ fn infer_stripe_pay_later_issuer(
 
 //TODO: infer this from the payment_method_type
 fn infer_stripe_bank_redirect_issuer(
-    bank_redirect_data: &payments::BankRedirectData,
+    payment_method_type: Option<&enums::PaymentMethodSubType>,
 ) -> Result<StripePaymentMethodType, errors::ConnectorError> {
-    match bank_redirect_data {
-        payments::BankRedirectData::Eps(_) => Ok(StripePaymentMethodType::EPS),
-        payments::BankRedirectData::Giropay(_) => Ok(StripePaymentMethodType::Giropay),
-        payments::BankRedirectData::Ideal(_) => Ok(StripePaymentMethodType::Ideal),
-        payments::BankRedirectData::Sofort(_) => Ok(StripePaymentMethodType::Sofort),
+    match payment_method_type {
+        Some(storage_models::enums::PaymentMethodSubType::Giropay) => {
+            Ok(StripePaymentMethodType::Giropay)
+        }
+        Some(storage_models::enums::PaymentMethodSubType::Ideal) => {
+            Ok(StripePaymentMethodType::Ideal)
+        }
+        Some(storage_models::enums::PaymentMethodSubType::Sofort) => {
+            Ok(StripePaymentMethodType::Sofort)
+        }
+        Some(storage_models::enums::PaymentMethodSubType::Eps) => Ok(StripePaymentMethodType::Eps),
+        None => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "payment_method_type",
+        }),
+        _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
 
@@ -299,6 +346,7 @@ fn create_stripe_payment_method(
     experience: Option<&enums::PaymentExperience>,
     payment_method: &api_models::payments::PaymentMethod,
     auth_type: enums::AuthenticationType,
+    payment_method_type: Option<&enums::PaymentMethodSubType>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -352,11 +400,12 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethod::BankRedirect(bank_redirect_data) => {
             let billing_address = StripeBillingAddress::try_from(bank_redirect_data)?;
-            let pm_type = infer_stripe_bank_redirect_issuer(bank_redirect_data)?;
+            let pm_type = infer_stripe_bank_redirect_issuer(payment_method_type)?;
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type.clone(),
                     payment_method_data_type: pm_type.clone(),
+                    bank_name: Some(StripeBankName::try_from((&pm_type, issuer))?),
                 }),
                 pm_type,
                 billing_address,
@@ -419,6 +468,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             item.request.payment_experience.as_ref(),
                             &item.request.payment_method_data,
                             item.auth_type,
+                            item.request.payment_method_type.as_ref(),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -979,8 +1029,7 @@ pub enum StripePaymentMethodOptions {
     Klarna {},
     Affirm {},
     AfterpayClearpay {},
-    #[serde(rename = "eps")]
-    EPS {},
+    Eps {},
     Giropay {},
     Ideal {},
 }
@@ -1110,17 +1159,11 @@ impl
                 payment_method_types: pm_type.clone(),
                 payment_method_data_type: pm_type,
             })),
-            api::PaymentMethod::BankRedirect(bank_redirect_data) => match bank_redirect_data {
-                payments::BankRedirectData::Eps(_) => {
-                    Ok(Self::BankRedirect(StripeBankRedirectData {
-                        payment_method_types: StripePaymentMethodType::EPS,
-                        payment_method_data_type: StripePaymentMethodType::EPS,
-                    }))
-                }
-                payments::BankRedirectData::Giropay(_) => todo!(),
-                payments::BankRedirectData::Ideal(_) => todo!(),
-                payments::BankRedirectData::Sofort(_) => todo!(),
-            },
+            api::PaymentMethod::BankRedirect(_) => Ok(Self::BankRedirect(StripeBankRedirectData {
+                payment_method_types: pm_type.clone(),
+                payment_method_data_type: pm_type,
+                bank_name: None,
+            })),
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),
         }

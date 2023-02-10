@@ -8,9 +8,8 @@ pub mod diesel_exports {
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
-        DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
-        DbRefundType as RefundType,
+        DbPaymentMethodType as PaymentMethodType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
 
@@ -423,7 +422,7 @@ pub enum PaymentMethodIssuerCode {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodSubType {
@@ -433,6 +432,10 @@ pub enum PaymentMethodSubType {
     UpiCollect,
     CreditCardInstallments,
     PayLaterInstallments,
+    Giropay,
+    Ideal,
+    Sofort,
+    Eps,
 }
 
 #[derive(
@@ -638,6 +641,50 @@ pub enum PaymentIssuer {
     PentagonFederalCreditUnion,
     SynchronyBank,
     WellsFargo,
+    AbnAmro,
+    AsnBank,
+    Bunq,
+    Handelsbanken,
+    Ing,
+    Knab,
+    Moneyou,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+    ArzteUndApothekerBank,
+    AustrianAnadiBankAg,
+    BankAustria,
+    Bank99Ag,
+    BankhausCarlSpangler,
+    BankhausSchelhammerUndSchatteraAg,
+    BawagPskAg,
+    BksBankAg,
+    BrullKallmusBankAg,
+    BtvVierLanderBank,
+    CapitalBankGraweGruppeAg,
+    Dolomitenbank,
+    EasybankAg,
+    ErsteBankUndSparkassen,
+    HypoAlpeadriabankInternationalAg,
+    HypoNoeLbFurNiederosterreichUWien,
+    HypoOberosterreichSalzburgSteiermark,
+    HypoTirolBankAg,
+    HypoVorarlbergBankAg,
+    HypoBankBurgenlandAktiengesellschaft,
+    MarchfelderBank,
+    OberbankAg,
+    OsterreichischeArzteUndApothekerbank,
+    PosojilnicaBankEGen,
+    RaiffeisenBankengruppeOsterreich,
+    SchelhammerCapitalBankAg,
+    SchoellerbankAg,
+    SpardaBankWien,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
 }
 
 #[derive(

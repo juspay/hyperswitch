@@ -218,6 +218,7 @@ diesel::table! {
         connector_metadata -> Nullable<Jsonb>,
         payment_issuer -> Nullable<Varchar>,
         payment_experience -> Nullable<Varchar>,
+        payment_method_type -> Nullable<Varchar>,
     }
 }
 
@@ -273,7 +274,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> PaymentMethodType,
-        payment_method_type -> Nullable<PaymentMethodSubType>,
+        payment_method_type -> Nullable<Varchar>,
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
