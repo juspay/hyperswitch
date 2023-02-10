@@ -56,7 +56,6 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
         .expect("Failed to create PostgreSQL connection pool")
 }
 
-#[allow(clippy::expect_used)]
 pub async fn pg_connection(
     pool: &PgPool,
 ) -> errors::CustomResult<
