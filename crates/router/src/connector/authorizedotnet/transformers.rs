@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::PeekInterface,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::{Foreign, ForeignTryFrom}},
     utils::OptionExt,
 };
 
@@ -369,26 +369,36 @@ pub enum AuthorizedotnetPaymentStatus {
 
 pub type AuthorizedotnetRefundStatus = AuthorizedotnetPaymentStatus;
 
-impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
-    fn from(item: AuthorizedotnetPaymentStatus) -> Self {
-        match item {
-            AuthorizedotnetPaymentStatus::Approved => Self::Charged,
-            AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
-                Self::Failure
+impl TryFrom<Foreign<(AuthorizedotnetPaymentStatus, TransactionType)>> for Foreign<enums::AttemptStatus> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: Foreign<(AuthorizedotnetPaymentStatus, TransactionType)>) -> Result<Self, Self::Error> {
+        Ok(match item.0 {
+            (AuthorizedotnetPaymentStatus::Approved, TransactionType::Payment | TransactionType::Capture) => enums::AttemptStatus::Charged,
+            (AuthorizedotnetPaymentStatus::Approved, TransactionType::PaymentAuthOnly) => enums::AttemptStatus::Authorized,
+            (AuthorizedotnetPaymentStatus::Approved, TransactionType::Void) => enums::AttemptStatus::Voided,
+            (AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error, _) => {
+                enums::AttemptStatus::Failure
             }
-            AuthorizedotnetPaymentStatus::HeldForReview
-            | AuthorizedotnetPaymentStatus::NeedPayerConsent => Self::Pending,
+            (AuthorizedotnetPaymentStatus::HeldForReview
+            | AuthorizedotnetPaymentStatus::NeedPayerConsent, _) => enums::AttemptStatus::Pending,
+            _ => Err(errors::ConnectorError::ResponseHandlingFailed).into_report()?,
         }
+        .into())
     }
 }
 
-fn get_payment_status(is_auth_only: bool, status: enums::AttemptStatus) -> enums::AttemptStatus {
-    let is_authorized = matches!(status, enums::AttemptStatus::Charged);
-    if is_auth_only && is_authorized {
-        return enums::AttemptStatus::Authorized;
-    }
-    status
-}
+// fn get_payment_status(transaction_type: TransactionType, status: enums::AttemptStatus) -> enums::AttemptStatus {
+//     let is_authorized = matches!(status, enums::AttemptStatus::Charged);
+//     if is_auth_only && is_authorized {
+//         return enums::AttemptStatus::Authorized;
+//     }
+//     match transaction_type => {
+//         TransactionType::Payment => enums::AttemptStatus::Charged,
+//         TransactionType::PaymentAuthOnly => enums::AttemptStatus::Authorized,
+//         TransactionType::Void => enums::AttemptStatus::Voided,
+//     }
+//     status
+// }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 struct ResponseMessage {
@@ -449,7 +459,7 @@ impl<F, T>
             T,
             types::PaymentsResponseData,
         >,
-        bool,
+        TransactionType,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -461,11 +471,11 @@ impl<F, T>
                 T,
                 types::PaymentsResponseData,
             >,
-            bool,
+            TransactionType,
         ),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
-        let status = enums::AttemptStatus::from(item.response.transaction_response.response_code);
+        let status = enums::AttemptStatus::foreign_try_from((item.response.transaction_response.response_code, data.1))?;
         let error = item
             .response
             .transaction_response
@@ -492,7 +502,6 @@ impl<F, T>
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "connector_metadata",
             })?;
-        let is_auth_only = data.1;
         let mut redirection_data = None;
         let mut redirect = false;
 
@@ -524,7 +533,7 @@ impl<F, T>
             redirect = true;
         }
         Ok(Self {
-            status: get_payment_status(is_auth_only, status),
+            status,
             response: match error {
                 Some(err) => Err(err),
                 None => Ok(types::PaymentsResponseData::TransactionResponse {

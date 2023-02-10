@@ -183,7 +183,7 @@ impl
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            false,
+            authorizedotnet::TransactionType::PaymentAuthOnly,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -276,7 +276,7 @@ impl
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            false,
+            authorizedotnet::TransactionType::Capture,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -455,15 +455,20 @@ impl
         let response: authorizedotnet::AuthorizedotnetPaymentsResponse = intermediate_response
             .parse_struct("AuthorizedotnetPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_auth_only =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Manual);
+
+        let transaction_type = match data.request.capture_method {
+            Some(storage_models::enums::CaptureMethod::Manual) => authorizedotnet::TransactionType::PaymentAuthOnly,
+            _ => authorizedotnet::TransactionType::Payment
+        };
+        
+
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            is_auth_only,
+            transaction_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -556,7 +561,7 @@ impl
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            false,
+            authorizedotnet::TransactionType::Void,
         ))
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
