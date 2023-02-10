@@ -95,7 +95,8 @@ mod storage {
                     };
 
                     match self
-                        .redis_conn
+                        .redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
                     {
@@ -152,7 +153,8 @@ mod storage {
                             .change_context(errors::StorageError::SerializationFailed)?;
 
                     let updated_intent = self
-                        .redis_conn
+                        .redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .set_hash_fields(&key, ("pi", &redis_value))
                         .await
                         .map(|_| updated_intent)
@@ -201,7 +203,8 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn
+                        self.redis_conn()
+                            .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
                         database_call,
                     )

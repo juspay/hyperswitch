@@ -242,11 +242,9 @@ mod storage {
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn.get_hash_field_and_deserialize(
-                            key,
-                            &lookup.sk_id,
-                            "Refund",
-                        ),
+                        self.redis_conn()
+                            .map_err(Into::<errors::StorageError>::into)?
+                            .get_hash_field_and_deserialize(key, &lookup.sk_id, "Refund"),
                         database_call,
                     )
                     .await
@@ -300,7 +298,8 @@ mod storage {
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
                     match self
-                        .redis_conn
+                        .redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_refund)
                         .await
                     {
@@ -391,7 +390,8 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
-                    self.redis_conn
+                    self.redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .hscan_and_deserialize(key, &pattern, None)
                         .await
                         .change_context(errors::StorageError::KVError)
@@ -433,7 +433,8 @@ mod storage {
                         )
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    self.redis_conn
+                    self.redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .set_hash_fields(&lookup.pk_id, (field, redis_value))
                         .await
                         .change_context(errors::StorageError::KVError)?;
@@ -484,11 +485,9 @@ mod storage {
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn.get_hash_field_and_deserialize(
-                            key,
-                            &lookup.sk_id,
-                            "Refund",
-                        ),
+                        self.redis_conn()
+                            .map_err(Into::<errors::StorageError>::into)?
+                            .get_hash_field_and_deserialize(key, &lookup.sk_id, "Refund"),
                         database_call,
                     )
                     .await
@@ -535,7 +534,8 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
-                    self.redis_conn
+                    self.redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .hscan_and_deserialize(&key, &pattern, None)
                         .await
                         .change_context(errors::StorageError::KVError)

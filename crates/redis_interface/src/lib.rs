@@ -21,8 +21,12 @@ pub mod commands;
 pub mod errors;
 pub mod types;
 
+use std::sync::{atomic, Arc};
+
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use fred::interfaces::ClientLike;
+use futures::StreamExt;
 use router_env::logger;
 
 pub use self::{commands::*, types::*};
@@ -31,6 +35,7 @@ pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
     join_handles: Vec<fred::types::ConnectHandle>,
+    pub is_redis_available: Arc<atomic::AtomicBool>,
 }
 
 impl RedisConnectionPool {
@@ -62,6 +67,7 @@ impl RedisConnectionPool {
             config.version = fred::types::RespVersion::RESP3;
         }
         config.tracing = true;
+        config.blocking = fred::types::Blocking::Error;
         let policy = fred::types::ReconnectPolicy::new_constant(
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
@@ -82,6 +88,7 @@ impl RedisConnectionPool {
             pool,
             config,
             join_handles,
+            is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
         })
     }
 
@@ -94,6 +101,19 @@ impl RedisConnectionPool {
                 Err(error) => logger::error!(%error),
             };
         }
+    }
+    pub async fn on_error(&self) {
+        self.pool
+            .on_error()
+            .for_each(|err| {
+                logger::error!("{err:?}");
+                if self.pool.state() == fred::types::ClientState::Disconnected {
+                    self.is_redis_available
+                        .store(false, atomic::Ordering::SeqCst);
+                }
+                futures::future::ready(())
+            })
+            .await;
     }
 }
 

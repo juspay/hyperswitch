@@ -62,20 +62,16 @@ pub async fn run_producer_flow(
     op: &SchedulerOptions,
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    lock_acquire_release::<_, _, error_stack::Report<errors::ProcessTrackerError>>(
-        state,
-        settings,
-        move || async {
-            let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
-            debug!("Producer count of tasks {}", tasks.len());
+    lock_acquire_release::<_, _>(state, settings, move || async {
+        let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
+        debug!("Producer count of tasks {}", tasks.len());
 
-            // [#268]: Allow task based segregation of tasks
+        // [#268]: Allow task based segregation of tasks
 
-            divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
+        divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
 
-            Ok(())
-        },
-    )
+        Ok(())
+    })
     .await?;
 
     Ok(())

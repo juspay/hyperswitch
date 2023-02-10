@@ -69,6 +69,14 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
+    #[error("Received Error RedisError: {0}")]
+    ERedisError(error_stack::Report<RedisError>),
+}
+
+impl From<error_stack::Report<RedisError>> for StorageError {
+    fn from(err: error_stack::Report<RedisError>) -> Self {
+        Self::ERedisError(err)
+    }
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
