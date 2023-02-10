@@ -227,6 +227,11 @@ impl MerchantAccount {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
             .service(
+                web::resource("/{id}/kv")
+                    .route(web::post().to(merchant_account_toggle_kv))
+                    .route(web::get().to(merchant_account_kv_status)),
+            )
+            .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
                     .route(web::post().to(update_merchant_account))

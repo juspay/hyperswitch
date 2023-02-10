@@ -154,15 +154,26 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
-            &conn,
-            merchant_id,
-            merchant_connector_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()
+        let find_call = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
+                &conn,
+                merchant_id,
+                merchant_connector_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_cache(self, merchant_connector_id, find_call).await
+        }
     }
 
     async fn insert_merchant_connector_account(
@@ -189,11 +200,24 @@ impl MerchantConnectorAccountInterface for Store {
         this: storage::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, merchant_connector_account)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let _merchant_connector_id = this.merchant_connector_id.clone();
+        let update_call = || async {
+            let conn = pg_connection(&self.master_pool).await;
+            this.update(&conn, merchant_connector_account)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, &_merchant_connector_id, update_call).await
+        }
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_call().await
+        }
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(

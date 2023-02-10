@@ -561,7 +561,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}v68/payments/{}/reversals",
+            "{}v68/payments/{}/refunds",
             self.base_url(connectors),
             connector_payment_id,
         ))
