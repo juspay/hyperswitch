@@ -482,10 +482,11 @@ where
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
-    T: actix_web::ResponseError + error_stack::Context,
+    T: actix_web::ResponseError + error_stack::Context + Clone,
 {
     logger::error!(?error);
-    error.current_context().error_response()
+    // error.current_context().error_response()
+    HttpResponse::from_error(error.current_context().clone())
 }
 
 pub async fn authenticate_by_api_key(

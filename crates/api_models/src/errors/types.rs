@@ -7,7 +7,7 @@ pub enum ErrorType {
     ConnectorError,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct ApiError {
     pub sub_code: &'static str,
     pub error_identifier: u16,
@@ -33,9 +33,10 @@ impl ApiError {
 
 #[derive(Debug, serde::Serialize)]
 struct ErrorResponse {
-    error_type: String,
-    error_message: String,
-    error_code: String,
+    #[serde(rename = "type")]
+    type_: String,
+    message: String,
+    code: String,
     #[serde(flatten)]
     extra: Extra,
 }
@@ -45,9 +46,9 @@ impl From<&ApiErrorResponse> for ErrorResponse {
         let error_info = value.get_internal_error();
         let error_type = value.error_type().to_string();
         Self {
-            error_code: format!("{}_{}", error_info.sub_code, error_info.error_identifier),
-            error_message: error_info.error_message.clone(),
-            error_type,
+            code: format!("{}_{}", error_info.sub_code, error_info.error_identifier),
+            message: error_info.error_message.clone(),
+            type_: error_type,
             extra: error_info.extra.clone().unwrap_or_default(),
         }
     }
@@ -63,7 +64,7 @@ pub struct Extra {
     pub connector: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     ForbiddenCommonResource(ApiError),

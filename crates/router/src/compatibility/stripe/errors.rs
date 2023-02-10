@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 use crate::core::errors;
 
-#[derive(Debug, router_derive::ApiError)]
+#[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
 pub enum StripeErrorCode {
     /*

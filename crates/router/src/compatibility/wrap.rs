@@ -24,7 +24,11 @@ where
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
     Q: Serialize + std::fmt::Debug + 'a,
     S: From<Q> + Serialize,
-    E: From<errors::ApiErrorResponse> + Serialize + error_stack::Context + actix_web::ResponseError,
+    E: From<errors::ApiErrorResponse>
+        + Serialize
+        + error_stack::Context
+        + actix_web::ResponseError
+        + Clone,
     T: std::fmt::Debug,
     A: AppStateInfo,
 {

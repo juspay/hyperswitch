@@ -13,6 +13,7 @@ pub trait StorageErrorExt {
 }
 
 impl StorageErrorExt for error_stack::Report<errors::StorageError> {
+    #[track_caller]
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
