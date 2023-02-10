@@ -1,5 +1,5 @@
 /// Middleware to include request ID in response header.
-pub(crate) struct RequestId;
+pub struct RequestId;
 
 impl<S, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest> for RequestId
 where
@@ -22,7 +22,7 @@ where
     }
 }
 
-pub(crate) struct RequestIdMiddleware<S> {
+pub struct RequestIdMiddleware<S> {
     service: S,
 }
 
