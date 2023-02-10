@@ -40,6 +40,24 @@ impl MerchantAccount {
         }
     }
 
+    pub async fn update_with_specific_fields(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        merchant_account: MerchantAccountUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::merchant_id.eq(merchant_id.to_owned()),
+            MerchantAccountUpdateInternal::from(merchant_account),
+        )
+        .await
+    }
+
     pub async fn delete_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,

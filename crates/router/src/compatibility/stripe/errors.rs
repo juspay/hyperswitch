@@ -73,6 +73,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such customer")]
     CustomerNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such config")]
+    ConfigNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
 
@@ -90,6 +93,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such mandate")]
     MandateNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such API key")]
+    ApiKeyNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -325,7 +331,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
-            | errors::ApiErrorResponse::InvalidEphermeralKey => Self::Unauthorized,
+            | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
@@ -367,6 +373,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::IncorrectConnectorNameGiven => Self::InternalServerError,
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
             errors::ApiErrorResponse::RefundNotFound => Self::RefundNotFound,
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
@@ -379,6 +386,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountNotFound
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
+            errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -442,12 +450,14 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicateRefundRequest
             | Self::RefundNotFound
             | Self::CustomerNotFound
+            | Self::ConfigNotFound
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound
             | Self::MandateNotFound
+            | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod

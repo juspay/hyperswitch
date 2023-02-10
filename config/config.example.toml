@@ -43,6 +43,7 @@ pool_size = 5              # Number of connections to keep open
 reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
 reconnect_delay = 5        # Delay between reconnection attempts, in milliseconds
 default_ttl = 300          # Default TTL for entries, in seconds
+default_hash_ttl = 900     # Default TTL for hashes entries, in seconds
 use_legacy_version = false # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
 stream_read_count = 1      # Default number of entries to read from stream if not provided in stream read options
 
@@ -187,3 +188,5 @@ batch_size = 200 # Specifies the batch size the producer will push under a singl
 stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
 num_partitions = 64            # Specifies the number of partitions the stream will be divided into
 max_read_count = 100           # Specifies the maximum number of entries that would be read from redis stream in one call
+shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution (in milliseconds)
+loop_interval = 500            # Specifies how much time to wait after checking all the possible streams in completed (in milliseconds)

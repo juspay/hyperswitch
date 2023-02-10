@@ -51,7 +51,7 @@ async fn should_authorize_card_payment() {
     let response = conn.authorize_payment(None, None).await.unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
-        utils::get_connector_transaction_id(response),
+        utils::get_connector_transaction_id(response.response),
         Some("123456".to_string())
     );
 }
@@ -76,7 +76,7 @@ async fn should_authorize_gpay_payment() {
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
-        utils::get_connector_transaction_id(response),
+        utils::get_connector_transaction_id(response.response),
         Some("123456".to_string())
     );
 }
@@ -101,7 +101,7 @@ async fn should_authorize_applepay_payment() {
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     assert_eq!(
-        utils::get_connector_transaction_id(response),
+        utils::get_connector_transaction_id(response.response),
         Some("123456".to_string())
     );
 }
@@ -113,7 +113,7 @@ async fn should_capture_already_authorized_payment() {
     let _mock = connector.start_server(get_mock_config()).await;
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -154,7 +154,7 @@ async fn should_void_already_authorized_payment() {
     let _mock = connector.start_server(get_mock_config()).await;
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
-    let txn_id = utils::get_connector_transaction_id(authorize_response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
         .map(|transaction_id| async move {
             connector
@@ -195,7 +195,7 @@ async fn should_refund_succeeded_payment() {
     let response = connector.make_payment(None, None).await.unwrap();
 
     //try refund for previous payment
-    let transaction_id = utils::get_connector_transaction_id(response).unwrap();
+    let transaction_id = utils::get_connector_transaction_id(response.response).unwrap();
     let response = connector
         .refund_payment(transaction_id, None, None)
         .await

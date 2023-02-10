@@ -5,12 +5,12 @@ use std::{
     sync::{self, atomic},
 };
 
+use common_utils::signals::{get_allowed_signals, oneshot};
 use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{
@@ -53,19 +53,16 @@ pub async fn start_consumer(
     ));
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
-    let signal = signal_hook_tokio::Signals::new([
-        signal_hook::consts::SIGTERM,
-        signal_hook::consts::SIGINT,
-    ])
-    .map_err(|error| {
-        logger::error!("Signal Handler Error: {:?}", error);
-        errors::ProcessTrackerError::ConfigurationError
-    })
-    .into_report()
-    .attach_printable("Failed while creating a signals handler")?;
+    let signal = get_allowed_signals()
+        .map_err(|error| {
+            logger::error!("Signal Handler Error: {:?}", error);
+            errors::ProcessTrackerError::ConfigurationError
+        })
+        .into_report()
+        .attach_printable("Failed while creating a signals handler")?;
     let (sx, mut rx) = oneshot::channel();
     let handle = signal.handle();
-    let task_handle = tokio::spawn(pt_utils::signal_handler(signal, sx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
 
     loop {
         match rx.try_recv() {
@@ -198,13 +195,14 @@ pub async fn fetch_consumer_tasks(
 }
 
 // Accept flow_options if required
-#[instrument(skip(state))]
+#[instrument(skip(state), fields(workflow_id))]
 pub async fn start_workflow(
     state: AppState,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
     runner: workflows::PTRunner,
 ) {
+    tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     workflows::perform_workflow_execution(&state, process, runner).await
 }
 
@@ -233,12 +231,12 @@ pub async fn run_executor<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn some_error_handler<E: fmt::Display>(
+pub async fn consumer_error_handler<E: fmt::Display + fmt::Debug>(
     state: &AppState,
     process: storage::ProcessTracker,
     error: E,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    logger::error!(pt.name = ?process.name, pt.id = %process.id, %error, "Failed while executing workflow");
+    logger::error!(pt.name = ?process.name, pt.id = %process.id, ?error, "ERROR: Failed while executing workflow");
 
     let db: &dyn StorageInterface = &*state.store;
     db.process_tracker_update_process_status_by_ids(

@@ -116,6 +116,8 @@ impl Default for super::settings::DrainerSettings {
             stream_name: "DRAINER_STREAM".into(),
             num_partitions: 64,
             max_read_count: 100,
+            shutdown_interval: 1000,
+            loop_interval: 500,
         }
     }
 }

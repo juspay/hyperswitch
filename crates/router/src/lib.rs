@@ -49,6 +49,7 @@ pub mod headers {
     pub const ACCEPT: &str = "Accept";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const DATE: &str = "Date";
+    pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
 }
 
 pub mod pii {
@@ -78,6 +79,7 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
+            .service(routes::Configs::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::Payouts::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
@@ -94,7 +96,9 @@ pub fn mk_app(
 
     #[cfg(feature = "olap")]
     {
-        server_app = server_app.service(routes::MerchantAccount::server(state.clone()));
+        server_app = server_app
+            .service(routes::MerchantAccount::server(state.clone()))
+            .service(routes::ApiKeys::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]

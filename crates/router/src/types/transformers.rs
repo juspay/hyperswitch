@@ -305,6 +305,27 @@ impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
     }
 }
 
+impl From<F<storage::Config>> for F<api_types::Config> {
+    fn from(config: F<storage::Config>) -> Self {
+        let config = config.0;
+        api_types::Config {
+            key: config.key,
+            value: config.config,
+        }
+        .into()
+    }
+}
+
+impl<'a> From<F<&'a api_types::ConfigUpdate>> for F<storage::ConfigUpdate> {
+    fn from(config: F<&api_types::ConfigUpdate>) -> Self {
+        let config_update = config.0;
+        storage::ConfigUpdate::Update {
+            config: Some(config_update.value.clone()),
+        }
+        .into()
+    }
+}
+
 impl<'a> From<F<&'a storage::Address>> for F<api_types::Address> {
     fn from(address: F<&storage::Address>) -> Self {
         let address = address.0;
@@ -373,6 +394,71 @@ impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address
             first_name: address.first_name,
             last_name: address.last_name,
             ..Default::default()
+        }
+        .into()
+    }
+}
+
+impl
+    From<
+        F<(
+            storage_models::api_keys::ApiKey,
+            crate::core::api_keys::PlaintextApiKey,
+        )>,
+    > for F<api_models::api_keys::CreateApiKeyResponse>
+{
+    fn from(
+        item: F<(
+            storage_models::api_keys::ApiKey,
+            crate::core::api_keys::PlaintextApiKey,
+        )>,
+    ) -> Self {
+        use masking::StrongSecret;
+
+        let (api_key, plaintext_api_key) = item.0;
+        api_models::api_keys::CreateApiKeyResponse {
+            key_id: api_key.key_id.clone(),
+            merchant_id: api_key.merchant_id,
+            name: api_key.name,
+            description: api_key.description,
+            api_key: StrongSecret::from(format!(
+                "{}-{}",
+                api_key.key_id,
+                plaintext_api_key.peek().to_owned()
+            )),
+            created: api_key.created_at,
+            expiration: api_key.expires_at.into(),
+        }
+        .into()
+    }
+}
+
+impl From<F<storage_models::api_keys::ApiKey>> for F<api_models::api_keys::RetrieveApiKeyResponse> {
+    fn from(item: F<storage_models::api_keys::ApiKey>) -> Self {
+        let api_key = item.0;
+        api_models::api_keys::RetrieveApiKeyResponse {
+            key_id: api_key.key_id.clone(),
+            merchant_id: api_key.merchant_id,
+            name: api_key.name,
+            description: api_key.description,
+            prefix: format!("{}-{}", api_key.key_id, api_key.prefix).into(),
+            created: api_key.created_at,
+            expiration: api_key.expires_at.into(),
+        }
+        .into()
+    }
+}
+
+impl From<F<api_models::api_keys::UpdateApiKeyRequest>>
+    for F<storage_models::api_keys::ApiKeyUpdate>
+{
+    fn from(item: F<api_models::api_keys::UpdateApiKeyRequest>) -> Self {
+        let api_key = item.0;
+        storage_models::api_keys::ApiKeyUpdate::Update {
+            name: api_key.name,
+            description: api_key.description,
+            expires_at: api_key.expiration.map(Into::into),
+            last_used: None,
         }
         .into()
     }

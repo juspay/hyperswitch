@@ -1,10 +1,10 @@
 use actix_web::{web, Scope};
 
-#[cfg(feature = "olap")]
-use super::admin::*;
 use super::health::*;
+#[cfg(feature = "olap")]
+use super::{admin::*, api_keys::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -18,6 +18,24 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+}
+
+pub trait AppStateInfo {
+    fn conf(&self) -> Settings;
+    fn flow_name(&self) -> String;
+    fn store(&self) -> Box<dyn StorageInterface>;
+}
+
+impl AppStateInfo for AppState {
+    fn conf(&self) -> Settings {
+        self.conf.to_owned()
+    }
+    fn flow_name(&self) -> String {
+        self.flow_name.to_owned()
+    }
+    fn store(&self) -> Box<dyn StorageInterface> {
+        self.store.to_owned()
+    }
 }
 
 impl AppState {
@@ -209,6 +227,11 @@ impl MerchantAccount {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
             .service(
+                web::resource("/{id}/kv")
+                    .route(web::post().to(merchant_account_toggle_kv))
+                    .route(web::get().to(merchant_account_kv_status)),
+            )
+            .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
                     .route(web::post().to(update_merchant_account))
@@ -293,6 +316,39 @@ impl Webhooks {
             .service(
                 web::resource("/{merchant_id}/{connector}")
                     .route(web::post().to(receive_incoming_webhook)),
+            )
+    }
+}
+
+pub struct Configs;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update)),
+            )
+    }
+}
+
+pub struct ApiKeys;
+
+#[cfg(feature = "olap")]
+impl ApiKeys {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/api_keys")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(api_key_create)))
+            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(
+                web::resource("/{key_id}")
+                    .route(web::get().to(api_key_retrieve))
+                    .route(web::post().to(api_key_update))
+                    .route(web::delete().to(api_key_revoke)),
             )
     }
 }

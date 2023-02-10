@@ -72,6 +72,12 @@ pub enum Flow {
     PaymentConnectorsDelete,
     /// Payment connectors list flow.
     PaymentConnectorsList,
+    /// ConfigKey create flow.
+    ConfigKeyCreate,
+    /// ConfigKey fetch flow.
+    ConfigKeyFetch,
+    /// ConfigKey Update flow.
+    ConfigKeyUpdate,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -144,6 +150,16 @@ pub enum Flow {
     IncomingWebhookReceive,
     /// Validate payment method flow
     ValidatePaymentMethod,
+    /// API Key create flow
+    ApiKeyCreate,
+    /// API Key retrieve flow
+    ApiKeyRetrieve,
+    /// API Key update flow
+    ApiKeyUpdate,
+    /// API Key revoke flow
+    ApiKeyRevoke,
+    /// API Key list flow
+    ApiKeyList,
 }
 
 /// Category of log event.

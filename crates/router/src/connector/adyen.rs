@@ -561,7 +561,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}v68/payments/{}/reversals",
+            "{}v68/payments/{}/refunds",
             self.base_url(connectors),
             connector_payment_id,
         ))
@@ -684,6 +684,8 @@ impl api::IncomingWebhook for Adyen {
         &self,
         _headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
+        _merchant_id: &str,
+        _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
