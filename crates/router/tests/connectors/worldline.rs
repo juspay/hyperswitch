@@ -82,6 +82,7 @@ impl WorldlineTest {
             email: None,
             payment_experience: None,
             payment_issuer: None,
+            payment_method_type: None,
         })
     }
 }

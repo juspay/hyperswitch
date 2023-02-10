@@ -471,6 +471,7 @@ impl Default for PaymentAuthorizeType {
             email: None,
             payment_experience: None,
             payment_issuer: None,
+            payment_method_type: None,
         };
         Self(data)
     }

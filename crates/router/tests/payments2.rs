@@ -227,20 +227,7 @@ async fn payments_create_core_adyen_no_redirect() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
-        payment_token: None,
-        card_cvc: None,
-        email: None,
-        name: None,
-        phone: None,
-        phone_country_code: None,
-        metadata: None,
-        mandate_data: None,
-        off_session: None,
-        mandate_id: None,
-        client_secret: None,
-        browser_info: None,
-        payment_experience: None,
-        payment_issuer: None,
+        ..Default::default()
     };
 
     let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {
