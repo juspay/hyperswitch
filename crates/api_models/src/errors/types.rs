@@ -54,18 +54,15 @@ impl ApiErrorResponse {
 
     pub(crate) fn error_type(&self) -> &str {
         match self {
-            Self::Unauthorized(_) => "invalid_request",
-            Self::ForbiddenCommonResource(_) => "invalid_request",
-            Self::ForbiddenPrivateResource(_) => "invalid_request",
-            Self::Conflict(_) => "invalid_request",
-            Self::Gone(_) => "invalid_request",
-            Self::Unprocessable(_) => "invalid_request",
+            Self::Unauthorized(_)
+            | Self::ForbiddenCommonResource(_)
+            | Self::ForbiddenPrivateResource(_)
+            | Self::Conflict(_)
+            | Self::Gone(_)
+            | Self::Unprocessable(_)
+            | Self::NotImplemented(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
-            Self::NotImplemented(_) => "invalid_request",
             Self::ConnectorError(_, _) => "connector",
         }
     }
-    // pub fn new() -> Self {
-
-    // }
 }
