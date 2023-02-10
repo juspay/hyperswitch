@@ -7,7 +7,6 @@ use crate::{
     consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    env::{self, Env},
     pii::Secret,
     services::api as service_api,
     types::{
@@ -20,12 +19,11 @@ use crate::{
 
 #[inline]
 pub fn create_merchant_api_key() -> String {
-    let id = Uuid::new_v4().simple();
-    match env::which() {
-        Env::Development => format!("dev_{id}"),
-        Env::Production => format!("prd_{id}"),
-        Env::Sandbox => format!("snd_{id}"),
-    }
+    format!(
+        "{}_{}",
+        router_env::env::prefix_for_env(),
+        Uuid::new_v4().simple()
+    )
 }
 
 pub async fn create_merchant_account(

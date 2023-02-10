@@ -16,9 +16,10 @@ pub const REQUEST_TIME_OUT: u64 = 30;
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
 
-// General purpose base64 engine
+// General purpose base64 engines
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::STANDARD;
-
 pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
+
+pub(crate) const API_KEY_LENGTH: usize = 64;

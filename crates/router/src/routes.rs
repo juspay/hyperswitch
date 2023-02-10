@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod api_keys;
 pub mod app;
 pub mod configs;
 pub mod customers;
@@ -13,7 +14,7 @@ pub mod refunds;
 pub mod webhooks;
 
 pub use self::app::{
-    AppState, Configs, Customers, EphemeralKey, Health, Mandates, MerchantAccount,
+    ApiKeys, AppState, Configs, Customers, EphemeralKey, Health, Mandates, MerchantAccount,
     MerchantConnectorAccount, PaymentMethods, Payments, Payouts, Refunds, Webhooks,
 };
 #[cfg(feature = "stripe")]
