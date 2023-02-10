@@ -91,6 +91,23 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTxnType>,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
+
+    #[allow(clippy::too_many_arguments)]
+    async fn modify_trackers<'a>(
+        &'a self,
+        _state: &'a AppState,
+        _payment_id: &api::PaymentIdType,
+        _request: &R,
+        _mandate_type: Option<api::MandateTxnType>,
+        _merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>
+    where
+        Self: Sized,
+    {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
+            format!("post connector update tracker not found")
+        })
+    }
 }
 
 #[async_trait]
