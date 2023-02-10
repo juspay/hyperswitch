@@ -1,17 +1,44 @@
 use reqwest::StatusCode;
 
+#[derive(Debug, serde::Serialize)]
 pub enum ErrorType {
     InvalidRequestError,
-    RouterError,
+    HyperswitchError,
     ConnectorError,
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct ApiError {
-    pub sub_code: String,
+    pub sub_code: &'static str,
     pub error_identifier: u16,
     pub error_message: String,
 }
+
+impl ApiError {
+    pub fn new(
+        sub_code: &'static str,
+        error_identifier: u16,
+        error_message: impl ToString,
+    ) -> Self {
+        Self {
+            sub_code,
+            error_identifier,
+            error_message: error_message.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+struct Dummy {
+    error_type: ErrorType,
+    error_message: String,
+    error_code: String,
+    #[serde(flatten)]
+    extra: Extra,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct Extra {}
 
 #[derive(Debug)]
 pub enum ApiErrorResponse {
@@ -71,7 +98,7 @@ impl ApiErrorResponse {
             Self::ConnectorError(_, _) => "connector",
             Self::MethodNotAllowed(_) => "invalid_request",
             Self::NotFound(_) => "invalid_request",
-            Self::BadRequest(_) => "bad_request",
+            Self::BadRequest(_) => "invalid_request",
         }
     }
 }
