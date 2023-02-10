@@ -28,7 +28,7 @@ where
     T: std::fmt::Debug,
     A: AppStateInfo,
 {
-    let resp = api::server_wrap_util(state, request, payload, func, api_authentication).await;
+    let resp = compatibility_wrap_util(state, request, payload, func, api_authentication).await;
     match resp {
         Ok(api::ApplicationResponse::Json(router_resp)) => {
             let pg_resp = S::try_from(router_resp);
@@ -75,4 +75,25 @@ where
             api::log_and_return_error_response(report!(pg_error))
         }
     }
+}
+
+#[instrument(skip(request, payload, state, func, api_auth))]
+pub async fn compatibility_wrap_util<'a, 'b, A, U, T, Q, F, Fut>(
+    state: &'b A,
+    request: &'a HttpRequest,
+    payload: T,
+    func: F,
+    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+) -> RouterResult<api::ApplicationResponse<Q>>
+where
+    F: Fn(&'b A, U, T) -> Fut,
+    Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
+    Q: Serialize + std::fmt::Debug + 'a,
+    T: std::fmt::Debug,
+    A: AppStateInfo,
+{
+    let auth_out = api_auth
+        .authenticate_and_fetch(request.headers(), state)
+        .await?;
+    func(state, auth_out, payload).await
 }

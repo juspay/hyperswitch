@@ -12,6 +12,7 @@ pub struct ApiError {
     pub sub_code: &'static str,
     pub error_identifier: u16,
     pub error_message: String,
+    pub extra: Option<Extra>,
 }
 
 impl ApiError {
@@ -19,26 +20,48 @@ impl ApiError {
         sub_code: &'static str,
         error_identifier: u16,
         error_message: impl ToString,
+        extra: Option<Extra>,
     ) -> Self {
         Self {
             sub_code,
             error_identifier,
             error_message: error_message.to_string(),
+            extra,
         }
     }
 }
 
 #[derive(Debug, serde::Serialize)]
-struct Dummy {
-    error_type: ErrorType,
+struct ErrorResponse {
+    error_type: String,
     error_message: String,
     error_code: String,
     #[serde(flatten)]
     extra: Extra,
 }
 
-#[derive(Debug, serde::Serialize)]
-struct Extra {}
+impl From<&ApiErrorResponse> for ErrorResponse {
+    fn from(value: &ApiErrorResponse) -> Self {
+        let error_info = value.get_internal_error();
+        let error_type = value.error_type().to_string();
+        Self {
+            error_code: format!("{}_{}", error_info.sub_code, error_info.error_identifier),
+            error_message: error_info.error_message.clone(),
+            error_type,
+            extra: error_info.extra.clone().unwrap_or_default(),
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize, Default, Clone)]
+pub struct Extra {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector: Option<String>,
+}
 
 #[derive(Debug)]
 pub enum ApiErrorResponse {
@@ -58,10 +81,11 @@ pub enum ApiErrorResponse {
 
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_response: ErrorResponse = self.into();
         write!(
             f,
             r#"{{"error":{}}}"#,
-            serde_json::to_string(self.get_internal_error())
+            serde_json::to_string(&error_response)
                 .unwrap_or_else(|_| "API error response".to_string())
         )
     }
@@ -102,3 +126,5 @@ impl ApiErrorResponse {
         }
     }
 }
+
+impl std::error::Error for ApiErrorResponse {}

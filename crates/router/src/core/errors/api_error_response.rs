@@ -267,23 +267,23 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
 
         match self {
             Self::NotImplemented { message } => {
-                AER::NotImplemented(ApiError::new("IR", 0, format!("{message:?}")))
+                AER::NotImplemented(ApiError::new("IR", 0, format!("{message:?}"), None))
             }
             Self::Unauthorized => AER::Unauthorized(ApiError::new(
                 "IR",
                 0,
-                "API key not provided or invalid API key used",
+                "API key not provided or invalid API key used", None
             )),
             Self::InvalidRequestUrl => {
-                AER::NotFound(ApiError::new("IR", 0, "Unrecognized request URL"))
+                AER::NotFound(ApiError::new("IR", 0, "Unrecognized request URL", None))
             }
             Self::InvalidHttpMethod => AER::MethodNotAllowed(ApiError::new(
                 "IR",
                 0,
-                "The HTTP method is not applicable for this API",
+                "The HTTP method is not applicable for this API", None
             )),
             Self::MissingRequiredField { field_name } => AER::BadRequest(
-                ApiError::new("IR", 0, format!("Missing required param: {field_name}")),
+                ApiError::new("IR", 0, format!("Missing required param: {field_name}"), None),
             ),
             Self::InvalidDataFormat {
                 field_name,
@@ -293,125 +293,125 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 0,
                 format!(
                     "{field_name} contains invalid data. Expected format is {expected_format}"
-                ),
+                ), None
             )),
             Self::InvalidRequestData { message } => {
-                AER::Unprocessable(ApiError::new("IR", 0, message.to_string()))
+                AER::Unprocessable(ApiError::new("IR", 0, message.to_string(), None))
             }
             Self::InvalidDataValue { field_name } => AER::BadRequest(ApiError::new(
                 "IR",
                 0,
-                format!("Invalid value provided: {field_name}"),
+                format!("Invalid value provided: {field_name}"), None
             )),
             Self::ClientSecretNotGiven => AER::ForbiddenPrivateResource(ApiError::new(
                 "IR",
                 0,
-                "Client secret was not provided",
+                "Client secret was not provided", None
             )),
             Self::ClientSecretInvalid => {
-                AER::ForbiddenPrivateResource(ApiError::new("IR", 0, "The client_secret provided does not match the client_secret associated with the Payment"))
+                AER::ForbiddenPrivateResource(ApiError::new("IR", 0, "The client_secret provided does not match the client_secret associated with the Payment", None))
             }
             Self::MandateActive => {
-                AER::ForbiddenPrivateResource(ApiError::new("IR", 0, "Customer has active mandate/subsciption"))
+                AER::ForbiddenPrivateResource(ApiError::new("IR", 0, "Customer has active mandate/subsciption", None))
             }
             Self::CustomerRedacted => {
-                AER::ForbiddenPrivateResource(ApiError::new("IR", 0, "Customer has already been redacted"))
+                AER::ForbiddenPrivateResource(ApiError::new("IR", 0, "Customer has already been redacted", None))
             }
-            Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 0, "Reached maximum refund attempts")),
+            Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 0, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
-                AER::BadRequest(ApiError::new("IR", 0, "Refund amount exceeds the payment amount"))
+                AER::BadRequest(ApiError::new("IR", 0, "Refund amount exceeds the payment amount", None))
             }
             Self::PaymentUnexpectedState {
                 current_flow,
                 field_name,
                 current_value,
                 states,
-            } => AER::BadRequest(ApiError::new("IR", 0, format!("This Payment could not be {current_flow} because it has a {field_name} of {current_value}. The expected state is {states}"))),
-            Self::InvalidEphemeralKey => AER::Unauthorized(ApiError::new("IR", 0, "Invalid Ephemeral Key for the customer")),
+            } => AER::BadRequest(ApiError::new("IR", 0, format!("This Payment could not be {current_flow} because it has a {field_name} of {current_value}. The expected state is {states}"), None)),
+            Self::InvalidEphemeralKey => AER::Unauthorized(ApiError::new("IR", 0, "Invalid Ephemeral Key for the customer", None)),
             Self::PreconditionFailed { message } => {
-                AER::BadRequest(ApiError::new("IR", 0, message.to_string()))
+                AER::BadRequest(ApiError::new("IR", 0, message.to_string(), None))
             }
-            Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 0, "Access forbidden, invalid JWT token was used")),
+            Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 0, "Access forbidden, invalid JWT token was used", None)),
             Self::GenericUnauthorized { message } => {
-                AER::Unauthorized(ApiError::new("IR", 0, message.to_string()))
+                AER::Unauthorized(ApiError::new("IR", 0, message.to_string(), None))
             }
             Self::ExternalConnectorError {
                 code,
                 message,
                 connector,
                 status_code,
-            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}")), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
+            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), None), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
             Self::PaymentAuthorizationFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 0, "Payment failed during authorization with connector. Retry payment"))
+                AER::BadRequest(ApiError::new("CE", 0, "Payment failed during authorization with connector. Retry payment", None))
             }
             Self::PaymentAuthenticationFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 0, "Payment failed during authentication with connector. Retry payment"))
+                AER::BadRequest(ApiError::new("CE", 0, "Payment failed during authentication with connector. Retry payment", None))
             }
             Self::PaymentCaptureFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 0, "Capture attempt failed while processing with connector"))
+                AER::BadRequest(ApiError::new("CE", 0, "Capture attempt failed while processing with connector", None))
             }
-            Self::InvalidCardData { data } => AER::BadRequest(ApiError::new("CE", 0, "The card data is invalid")),
-            Self::CardExpired { data } => AER::BadRequest(ApiError::new("CE", 0, "The card has expired")),
-            Self::RefundFailed { data } => AER::BadRequest(ApiError::new("CE", 0, "Refund failed while processing with connector. Retry refund")),
+            Self::InvalidCardData { data } => AER::BadRequest(ApiError::new("CE", 0, "The card data is invalid", None)),
+            Self::CardExpired { data } => AER::BadRequest(ApiError::new("CE", 0, "The card has expired", None)),
+            Self::RefundFailed { data } => AER::BadRequest(ApiError::new("CE", 0, "Refund failed while processing with connector. Retry refund", None)),
             Self::VerificationFailed { data } => {
-                AER::BadRequest(ApiError::new("CE", 0, "Verification failed while processing with connector. Retry operation"))
+                AER::BadRequest(ApiError::new("CE", 0, "Verification failed while processing with connector. Retry operation", None))
             }
             Self::InternalServerError => {
-                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong"))
+                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
-            Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 0, "Duplicate refund request. Refund already attempted with the refund ID")),
-            Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 0, "Duplicate mandate request. Mandate already attempted with the Mandate ID")),
-            Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 0, "The merchant account with the specified details already exists in our records")),
+            Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 0, "Duplicate refund request. Refund already attempted with the refund ID", None)),
+            Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 0, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
+            Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 0, "The merchant account with the specified details already exists in our records", None)),
             Self::DuplicateMerchantConnectorAccount => {
-                AER::BadRequest(ApiError::new("HE", 0, "The merchant connector account with the specified details already exists in our records"))
+                AER::BadRequest(ApiError::new("HE", 0, "The merchant connector account with the specified details already exists in our records", None))
             }
-            Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 0, "The payment method with the specified details already exists in our records")),
+            Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 0, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
-                AER::BadRequest(ApiError::new("HE", 0, format!("The payment with the specified payment_id '{payment_id}' already exists in our records")))
+                AER::BadRequest(ApiError::new("HE", 0, format!("The payment with the specified payment_id '{payment_id}' already exists in our records"), None))
             }
             Self::RefundNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Refund does not exist in our records."))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Refund does not exist in our records.", None))
             }
             Self::CustomerNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Customer does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Customer does not exist in our records", None))
             }
             Self::ConfigNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Config key does not exist in our records."))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Config key does not exist in our records.", None))
             }
             Self::PaymentNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Payment does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Payment does not exist in our records", None))
             }
             Self::PaymentMethodNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Payment method does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Payment method does not exist in our records", None))
             }
             Self::MerchantAccountNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Merchant account does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Merchant account does not exist in our records", None))
             }
             Self::MerchantConnectorAccountNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Merchant connector account does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Merchant connector account does not exist in our records", None))
             }
             Self::ResourceIdNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Resource ID does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Resource ID does not exist in our records", None))
             }
             Self::MandateNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Mandate does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Mandate does not exist in our records", None))
             }
-            Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 0, "Return URL is not configured and not passed in payments request")),
+            Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 0, "Return URL is not configured and not passed in payments request", None)),
             Self::RefundNotPossible { connector } => {
-                AER::BadRequest(ApiError::new("HE", 0, "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard"))
+                AER::BadRequest(ApiError::new("HE", 0, "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard", None))
             }
             Self::MandateValidationFailed { reason } => {
-                AER::BadRequest(ApiError::new("HE", 0, "Mandate Validation Failed"))
+                AER::BadRequest(ApiError::new("HE", 0, "Mandate Validation Failed", None))
             }
-            Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 0, "The payment has not succeeded yet. Please pass a successful payment to initiate refund")),
+            Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 0, "The payment has not succeeded yet. Please pass a successful payment to initiate refund", None)),
             Self::SuccessfulPaymentNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Successful payment not found for the given payment id"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Successful payment not found for the given payment id", None))
             }
             Self::IncorrectConnectorNameGiven => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "The connector provided in the request is incorrect or not available"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "The connector provided in the request is incorrect or not available", None))
             }
             Self::AddressNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Address does not exist in our records"))
+                AER::ForbiddenPrivateResource(ApiError::new("HE", 0, "Address does not exist in our records", None))
             }
         }
 

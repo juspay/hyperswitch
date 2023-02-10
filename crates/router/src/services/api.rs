@@ -10,6 +10,7 @@ use std::{
 };
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing, Tag};
@@ -20,7 +21,7 @@ pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
+        errors::{self, CustomResult, RouterResult},
         payments,
     },
     db::StorageInterface,
@@ -384,31 +385,34 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut>(
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E>(
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
-) -> RouterResult<ApplicationResponse<Q>>
+) -> CustomResult<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>
 where
     F: Fn(&'b A, U, T) -> Fut,
-    Fut: Future<Output = RouterResponse<Q>>,
+    Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    CustomResult<ApplicationResponse<Q>, E>:
+        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
-        .await?;
-    func(state, auth_out, payload).await
+        .await
+        .switch()?;
+    func(state, auth_out, payload).await.switch()
 }
 
 #[instrument(
     skip(request, payload, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut>(
+pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -417,10 +421,12 @@ pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut>(
 ) -> HttpResponse
 where
     F: Fn(&'b A, U, T) -> Fut,
-    Fut: Future<Output = RouterResult<ApplicationResponse<Q>>>,
+    Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    CustomResult<ApplicationResponse<Q>, E>:
+        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
