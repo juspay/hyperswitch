@@ -34,7 +34,7 @@ pub struct BamboraAuthType {
 impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
             Ok(Self {
                 api_key: api_key.to_string(),
             })
@@ -69,6 +69,7 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 pub struct BamboraPaymentsResponse {
     approved: BamboraPaymentStatus,
     id: String,
+    response: String
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
