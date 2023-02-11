@@ -152,6 +152,9 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 # This data is used to call respective connectors for wallets and cards
+[connectors.intuit]
+base_url = "https://sandbox.api.intuit.com"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
