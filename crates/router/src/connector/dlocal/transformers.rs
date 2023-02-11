@@ -104,6 +104,19 @@ impl TryFrom<&types::PaymentsSyncRouterData> for DlocalPaymentsSyncRequest  {
     }
 }
 
+pub struct DlocalPaymentsCancelRequest {
+    pub cancel_id: String ,
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for DlocalPaymentsCancelRequest  {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self,Self::Error> {
+        Ok(Self {
+            cancel_id: (item.request.connector_transaction_id.clone()),
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsCaptureRequest {
     pub authorization_id: String ,
@@ -260,7 +273,30 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsCaptureResponse, T,
             ..item.data
         })
     }
-}//TODO: Fill the struct with respective fields
+}
+
+pub struct DlocalPaymentsCancelResponse {
+    status: DlocalPaymentStatus,
+    id: String,
+}
+impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsCancelResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: types::ResponseRouterData<F, DlocalPaymentsCancelResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
