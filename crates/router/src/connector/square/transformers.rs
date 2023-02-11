@@ -119,15 +119,14 @@ pub struct SquareRefundRequest {
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
         let payment_request = Self {
             amount_money: AmountMoneyType {
                 amount: item.request.amount,
                 currency: item.request.currency.to_string()
             },
             idempotency_key: Uuid::new_v4().to_string(),
-            payment_id: item.request.connector_transaction_id
-            }
+            payment_id: item.request.connector_transaction_id.to_owned()
         };
         Ok(payment_request)
     }
@@ -137,27 +136,39 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
+    Pending,
+    Completed,
     #[default]
-    Processing,
+    Failed,
+    Rejected
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Completed => Self::Success,
             RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Rejected => Self::Failure
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct RefundResponseType {
+    status: RefundStatus,
+    id: String,
+    updated_at: String,
+    amount_money: AmountMoneyType,
+    payment_id: String
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
+    refund: RefundResponseType
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -165,17 +176,31 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        let refund_status = enums::RefundStatus::from(item.response.refund.status);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.refund.id,
+                refund_status
+            }),
+            ..item.data
+        })
     }
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
 {
      type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
+    fn try_from(item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+        let refund_status = enums::RefundStatus::from(item.response.refund.status);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.refund.id,
+                refund_status,
+            }),
+            ..item.data
+        })
      }
  }
 

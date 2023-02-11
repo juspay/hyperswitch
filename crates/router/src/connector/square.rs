@@ -336,7 +336,7 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        Ok(String::from("https://connect.squareupsandbox.com/v2/refunds"))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -385,8 +385,8 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!("https://connect.squareupsandbox.com/v2/refunds/{}", &req.request.connector_refund_id.as_ref().ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?))
     }
 
     fn build_request(
