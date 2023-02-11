@@ -104,6 +104,29 @@ impl TryFrom<&types::PaymentsSyncRouterData> for DlocalPaymentsSyncRequest  {
     }
 }
 
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct DlocalPaymentsCaptureRequest {
+    pub authorization_id: String ,
+    pub amount: i64 ,
+    pub currency: String ,
+    pub order_id: String ,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest  {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self,Self::Error> {
+        let amount_to_capture = match item.request.amount_to_capture {
+            Some(val) => val,
+            None => item.request.amount
+        };
+        Ok(Self {
+            authorization_id: (item.request.connector_transaction_id.clone())
+            , amount: (amount_to_capture) // take amount_to_capture and
+            , currency: (item.request.currency.to_string())
+            , order_id: (item.payment_id.clone()) // check the order id
+        })
+    }
+}
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct DlocalAuthType {
@@ -217,8 +240,27 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsSyncResponse, T, ty
         })
     }
 }
-
-//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DlocalPaymentsCaptureResponse {
+    status: DlocalPaymentStatus,
+    id: String,
+}
+impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: types::ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]

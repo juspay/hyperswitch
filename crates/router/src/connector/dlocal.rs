@@ -229,16 +229,21 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "payments"
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
+        let dlocalReq = utils::Encode::<dlocal::DlocalPaymentsCaptureRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(dlocalReq))
     }
 
     fn build_request(
