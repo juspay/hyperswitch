@@ -63,11 +63,11 @@ pub struct BamboraPaymentsRequest {
     card: InputCardDetails,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BamboraRefundRequest {
-    amount: i64,
-    
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct BamboraRefundRequest {
+//     amount: i64,
+
+// }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
