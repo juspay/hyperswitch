@@ -19,9 +19,8 @@ pub mod worldpay;
 pub mod bambora;
 
 pub use self::{
-    aci::Aci, adyen::Adyen, applepay::Applepay, authorizedotnet::Authorizedotnet,
+    aci::Aci, adyen::Adyen, applepay::Applepay, authorizedotnet::Authorizedotnet, bambora::Bambora,
     braintree::Braintree, checkout::Checkout, cybersource::Cybersource, fiserv::Fiserv,
     globalpay::Globalpay, klarna::Klarna, payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe,
     worldline::Worldline, worldpay::Worldpay,
-bambora::Bambora,
 };
