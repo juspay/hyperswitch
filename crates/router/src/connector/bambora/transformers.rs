@@ -67,7 +67,7 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BamboraPaymentStatus {
@@ -157,22 +157,56 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum BamboraRefundStatus {
+    #[default]
+    ZERO,
+    ONE,
+}
+
+impl From<BamboraRefundStatus> for enums::RefundStatus {
+    fn from(item: BamboraRefundStatus) -> Self {
+        match item {
+            BamboraRefundStatus::ONE => Self::Success,
+            BamboraRefundStatus::ZERO => Self::Failure,
         }
     }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {}
+pub struct RefundResponse {
+    approved: BamboraRefundStatus,
+    id: String,
+    status: String,
+    authorizing_merchant_id: String,
+    description: String,
+    message_id: i64,
+    message: String
+}
+
+
+
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        let refund_status = enums::RefundStatus::from(item.response.approved);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
 
