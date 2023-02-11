@@ -81,6 +81,56 @@ pub struct Response {
 }
 
 //Res Types end
+
+//TransactionId Types start
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionByIdResponse {
+    #[serde(rename = "transaction_id")]
+    pub transaction_id: String,
+    #[serde(rename = "organization_id")]
+    pub organization_id: String,
+    #[serde(rename = "location_id")]
+    pub location_id: String,
+    pub status: String,
+    pub action: String,
+    #[serde(rename = "authorization_amount")]
+    pub authorization_amount: i64,
+    #[serde(rename = "authorization_code")]
+    pub authorization_code: String,
+    #[serde(rename = "received_date")]
+    pub received_date: String,
+    #[serde(rename = "billing_address")]
+    pub billing_address: BillingAddress,
+    pub card: Card,
+    pub response: Response,
+    pub links: Links,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhysicalAddress {
+    #[serde(rename = "street_line1")]
+    pub street_line1: String,
+    #[serde(rename = "street_line2")]
+    pub street_line2: String,
+    pub locality: String,
+    pub region: String,
+    pub country: String,
+    #[serde(rename = "postal_code")]
+    pub postal_code: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Links {
+    pub disputes: String,
+    pub settlements: String,
+    #[serde(rename = "self")]
+    pub self_field: String,
+}
+
+//TransactionId Types end
 //Types End
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -149,7 +199,6 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::
         })
     }
 }
-
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
