@@ -239,6 +239,24 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureTransactionRequest {
         })
     }
 }
+
+impl<F,T> TryFrom<types::ResponseRouterData<F, CaptureTransactionResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: types::ResponseRouterData<F, CaptureTransactionResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        let status_string = String::from(item.response.response.response_desc);
+        Ok(Self {
+            status: if status_string == "APPROVED" {  enums::AttemptStatus::Charged} else { enums::AttemptStatus::CaptureFailed },
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
 //Payment Capture Transform end
 // Auth Struct
 pub struct ForteAuthType {
