@@ -64,7 +64,10 @@ fn get_card_specific_payment_data(
     let merchant_ref = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
     let method = PayeezyPaymentMethodType::Card;
     let amount = item.request.amount;
-    let transaction_type = String::from("authorize");
+    let transaction_type = match item.request.capture_method {
+        Some(storage_models::enums::CaptureMethod::Manual) => String::from("authorize"),
+        _ => String::from("purchase"),
+    };
     let currency_code = item.request.currency.to_string();
     let credit_card = get_payment_method_data(item)?;
     Ok(PayeezyPaymentsRequest {
@@ -246,13 +249,15 @@ impl<F, T>
             PayeezyPaymentStatus::Approved => match item.response.transaction_type.as_str() {
                 "authorize" => enums::AttemptStatus::Authorized,
                 "capture" => enums::AttemptStatus::Charged,
+                "purchase" => enums::AttemptStatus::Charged,
                 "void" => enums::AttemptStatus::Voided,
                 _ => enums::AttemptStatus::Pending,
             },
             PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => {
                 match item.response.transaction_type.as_str() {
                     "authorize" => enums::AttemptStatus::AuthorizationFailed,
-                    "capture" => enums::AttemptStatus::AuthorizationFailed,
+                    "capture" => enums::AttemptStatus::CaptureFailed,
+                    "purchase" => enums::AttemptStatus::AuthorizationFailed,
                     "void" => enums::AttemptStatus::VoidFailed,
                     _ => enums::AttemptStatus::Pending,
                 }
