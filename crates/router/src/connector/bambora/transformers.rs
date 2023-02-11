@@ -4,7 +4,7 @@ use crate::{core::errors,types::{self,api, storage::enums}};
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraPaymentsRequest {
-    amount: f64,
+    amount: i32,
     payment_method: String,
     card: Card
 }
@@ -34,7 +34,13 @@ pub struct BamboraAuthType {
 impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
+            Ok(Self {
+                api_key: api_key.to_string(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        }
     }
 }
 // PaymentsResponse
@@ -42,15 +48,18 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BamboraPaymentStatus {
-    1,
-    0
+    #[default]
+    #[serde(rename = "0")]
+    ZERO,
+    #[serde(rename = "1")]
+    ONE,
 }
 
 impl From<BamboraPaymentStatus> for enums::AttemptStatus {
     fn from(item: BamboraPaymentStatus) -> Self {
         match item {
-            BamboraPaymentStatus::1 => Self::Charged,
-            BamboraPaymentStatus::0 => Self::Failure,
+            BamboraPaymentStatus::ONE => Self::Charged,
+            BamboraPaymentStatus::ZERO => Self::Failure,
         }
     }
 }

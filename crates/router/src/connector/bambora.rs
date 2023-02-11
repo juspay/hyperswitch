@@ -32,7 +32,13 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.get_content_type().to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 }
 
@@ -42,7 +48,7 @@ impl ConnectorCommon for Bambora {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
+        "application/json"
         // Ex: "application/x-www-form-urlencoded"
     }
 
@@ -54,7 +60,7 @@ impl ConnectorCommon for Bambora {
         let auth: bambora::BamboraAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Passcode {}", auth.api_key))])
     }
 }
 
