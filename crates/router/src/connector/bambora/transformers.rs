@@ -420,6 +420,21 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BamboraCaptureResponse>> f
     }
 }
 
+//Cancel Authorization
+#[derive(Default, Debug, Serialize)]
+pub struct BamboreCancelRequest {
+    pub amount: Option<String>,
+}
+impl TryFrom<&types::PaymentsCancelRouterData> for BamboreCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(item.request.cancellation_reason.clone().unwrap_or_else(|| "12".to_string())),
+        })
+    }
+}
+
+
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
