@@ -5,17 +5,18 @@ use error_stack::{ResultExt, IntoReport};
 
 use crate::{
     configs::settings,
-    utils::{self, BytesExt},
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services::{self, ConnectorIntegration},
+    headers, logger,
+    services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
-    }
+    },
+    utils::{self, BytesExt},
 };
 
 
@@ -153,7 +154,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::bluesnap", response=?res);
         let response: bluesnap::BluesnapPaymentsResponse = res
@@ -351,13 +352,12 @@ impl api::Refund for Bluesnap {}
 impl api::RefundExecute for Bluesnap {}
 impl api::RefundSync for Bluesnap {}
 
-impl
-    ConnectorIntegration<
-        api::Execute,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > for Bluesnap {
-    fn get_headers(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Bluesnap {
+    fn get_headers(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -365,20 +365,41 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions/",
+            req.request.connector_transaction_id
+        ))
     }
 
-    fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let bluesnap_req = utils::Encode::<bluesnap::BluesnapRefundRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    fn get_request_body(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = bluesnap::BluesnapRefundRequest::try_from(req)?;
+        let bluesnap_req =
+            utils::Encode::<bluesnap::BluesnapRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 
-    fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
+    fn build_request(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(self, req, connectors)?)
+            .headers(types::RefundExecuteType::get_headers(
+                self, req, connectors,
+            )?)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
@@ -388,9 +409,12 @@ impl
         &self,
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
+    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::bluesnap", response=?res);
-        let response: bluesnap::RefundResponse = res.response.parse_struct("bluesnap RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: bluesnap::RefundResponse = res
+            .response
+            .parse_struct("bluesnap RefundResponse")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -400,14 +424,20 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
 
-impl
-    ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bluesnap {
-    fn get_headers(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bluesnap {
+    fn get_headers(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -415,13 +445,22 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions/",
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
+        req: &types::RefundsRouterData<api::RSync>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -429,7 +468,6 @@ impl
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -438,9 +476,12 @@ impl
         &self,
         data: &types::RefundSyncRouterData,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::bluesnap", response=?res);
-        let response: bluesnap::RefundResponse = res.response.parse_struct("bluesnap RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: bluesnap::RefundSyncResponse =
+            res.response
+                .parse_struct("bluesnap RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -450,7 +491,10 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
 }

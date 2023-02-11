@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
 use crate::{
     core::errors,
-    pii::PeekInterface,
+    pii::{PeekInterface},
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
@@ -89,7 +88,6 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType  {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BluesnapPaymentStatus {
@@ -103,12 +101,26 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsResponse {
     processing_info: BluesnapPaymentsProcessingInfoResponse,
     transaction_id: String,
+    refunds: Vec<RefundObj>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundObj {
+    balance_amount: String,
+    refund: Vec<Refund>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Refund {
+    refund_transaction_id: String,
+    amount: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -140,16 +152,32 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BluesnapPaymentsResponse, T, type
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
+#[derive(Default, Debug, Eq, PartialEq, Serialize)]
+pub struct BluesnapRefundRequestData {
+    amount: String,
+    reason: String,
+}
+
 #[derive(Default, Debug, Serialize)]
-pub struct BluesnapRefundRequest {}
+pub struct BluesnapRefundRequest {
+    refund: BluesnapRefundRequestData,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            refund: BluesnapRefundRequestData {
+                reason: item.request.reason.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "item.request.reason",
+                    },
+                )?,
+                amount: item.request.amount.to_string(),
+            },
+        })
     }
 }
 
@@ -158,46 +186,58 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
     #[default]
-    Processing,
+    Succeeded,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
+#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapRefundResponseData {
+    refund_transaction_id: String,
+    amount: Option<String>,
+    reason: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundResponse {
+    refund: BluesnapRefundResponseData,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RefundSyncResponse {
+    refunds: Vec<BluesnapRefundResponseData>,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
+    for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        let refund = match item.response.refunds.first() {
+            Some(refund) => refund,
+            _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+        };
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: refund.refund_transaction_id.clone(),
+                refund_status: enums::RefundStatus::Success,
+            }),
+            ..item.data
+        })
     }
 }
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
-{
-     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-     }
- }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
