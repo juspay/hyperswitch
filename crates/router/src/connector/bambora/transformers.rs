@@ -434,6 +434,41 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BamboreCancelRequest {
     }
 }
 
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BamboraCancelResponse {
+    psp_reference: String,
+    status: CancelStatus,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CancelStatus {
+    Received,
+    #[default]
+    Processing,
+}
+
+impl TryFrom<types::PaymentsCancelResponseRouterData<BamboraCancelResponse>> for types::PaymentsCancelRouterData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: types::PaymentsCancelResponseRouterData<BamboraCancelResponse>,) -> Result<Self, Self::Error> {
+        let status = match item.response.status {
+            CancelStatus::Received =>  storage_enums::AttemptStatus::Voided ,
+            _ => storage_enums::AttemptStatus::Voided,
+        };
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
 
 //TODO: Fill the struct with respective fields
 // REFUND :
