@@ -57,7 +57,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                             Some (c) => c.peek().clone().to_string(),
                             None => "dummyEmail@gmail.com".to_string()
                         },
-                        document: "48230764433".to_string()
+                        document: "08533195966".to_string()
                     },
                     card : Card {
                         holder_name: ccard.card_holder_name.peek().clone(),
@@ -300,12 +300,31 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsCancelResponse, T, 
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct DlocalRefundRequest {}
+pub struct RefundRequest {
+    pub amount: String,
+    pub payment_id: String,
+    pub currency: String,
+    pub notification_url: String,
+    pub id: String,
+}
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for DlocalRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+
+        let amount_to_refund = item.request.refund_amount.to_string();
+        let return_url = match item.return_url.clone() {
+            Some(val) => val,
+            None => "https://google.com".to_string()
+        };
+        let payment_intent = item.request.connector_transaction_id.clone();
+        Ok(Self {
+            amount: amount_to_refund ,
+            payment_id:payment_intent,
+            currency:(item.request.currency.to_string()),
+            id:item.request.refund_id.clone(),
+            notification_url: return_url,
+        })
     }
 }
 
@@ -313,27 +332,39 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for DlocalRefundRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
+    SUCCESS,
     #[default]
-    Processing,
+    PENDING,
+    REJECTED,
+    CANCELLED,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::SUCCESS => Self::Success,
+            RefundStatus::PENDING => Self::Pending,
+            RefundStatus::REJECTED => Self::ManualReview, // Is rejected manual review?
+            RefundStatus::CANCELLED => Self::Failure,
         }
     }
 }
 
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
+    pub id: String,
+    // pub payment_id: String,
+    // pub notification_url: String,
+    // pub amount: f64,
+    // pub currency: String,
+    pub status: RefundStatus,
+    // pub status_code: i32,
+    // pub status_detail: String,
+    // pub created_date: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -341,17 +372,49 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
 
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct DlocalRefundsSyncRequest {
+    pub refund_id: String ,
+}
+
+impl TryFrom<&types::RefundSyncRouterData> for DlocalRefundsSyncRequest  {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self,Self::Error> {
+        let refund_id = match item.request.connector_refund_id.clone() {
+            Some(val) => val,
+            None => item.request.refund_id.clone(),
+        };
+        Ok(Self {
+            refund_id: (refund_id),
+        })
+    }
+}
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
 {
      type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
+    fn try_from(item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            }),
+            ..item.data
+        })
      }
  }
 

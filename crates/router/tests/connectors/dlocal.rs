@@ -455,10 +455,17 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
-    );
+        let x = response.response.unwrap_err();
+        println!("response from refund amount higher payment");
+        println!("{}",x.code);
+        assert_eq!(
+            x.code,
+            "5007",
+        );
+        assert_eq!(
+            x.message,
+            "Amount exceeded",
+        );
 }
 
 // Connector dependent test cases goes here

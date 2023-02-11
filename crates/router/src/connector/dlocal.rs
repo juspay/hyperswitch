@@ -471,12 +471,16 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "refunds"
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let dlocal_req = utils::Encode::<dlocal::DlocalRefundRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let dlocal_req = utils::Encode::<dlocal::RefundRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dlocal_req))
     }
 
@@ -521,8 +525,13 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let syncData = dlocal::DlocalRefundsSyncRequest::try_from(req)?;
+        Ok(format!("{}{}{}{}",
+            self.base_url(connectors)
+            , "refunds/"
+            , syncData.refund_id
+            , "/status"))
     }
 
     fn build_request(
@@ -535,7 +544,6 @@ impl
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
