@@ -60,19 +60,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     }
 }
 
-// impl From<Option<enums::CaptureMethod>> for bool {
-//     fn from(item: Option<enums::CaptureMethod>) -> Self {
-//         match item {
-//             Some(p) => match p {
-//                 enums::CaptureMethod::ManualMultiple |
-//                 enums::CaptureMethod::Manual |
-//                 enums::CaptureMethod::Scheduled => false,
-//                 enums::CaptureMethod::Automatic => true,
-//             },
-//             None => true,
-//         }
-//     }
-// }
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
@@ -138,26 +125,9 @@ pub struct BamboraPaymentsResponse {
     pub custom: Custom,
     pub card: Card,
     pub links: Vec<Link>,
-    // pub id: String,
-    // pub authorizing_merchant_id: i64,
-    // pub approved: String,
-    // #[serde(rename = "message_id")]
-    // pub message_id: String,
-    // #[serde(rename = "auth_code")]
-    // pub auth_code: String,
-    // pub created: String,
-    // #[serde(rename = "order_number")]
-    // pub order_number: String,
-    // #[serde(rename = "type")]
-    // pub type_field: String,
-    // #[serde(rename = "payment_method")]
-    // pub payment_method: String,
-    // pub amount: f64,
-    // pub card: Card,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct Custom {
     pub ref1: String,
     pub ref2: String,
@@ -187,32 +157,15 @@ pub struct Card {
 }
 
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct Link {
     pub rel: String,
     pub href: String,
     pub method: String,
 }
 
-// #[derive(Debug, Serialize, Eq, PartialEq)]
-// #[serde(rename_all = “camelCase”)]
-// pub struct Card {
-//     #[serde(rename = "card_type")]
-//     pub card_type: String,
-//     #[serde(rename = "last_four")]
-//     pub last_four: String,
-//     #[serde(rename = "card_bin")]
-//     pub card_bin: String,
-//     #[serde(rename = "avs_result")]
-//     pub avs_result: String,
-//     #[serde(rename = "cvd_result")]
-//     pub cvd_result: String,
-//     pub avs: Avs,
-// }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct Avs {
     pub id: String,
     pub message: String,
@@ -252,6 +205,124 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
     }
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BamboraPaymentsSyncResponse{
+    pub id: i64,
+    #[serde(rename = "authorizing_merchant_id")]
+    pub authorizing_merchant_id: i64,
+    pub approved: i64,
+    #[serde(rename = "message_id")]
+    pub message_id: i64,
+    pub message: BambaroPaymentStatus,
+    #[serde(rename = "auth_code")]
+    pub auth_code: String,
+    pub created: String,
+    pub amount: f64,
+    #[serde(rename = "order_number")]
+    pub order_number: String,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub comments: String,
+    #[serde(rename = "batch_number")]
+    pub batch_number: String,
+    #[serde(rename = "total_refunds")]
+    pub total_refunds: f64,
+    #[serde(rename = "total_completions")]
+    pub total_completions: f64,
+    #[serde(rename = "payment_method")]
+    pub payment_method: String,
+    pub card: SyncResponseCard,
+    pub billing: Billing,
+    pub shipping: Shipping,
+    pub custom: Custom,
+    #[serde(rename = "adjusted_by")]
+    pub adjusted_by: Vec<Option<serde_json::Value>>,
+    pub links: Vec<Link>,
+}
+
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncResponseCard {
+    pub name: String,
+    #[serde(rename = "expiry_month")]
+    pub expiry_month: String,
+    #[serde(rename = "expiry_year")]
+    pub expiry_year: String,
+    #[serde(rename = "card_type")]
+    pub card_type: String,
+    #[serde(rename = "last_four")]
+    pub last_four: String,
+    #[serde(rename = "avs_result")]
+    pub avs_result: String,
+    #[serde(rename = "cvd_result")]
+    pub cvd_result: String,
+    #[serde(rename = "cavv_result")]
+    pub cavv_result: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Billing {
+    pub name: String,
+    #[serde(rename = "address_line1")]
+    pub address_line1: String,
+    #[serde(rename = "address_line2")]
+    pub address_line2: String,
+    pub city: String,
+    pub province: String,
+    pub country: String,
+    #[serde(rename = "postal_code")]
+    pub postal_code: String,
+    #[serde(rename = "phone_number")]
+    pub phone_number: String,
+    #[serde(rename = "email_address")]
+    pub email_address: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Shipping {
+    pub name: String,
+    #[serde(rename = "address_line1")]
+    pub address_line1: String,
+    #[serde(rename = "address_line2")]
+    pub address_line2: String,
+    pub city: String,
+    pub province: String,
+    pub country: String,
+    #[serde(rename = "postal_code")]
+    pub postal_code: String,
+    #[serde(rename = "phone_number")]
+    pub phone_number: String,
+    #[serde(rename = "email_address")]
+    pub email_address: String,
+}
+
+
+impl <F, T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsSyncResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: types::ResponseRouterData <F, BamboraPaymentsSyncResponse, T, types::PaymentsResponseData, >, ) -> Result<Self, Self::Error> {
+        // let order = match item.response.orders.first() {
+        //     Some(order) => order,
+        //     _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+        // };
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.message),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.to_string()),
+                redirect: false,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            amount_captured: Some(item.response.amount as i64),
+            ..item.data
+        })
+    }
+}
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest

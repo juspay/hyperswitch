@@ -39,7 +39,7 @@ where
             ),
         ];
         
-        let a = self.get_auth_header(&req.connector_auth_type);
+        // let a = self.get_auth_header(&req.connector_auth_type);
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
         Ok(headers)
