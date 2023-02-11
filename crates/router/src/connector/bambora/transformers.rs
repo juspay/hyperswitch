@@ -113,17 +113,74 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct BamboraPaymentsResponse {
-    status: BamboraPaymentStatus,
-    id: String,
+    pub id: String,
+    pub authorizing_merchant_id: i64,
+    pub approved: String,
+    #[serde(rename = "message_id")]
+    pub message_id: String,
+    pub message: BambaroPaymentStatus,
+    #[serde(rename = "auth_code")]
+    pub auth_code: String,
+    pub created: String,
+    #[serde(rename = "order_number")]
+    pub order_number: String,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    #[serde(rename = "payment_method")]
+    pub payment_method: String,
+    pub amount: f64,
+    pub card: Card,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Card {
+    #[serde(rename = "card_type")]
+    pub card_type: String,
+    #[serde(rename = "last_four")]
+    pub last_four: String,
+    #[serde(rename = "card_bin")]
+    pub card_bin: String,
+    #[serde(rename = "avs_result")]
+    pub avs_result: String,
+    #[serde(rename = "cvd_result")]
+    pub cvd_result: String,
+    pub avs: Avs,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Avs {
+    pub id: String,
+    pub message: String,
+    pub processed: bool,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq, Default, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BambaroPaymentStatus {
+    Approved,
+    #[default]
+    Pending,
+}
+
+impl From<BambaroPaymentStatus> for enums::AttemptStatus {
+    fn from(item: BambaroPaymentStatus) -> Self {
+        match item {
+            BambaroPaymentStatus::Approved => Self::Authorized,
+            BambaroPaymentStatus::Pending => Self::Pending,
+        }
+    }
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.message),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
