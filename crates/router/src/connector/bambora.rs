@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
+use transformers as bambora;
 
 use crate::{
     configs::settings,
@@ -17,9 +18,6 @@ use crate::{
         ErrorResponse, Response,
     }
 };
-
-
-use transformers as bambora;
 
 #[derive(Debug, Clone)]
 pub struct Bambora;
@@ -49,7 +47,6 @@ impl ConnectorCommon for Bambora {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
-        // Ex: "application/x-www-form-urlencoded"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -265,11 +262,21 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(
+        &self,
+        _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors
+    ) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "v1/payments"
+        ))
     }
 
-    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData
+    ) -> CustomResult<Option<String>,errors::ConnectorError> {
         let bambora_req =
             utils::Encode::<bambora::BamboraPaymentsRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
