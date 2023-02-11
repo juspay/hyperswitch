@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
-
+use transformers as bambora;
 use crate::{
     configs::settings,
     utils::{self, BytesExt},
@@ -10,7 +10,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services::{self, ConnectorIntegration},
+    headers, services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -19,7 +19,7 @@ use crate::{
 };
 
 
-use transformers as bambora;
+
 
 #[derive(Debug, Clone)]
 pub struct Bambora;
@@ -60,7 +60,7 @@ impl ConnectorCommon for Bambora {
         let auth: bambora::BamboraAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-            Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Passcode {}", auth.api_key))])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Passcode {}", auth.api_key))])
     }
 }
 
@@ -151,7 +151,6 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: bambora:: BamboraPaymentsResponse = res
             .response
             .parse_struct("bambora PaymentsResponse")
@@ -226,7 +225,6 @@ impl
             .response
             .parse_struct("Bambora PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(bamborapayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -289,7 +287,6 @@ impl
     ) -> CustomResult<Option<String>,errors::ConnectorError> {
         let bambora_req =
             utils::Encode::<bambora::BamboraPaymentsRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(log_log=?bambora_req);
         Ok(Some(bambora_req))
     }
 
@@ -423,7 +420,6 @@ impl
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
-        logger::debug!(target: "router::connector::bambora", response=?res);
         let response: bambora::RefundResponse = res.response.parse_struct("bambora RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,

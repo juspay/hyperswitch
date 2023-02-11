@@ -1,3 +1,4 @@
+use masking::{PeekInterface};
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api, storage::enums}};
 
@@ -6,7 +7,7 @@ use crate::{core::errors,types::{self,api, storage::enums}};
 pub struct BamboraPaymentsRequest {
     amount: i64,
     payment_method: String,
-    card: CardJson
+    card: Card
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
@@ -15,18 +16,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
         let payment_method_data = item.request.payment_method_data.clone();
         let payment_method =
             match payment_method_data {
-                api::PaymentMethod::Card(ref _ccard) => String::from("card"),
+                api::PaymentMethod::Card(ref _item) => String::from("card"),
                 _ => todo!()
             };
         let card =
             match payment_method_data {
-                api::PaymentMethod::Card(ref ccard) => {
+                api::PaymentMethod::Card(ref item) => {
                     Card {
-                        name: ccard.card_holder_name.peek().clone(),
-                        number: ccard.card_number.peek().clone(),
-                        expiry_month: ccard.card_exp_month.peek().clone(),
-                        expiry_year: ccard.card_exp_year.peek().clone(),
-                        cvd: ccard.card_cvc.peek().clone()
+                        name: item.card_holder_name.peek().clone(),
+                        number: item.card_number.peek().clone(),
+                        expiry_month: item.card_exp_month.peek().clone(),
+                        expiry_year: item.card_exp_year.peek().clone(),
+                        cvd: item.card_cvc.peek().clone()
                     }
                 }
                 _ => todo!()
@@ -62,9 +63,9 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BamboraPaymentStatus {
+    #[default]
     ZERO,
     ONE,
-    #[default]
 }
 
 impl From<BamboraPaymentStatus> for enums::AttemptStatus {
@@ -88,7 +89,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::Charged,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
@@ -101,8 +102,8 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
+// //TODO: Fill the struct with respective fields
+// // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct BamboraRefundRequest {}
@@ -166,7 +167,7 @@ pub struct BamboraErrorResponse {}
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct CardJson {
+pub struct Card {
     name: String,
     number: String,
     expiry_month: String,
