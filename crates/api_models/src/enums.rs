@@ -519,7 +519,6 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
-	Payeezy,
     Fiserv,
     Globalpay,
     Klarna,
@@ -529,6 +528,7 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+    Payeezy,
 }
 
 impl Connector {
