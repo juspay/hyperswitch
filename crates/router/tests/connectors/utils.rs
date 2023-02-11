@@ -481,6 +481,7 @@ impl Default for PaymentCaptureType {
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
             amount: 100,
+            connector_metadata: None,
         })
     }
 }
@@ -490,6 +491,9 @@ impl Default for PaymentCancelType {
         Self(types::PaymentsCancelData {
             cancellation_reason: Some("requested_by_customer".to_string()),
             connector_transaction_id: "".to_string(),
+            connector_metadata: None,
+            amount: None,
+            currency: None,
         })
     }
 }

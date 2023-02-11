@@ -1,17 +1,26 @@
+use crate::{
+    core::errors,
+    pii::{self, PeekInterface},
+    types::{
+        self,
+        api::{self},
+        storage::enums,
+    },
+    utils::OptionExt,
+};
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use crate::{core::errors,types::{self,api::{self, }, storage::enums},pii::{self, PeekInterface}};
 
 #[derive(Eq, PartialEq, Serialize, Clone, Debug)]
 pub struct PayeezyCard {
     #[serde(rename = "type")]
-    pub card_type : String,
-    pub cardholder_name : Secret<String>,
-    pub card_number : Secret<String, pii::CardNumber>,
-    pub exp_date : String,
-    pub cvv : Secret<String>
+    pub card_type: String,
+    pub cardholder_name: Secret<String>,
+    pub card_number: Secret<String, pii::CardNumber>,
+    pub exp_date: String,
+    pub cvv: Secret<String>,
 }
 
 #[derive(Serialize, Eq, PartialEq, Clone, Debug)]
@@ -23,12 +32,12 @@ pub enum PayeezyPaymentMethod {
 //TODO: Fill the struct with respective fields
 #[derive(Serialize, Eq, PartialEq, Clone, Debug)]
 pub struct PayeezyPaymentsRequest {
-    pub merchant_ref : String,
-    pub transaction_type : String,
-    pub method : PayeezyPaymentMethodType,
-    pub amount : i64,
-    pub currency_code : String,
-    pub credit_card : PayeezyPaymentMethod
+    pub merchant_ref: String,
+    pub transaction_type: String,
+    pub method: PayeezyPaymentMethodType,
+    pub amount: i64,
+    pub currency_code: String,
+    pub credit_card: PayeezyPaymentMethod,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq, Clone)]
@@ -38,9 +47,9 @@ pub enum PayeezyPaymentMethodType {
     Card,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
             storage_models::enums::PaymentMethodType::Card => get_card_specific_payment_data(item),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -63,7 +72,7 @@ fn get_card_specific_payment_data(
         method,
         amount,
         currency_code,
-        credit_card
+        credit_card,
     })
 }
 
@@ -76,7 +85,11 @@ fn get_payment_method_data(
                 card_type: String::from("visa"),
                 cardholder_name: card.card_holder_name.clone(),
                 card_number: card.card_number.clone(),
-                exp_date: format!("{}{}", card.card_exp_month.peek().clone(), card.card_exp_year.peek().clone()),
+                exp_date: format!(
+                    "{}{}",
+                    card.card_exp_month.peek().clone(),
+                    card.card_exp_year.peek().clone()
+                ),
                 cvv: card.card_cvc.clone(),
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
@@ -90,17 +103,22 @@ fn get_payment_method_data(
 pub struct PayeezyAuthType {
     pub(super) api_key: String,
     pub(super) api_secret: String,
-    pub(super) merchant_token: String
+    pub(super) merchant_token: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType  {
+impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey { api_key, key1, api_secret } = item {
+        if let types::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } = item
+        {
             Ok(Self {
                 api_key: api_key.to_string(),
                 api_secret: api_secret.to_string(),
-                merchant_token: key1.to_string()
+                merchant_token: key1.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -119,32 +137,82 @@ pub enum PayeezyPaymentStatus {
     NotProcessed,
 }
 
-impl From<PayeezyPaymentStatus> for enums::AttemptStatus {
-    fn from(item: PayeezyPaymentStatus) -> Self {
-        match item {
-            PayeezyPaymentStatus::Approved => Self::Authorized,
-            PayeezyPaymentStatus::Declined => Self::AuthorizationFailed,
-            PayeezyPaymentStatus::NotProcessed => Self::Authorizing,
-        }
-    }
-}
-
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayeezyPaymentsResponse {
     correlation_id: String,
     transaction_status: PayeezyPaymentStatus,
-    validation_status : String,
-    transaction_type : String,
-    transaction_id : String,
-    transaction_tag : Option<String>,
-    method : String,
-    amount : String,
-    currency : String,
-    bank_resp_code : String,
-    bank_message : String,
-    gateway_resp_code : String,
-    gateway_message : String
+    validation_status: String,
+    transaction_type: String,
+    transaction_id: String,
+    transaction_tag: Option<String>,
+    method: Option<String>,
+    amount: String,
+    currency: String,
+    bank_resp_code: String,
+    bank_message: String,
+    gateway_resp_code: String,
+    gateway_message: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayeezyCaptureOrVoidRequest {
+    transaction_tag: String,
+    transaction_type: String,
+    amount: String,
+    currency_code: String,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for PayeezyCaptureOrVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let payment_details = item
+            .request
+            .connector_metadata
+            .as_ref()
+            .get_required_value("connector_metadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata",
+            })?
+            .clone();
+        let metadata: PayeezyPaymentsMetadata = payment_details
+            .parse_value("PayeezyPaymentsMetadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_tag",
+            })?;
+        Ok(Self {
+            transaction_type: "capture".to_string(),
+            amount: item.request.amount.to_string(),
+            currency_code: item.request.currency.to_string(),
+            transaction_tag: metadata.transaction_tag,
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for PayeezyCaptureOrVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let payment_details = item
+            .request
+            .connector_metadata
+            .as_ref()
+            .get_required_value("connector_metadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata",
+            })?
+            .clone();
+        let metadata: PayeezyPaymentsMetadata = payment_details
+            .parse_value("PayeezyPaymentsMetadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_tag",
+            })?;
+        Ok(Self {
+            transaction_type: "void".to_string(),
+            amount: item.request.amount.unwrap_or_default().to_string(),
+            currency_code: item.request.currency.unwrap_or_default().to_string(),
+            transaction_tag: metadata.transaction_tag,
+        })
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -152,27 +220,48 @@ pub struct PayeezyPaymentsMetadata {
     transaction_tag: String,
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
-
+    fn try_from(
+        item: types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         let metadata = item
             .response
             .transaction_tag
             .map(|txn_tag| {
-                Encode::<'_, PayeezyPaymentsMetadata>::encode_to_value(&construct_payeezy_payments_metadata(
-                    txn_tag,
-                ))
+                Encode::<'_, PayeezyPaymentsMetadata>::encode_to_value(
+                    &construct_payeezy_payments_metadata(txn_tag),
+                )
             })
             .transpose()
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "connector_metadata",
             })?;
 
+        let status = match item.response.transaction_status {
+            PayeezyPaymentStatus::Approved => match item.response.transaction_type.as_str() {
+                "authorize" => enums::AttemptStatus::Authorized,
+                "capture" => enums::AttemptStatus::Charged,
+                "void" => enums::AttemptStatus::Voided,
+                _ => enums::AttemptStatus::Pending,
+            },
+            PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match item.response.transaction_type.as_str() {
+                "authorize" => enums::AttemptStatus::AuthorizationFailed,
+                "capture" => enums::AttemptStatus::AuthorizationFailed,
+                "void" => enums::AttemptStatus::VoidFailed,
+                _ => enums::AttemptStatus::Pending,
+            },
+        };
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.transaction_status),
+            status: status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id,
+                ),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
@@ -191,8 +280,8 @@ pub struct PayeezyRefundRequest {}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 
@@ -220,8 +309,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-}
+pub struct RefundResponse {}
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
@@ -234,35 +322,36 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+    for types::RefundsRouterData<api::RSync>
 {
-     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-     }
- }
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        _item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Message {
-    pub code : String,
-    pub description : String
+    pub code: String,
+    pub description: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayeezyError {
-    pub messages : Vec<Message>
+    pub messages: Vec<Message>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayeezyErrorResponse {
-    pub transaction_status : String,
+    pub transaction_status: String,
     #[serde(rename = "Error")]
-    pub error : PayeezyError
+    pub error: PayeezyError,
 }
 
 fn construct_payeezy_payments_metadata(transaction_tag: String) -> PayeezyPaymentsMetadata {
-    PayeezyPaymentsMetadata {
-        transaction_tag
-    }
+    PayeezyPaymentsMetadata { transaction_tag }
 }

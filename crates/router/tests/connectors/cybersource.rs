@@ -140,6 +140,9 @@ async fn should_void_already_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: "".to_string(),
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                connector_metadata: None,
+                amount: None,
+                currency: None,
             }),
             get_default_payment_info(),
         )

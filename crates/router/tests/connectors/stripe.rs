@@ -143,6 +143,9 @@ async fn should_void_already_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: "".to_string(), // this connector_transaction_id will be ignored and the transaction_id from payment authorize data will be used for void
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                connector_metadata: None,
+                amount: None,
+                currency: None,
             }),
             None,
         )
