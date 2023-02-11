@@ -1,19 +1,18 @@
-use std::{collections::HashMap, str::FromStr};
 
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use reqwest::Url;
+
+use error_stack;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsRequestData},
-    consts,
+   
+ 
     core::errors,
-    pii::{self, Email, Secret},
-    services,
+    pii::{self, Secret},
+
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::{self},
         storage::enums as storage_enums,
     },
 };
@@ -27,10 +26,8 @@ pub enum BamboraPaymentMethod {
     
 }
 
-#[derive(Debug, Serialize)]
-enum PaymentType {
-    Card,
-}
+
+
 
 #[derive(Debug, Serialize)]
 pub struct Card {
@@ -216,8 +213,8 @@ fn get_payment_method_data(
             };
             Ok(BamboraPaymentMethod::BamboraCard(bambora_card))
         }
-        api::PaymentMethod::Wallet(ref wallet_data) => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        api_models::payments::PaymentMethod::PayLater(ref pay_later_data) => 
+        api::PaymentMethod::Wallet(ref _wallet_data) => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        api_models::payments::PaymentMethod::PayLater(ref _pay_later_data) => 
             Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         
         api_models::payments::PaymentMethod::BankTransfer
