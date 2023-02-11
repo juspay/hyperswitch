@@ -84,7 +84,50 @@ impl
         types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Forte
-{}
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = &req
+            .request
+            .connector_transaction_id;
+            // .get_connector_transaction_id()
+            // .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions/trn_{}",
+            api::ConnectorCommon::base_url(self, connectors),connector_payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        // let req_obj = forte::CaptureTransactionRequest::try_from(req)?;
+        // let req =
+        //     utils::Encode::<forte::CaptureTransactionRequest>::encode_to_string_of_json(
+        //         &req_obj,
+        //     )
+        //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        // Ok(Some(req))
+        todo!()
+    }
+
+}
 
 impl api::ConnectorAccessToken for Forte {}
 
