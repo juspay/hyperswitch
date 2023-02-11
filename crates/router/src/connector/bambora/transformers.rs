@@ -1,3 +1,4 @@
+use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api, storage::enums}};
 
@@ -21,13 +22,13 @@ pub struct Card {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        let cvd = String("");
-        let name = String("");
-        let number = String("");
-        let expiry_month: String("");
-        let expiry_year: String("");
+        let cvd = String::new();
+        let name = String::new();
+        let number = String::new();
+        let expiry_month: String::new();
+        let expiry_year: String::new();
 
-        let card = match item.request.payment_method_data.card.clone() {
+        let card = match item.request.payment_method_data.clone() {
             Some(mut card) => match card {
                 api::PaymentMethod::Card(ref ccard) => {
                     Card {
