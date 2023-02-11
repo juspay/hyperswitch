@@ -29,10 +29,17 @@ where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let mut headers = vec![
+            (
+                "X-Forte-Auth-Organization-Id".to_string(),
+                "org_436915".to_string(),
+            )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 }
 
@@ -42,8 +49,7 @@ impl ConnectorCommon for Forte {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "get_content_type"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -259,8 +265,11 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions/authorize",
+            api::ConnectorCommon::base_url(self, connectors)
+        ))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
