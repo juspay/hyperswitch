@@ -519,7 +519,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
-	Bambora,
+    Bambora,
     Fiserv,
     Globalpay,
     Klarna,
