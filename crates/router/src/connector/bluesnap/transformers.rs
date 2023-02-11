@@ -19,6 +19,31 @@ pub struct BluesnapPaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct BluesnapVoidRequest {
+    card_transaction_type: String,
+    transaction_id: String
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let card_transaction_type = String::from("AUTH_REVERSAL");
+        let transaction_id = String::from(&item.request.connector_transaction_id);
+
+        Ok(Self {
+            card_transaction_type,
+            transaction_id,
+        })
+    }
+}
+
+// pub struct PaymentIntentResponse {
+//     pub amount: i64,
+//     pub valuted_shopper_id: 
+// }
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Card {
     card_number: String,
     expiration_month: String,
@@ -201,4 +226,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct BluesnapErrorResponse {}
+pub struct BluesnapErrorResponse {
+    pub error: ErrorDetails,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ErrorDetails {
+    pub code: Option<String>,
+    #[serde(rename = "type")]
+    pub error_type: Option<String>,
+    pub message: Option<String>,
+    pub param: Option<String>,
+}
