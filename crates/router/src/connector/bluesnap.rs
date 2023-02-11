@@ -29,19 +29,18 @@ where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        api_key.push(
+
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string(),
-            ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                format!("Basic {}", "QVBJXzE2NzYxMDk1NDc3OTUxOTk3MjA0MDU1Okp1c3BheUAxMjM0"),
-            ),
-        ])
+            )
+        );
+        Ok(api_key)
     }
 }
 
