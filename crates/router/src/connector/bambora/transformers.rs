@@ -92,9 +92,9 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BamboraPaymentStatus {
-    #[default]
     #[serde(rename = "0")]
     ZERO,
+    #[default]
     #[serde(rename = "1")]
     ONE,
 }
