@@ -2,6 +2,7 @@
 // use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use storage_models::enums as storage_enums;
+use std::convert::From;
 
 use crate::{
     // connector::utils::AccessTokenRequestInfo,
@@ -331,6 +332,59 @@ impl <F, T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsSyncResponse, T,
         })
     }
 }
+
+
+//TODO: Fill the struct with respective fields
+// Capture :
+// Type definition for CaptureRequest
+#[derive(Default, Debug, Serialize)]
+pub struct BamboraCaptureRequest {
+    pub amount: i64,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item
+            .request
+            .amount_to_capture
+            .unwrap_or(item.request.amount),
+        })
+    }
+}
+
+
+
+// impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
+//     for types::PaymentsCaptureRouterData
+// {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
+//     ) -> Result<Self, Self::Error> {
+//         let (status, amount_captured) = match item.response.status.as_str() {
+//             "received" => (
+//                 storage_enums::AttemptStatus::Charged,
+//                 Some(item.response.amount.value),
+//             ),
+//             _ => (storage_enums::AttemptStatus::Pending, None),
+//         };
+//         Ok(Self {
+//             status,
+//             response: Ok(types::PaymentsResponseData::TransactionResponse {
+//                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
+//                 redirect: false,
+//                 redirection_data: None,
+//                 mandate_reference: None,
+//                 connector_metadata: None,
+//             }),
+//             amount_captured,
+//             ..item.data
+//         })
+//     }
+// }
+
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
