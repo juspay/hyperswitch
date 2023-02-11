@@ -202,9 +202,8 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapRefundResponseData {
-    refund_transaction_id: String,
-    amount: Option<String>,
-    reason: String,
+    connector_refund_id: String,
+    refund_status: enums::RefundStatus,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -231,7 +230,26 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: refund.refund_transaction_id.clone(),
+                connector_refund_id: refund.connector_refund_id.clone(),
+                refund_status: enums::RefundStatus::Success,
+            }),
+            ..item.data
+        })
+    }
+}
+
+
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+    for types::RefundsRouterData<api::Execute>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+       
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.refund.connector_refund_id.clone(),
                 refund_status: enums::RefundStatus::Success,
             }),
             ..item.data
