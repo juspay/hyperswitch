@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api, storage::enums}};
-
+use self::{storage::enums as storage_enums};
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Payer {
-    pub name : String
-    pub email: String
-    pub document: String
+    pub name : String,
+    pub email: String,
+    pub document: String,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -23,8 +23,8 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
     pub amount: i64, //amount in cents, hence passed as integer
-    pub currency: String,
-    pub country: String,
+    pub currency: storage_enums::Currency,
+    pub country: Option<String>,
     pub payment_method_id: String,
     pub payment_method_flow: String,
     pub payer: Payer,
@@ -35,8 +35,10 @@ pub struct DlocalPaymentsRequest {
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        todo!()
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+        let amount = item.request.amount,
+        let currency = item.request.currency,
+
     }
 }
 
@@ -57,23 +59,50 @@ impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType  {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DlocalPaymentStatus {
-    Succeeded,
-    Failed,
+    AUTHORIZED,
+    PAID,
+    VERIFIED,
+    CANCELLED,
     #[default]
-    Processing,
+    PENDING,
 }
 
 impl From<DlocalPaymentStatus> for enums::AttemptStatus {
     fn from(item: DlocalPaymentStatus) -> Self {
         match item {
-            DlocalPaymentStatus::Succeeded => Self::Charged,
-            DlocalPaymentStatus::Failed => Self::Failure,
-            DlocalPaymentStatus::Processing => Self::Authorizing,
+            DlocalPaymentStatus::AUTHORIZED => Self::Authorized,
+            DlocalPaymentStatus::VERIFIED => Self::Authorized,
+            DlocalPaymentStatus::PAID => Self::Charged,
+            DlocalPaymentStatus::PENDING => Self::Pending,
+            DlocalPaymentStatus::CANCELLED => Self::Voided
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
+// {
+//     "id": "D-4-e2227981-8ec8-48fd-8e9a-19fedb08d73a",
+//     "amount": 120,
+//     "currency": "USD",
+//     "payment_method_id": "CARD",
+//     "payment_method_type": "CARD",
+//     "payment_method_flow": "DIRECT",
+//     "country": "BR",
+//     "card": {
+//         "holder_name": "Thiago Gabriel",
+//         "expiration_month": 10,
+//         "expiration_year": 2040,
+//         "brand": "VI",
+//         "last4": "1111"
+//     },
+//     "created_date": "2019-02-06T21:04:43.000+0000",
+//     "approved_date": "2019-02-06T21:04:44.000+0000",
+//     "status": "AUTHORIZED",
+//     "status_detail": "The payment was authorized",
+//     "status_code": "600",
+//     "order_id": "657434343",
+//     "notification_url": "http://merchant.com/notifications"
+// }
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
