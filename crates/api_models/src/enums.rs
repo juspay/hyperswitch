@@ -519,6 +519,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Forte,
     Fiserv,
     Globalpay,
     Klarna,
@@ -558,6 +559,7 @@ pub enum RoutableConnectors {
     Checkout,
     Cybersource,
     Fiserv,
+    Forte,
     Globalpay,
     Klarna,
     Payu,

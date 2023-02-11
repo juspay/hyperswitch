@@ -11,18 +11,18 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "db_user"
-password = "db_pass"
+username = "hyperswitch_user"
+password = "hyperswitch_pass"
 host = "localhost"
-port = 5432
-dbname = "hyperswitch_db"
+port = 5431
+dbname = "hyperswitchdb"
 pool_size = 5
 
 [replica_database]
-username = "replica_user"
-password = "replica_pass"
+username = "hyperswitch_user"
+password = "hyperswitch_pass"
 host = "localhost"
-port = 5432
+port = 5431
 dbname = "hyperswitch_db"
 pool_size = 5
 
@@ -43,7 +43,7 @@ locker_decryption_key2 = ""
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline", "forte"]
 
 [refund]
 max_attempts = 10
@@ -102,6 +102,9 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.worldline]
 base_url = "https://eu.sandbox.api-ingenico.com/"
+
+[connectors.forte]
+base_url = "https://sandbox.forte.net/api/v3/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

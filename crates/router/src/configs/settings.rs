@@ -150,9 +150,10 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-
+    pub forte: ConnectorParams,
+    
     // Keep this field separate from the remaining fields
-    pub supported: SupportedConnectors,
+    pub supported: SupportedConnectors
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

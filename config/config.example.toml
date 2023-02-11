@@ -152,6 +152,9 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 # This data is used to call respective connectors for wallets and cards
+[connectors.forte]
+base_url = "https://sandbox.forte.net/api/v3/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [

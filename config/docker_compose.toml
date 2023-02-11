@@ -105,9 +105,12 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.forte]
+base_url = "http://localhost:3000/api/v3/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv", "forte"]
 
 
 [scheduler]
