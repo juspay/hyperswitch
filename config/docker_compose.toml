@@ -11,7 +11,7 @@ level = "DEBUG"             # What gets into log files.
 
 [log.console]
 enabled = true              # Whether you want to see log in your terminal.
-level = "DEBUG"             # What you see in your terminal.
+level = "WARN"             # What you see in your terminal.
 
 [log.telemetry]
 enabled = false             # Whether tracing/telemetry is enabled.
@@ -105,9 +105,12 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.square]
+base_url = "https://connect.squareupsandbox.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv", "square"]
 
 
 [scheduler]
