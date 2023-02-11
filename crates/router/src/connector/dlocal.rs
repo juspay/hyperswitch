@@ -39,22 +39,25 @@ where
             Some(val) => val,
             None => "".to_string()
         };
+        #[serde(with = "common_utils::custom_serde::iso8601")]
         let date = date_time::now();
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
+        let reqForSign: String = format!("{}{}{}",auth.xLogin.to_string(),date.to_string(),dlocal_req);
         let authz =
             crypto::HmacSha256::sign_message(
                 &crypto::HmacSha256
                 ,auth.secret.as_bytes()
-                ,dlocal_req.as_bytes())
+                ,reqForSign.as_bytes())
                 .change_context(errors::ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to sign the message")?;
         let auth_string: String = format!("{}{}","V2-HMAC-SHA256, Signature: ".to_string(),hex::encode(authz));
-            let headers = vec![
+        let headers = vec![
             (headers::AUTHORIZATION.to_string(), auth_string),
             (headers::X_LOGIN.to_string(), auth.xLogin.to_string()),
             (headers::X_TRANS_KEY.to_string(), auth.xTransKey.to_string()),
             (headers::X_VERSION.to_string(), "2.1".to_string()),
-            (headers::X_DATE.to_string(), date.to_string())
+            (headers::X_DATE.to_string(), date.to_string()),
+            (headers::CONTENT_TYPE.to_string(), "application/json".to_string())
             ];
         Ok(headers)
     }
@@ -281,7 +284,11 @@ impl
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
         let dlocal_req =
-            utils::Encode::<dlocal::DlocalPaymentsRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<dlocal::DlocalPaymentsRequest>::convert_and_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("logging request");
+        println!("{:#?}",dlocal_req);
+
         Ok(Some(dlocal_req))
     }
 
@@ -309,7 +316,9 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: dlocal::DlocalPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        println!("logging response");
+        println!("{:#?}",res.response);
+        let response: dlocal::DlocalPaymentsResponse = res.response.parse_struct("DlocalPaymentsResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(dlocalpayments_create_response=?response);
         types::ResponseRouterData {
             response,

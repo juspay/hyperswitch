@@ -73,6 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                         None => "http://wwww.sandbox.juspay.in/hackathon/H1005".to_string()
                     }
                     };
+                println!("{:#?}",payment_request);
                 Ok(payment_request)
             }
             _ => Err(
@@ -112,7 +113,7 @@ impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType  {
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum DlocalPaymentStatus {
     AUTHORIZED,
     PAID,
