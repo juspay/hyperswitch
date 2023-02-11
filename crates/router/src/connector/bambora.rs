@@ -5,7 +5,6 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bambora;
 
-
 use crate::{
     configs::settings,
     consts,
@@ -51,7 +50,7 @@ impl ConnectorCommon for Bambora {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"        
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

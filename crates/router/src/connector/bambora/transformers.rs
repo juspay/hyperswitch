@@ -6,7 +6,6 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraPaymentsRequest {
     amount: i64,
@@ -39,7 +38,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
         })
     }
 }
-
 
 // Auth Struct
 pub struct BamboraAuthType {
@@ -76,7 +74,6 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
         }
     }
 }
-
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BamboraPaymentsResponse {
@@ -118,7 +115,7 @@ impl<F, T>
     }
 }
 
-// 
+//
 // // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -153,7 +150,6 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {}
 
@@ -179,7 +175,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-
 #[derive(Default, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraErrorResponse {
@@ -191,7 +186,7 @@ pub struct ApiErrorResponse {
     pub code: i64,
     pub category: i64,
     pub message: String,
-    pub reference: String
+    pub reference: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
