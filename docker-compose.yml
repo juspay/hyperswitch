@@ -162,7 +162,7 @@ services:
     networks:
       - router_net
     ports:
-      - "6379:6379"
+      - "6379"
       - "16379"
 
   redis-init:
