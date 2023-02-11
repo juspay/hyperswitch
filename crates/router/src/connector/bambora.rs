@@ -39,7 +39,6 @@ where
             ),
         ];
         
-        // let a = self.get_auth_header(&req.connector_auth_type);
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
         Ok(headers)
@@ -117,10 +116,20 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "v1/payments/",
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -150,7 +159,7 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: bambora:: BamboraPaymentsResponse = res
+        let response: bambora:: BamboraPaymentsSyncResponse = res
             .response
             .parse_struct("bambora PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
