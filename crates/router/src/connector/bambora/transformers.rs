@@ -69,14 +69,14 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 pub struct BamboraPaymentsResponse {
     approved: BamboraPaymentStatus,
     id: String,
-    response: String
+    response: Option<String>
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::Charged,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
