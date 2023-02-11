@@ -283,24 +283,27 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        _req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}{}{}",
+            "{}{}",
             self.base_url(connectors),
-            "api/v2_1/orders/",
-            req.request.connector_transaction_id,
-            "/status"
+            "/transactions"
         ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
+        let connector_req = bluesnap::BluesnapCaptureRequest::try_from(req)?;
+        let bluesnap_req =
+            utils::Encode::<bluesnap::BluesnapCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
     }
+
 
     fn build_request(
         &self,
@@ -309,7 +312,7 @@ impl
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(services::Method::Put)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
