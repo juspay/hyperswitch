@@ -1,9 +1,10 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{types::{self, api, storage::enums, PaymentAddress}};
+use api_models::payments::{Address, AddressDetails};
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentInfo},
 };
 
 #[derive(Clone, Copy)]
@@ -29,6 +30,55 @@ impl utils::Connector for BamboraTest {
 
     fn get_name(&self) -> String {
         "bambora".to_string()
+    }
+}
+
+impl BamboraTest {
+    fn get_payment_info() -> Option<PaymentInfo> {
+        Some(PaymentInfo {
+            address: Some(PaymentAddress {
+                billing: Some(Address {
+                    address: Some(AddressDetails {
+                        country: Some("US".to_string()),
+                        ..Default::default()
+                    }),
+                    phone: None,
+                }),
+                ..Default::default()
+            }),
+            router_return_url: Some(String::from("http://localhost:8080")),
+            ..Default::default()
+        })
+    }
+
+    fn get_payment_authorize_data(
+        card_number: &str,
+        card_exp_month: &str,
+        card_exp_year: &str,
+        card_cvc: &str,
+        capture_method: enums::CaptureMethod,
+    ) -> Option<types::PaymentsAuthorizeData> {
+        Some(types::PaymentsAuthorizeData {
+            amount: 10,
+            currency: enums::Currency::USD,
+            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
+                card_number: Secret::new(card_number.to_string()),
+                card_exp_month: Secret::new(card_exp_month.to_string()),
+                card_exp_year: Secret::new(card_exp_year.to_string()),
+                card_holder_name: Secret::new("John Doe".to_string()),
+                card_cvc: Secret::new(card_cvc.to_string()),
+            }),
+            confirm: true,
+            statement_descriptor_suffix: None,
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            setup_mandate_details: None,
+            capture_method: Some(capture_method),
+            browser_info: None,
+            order_details: None,
+            email: None,
+        })
     }
 }
 
@@ -173,14 +223,32 @@ async fn should_sync_manually_captured_refund() {
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_make_payment() {
-    let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
+    let authorize_response = CONNECTOR.make_payment(
+        BamboraTest::get_payment_authorize_data(
+            "4030000010001234",
+            "02",
+            "14",
+            "123",
+            enums::CaptureMethod::Automatic,
+        ),
+        BamboraTest::get_payment_info(),
+    ).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
-    let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
+    let authorize_response = CONNECTOR.make_payment(
+        BamboraTest::get_payment_authorize_data(
+            "4030000010001234",
+            "02",
+            "14",
+            "123",
+            enums::CaptureMethod::Automatic,
+        ),
+        BamboraTest::get_payment_info(),
+    ).await.unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
