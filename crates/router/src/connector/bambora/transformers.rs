@@ -82,7 +82,18 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 pub struct BamboraPaymentsResponse {
     approved: BamboraPaymentStatus,
     id: String,
-    response: Option<String>,
+    authorizing_merchant_id: String,
+    description: String,
+    message_id: i64,
+    message: String,
+    auth_code: String,
+    created: String,
+    order_number: String,
+    risk_score: i64,
+    amount: i64,
+    payment_method: String,
+    merchant_data: String,
+    contents: String,
 }
 
 impl<F, T>
@@ -94,9 +105,9 @@ impl<F, T>
         item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Charged,
+            status: enums::AttemptStatus::from(item.response.approved),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.message_id),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
