@@ -170,6 +170,36 @@ pub struct CaptureTransactionResponse {
     pub response: Response,
 }
 //Capture A Transaction Types- End
+
+//Void a Transaction Types - Start
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidATransactionRequest {
+    pub action: String,
+    #[serde(rename = "authorization_code")]
+    pub authorization_code: String,
+    #[serde(rename = "entered_by")]
+    pub entered_by: String,
+}
+
+//Response
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidATransactionResponse {
+    #[serde(rename = "transaction_id")]
+    pub transaction_id: String,
+    #[serde(rename = "location_id")]
+    pub location_id: String,
+    pub action: String,
+    #[serde(rename = "authorization_code")]
+    pub authorization_code: String,
+    #[serde(rename = "entered_by")]
+    pub entered_by: String,
+    pub response: Response,
+    pub links: Links,
+}
+
+//Void a Transaction Types - End
 //Types End
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
