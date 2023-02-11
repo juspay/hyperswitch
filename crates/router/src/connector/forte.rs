@@ -1,7 +1,9 @@
 mod transformers;
 
 use std::fmt::Debug;
+use common_utils::ext_traits::ValueExt;
 use error_stack::{ResultExt, IntoReport};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
@@ -251,6 +253,12 @@ impl
     //TODO: implement sessions flow
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SessionObject {
+    org_id : String,
+    location_id : String
+}
+
 impl api::PaymentAuthorize for Forte {}
 
 impl
@@ -267,8 +275,15 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Ok(format!("{}organizations/org_436834/locations/loc_314110/transactions", self.base_url(_connectors)))
+    fn get_url(&self, req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let metadata = req
+            .connector_meta_data
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: SessionObject = metadata
+            .parse_value("SessionObject")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(format!("{}organizations/org_{}/locations/loc_{}/transactions", self.base_url(_connectors), session.org_id, session.location_id))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {

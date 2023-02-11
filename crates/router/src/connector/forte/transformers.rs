@@ -87,20 +87,19 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
-    Succeeded,
-    Failed,
+    A,
+    D,
     #[default]
-    Processing,
+    E
 }
 
 impl From<FortePaymentStatus> for enums::AttemptStatus {
     fn from(item: FortePaymentStatus) -> Self {
         match item {
-            FortePaymentStatus::Succeeded => Self::Charged,
-            FortePaymentStatus::Failed => Self::Failure,
-            FortePaymentStatus::Processing => Self::Authorizing,
+            FortePaymentStatus::A => Self::Charged,
+            FortePaymentStatus::D => Self::Failure,
+            FortePaymentStatus::E => Self::Failure,
         }
     }
 }
@@ -109,13 +108,20 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FortePaymentsResponse {
     transaction_id: String,
+    response: ResponseDetails,
+    authorization_amount: f64
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ResponseDetails {
+    response_type: FortePaymentStatus
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(FortePaymentStatus::Succeeded),
+            status: enums::AttemptStatus::from(item.response.response.response_type),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
@@ -123,6 +129,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::
                 mandate_reference: None,
                 connector_metadata: None,
             }),
+            amount_captured: Some(item.response.authorization_amount as i64),
             ..item.data
         })
     }
