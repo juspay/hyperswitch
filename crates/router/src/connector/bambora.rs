@@ -49,8 +49,7 @@ impl ConnectorCommon for Bambora {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json"        
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

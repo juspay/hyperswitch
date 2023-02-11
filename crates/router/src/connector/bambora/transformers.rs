@@ -6,7 +6,7 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraPaymentsRequest {
     amount: i64,
@@ -40,7 +40,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
+
 // Auth Struct
 pub struct BamboraAuthType {
     pub(super) api_key: String,
@@ -77,7 +77,7 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BamboraPaymentsResponse {
     approved: BamboraPaymentStatus,
@@ -107,7 +107,7 @@ impl<F, T>
     }
 }
 
-// //TODO: Fill the struct with respective fields
+// 
 // // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -142,7 +142,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {}
 
@@ -168,7 +168,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BamboraErrorResponse {}
 
