@@ -117,7 +117,7 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Ok(String::from("https://connect.squareupsandbox.com/v2/payments"))
     }
 
     fn build_request(

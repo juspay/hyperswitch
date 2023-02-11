@@ -13,9 +13,10 @@ pub struct AmountMoneyType {
 pub struct SquarePaymentsRequest {
     amount_money: AmountMoneyType,
     idempotency_key: String,
-    source_id: String
+    source_id: String,
 }
 
+// i am using statement_descriptor_suffix as a means to supply card token to the request, as create-payment on square seems to use tokens instead of payment options
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
@@ -25,7 +26,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest  {
                 currency: item.request.currency.to_string()
             },
             idempotency_key: Uuid::new_v4().to_string(),
-            source_id: String::from("cnon:card-nonce-ok"),
+            source_id: match &item.request.statement_descriptor_suffix {
+                Some (val) => String::from(val),
+                None => String::from("cnon:card-nonce-ok")
+            }
         };
         Ok(payment_request)
     }
