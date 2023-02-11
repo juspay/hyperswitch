@@ -119,7 +119,6 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("Reached some code!");
         Ok(format!(
             "{}payments/{}",
             self.base_url(_connectors),
@@ -283,7 +282,6 @@ impl
         _req: &types::PaymentsAuthorizeRouterData, 
         _connectors: &settings::Connectors,
     ) -> CustomResult<String,errors::ConnectorError> {
-        println!("{:?}",self.base_url(_connectors));
         Ok(format!(
             "{}{}",
             self.base_url(_connectors),
@@ -302,8 +300,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        println!("Headers---:{:?}",self.get_headers(req, connectors));
-        println!("Body---:{:?}",self.get_request_body(req));
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -323,8 +319,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        println!("Reached handle_response");
-        println!("Handle Response---:{:?}",res.response);
         let response: bambora::BamboraPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(bamborapayments_create_response=?response);
         types::ResponseRouterData {
@@ -361,8 +355,9 @@ impl
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         Ok(format!(
-            "{}ch/payments/v1/charges",
-            self.base_url(_connectors)
+            "{}v1/payments/{}/returns",
+            self.base_url(_connectors),
+            _req.request.connector_transaction_id,
         ))
     }
 

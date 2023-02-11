@@ -38,7 +38,7 @@ struct Card {
     avs_result: String,
     cvd_result: String,
     cavv_result: Option<String>,
-    avs: Avs,
+    avs: Option<Avs>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,13 +61,8 @@ pub struct BamboraPaymentsRequest {
     amount: i64,
     payment_method: String,
     card: InputCardDetails,
+    order_number: String
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct BamboraRefundRequest {
-//     amount: i64,
-
-// }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -78,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
                 number:ccard.card_number.peek().clone(),
                 expiry_month:ccard.card_exp_month.peek().clone(),
                 expiry_year: ccard.card_exp_year.peek().clone(),
-                cvd:ccard.card_cvc.peek().clone()
+                cvd:ccard.card_cvc.peek().clone(),
             },
             _ => Err(errors::ConnectorError::NotImplemented("payment method".into()))?,
         };
@@ -93,7 +88,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
         Ok(Self {
             amount: _item.request.amount,
             payment_method: payment_method_name,
-            card: card_details
+            card: card_details,
+            order_number: _item.payment_id.to_string(),
         })
     }
 }
@@ -182,13 +178,18 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct BamboraRefundRequest {}
+pub struct BamboraRefundRequest {
+    order_number: String,
+    amount: i64,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
-    
+        Ok(Self {
+            amount: _item.request.amount,
+            order_number: _item.payment_id.to_string(),
+        })
     }
 }
 
@@ -215,8 +216,24 @@ impl From<RefundStatus> for enums::RefundStatus {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
+    id: String,
+    authorizing_merchant_id: i64,
+    approved: String,
+    message_id: String,
+    message: String,
+    auth_code: String,
+    created: String,
+    order_number: String,
+    #[serde(rename="type")]
+    flow_type: String,
+    payment_method: String,
+    risk_score: f64,
+    amount: f64,
+    custom: Custom,
+    card: Option<Card>,
+    links: Vec<Link>
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -226,7 +243,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: _item.response.id,
+                refund_status: enums::RefundStatus::Success,
+            }),
+            .._item.data
+        })
         // Err(errors::ConnectorError::NotImplemented("payment method".into())).into_report()
     }
 }
@@ -235,8 +258,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 {
      type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-        // Err(errors::ConnectorError::NotImplemented("payment method".into())).into_report()
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: _item.response.id,
+                refund_status: enums::RefundStatus::Success,
+            }),
+            .._item.data
+        })
      }
  }
 
