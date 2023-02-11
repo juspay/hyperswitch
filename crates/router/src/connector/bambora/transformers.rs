@@ -22,20 +22,14 @@ pub struct Card {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        let cvd = String::new();
-        let name = String::new();
-        let number = String::new();
-        let expiry_month = String::new();
-        let expiry_year = String::new();
-
-        let paymentMethodData = item.request.payment_method_data.clone();
-        let paymentMethod =
-            match paymentMethodData {
-                api::PaymentMethod::Card(ref ccard) => String::from("card"),
+        let payment_method_data = item.request.payment_method_data.clone();
+        let payment_method =
+            match payment_method_data {
+                api::PaymentMethod::Card(ref _ccard) => String::from("card"),
                 _ => todo!()
             };
         let card =
-            match paymentMethodData {
+            match payment_method_data {
                 api::PaymentMethod::Card(ref ccard) => {
                     Card {
                         name: ccard.card_holder_name.peek().clone(),
@@ -47,23 +41,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
                 }
                 _ => todo!()
             };
-            // None => Card {
-            //         name: cvd,
-            //         number: cvd,
-            //         expiry_month: cvd,
-            //         expiry_year: cvd,
-            //         cvd: cvd,
-            
-            // }
-            // name: item.request.payment_method_data.card.card_holder_name,
-            // number: item.request.payment_method_data.card.card_number,
-            // expiry_month: item.request.payment_method_data.card.card_exp_month,
-            // expiry_year: item.request.payment_method_data.card.card_exp_year,
-            // cvd: item.request.payment_method_data.card.card_cvc,
-        // };
         Ok(Self {
             amount: item.request.amount,
-            payment_method: paymentMethod,
+            payment_method: payment_method,
             card,
         })
     }
@@ -92,9 +72,9 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BamboraPaymentStatus {
+    #[default]
     #[serde(rename = "0")]
     ZERO,
-    #[default]
     #[serde(rename = "1")]
     ONE,
 }
