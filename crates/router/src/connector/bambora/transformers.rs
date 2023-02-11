@@ -116,7 +116,7 @@ pub struct BamboraPaymentsResponse {
     #[serde(rename = "order_number")]
     pub order_number: String,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: BamboraPREAuthType,
     #[serde(rename = "payment_method")]
     pub payment_method: String,
     #[serde(rename = "risk_score")]
@@ -179,11 +179,19 @@ pub enum BambaroPaymentStatus {
     Pending,
 }
 
-impl From<BambaroPaymentStatus> for enums::AttemptStatus {
-    fn from(item: BambaroPaymentStatus) -> Self {
+#[derive(Debug, Serialize, Eq, PartialEq, Default, Deserialize, Clone)]
+pub enum BamboraPREAuthType {
+    #[serde(rename = "PA")]
+    PAs,
+    #[default]
+    P,
+}
+
+impl From<BamboraPREAuthType> for enums::AttemptStatus {
+    fn from(item: BamboraPREAuthType) -> Self {
         match item {
-            BambaroPaymentStatus::Approved => Self::Charged,
-            BambaroPaymentStatus::Pending => Self::Pending,
+            BamboraPREAuthType::P => Self::Charged,
+            BamboraPREAuthType::PAs => Self::Authorized,
         }
     }
 }
@@ -192,7 +200,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.message),
+            status: enums::AttemptStatus::from(item.response.type_field),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
@@ -222,7 +230,7 @@ pub struct BamboraPaymentsSyncResponse{
     #[serde(rename = "order_number")]
     pub order_number: String,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: BamboraPREAuthType,
     pub comments: String,
     #[serde(rename = "batch_number")]
     pub batch_number: String,
@@ -310,7 +318,7 @@ impl <F, T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsSyncResponse, T,
         //     _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         // };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.message),
+            status: enums::AttemptStatus::from(item.response.type_field),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.to_string()),
                 redirect: false,
