@@ -467,7 +467,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         self.common_get_content_type()
     }
 
-    fn get_url(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}{}/{}",
