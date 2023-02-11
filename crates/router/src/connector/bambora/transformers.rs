@@ -37,7 +37,7 @@ struct Card {
     postal_result: i64,
     avs_result: String,
     cvd_result: String,
-    cavv_result: String,
+    cavv_result: Option<String>,
     avs: Avs,
 }
 
@@ -63,6 +63,12 @@ pub struct BamboraPaymentsRequest {
     card: InputCardDetails,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BamboraRefundRequest {
+    amount: i64,
+    
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
@@ -76,10 +82,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
             },
             _ => Err(errors::ConnectorError::NotImplemented("payment method".into()))?,
         };
-        let payment_method_name:String = match _item.payment_method {
+
+        let payment_method_name = match _item.payment_method {
             storage_models::enums::PaymentMethodType::Card => String::from("card"),
             _ => Err(errors::ConnectorError::NotImplemented("payment method".into()))?,
         };
+
+        println!("{:?}", _item);
 
         Ok(Self {
             amount: _item.request.amount,
@@ -98,9 +107,16 @@ pub struct BamboraAuthType {
 impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
+            Ok(Self {
+                api_key: api_key.to_string(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        }
         // todo!()
         // Err
-        Err(errors::ConnectorError::NotImplemented("payment method".into())).into_report()
+        // Err(errors::ConnectorError::NotImplemented("payment method".into())).into_report()
     }
 }
 // PaymentsResponse

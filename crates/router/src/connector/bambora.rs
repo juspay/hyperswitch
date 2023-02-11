@@ -33,13 +33,13 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // todo!()
-        let headers:Vec(String, String) = vec![
+        let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string(),
             ),
         ];
-        let mut api_key:Vec(String, String)=self.get_auth_header(&_req.connector_auth_type)?;
+        let mut api_key=self.get_auth_header(&_req.connector_auth_type)?;
         headers.append(&mut api_key);
         Ok(headers)
     }
@@ -119,7 +119,7 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("Reached some code!")
+        println!("Reached some code!");
         Ok(format!(
             "{}payments/{}",
             self.base_url(_connectors),
@@ -283,6 +283,7 @@ impl
         _req: &types::PaymentsAuthorizeRouterData, 
         _connectors: &settings::Connectors,
     ) -> CustomResult<String,errors::ConnectorError> {
+        println!("{:?}",self.base_url(_connectors));
         Ok(format!(
             "{}{}",
             self.base_url(_connectors),
@@ -301,6 +302,8 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        println!("Headers---:{:?}",self.get_headers(req, connectors));
+        println!("Body---:{:?}",self.get_request_body(req));
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -320,6 +323,8 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
+        println!("Reached handle_response");
+        println!("Handle Response---:{:?}",res.response);
         let response: bambora::BamboraPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(bamborapayments_create_response=?response);
         types::ResponseRouterData {
