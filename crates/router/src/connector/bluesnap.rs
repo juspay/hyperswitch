@@ -61,7 +61,7 @@ impl ConnectorCommon for Bluesnap {
         let auth: bluesnap::BluesnapAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Basic {}", auth.api_key))])
     }
 }
 
