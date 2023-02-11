@@ -223,4 +223,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PayeezyErrorResponse {}
+pub struct Message {
+    pub code : String,
+    pub description : String
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PayeezyError {
+    pub messages : Vec<Message>
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PayeezyErrorResponse {
+    pub transaction_status : String,
+    #[serde(rename = "Error")]
+    pub error : PayeezyError
+}
