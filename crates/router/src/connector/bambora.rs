@@ -29,10 +29,20 @@ where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string(),
+            ),
+        ];
+        
+        let a = self.get_auth_header(&req.connector_auth_type);
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 }
 
@@ -47,6 +57,7 @@ impl ConnectorCommon for Bambora {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        logger::error!("IM<-");
         connectors.bambora.base_url.as_ref()
     }
 
@@ -267,7 +278,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/payments"
+            "v1/payments"
         ))
     }
 

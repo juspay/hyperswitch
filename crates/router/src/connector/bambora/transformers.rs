@@ -117,6 +117,7 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct BamboraPaymentsResponse {
     pub id: String,
+    #[serde(rename = "authorizing_merchant_id")]
     pub authorizing_merchant_id: i64,
     pub approved: String,
     #[serde(rename = "message_id")]
@@ -131,8 +132,38 @@ pub struct BamboraPaymentsResponse {
     pub type_field: String,
     #[serde(rename = "payment_method")]
     pub payment_method: String,
+    #[serde(rename = "risk_score")]
+    pub risk_score: f64,
     pub amount: f64,
+    pub custom: Custom,
     pub card: Card,
+    pub links: Vec<Link>,
+    // pub id: String,
+    // pub authorizing_merchant_id: i64,
+    // pub approved: String,
+    // #[serde(rename = "message_id")]
+    // pub message_id: String,
+    // #[serde(rename = "auth_code")]
+    // pub auth_code: String,
+    // pub created: String,
+    // #[serde(rename = "order_number")]
+    // pub order_number: String,
+    // #[serde(rename = "type")]
+    // pub type_field: String,
+    // #[serde(rename = "payment_method")]
+    // pub payment_method: String,
+    // pub amount: f64,
+    // pub card: Card,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Custom {
+    pub ref1: String,
+    pub ref2: String,
+    pub ref3: String,
+    pub ref4: String,
+    pub ref5: String,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -144,12 +175,41 @@ pub struct Card {
     pub last_four: String,
     #[serde(rename = "card_bin")]
     pub card_bin: String,
+    #[serde(rename = "address_match")]
+    pub address_match: i64,
+    #[serde(rename = "postal_result")]
+    pub postal_result: i64,
     #[serde(rename = "avs_result")]
     pub avs_result: String,
     #[serde(rename = "cvd_result")]
     pub cvd_result: String,
     pub avs: Avs,
 }
+
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Link {
+    pub rel: String,
+    pub href: String,
+    pub method: String,
+}
+
+// #[derive(Debug, Serialize, Eq, PartialEq)]
+// #[serde(rename_all = “camelCase”)]
+// pub struct Card {
+//     #[serde(rename = "card_type")]
+//     pub card_type: String,
+//     #[serde(rename = "last_four")]
+//     pub last_four: String,
+//     #[serde(rename = "card_bin")]
+//     pub card_bin: String,
+//     #[serde(rename = "avs_result")]
+//     pub avs_result: String,
+//     #[serde(rename = "cvd_result")]
+//     pub cvd_result: String,
+//     pub avs: Avs,
+// }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -160,7 +220,6 @@ pub struct Avs {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Default, Deserialize, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BambaroPaymentStatus {
     Approved,
     #[default]
@@ -170,7 +229,7 @@ pub enum BambaroPaymentStatus {
 impl From<BambaroPaymentStatus> for enums::AttemptStatus {
     fn from(item: BambaroPaymentStatus) -> Self {
         match item {
-            BambaroPaymentStatus::Approved => Self::Authorized,
+            BambaroPaymentStatus::Approved => Self::Charged,
             BambaroPaymentStatus::Pending => Self::Pending,
         }
     }
