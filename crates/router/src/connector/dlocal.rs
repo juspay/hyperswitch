@@ -85,6 +85,23 @@ impl ConnectorCommon for Dlocal {
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dlocal.base_url.as_ref()
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: dlocal::DlocalErrorResponse = res
+            .response
+            .parse_struct("Shift4 ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.code.to_string(),
+            message: response.message,
+            reason: response.param,
+        })
+    }
 }
 
 impl api::Payment for Dlocal {}
@@ -135,10 +152,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let syncData = dlocal::DlocalPaymentsSyncRequest::try_from(req)?;
+        Ok(format!("{}{}{}{}",
+            self.base_url(connectors)
+            , "payments/"
+            , syncData.authz_id
+            , "/status"))
     }
 
     fn build_request(
@@ -167,6 +189,8 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        println!("logging response");
+        println!("{:#?}",res.response);
         logger::debug!(payment_sync_response=?res);
         let response: dlocal:: DlocalPaymentsResponse = res
             .response
@@ -296,9 +320,6 @@ impl
         let dlocal_req =
             utils::Encode::<dlocal::DlocalPaymentsRequest>::convert_and_encode(req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("logging request");
-        println!("{:#?}",dlocal_req);
-
         Ok(Some(dlocal_req))
     }
 
@@ -340,6 +361,8 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        println!("logging response");
+        println!("{:#?}",res.response);
         self.build_error_response(res)
     }
 }

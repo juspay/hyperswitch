@@ -94,6 +94,8 @@ async fn should_sync_authorized_payment() {
         )
         .await
         .expect("PSync response");
+    println!("response from authorized payment");
+    println!("{}",response.status);
     assert_eq!(response.status, enums::AttemptStatus::Authorized,);
 }
 
@@ -279,7 +281,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: Secret::new("1891011".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -288,9 +290,14 @@ async fn should_fail_payment_for_incorrect_card_number() {
         )
         .await
         .unwrap();
+    let x = response.response.unwrap_err();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card number is incorrect.".to_string(),
+        x.message,
+        "Invalid parameter",
+    );
+    assert_eq!(
+        x.reason,
+        Some("card.number".to_string())
     );
 }
 
@@ -313,7 +320,11 @@ async fn should_fail_payment_for_empty_card_number() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        "You passed an empty string for 'payment_method_data[card][number]'.",
+        "Invalid parameter",
+    );
+    assert_eq!(
+        x.reason,
+        Some("card.number".to_string())
     );
 }
 
@@ -324,7 +335,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_cvc: Secret::new("12345".to_string()),
+                    card_cvc: Secret::new("1ad2345".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -333,9 +344,14 @@ async fn should_fail_payment_for_incorrect_cvc() {
         )
         .await
         .unwrap();
+    let x = response.response.unwrap_err();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        x.message,
+        "Invalid parameter",
+    );
+    assert_eq!(
+        x.reason,
+        Some("card.cvv".to_string())
     );
 }
 
@@ -346,7 +362,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_exp_month: Secret::new("20".to_string()),
+                    card_exp_month: Secret::new("201".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -355,9 +371,14 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
+    let x = response.response.unwrap_err();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        x.message,
+        "Invalid parameter",
+    );
+    assert_eq!(
+        x.reason,
+        Some("card.expiration_month".to_string())
     );
 }
 
@@ -368,7 +389,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_exp_year: Secret::new("2000".to_string()),
+                    card_exp_year: Secret::new("20001".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -377,9 +398,14 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         )
         .await
         .unwrap();
+    let x = response.response.unwrap_err();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        x.message,
+        "Invalid parameter",
+    );
+    assert_eq!(
+        x.reason,
+        Some("card.expiration_year".to_string())
     );
 }
 

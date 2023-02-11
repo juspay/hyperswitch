@@ -53,7 +53,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                     payment_method_flow : "DIRECT".to_string(),
                     payer : Payer {
                         name: ccard.card_holder_name.peek().clone(),
-                        email: match &item.request.email{ 
+                        email: match &item.request.email{
                             Some (c) => c.peek().clone().to_string(),
                             None => "dummyEmail@gmail.com".to_string()
                         },
@@ -80,7 +80,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                 errors::ConnectorError::NotImplemented("Current Payment Method".to_string()).into(),
             ),
         }
-        
+
     }
 }
 
@@ -88,6 +88,19 @@ fn get_currency(item: enums::Currency) -> String{
     match item{
         BRL => "BR".to_string(),
         _ => "IN".to_string()
+    }
+}
+
+pub struct DlocalPaymentsSyncRequest {
+    pub authz_id: String ,
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for DlocalPaymentsSyncRequest  {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self,Self::Error> {
+        Ok(Self {
+            authz_id: (item.request.connector_transaction_id.get_connector_transaction_id().unwrap()),
+        })
     }
 }
 
@@ -182,6 +195,29 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types:
     }
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DlocalPaymentsSyncResponse {
+    status: DlocalPaymentStatus,
+    id: String,
+}
+
+impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsSyncResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: types::ResponseRouterData<F, DlocalPaymentsSyncResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
@@ -243,4 +279,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DlocalErrorResponse {}
+pub struct DlocalErrorResponse {
+    pub code :  i32,
+    pub message : String,
+    pub param : Option<String>,
+}
