@@ -271,7 +271,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors
+        _req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors
     ) -> CustomResult<String,errors::ConnectorError> {
         Ok(format!(
             "{}{}",
