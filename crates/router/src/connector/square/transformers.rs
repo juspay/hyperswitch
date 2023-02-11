@@ -110,13 +110,26 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, SquarePaymentsResponse, T, types:
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct SquareRefundRequest {}
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct SquareRefundRequest {
+    payment_id: String,
+    idempotency_key: String,
+    amount_money: AmountMoneyType,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+        let payment_request = Self {
+            amount_money: AmountMoneyType {
+                amount: item.request.amount,
+                currency: item.request.currency.to_string()
+            },
+            idempotency_key: Uuid::new_v4().to_string(),
+            payment_id: item.request.connector_transaction_id
+            }
+        };
+        Ok(payment_request)
     }
 }
 
