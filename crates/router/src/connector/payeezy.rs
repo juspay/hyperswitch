@@ -471,8 +471,14 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(connectors),
+            "v1/transactions",
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {

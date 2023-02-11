@@ -275,50 +275,94 @@ impl<F, T>
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct PayeezyRefundRequest {}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayeezyRefundRequest {
+    transaction_tag: String,
+    transaction_type: String,
+    amount: String,
+    currency_code: String,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        todo!()
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let payment_details = item
+            .request
+            .connector_metadata
+            .as_ref()
+            .get_required_value("connector_metadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata",
+            })?
+            .clone();
+        let metadata: PayeezyPaymentsMetadata = payment_details
+            .parse_value("PayeezyPaymentsMetadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_tag",
+            })?;
+        Ok(Self {
+            transaction_type: "refund".to_string(),
+            amount: item.request.amount.to_string(),
+            currency_code: item.request.currency.to_string(),
+            transaction_tag: metadata.transaction_tag,
+        })
     }
 }
 
 // Type definition for Refund Response
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
+    Approved,
+    Declined,
     #[default]
-    Processing,
+    #[serde(rename = "Not Processed")]
+    NotProcessed,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Approved => Self::Success,
+            RefundStatus::Declined => Self::Failure,
+            RefundStatus::NotProcessed => Self::Pending,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RefundResponse {
+    correlation_id: String,
+    transaction_status: RefundStatus,
+    validation_status: String,
+    transaction_type: String,
+    transaction_id: String,
+    transaction_tag: Option<String>,
+    method: Option<String>,
+    amount: String,
+    currency: String,
+    bank_resp_code: String,
+    bank_message: String,
+    gateway_resp_code: String,
+    gateway_message: String,
+}
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status: enums::RefundStatus::from(item.response.transaction_status),
+            }),
+            ..item.data
+        })
     }
 }
 
