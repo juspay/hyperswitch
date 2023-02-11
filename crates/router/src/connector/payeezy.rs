@@ -86,6 +86,24 @@ impl ConnectorCommon for Payeezy {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(payeezy_error_response=?res);
+        let response: payeezy::PayeezyErrorResponse = res
+            .response
+            .parse_struct("payeezy ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.transaction_status,
+            message: format!("{:?}", response.error),
+            reason: None,
+        })
+    }
 }
 
 impl api::Payment for Payeezy {}
@@ -327,7 +345,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: payeezy::PayeezyPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: payeezy::PayeezyPaymentsResponse = res.response.parse_struct("payeezy Response").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(payeezypayments_create_response=?response);
         types::ResponseRouterData {
             response,
