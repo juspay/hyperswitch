@@ -107,7 +107,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.approved),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.message_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
@@ -180,8 +180,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct BamboraErrorResponse {}
+#[derive(Default, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BamboraErrorResponse {
+    pub error: ApiErrorResponse,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+pub struct ApiErrorResponse {
+    pub code: i64,
+    pub category: i64,
+    pub message: String,
+    pub reference: String
+}
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]

@@ -5,8 +5,10 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bambora;
 
+
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -227,11 +229,28 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
+    // fn get_error_response(
+    //     &self,
+    //     res: Response,
+    // ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    //     self.build_error_response(res)
+    // }
+
     fn get_error_response(
         &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: bambora::BamboraErrorResponse = res
+            .response
+            .parse_struct("Bambora ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: response.error.message,
+            reason: None,
+        })
     }
 }
 
