@@ -137,6 +137,7 @@ pub struct PaymentsSyncData {
 pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>
 }
 
 #[derive(Debug, Clone)]

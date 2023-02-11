@@ -1,9 +1,11 @@
+use common_utils::ext_traits::ValueExt;
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, AddressDetailsData, PaymentsRequestData},
     core::errors,
     pii::PeekInterface,
-    types::{self, api, storage::enums}, 
+    types::{self, api, storage::{enums, self}}, logger, 
 };
 
 //TODO: Fill the struct with respective fields
@@ -34,9 +36,13 @@ pub struct CardDetails {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+        let todo_action = match item.request.capture_method {
+            Some(storage::enums::CaptureMethod::Automatic) => "sale",
+            _ => "authorize"
+        };
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let action = String::from("sale");
+                let action = todo_action.to_string();
                 let authorization_amount = item.request.amount;
                 let address_details = item.get_billing()?
                     .address
@@ -109,7 +115,8 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
 pub struct FortePaymentsResponse {
     transaction_id: String,
     response: ResponseDetails,
-    authorization_amount: f64
+    authorization_code: String,
+    action: String
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -117,20 +124,85 @@ pub struct ResponseDetails {
     response_type: FortePaymentStatus
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PaymentMetadata {
+    pub authorization_code: String
+}
+
+pub fn convert_status(item: FortePaymentStatus, action: String) -> enums::AttemptStatus {
+    if action == "sale" {
+        match item {
+            FortePaymentStatus::A => enums::AttemptStatus::Charged,
+            FortePaymentStatus::D => enums::AttemptStatus::Failure,
+            FortePaymentStatus::E => enums::AttemptStatus::Failure,
+        }
+    }
+    else if action == "authorize" {
+        match item {
+            FortePaymentStatus::A => enums::AttemptStatus::Authorized,
+            FortePaymentStatus::D => enums::AttemptStatus::Failure,
+            FortePaymentStatus::E => enums::AttemptStatus::AuthorizationFailed,
+        }
+    }
+    else if action == "void" {
+        match item {
+            FortePaymentStatus::A => enums::AttemptStatus::Voided,
+            FortePaymentStatus::D => enums::AttemptStatus::Failure,
+            FortePaymentStatus::E => enums::AttemptStatus::Failure,
+        }
+    }
+    else {
+        match item {
+            FortePaymentStatus::A => enums::AttemptStatus::Charged,
+            FortePaymentStatus::D => enums::AttemptStatus::Failure,
+            FortePaymentStatus::E => enums::AttemptStatus::Failure,
+        }
+    }
+}
+
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.response.response_type),
+            status: convert_status(item.response.response.response_type, item.response.action),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(
+                    serde_json::to_value( PaymentMetadata {
+                        authorization_code: item.response.authorization_code
+                    })
+                    .into_report()
+                    .change_context(errors::ParsingError)?,
+                ),
             }),
-            amount_captured: Some(item.response.authorization_amount as i64),
             ..item.data
+        })
+    }
+}
+#[derive(Default, Debug, Serialize)]
+pub struct ForteCancelRequest {
+    action: String,
+    authorization_code: String,
+    entered_by: String
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for ForteCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let metadata = item.request.connector_metadata
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let payment_metadata: PaymentMetadata = metadata
+            .parse_value("PaymentMetadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("AUTH_CODE - {}", payment_metadata.authorization_code);
+        Ok(Self {
+            action: String::from("void"),
+            authorization_code: payment_metadata.authorization_code,
+            entered_by: String::from("aditya")
         })
     }
 }

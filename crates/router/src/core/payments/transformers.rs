@@ -480,6 +480,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
                     field_name: "connector_transaction_id",
                 })?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
+            connector_metadata: payment_data.payment_attempt.connector_metadata,
         })
     }
 }

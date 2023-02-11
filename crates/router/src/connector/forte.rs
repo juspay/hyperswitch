@@ -16,7 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, storage,
     }
 };
 
@@ -79,13 +79,80 @@ impl
 
 impl api::PaymentVoid for Forte {}
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ConnectorMetadata {
+    org_id : String,
+    location_id : String
+}
+
 impl
     ConnectorIntegration<
         api::Void,
         types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Forte
-{}
+{
+    fn get_headers(&self, req: &types::PaymentsCancelRouterData, connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(&self, req: &types::PaymentsCancelRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let transaction_id = &req.request.connector_transaction_id;
+        let metadata = req
+            .connector_meta_data
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_metadata: ConnectorMetadata = metadata
+            .parse_value("ConnectorMetadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(format!("{}organizations/org_{}/locations/loc_{}/transactions/{}", self.base_url(_connectors), connector_metadata.org_id, connector_metadata.location_id, transaction_id))
+    }
+
+    fn get_request_body(&self, req: &types::PaymentsCancelRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+        let forte_req =
+            utils::Encode::<forte::ForteCancelRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(forte_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Put)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData,errors::ConnectorError> {
+        let response: forte::FortePaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(fortepayments_create_response=?response);
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
 
 impl api::ConnectorAccessToken for Forte {}
 
@@ -253,11 +320,6 @@ impl
     //TODO: implement sessions flow
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct SessionObject {
-    org_id : String,
-    location_id : String
-}
 
 impl api::PaymentAuthorize for Forte {}
 
@@ -280,10 +342,13 @@ impl
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
+        let connector_metadata: ConnectorMetadata = metadata
+            .parse_value("ConnectorMetadata")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(format!("{}organizations/org_{}/locations/loc_{}/transactions", self.base_url(_connectors), session.org_id, session.location_id))
+        match req.request.capture_method {
+            Some(storage::enums::CaptureMethod::Automatic) => Ok(format!("{}organizations/org_{}/locations/loc_{}/transactions", self.base_url(_connectors), connector_metadata.org_id, connector_metadata.location_id)),
+            _ => Ok(format!("{}organizations/org_{}/locations/loc_{}/transactions/authorize", self.base_url(_connectors), connector_metadata.org_id, connector_metadata.location_id))
+        }
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
