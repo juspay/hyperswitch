@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api, storage::enums}};
-use self::{storage::enums as storage_enums};
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Payer {
@@ -23,7 +22,7 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
     pub amount: i64, //amount in cents, hence passed as integer
-    pub currency: storage_enums::Currency,
+    pub currency: enums::Currency ,
     pub country: Option<String>,
     pub payment_method_id: String,
     pub payment_method_flow: String,
@@ -36,22 +35,27 @@ pub struct DlocalPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        let amount = item.request.amount,
-        let currency = item.request.currency,
-
+        todo!()
     }
 }
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct DlocalAuthType {
-    pub(super) api_key: String
+    pub(super) xLogin: String,
+    pub(super) xTransKey: String,
+    pub(super) secret : String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey { api_key , key1, api_secret} = auth_type {
+            Ok(Self { xLogin: (api_key.to_string()), xTransKey: (key1.to_string()), secret: (api_secret.to_string()) })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        }
+
     }
 }
 // PaymentsResponse

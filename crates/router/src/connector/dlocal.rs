@@ -1,5 +1,8 @@
 mod transformers;
 
+use common_utils::{date_time, crypto::{SignMessage, self}};
+use hex::encode;
+use time::{format_description, OffsetDateTime};
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
 
@@ -29,10 +32,30 @@ where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        req: &types::RouterData<Flow, Request, Response>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let dlocal_req = match self.get_request_body(req)? {
+            Some(val) => val,
+            None => "".to_string()
+        };
+        let date = date_time::now();
+        let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
+        let authz =
+            crypto::HmacSha256::sign_message(
+                &crypto::HmacSha256
+                ,auth.secret.as_bytes()
+                ,dlocal_req.as_bytes())
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to sign the message")?;
+        let headers = vec![
+            (headers::AUTHORIZATION.to_string(), hex::encode(authz)),
+            (headers::X_LOGIN.to_string(), auth.xLogin.to_string()),
+            (headers::X_TRANS_KEY.to_string(), auth.xTransKey.to_string()),
+            (headers::X_VERSION.to_string(), "2.1".to_string()),
+            (headers::X_DATE.to_string(), date.to_string())
+            ];
+        Ok(headers)
     }
 }
 
@@ -42,19 +65,11 @@ impl ConnectorCommon for Dlocal {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dlocal.base_url.as_ref()
-    }
-
-    fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-        let auth: dlocal::DlocalAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
 }
 
@@ -183,7 +198,7 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         todo!()
     }
