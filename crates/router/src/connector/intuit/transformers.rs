@@ -8,7 +8,8 @@ pub struct IntuitPaymentsRequest {
     currency: String,
     description: String,
     context: Context,
-    card: Card
+    card: Card,
+    capture: bool
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -27,25 +28,15 @@ pub struct Context {
     is_ecommerce: bool,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: value
-                .request
-                .amount_to_capture
-                .map(|amount| amount.to_string())
-                .ok_or_else(utils::missing_field_err("amount_to_capture"))?,
-            ..Default::default()
-        })
-    }
-}
-
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
+                let submit_for_settlement = matches!(
+                    item.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic) | None
+                );
                 Ok(Self {
                     amount: item.request.amount.to_string(),
                     currency: item.request.currency.to_string().to_uppercase(),
@@ -59,11 +50,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest  {
                         exp_year: ccard.card_exp_year.peek().clone(),
                         cvc: ccard.card_cvc.peek().clone(),
                     },
+                    capture: submit_for_settlement,
                     ..Default::default()
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct IntuitPaymentsCaptureRequest {
+    amount: String,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: value
+                .request
+                .amount_to_capture
+                .map(|amount| amount.to_string())
+                .ok_or_else(utils::missing_field_err("amount_to_capture"))?
+        })
     }
 }
 
@@ -90,7 +101,9 @@ pub enum IntuitPaymentStatus {
     Captured,
     Failed,
     #[default]
-    Processing,
+    Authorized,
+    Issued,
+    Declined
 }
 
 impl From<IntuitPaymentStatus> for enums::AttemptStatus {
@@ -98,7 +111,9 @@ impl From<IntuitPaymentStatus> for enums::AttemptStatus {
         match item {
             IntuitPaymentStatus::Captured => Self::Charged,
             IntuitPaymentStatus::Failed => Self::Failure,
-            IntuitPaymentStatus::Processing => Self::Authorizing,
+            IntuitPaymentStatus::Authorized => Self::Authorized,
+            IntuitPaymentStatus::Issued => Self::Voided,
+            IntuitPaymentStatus::Declined => Self::VoidFailed,
         }
     }
 }
@@ -157,7 +172,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        crate::logger::debug!("intuit response ---------- {:?}", item.response);
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,

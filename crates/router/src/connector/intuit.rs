@@ -128,7 +128,7 @@ impl
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(self.get_request_body(req)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -278,9 +278,9 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = intuit::IntuitPaymentsRequest::try_from(req)?;
+        let req_obj = intuit::IntuitPaymentsCaptureRequest::try_from(req)?;
         let req =
-            utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(
+            utils::Encode::<intuit::IntuitPaymentsCaptureRequest>::encode_to_string_of_json(
                 &req_obj,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -378,7 +378,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        logger::debug!("intuit request ---------- {:?}", self.get_request_body(req)?);
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -398,6 +397,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
+        logger::debug!("intuit payment authorize response ---------- {:?}", res.response);
         let response: intuit::IntuitPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(payments_create_response=?response);
         types::ResponseRouterData {
@@ -452,7 +452,6 @@ impl
     }
 
     fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
-        logger::debug!("intuit request ---------- {:?}", self.get_request_body(req)?);
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)

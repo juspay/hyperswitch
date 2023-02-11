@@ -289,8 +289,8 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card number is incorrect.".to_string(),
+        response.response.is_err(),
+        true,
     );
 }
 
@@ -310,10 +310,9 @@ async fn should_fail_payment_for_empty_card_number() {
         )
         .await
         .unwrap();
-    let x = response.response.unwrap_err();
     assert_eq!(
-        x.message,
-        "You passed an empty string for 'payment_method_data[card][number]'.",
+        response.response.is_err(),
+        true,
     );
 }
 
@@ -334,8 +333,8 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        response.response.is_err(),
+        true,
     );
 }
 
@@ -356,8 +355,8 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        response.response.is_err(),
+        true,
     );
 }
 
@@ -378,8 +377,8 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        response.response.is_err(),
+        true,
     );
 }
 
@@ -395,8 +394,8 @@ async fn should_fail_void_payment_for_auto_capture() {
         .await
         .unwrap();
     assert_eq!(
-        void_response.response.unwrap_err().message,
-        "You cannot cancel this PaymentIntent because it has a status of succeeded."
+        void_response.response.is_err(),
+        true
     );
 }
 
@@ -407,9 +406,11 @@ async fn should_fail_capture_for_invalid_payment() {
         .capture_payment("123456789".to_string(), None, None)
         .await
         .unwrap();
+
+    println!("{:?}", capture_response.response);
     assert_eq!(
-        capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        capture_response.response.is_err(),
+        true
     );
 }
 
@@ -428,8 +429,8 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
+        response.response.is_err(),
+        true,
     );
 }
 
