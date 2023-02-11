@@ -17,17 +17,17 @@ level = "DEBUG"             # What you see in your terminal.
 enabled = false             # Whether tracing/telemetry is enabled.
 
 [master_database]
-username = "db_user"
-password = "db_pass"
-host = "pg"
+username = "shivanshmathur"
+password = "myPassword"
+host = "host.docker.internal"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 
 [replica_database]
-username = "db_user"
-password = "db_pass"
-host = "pg"
+username = "shivanshmathur"
+password = "myPassword"
+host = "host.docker.internal"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
@@ -105,9 +105,12 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.generic]
+base_url = ""
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv", "generic"]
 
 
 [scheduler]

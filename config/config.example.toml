@@ -21,7 +21,7 @@ request_body_limit = 16_384
 [master_database]
 username = "db_user"      # DB Username
 password = "db_pass"      # DB Password
-host = "localhost"        # DB Host
+host = "host.docker.internal"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
@@ -152,6 +152,9 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 # This data is used to call respective connectors for wallets and cards
+[connectors.generic]
+base_url = 
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
