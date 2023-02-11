@@ -10,12 +10,6 @@ pub struct BamboraPaymentsRequest {
     card: Card
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BamboraPaymentsCaptureRequest {
-    amount: i64,
-    payment_method: String,
-    card: Card
-}
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -124,16 +118,18 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
 // // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct BamboraRefundRequest {}
+pub struct BamboraRefundRequest {
+    amount: i64,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            amount: item.request.amount,
+        })
     }
 }
-
-// Type definition for Refund Response
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
