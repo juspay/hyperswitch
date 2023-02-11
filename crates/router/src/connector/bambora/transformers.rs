@@ -1,53 +1,52 @@
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use storage_models::enums as storage_enums;
 
 use crate::{
     connector::utils::AccessTokenRequestInfo,
-    consts,
+    // consts,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
-    utils::OptionExt,
+    // utils::OptionExt,
 };
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraPaymentsRequest {
-    pub amount: f64,
+    pub amount: i64,
     #[serde(rename = "payment_method")]
     pub payment_method: String,
-    pub card: Card,
+    pub card: BamboraCard,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraCard {
-    pub name: String,
-    pub number: String,
+    pub name: Secret<String>,
+    pub number: Secret<String, pii::CardNumber>,
     #[serde(rename = "expiry_month")]
-    pub expiry_month: String,
+    pub expiry_month: Secret<String>,
     #[serde(rename = "expiry_year")]
-    pub expiry_year: String,
-    pub cvd: String,
+    pub expiry_year: Secret<String>,
+    pub cvd: Secret<String>,
     pub complete: bool,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
-        let pre_auth  = if item.request.capture_method == "automatic" {true} else {false}
-        let payment_method = match item.request.payment_method_data.clone() {
+        let auth_type = BamboraAuthType::try_from(&item.connector_auth_type)?;
+        let payment_method_detail = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ccard) => Ok(BamboraCard {
                     name: ccard.card_holder_name,
                     number: ccard.card_number,
                     expiry_month: ccard.card_exp_month,
                     expiry_year: ccard.card_exp_year,
                     cvd: ccard.card_cvc,
-                    complete: pre_auth,
+                    complete: item.request.capture_method == Some(storage_enums::CaptureMethod::Manual),
                 }),
-            }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Unknown payment method".to_string(),
             )),
@@ -61,19 +60,32 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     }
 }
 
+// impl From<Option<enums::CaptureMethod>> for bool {
+//     fn from(item: Option<enums::CaptureMethod>) -> Self {
+//         match item {
+//             Some(p) => match p {
+//                 enums::CaptureMethod::ManualMultiple |
+//                 enums::CaptureMethod::Manual |
+//                 enums::CaptureMethod::Scheduled => false,
+//                 enums::CaptureMethod::Automatic => true,
+//             },
+//             None => true,
+//         }
+//     }
+// }
+
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct BamboraAuthType {
     pub(super) api_key: String
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
+impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_string(),
-                merchant_pos_id: key1.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
