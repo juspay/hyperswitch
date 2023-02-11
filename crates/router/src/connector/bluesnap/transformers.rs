@@ -37,14 +37,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
-                let auth_capture = "AUTH_CAPTURE".to_string();
+                let auth_capture = "AUTH_ONLY".to_string();
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
                     credit_card: Card {
                         card_number: ccard.card_number.peek().clone(),
                         expiration_month: ccard.card_exp_month.peek().clone(),
                         expiration_year: ccard.card_exp_year.peek().clone(),
-                        security_code: ccard.card_holder_name.peek().clone(),
+                        security_code: ccard.card_cvc.peek().clone(),
                     },
                     currency: item.request.currency.to_string(),
                     soft_descriptor: item.description.clone(),
