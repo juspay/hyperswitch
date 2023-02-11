@@ -444,11 +444,11 @@ pub struct BrowserInfoType(pub types::BrowserInformation);
 impl Default for CCardType {
     fn default() -> Self {
         Self(api::Card {
-            card_number: Secret::new("4200000000000000".to_string()),
-            card_exp_month: Secret::new("10".to_string()),
-            card_exp_year: Secret::new("2025".to_string()),
+            card_number: Secret::new("4030000010001234".to_string()),
+            card_exp_month: Secret::new("02".to_string()),
+            card_exp_year: Secret::new("14".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
-            card_cvc: Secret::new("999".to_string()),
+            card_cvc: Secret::new("123".to_string()),
         })
     }
 }

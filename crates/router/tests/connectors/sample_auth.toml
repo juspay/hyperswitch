@@ -48,3 +48,6 @@ api_secret = "MySecretKey"
 key1 = "Merchant Id"
 api_key = "API Key"
 api_secret = "API Secret Key"
+
+[bambora]
+api_key = "MzAwMjEzMTkzOkQwMDIwODkyRjViMjQxZUVhMGIxODA1Rjk5NjgyMGU1"
