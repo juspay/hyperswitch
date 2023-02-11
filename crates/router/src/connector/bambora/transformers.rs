@@ -1,10 +1,10 @@
-use base64::Engine;
-use error_stack::{IntoReport, ResultExt};
+// use base64::Engine;
+// use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use storage_models::enums as storage_enums;
 
 use crate::{
-    connector::utils::AccessTokenRequestInfo,
+    // connector::utils::AccessTokenRequestInfo,
     // consts,
     core::errors,
     pii::{self, Secret},
@@ -37,7 +37,7 @@ pub struct BamboraCard {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth_type = BamboraAuthType::try_from(&item.connector_auth_type)?;
+        // let _auth_type = BamboraAuthType::try_from(&item.connector_auth_type)?;
         let payment_method_detail = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ccard) => Ok(BamboraCard {
                     name: ccard.card_holder_name,
@@ -45,7 +45,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
                     expiry_month: ccard.card_exp_month,
                     expiry_year: ccard.card_exp_year,
                     cvd: ccard.card_cvc,
-                    complete: item.request.capture_method == Some(storage_enums::CaptureMethod::Manual),
+                    complete: item.request.capture_method == Some(storage_enums::CaptureMethod::Automatic),
                 }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Unknown payment method".to_string(),
@@ -84,7 +84,7 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
