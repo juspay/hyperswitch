@@ -29,18 +29,19 @@ where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-
-        let auth: bluesnap::BluesnapAuthType = auth_type
-        .try_into()
-        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
-        )])
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", "QVBJXzE2NzYxMDk1NDc3OTUxOTk3MjA0MDU1Okp1c3BheUAxMjM0"),
+            ),
+        ])
     }
 }
 
@@ -183,7 +184,7 @@ impl
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(&req.connector_auth_type, connectors)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -275,7 +276,7 @@ impl
         types::PaymentsResponseData,
     > for Bluesnap {
     fn get_headers(&self, req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
-        self.build_headers(&req.connector_auth_type, connectors)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -356,7 +357,7 @@ impl
         types::RefundsResponseData,
     > for Bluesnap {
     fn get_headers(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-        self.build_headers(&req.connector_auth_type, connectors)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -406,7 +407,7 @@ impl
 impl
     ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bluesnap {
     fn get_headers(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
-        self.build_headers(&req.connector_auth_type, connectors)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
