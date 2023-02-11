@@ -12,6 +12,7 @@ mod payu;
 mod rapyd;
 mod shift4;
 mod stripe;
+mod forte;
 mod utils;
 mod worldline;
 mod worldpay;
