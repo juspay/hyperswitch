@@ -37,26 +37,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
     }
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapCaptureRequest {
-    card_transaction_type: BluesnapPaymentStatus,
-    transaction_id: String
-}
-
-impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let card_transaction_type = BluesnapPaymentStatus::Capture;
-        let transaction_id = String::from(&item.request.connector_transaction_id);
-
-        Ok(Self {
-            card_transaction_type,
-            transaction_id,
-        })
-    }
-}
-
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
@@ -137,7 +117,6 @@ pub enum BluesnapPaymentStatus {
     AuthOnly,
     AuthCapture,
     AuthReversal,
-    Capture,
 }
 
 impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
@@ -146,7 +125,6 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
             BluesnapPaymentStatus::AuthOnly => Self::Authorized,
             BluesnapPaymentStatus::AuthCapture => Self::Charged,
             BluesnapPaymentStatus::AuthReversal => Self::Voided,
-            BluesnapPaymentStatus::Capture => Self::CaptureInitiated,
         }
     }
 }
@@ -157,7 +135,22 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
 pub struct BluesnapPaymentsResponse {
     processing_info: BluesnapPaymentsProcessingInfoResponse,
     transaction_id: String,
+    refunds: Option<RefundObj>,
     card_transaction_type: BluesnapPaymentStatus,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundObj {
+    balance_amount: String,
+    refund: Vec<Refund>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Refund {
+    refund_transaction_id: String,
+    amount: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -224,10 +217,45 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
+    refund_transaction_id: i32,
 }
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundSyncResponse {
+    refunds: RefundObject,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundObject {
+    refund: Vec<RefundResponse>,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
+    for types::RefundsRouterData<api::RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        let refund_item = match item.response.refunds.refund.first() {
+            Some(refund_item) => refund_item,
+            _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+        };
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: refund_item.refund_transaction_id.to_string(),
+                refund_status: enums::RefundStatus::Success,
+            }),
+            ..item.data
+        })
+    }
+}
+
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
@@ -236,7 +264,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+       
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.refund_transaction_id.to_string(),
+                refund_status: enums::RefundStatus::Success,
+            }),
+            ..item.data
+        })
     }
 }
 

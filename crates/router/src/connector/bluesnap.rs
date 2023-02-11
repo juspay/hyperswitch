@@ -6,7 +6,6 @@ use error_stack::{ResultExt, IntoReport};
 use crate::{
     configs::settings,
     consts,
-    utils::{self, BytesExt},
     core::{
         errors::{self, CustomResult},
         payments,
@@ -458,8 +457,17 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions/refund/",
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
