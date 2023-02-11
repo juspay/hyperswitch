@@ -190,15 +190,25 @@ impl
     fn get_url(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions",
+            api::ConnectorCommon::base_url(self, connectors)
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        // let req_obj = forte::CaptureTransactionRequest::try_from(req)?;
+        // let req =
+        //     utils::Encode::<forte::CaptureTransactionRequest>::encode_to_string_of_json(
+        //         &req_obj,
+        //     )
+        //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        // Ok(Some(req))
         todo!()
     }
 
@@ -209,11 +219,12 @@ impl
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(services::Method::Put)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
