@@ -150,7 +150,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-
+    pub payeezy: ConnectorParams,
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
 }
