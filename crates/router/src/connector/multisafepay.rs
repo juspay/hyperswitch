@@ -42,8 +42,7 @@ impl ConnectorCommon for Multisafepay {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -260,7 +259,13 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let url = self.base_url(_connectors);
+        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        Ok(format!(
+            "{}v1/json/orders?api_key={}",
+            url,
+            api_key
+        ))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {

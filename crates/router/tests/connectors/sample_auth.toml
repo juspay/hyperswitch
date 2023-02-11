@@ -48,3 +48,6 @@ api_secret = "MySecretKey"
 key1 = "Merchant Id"
 api_key = "API Key"
 api_secret = "API Secret Key"
+
+[multisafepay]
+api_key = "b4f915f0ff94187f4e783cdc187354c81927c6ac"
