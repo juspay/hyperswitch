@@ -114,10 +114,10 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(String::from("https://connect.squareupsandbox.com/v2/payments"))
+        Ok(format!("https://connect.squareupsandbox.com/v2/payments/{}", req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?))
     }
 
     fn build_request(
