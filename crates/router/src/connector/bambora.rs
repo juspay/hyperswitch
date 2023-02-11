@@ -195,17 +195,28 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let id = req.request.connector_transaction_id.as_str();
+        Ok(format!(
+            "{}{}/{}/completions",
+            self.base_url(connectors),
+            "v1/payments",
+            id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
+        let connector_req = bambora::BamboraCaptureRequest::try_from(req)?;
+        let bambora_req =
+            utils::Encode::<bambora::BamboraCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bambora_req))
+
     }
 
     fn build_request(
@@ -229,7 +240,7 @@ impl
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: bambora::BamboraPaymentsResponse = res
+        let response: bambora::BamboraCaptureResponse = res
             .response
             .parse_struct("Bambora PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
