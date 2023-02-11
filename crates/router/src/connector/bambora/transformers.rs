@@ -10,6 +10,23 @@ pub struct BamboraPaymentsRequest {
     card: Card
 }
 
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct BamboraPaymentsCaptureRequest {
+    amount: i64,
+    payment_method: String,
+    card: Card
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            ..Default::default()
+        })
+    }
+}
+
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
@@ -27,7 +44,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
                         number: item.card_number.peek().clone(),
                         expiry_month: item.card_exp_month.peek().clone(),
                         expiry_year: item.card_exp_year.peek().clone(),
-                        cvd: item.card_cvc.peek().clone()
+                        cvd: item.card_cvc.peek().clone(),
+                        complete: true
                     }
                 }
                 _ => todo!()
@@ -166,11 +184,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 pub struct BamboraErrorResponse {}
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct Card {
     name: String,
     number: String,
     expiry_month: String,
     expiry_year: String,
-    cvd: String
+    cvd: String,
+    complete: bool,
 }
