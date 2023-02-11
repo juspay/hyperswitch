@@ -85,7 +85,7 @@ pub struct Response {
 //TransactionId Types start
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Root {
+pub struct TransactionByIdResponse {
     #[serde(rename = "transaction_id")]
     pub transaction_id: String,
     #[serde(rename = "organization_id")]
