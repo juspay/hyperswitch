@@ -240,7 +240,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureTransactionRequest {
     }
 }
 //Payment Capture Transform end
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct ForteAuthType {
     pub(super) api_key: String
@@ -248,8 +247,14 @@ pub struct ForteAuthType {
 
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
+            Ok(Self {
+                api_key: api_key.to_string(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        }
     }
 }
 // PaymentsResponse
@@ -266,8 +271,9 @@ pub enum FortePaymentStatus {
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        let status_string = String::from(item.response.response.response_desc);
         Ok(Self {
-            status: enums::AttemptStatus::Authorized,
+            status: if status_string == "APPROVAL" {  enums::AttemptStatus::Authorized} else { enums::AttemptStatus::Pending },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
