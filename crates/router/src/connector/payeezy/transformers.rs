@@ -87,16 +87,18 @@ fn get_payment_method_data(
 // Auth Struct
 pub struct PayeezyAuthType {
     pub(super) api_key: String,
-    pub(super) api_secret: String
+    pub(super) api_secret: String,
+    pub(super) merchant_token: String
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
+        if let types::ConnectorAuthType::SignatureKey { api_key, key1, api_secret } = item {
             Ok(Self {
                 api_key: api_key.to_string(),
-                api_secret : key1.to_string()
+                api_secret: api_secret.to_string(),
+                merchant_token: key1.to_string()
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

@@ -1,11 +1,15 @@
 mod transformers;
 
+use base64::Engine;
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
+use rand::distributions::DistString;
+use ring::{digest, hmac};
 
 use crate::{
     configs::settings,
     utils::{self, BytesExt},
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -24,7 +28,14 @@ use transformers as payeezy;
 #[derive(Debug, Clone)]
 pub struct Payeezy;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payeezy 
+impl Payeezy {
+    pub fn generate_digest(&self, payload: &[u8]) -> String {
+        let payload_digest = digest::digest(&digest::SHA256, payload);
+        consts::BASE64_ENGINE.encode(payload_digest)
+    }
+}
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payeezy
 where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
@@ -32,7 +43,27 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let auth = payeezy::PayeezyAuthType::try_from(&_req.connector_auth_type)?;
+        let request_payload = self.get_request_body(_req)?;
+        let sha256 =
+            self.generate_digest(request_payload.map_or("{}".to_string(), |s| s).as_bytes());
+        let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis().to_string();
+        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
+        let signature_string = format!("{}{}{}{}{}", auth.api_key, nonce, timestamp, auth.merchant_token, sha256);
+        let key_value = consts::BASE64_ENGINE
+            .decode(auth.api_secret)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
+        let signature_value =
+            consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
+
+        Ok(vec![ ("apikey".to_string(), auth.api_key)
+           , ("token".to_string(), auth.merchant_token)
+           , ("Authorization".to_string(), signature_value)
+           , ("nonce".to_string(), nonce)
+           , ("timestamp".to_string(), timestamp)
+           ])
     }
 }
 
