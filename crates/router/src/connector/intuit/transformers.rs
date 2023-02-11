@@ -103,7 +103,9 @@ pub enum IntuitPaymentStatus {
     #[default]
     Authorized,
     Issued,
-    Declined
+    Declined,
+    Settled,
+    Refunded
 }
 
 impl From<IntuitPaymentStatus> for enums::AttemptStatus {
@@ -114,6 +116,8 @@ impl From<IntuitPaymentStatus> for enums::AttemptStatus {
             IntuitPaymentStatus::Authorized => Self::Authorized,
             IntuitPaymentStatus::Issued => Self::Voided,
             IntuitPaymentStatus::Declined => Self::VoidFailed,
+            IntuitPaymentStatus::Settled => Self::Charged,
+            IntuitPaymentStatus::Refunded => Self::AutoRefunded,
         }
     }
 }
@@ -159,10 +163,28 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IntuitRefundRequest {
 }
 
 // Type definition for Refund Response
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum IntuitRefundStatus {
+    Issued,
+    #[default]
+    Declined
+}
+
+impl From<IntuitRefundStatus> for enums::RefundStatus {
+    fn from(item: IntuitRefundStatus) -> Self {
+        match item {
+            IntuitRefundStatus::Issued => Self::Success,
+            IntuitRefundStatus::Declined => Self::Failure,
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
-    pub amount: i64,
+    pub amount: String,
+    pub status: IntuitRefundStatus
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -175,7 +197,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::default()
+                refund_status: enums::RefundStatus::from(item.response.status)
             }),
             ..item.data
         })
@@ -189,7 +211,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::default()
+                refund_status: enums::RefundStatus::from(item.response.status)
             }),
             ..item.data
         })

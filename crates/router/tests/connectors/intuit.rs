@@ -99,6 +99,7 @@ async fn should_sync_authorized_payment() {
 
 // Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+// #[ignore = "Payments Void URL is documented incorrectly on gateway's end"]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
@@ -158,8 +159,17 @@ async fn should_sync_manually_captured_refund() {
     let response = CONNECTOR
         .rsync_retry_till_status_matches(
             enums::RefundStatus::Success,
-            refund_response.response.unwrap().connector_refund_id,
-            None,
+            "".to_string(),
+            Some(types::RefundsData {
+                amount: 1000,
+                currency: enums::Currency::USD,
+                refund_id: uuid::Uuid::new_v4().to_string(),
+                connector_transaction_id: refund_response.request.connector_transaction_id,
+                refund_amount: 100,
+                connector_metadata: None,
+                reason: None,
+                connector_refund_id: Some(refund_response.response.unwrap().connector_refund_id),
+            }),
             None,
         )
         .await
@@ -259,8 +269,17 @@ async fn should_sync_refund() {
     let response = CONNECTOR
         .rsync_retry_till_status_matches(
             enums::RefundStatus::Success,
-            refund_response.response.unwrap().connector_refund_id,
-            None,
+            "".to_string(),
+            Some(types::RefundsData {
+                amount: 1000,
+                currency: enums::Currency::USD,
+                refund_id: uuid::Uuid::new_v4().to_string(),
+                connector_transaction_id: refund_response.request.connector_transaction_id,
+                refund_amount: 100,
+                connector_metadata: None,
+                reason: None,
+                connector_refund_id: Some(refund_response.response.unwrap().connector_refund_id),
+            }),
             None,
         )
         .await
