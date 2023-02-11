@@ -124,7 +124,7 @@ impl
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "api/v2_1/orders/",
+            "/transactions/",
             connector_payment_id
         ))
     }
@@ -153,18 +153,19 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
-        let response: bluesnap:: BluesnapPaymentsResponse = res
+        logger::debug!(target: "router::connector::bluesnap", response=?res);
+        let response: bluesnap::BluesnapPaymentsResponse = res
             .response
-            .parse_struct("bluesnap PaymentsResponse")
+            .parse_struct("bluesnap OrderResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
+        types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        }
+        .try_into()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
