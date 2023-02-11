@@ -519,6 +519,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Bluesnap,
     Fiserv,
     Globalpay,
     Klarna,
@@ -555,6 +556,7 @@ pub enum RoutableConnectors {
     Adyen,
     Authorizedotnet,
     Braintree,
+    Bluesnap,
     Checkout,
     Cybersource,
     Fiserv,
