@@ -5,6 +5,9 @@
 api_key = "Bearer MyApiKey"
 key1 = "MyEntityId"
 
+[payeeze]
+api_key = "Bearer MyApiKey"
+
 [adyen]
 api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
