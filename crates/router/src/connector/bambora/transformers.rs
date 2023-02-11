@@ -25,11 +25,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
         let cvd = String::new();
         let name = String::new();
         let number = String::new();
-        let expiry_month: String::new();
-        let expiry_year: String::new();
+        let expiry_month = String::new();
+        let expiry_year = String::new();
 
-        let card = match item.request.payment_method_data.clone() {
-            Some(mut card) => match card {
+        let paymentMethodData = item.request.payment_method_data.clone();
+        let paymentMethod =
+            match paymentMethodData {
+                api::PaymentMethod::Card(ref ccard) => String::from("card"),
+                _ => todo!()
+            };
+        let card =
+            match paymentMethodData {
                 api::PaymentMethod::Card(ref ccard) => {
                     Card {
                         name: ccard.card_holder_name.peek().clone(),
@@ -40,24 +46,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
                     }
                 }
                 _ => todo!()
-            },
-            None => Card {
-                    name: cvd,
-                    number: cvd,
-                    expiry_month: cvd,
-                    expiry_year: cvd,
-                    cvd: cvd,
+            };
+            // None => Card {
+            //         name: cvd,
+            //         number: cvd,
+            //         expiry_month: cvd,
+            //         expiry_year: cvd,
+            //         cvd: cvd,
             
-            }
+            // }
             // name: item.request.payment_method_data.card.card_holder_name,
             // number: item.request.payment_method_data.card.card_number,
             // expiry_month: item.request.payment_method_data.card.card_exp_month,
             // expiry_year: item.request.payment_method_data.card.card_exp_year,
             // cvd: item.request.payment_method_data.card.card_cvc,
-        };
+        // };
         Ok(Self {
             amount: item.request.amount,
-            payment_method: item.request.capture_method,
+            payment_method: paymentMethod,
             card,
         })
     }
