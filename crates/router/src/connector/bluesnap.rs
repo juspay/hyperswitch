@@ -304,21 +304,18 @@ impl
         Ok(Some(bluesnap_req))
     }
 
-
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Put)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Put)
+            .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsCaptureType::get_headers(self, req, connectors)?)
+            .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
     }
 
     fn handle_response(
