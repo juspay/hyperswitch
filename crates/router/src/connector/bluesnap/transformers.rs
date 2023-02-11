@@ -5,15 +5,36 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
     amount: String,
     credit_card: Card,
     currency: String,
     soft_descriptor: Option<String>,
-    card_transaction_type: String,
+    card_transaction_type: BluesnapPaymentStatus,
     card_holder_info: CardHolderInfo,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVoidRequest {
+    card_transaction_type: BluesnapPaymentStatus,
+    transaction_id: String
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let card_transaction_type = BluesnapPaymentStatus::AuthReversal;
+        let transaction_id = String::from(&item.request.connector_transaction_id);
+
+        Ok(Self {
+            card_transaction_type,
+            transaction_id,
+        })
+    }
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -42,9 +63,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                     "automatic".to_string()
                 };
                 let auth_mode = if capture_method.to_lowercase() == "manual" {
-                    "AUTH_ONLY"
+                    BluesnapPaymentStatus::AuthOnly
                 } else {
-                    "AUTH_CAPTURE"
+                    BluesnapPaymentStatus::AuthCapture
                 };
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
@@ -56,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                     },
                     currency: item.request.currency.to_string(),
                     soft_descriptor: item.description.clone(),
-                    card_transaction_type: auth_mode.to_string(),
+                    card_transaction_type: auth_mode,
                     card_holder_info: CardHolderInfo {
                         first_name: ccard.card_holder_name.peek().clone(),
                     },
@@ -89,15 +110,21 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType  {
 }
 // PaymentsResponse
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapPaymentStatus {
     #[default]
-    Success,
+    AuthOnly,
+    AuthCapture,
+    AuthReversal,
 }
 
 impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
-    fn from(_item: BluesnapPaymentStatus) -> Self {
-        Self::Charged
+    fn from(item: BluesnapPaymentStatus) -> Self {
+        match item {
+            BluesnapPaymentStatus::AuthOnly => Self::Authorized,
+            BluesnapPaymentStatus::AuthCapture => Self::Charged,
+            BluesnapPaymentStatus::AuthReversal => Self::Voided,
+        }
     }
 }
 
@@ -106,7 +133,8 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
 pub struct BluesnapPaymentsResponse {
     processing_info: BluesnapPaymentsProcessingInfoResponse,
     transaction_id: String,
-    refunds: Vec<RefundObj>,
+    refunds: Option<RefundObj>,
+    card_transaction_type: BluesnapPaymentStatus,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -126,7 +154,7 @@ pub struct Refund {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsProcessingInfoResponse {
-    processing_status: BluesnapPaymentStatus,
+    processing_status: String,
     cvv_response_code: String,
     authorization_code: String,
     avs_response_code_zip: String,
@@ -139,7 +167,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BluesnapPaymentsResponse, T, type
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, BluesnapPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.processing_info.processing_status),
+            status: enums::AttemptStatus::from(item.response.card_transaction_type),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
@@ -199,22 +227,22 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapRefundResponseData {
-    connector_refund_id: String,
-    refund_status: enums::RefundStatus,
-}
-
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    refund: BluesnapRefundResponseData,
+    refund_transaction_id: i32,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
-    refunds: Vec<BluesnapRefundResponseData>,
+    refunds: RefundObject,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundObject {
+    refund: Vec<RefundResponse>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
@@ -224,13 +252,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund = match item.response.refunds.first() {
-            Some(refund) => refund,
+        let refund_item = match item.response.refunds.refund.first() {
+            Some(refund_item) => refund_item,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: refund.connector_refund_id.clone(),
+                connector_refund_id: refund_item.refund_transaction_id.to_string(),
                 refund_status: enums::RefundStatus::Success,
             }),
             ..item.data
@@ -249,7 +277,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
        
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.refund.connector_refund_id.clone(),
+                connector_refund_id: item.response.refund_transaction_id.to_string(),
                 refund_status: enums::RefundStatus::Success,
             }),
             ..item.data
@@ -259,4 +287,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct BluesnapErrorResponse {}
+pub struct BluesnapErrorResponse {
+    pub error: ErrorDetails,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ErrorDetails {
+    pub code: Option<String>,
+    #[serde(rename = "type")]
+    pub error_type: Option<String>,
+    pub message: Option<String>,
+    pub param: Option<String>,
+}
