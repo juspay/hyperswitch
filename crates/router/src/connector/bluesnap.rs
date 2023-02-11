@@ -39,7 +39,7 @@ where
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", "QVBJXzE2NzYxMDk1NDc3OTUxOTk3MjA0MDU1Okp1c3BheUAxMjM0"),
+                format!("Basic {}", "QVBJXzE2NzYxMDk1NDc3OTUxOTk3MjA0MDU1Okp1c3BheUAxMjM0"),
             ),
         ])
     }
@@ -342,6 +342,7 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        logger::warn!(?res, "bluesnap error response");
         self.build_error_response(res)
     }
 }
