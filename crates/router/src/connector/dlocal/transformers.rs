@@ -26,7 +26,7 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
     pub amount: i64, //amount in cents, hence passed as integer
-    pub currency: enums::Currency ,
+    pub currency: enums::Currency,
     pub country: Option<String>,
     pub payment_method_id: String,
     pub payment_method_flow: String,
@@ -42,6 +42,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let should_capture = matches!(
+                    item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None
                 );
                 let payment_request = Self {
