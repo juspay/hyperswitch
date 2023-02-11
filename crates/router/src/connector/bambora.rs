@@ -104,7 +104,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{},v1/payments/{}/void",
+            "{}/v1/payments/{}/void",
             self.base_url(_connectors),
             connector_payment_id
         ))
