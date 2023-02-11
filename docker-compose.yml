@@ -95,7 +95,7 @@ services:
       logs: "promtail"
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
-      interval: 60s
+      interval: 100s
       retries: 3
       start_period: 20s
       timeout: 10s

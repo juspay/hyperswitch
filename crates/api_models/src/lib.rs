@@ -6,6 +6,7 @@ pub mod cards;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod errors;
 pub mod files;
 pub mod mandates;
 pub mod payment_methods;

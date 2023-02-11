@@ -1,11 +1,14 @@
 pub mod api;
 pub mod authentication;
+#[cfg(feature = "basilisk")]
 pub mod encryption;
 pub mod logger;
 
 use std::sync::Arc;
 
-pub use self::{api::*, encryption::*};
+pub use self::api::*;
+#[cfg(feature = "basilisk")]
+pub use self::encryption::*;
 use crate::connection::{diesel_make_pg_pool, PgPool};
 
 #[derive(Clone)]
