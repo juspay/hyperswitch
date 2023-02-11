@@ -2,9 +2,10 @@ mod transformers;
 
 use common_utils::{date_time, crypto::{SignMessage, self}};
 use hex::encode;
-use time::{format_description, OffsetDateTime};
+use time::{format_description, OffsetDateTime, PrimitiveDateTime};
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
@@ -40,7 +41,7 @@ where
             None => "".to_string()
         };
         #[serde(with = "common_utils::custom_serde::iso8601")]
-        let date = date_time::now();
+        let date:PrimitiveDateTime = date_time::now();
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let reqForSign: String = format!("{}{}{}",auth.xLogin.to_string(),date.to_string(),dlocal_req);
         let authz =
