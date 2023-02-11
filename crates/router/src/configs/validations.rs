@@ -125,6 +125,7 @@ impl super::settings::Connectors {
         self.shift4.validate()?;
         self.stripe.validate()?;
         self.worldpay.validate()?;
+        self.dlocal.validate()?;
 
         self.supported.validate()?;
 
