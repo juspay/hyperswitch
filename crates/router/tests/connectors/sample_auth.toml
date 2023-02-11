@@ -51,3 +51,8 @@ api_secret = "MySecretKey"
 key1 = "Merchant Id"
 api_key = "API Key"
 api_secret = "API Secret Key"
+
+[payeezy]
+api_key = "y6pWAJNyJyjGv66IsVuWnklkKUPFbb0a"
+key1 = "fdoa-a480ce8951daa73262734cf102641994c1e55e7cdf4c02b6"
+api_secret = "YTZjMjg5NmU2NGYyNjgxZDVlZjM4NDlkMzBmNzhhY2YxNGE2MzdkYzc2M2RiNzY5ZTQzMTNmOGYzYTExZmI3OQ"

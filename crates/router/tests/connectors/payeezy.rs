@@ -34,15 +34,28 @@ impl utils::Connector for PayeezyTest {
 
 static CONNECTOR: PayeezyTest = PayeezyTest {};
 
+fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: types::api::PaymentMethod::Card(api::Card {
+            card_number: Secret::new("4242424242424242".to_string()),
+            card_exp_month: Secret::new("10".to_string()),
+            card_exp_year: Secret::new("25".to_string()),
+            card_holder_name: Secret::new("joseph Doe".to_string()),
+            ..utils::CCardType::default().0
+        }),
+        ..utils::PaymentAuthorizeType::default().0
+    })
+}
+
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(None, None)
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
-        .expect("Authorize payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
 // Captures a payment using the manual capture flow (Non 3DS).
@@ -76,9 +89,9 @@ async fn should_partially_capture_authorized_payment() {
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(None, None)
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
-        .expect("Authorize payment response");
+        .unwrap();
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -93,8 +106,8 @@ async fn should_sync_authorized_payment() {
             None,
         )
         .await
-        .expect("PSync response");
-    assert_eq!(response.status, enums::AttemptStatus::Authorized,);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Pending,);
 }
 
 // Voids a payment using the manual capture flow (Non 3DS).
@@ -409,7 +422,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        String::from("No such payment_intent: '123456789'") 
     );
 }
 

@@ -32,7 +32,21 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsSyncType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ROUTER.to_string(), "test".to_string()),
+        ];
+        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?;
+        header.append(&mut api_key);
+        let auth: payeezy::PayeezyAuthType = (&_req.connector_auth_type)
+            .try_into()
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        header.push(("token".to_string(), auth.token));
+        header.push(("Authorization".to_string(), auth.authorization));
+        Ok(header)
     }
 }
 
@@ -42,8 +56,7 @@ impl ConnectorCommon for Payeezy {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -54,7 +67,7 @@ impl ConnectorCommon for Payeezy {
         let auth: payeezy::PayeezyAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![("apikey".to_string(), auth.api_key)])
     }
 }
 
@@ -109,7 +122,14 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let id = _req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(_connectors),
+            "events",
+            id.get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
@@ -122,6 +142,7 @@ impl
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -136,8 +157,12 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> 
+    where
+        types::PaymentsAuthorizeData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
         logger::debug!(payment_sync_response=?res);
         let response: payeezy:: PayeezyPaymentsResponse = res
             .response
@@ -178,13 +203,23 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let id = _req.request.connector_transaction_id.as_str();
+
+        Ok(format!(
+            "{}/{}/{}",
+            self.base_url(_connectors),
+            "transactions",
+            id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        // let payeezy_req = utils::Encode::<payeezy::PayeezyPaymentsRequest>::convert_and_url_encode(req)
+        //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        // Ok(Some(payeezy_req))
         todo!()
     }
 
@@ -260,7 +295,11 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        Ok(format!(
+            "{}{}",
+            self.base_url(_connectors),
+            "transactions"
+        ))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -293,6 +332,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
+        logger::error!(payeezypayments_create_response=?res);
         let response: payeezy::PayeezyPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(payeezypayments_create_response=?response);
         types::ResponseRouterData {
@@ -378,7 +418,12 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let id = _req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/{}",
+            self.base_url(_connectors),
+            "ach/transactions"
+        ))
     }
 
     fn build_request(

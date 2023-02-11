@@ -163,12 +163,16 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
+                    println!("<<<<{:?}", request);
+                    println!("===={:?}", serde_json::to_string(&request.payload).unwrap());
                     let response = call_connector_api(state, request).await;
+                    println!(">>>>{:?}", response);
                     match response {
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => connector_integration.handle_response(req, body)?,
                                 Err(body) => {
+                                    router_env::error!(?body);
                                     let error = connector_integration.get_error_response(body)?;
                                     router_data.response = Err(error);
 
