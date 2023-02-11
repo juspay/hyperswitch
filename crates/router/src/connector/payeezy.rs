@@ -319,7 +319,6 @@ impl
         let payeezy_req =
             utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        print!("==>Req {}", payeezy_req);
         Ok(Some(payeezy_req))
     }
 
@@ -348,7 +347,6 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
         let response: payeezy::PayeezyPaymentsResponse = res.response.parse_struct("payeezy Response").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        print!("==>Response {:?}", response);
         logger::debug!(payeezypayments_create_response=?response);
         types::ResponseRouterData {
             response,
