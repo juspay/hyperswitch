@@ -137,17 +137,13 @@ pub struct Links {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureTransactionRequest {
+    pub action: String,
     #[serde(rename = "transaction_id")]
     pub transaction_id: String,
-    #[serde(rename = "location_id")]
-    pub location_id: String,
-    pub action: String,
+    #[serde(rename = "authorization_amount")]
+    pub authorization_amount: f64,
     #[serde(rename = "authorization_code")]
     pub authorization_code: String,
-    #[serde(rename = "entered_by")]
-    pub entered_by: String,
-    pub response: Response,
-    pub links: Links,
 }
 
 //Capture A Transaction Response Types
@@ -229,6 +225,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
 }
 }
 
+//Payment Capture Transform start
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureTransactionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let flt = item.request.amount as f64;
+        Ok(Self {
+            action:String::from("capture"),
+            transaction_id: item.request.connector_transaction_id.clone(),
+            authorization_amount: flt,
+            authorization_code: String::from("0SF381"),
+        })
+    }
+}
+//Payment Capture Transform end
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct ForteAuthType {
