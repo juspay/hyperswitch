@@ -37,6 +37,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 expiry_month: item.card_exp_month.peek().clone(),
                 expiry_year: item.card_exp_year.peek().clone(),
                 cvd: item.card_cvc.peek().clone(),
+                #[serde(rename = "3d_secure")]
+                three_d_secure: Some(ThreeDSecure),
                 complete: true,
             },
             _ => todo!(),
@@ -210,3 +212,26 @@ pub struct Card {
     cvd: String,
     complete: bool,
 }
+
+#[derive(serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecure {
+    browser: Browser,
+    enabled: bool,
+    version: i64,
+    auth_required: bool,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct Browser {
+    accept_header: String,
+    java_enabled: String,
+    language: String,
+    color_depth: String,
+    screen_height: i64,
+    screen_width: i64,
+    time_zone: i64,
+    user_agent: String,
+    javascript_enabled: bool,
+}
+
