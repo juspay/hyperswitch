@@ -48,8 +48,9 @@ where
                 ,dlocal_req.as_bytes())
                 .change_context(errors::ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to sign the message")?;
-        let headers = vec![
-            (headers::AUTHORIZATION.to_string(), hex::encode(authz)),
+        let auth_string: String = format!("{}{}","V2-HMAC-SHA256, Signature: ".to_string(),hex::encode(authz));
+            let headers = vec![
+            (headers::AUTHORIZATION.to_string(), auth_string),
             (headers::X_LOGIN.to_string(), auth.xLogin.to_string()),
             (headers::X_TRANS_KEY.to_string(), auth.xTransKey.to_string()),
             (headers::X_VERSION.to_string(), "2.1".to_string()),
@@ -274,8 +275,8 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "secure_payments"))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {

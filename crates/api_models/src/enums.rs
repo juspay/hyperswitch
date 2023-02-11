@@ -558,6 +558,7 @@ pub enum RoutableConnectors {
     Braintree,
     Checkout,
     Cybersource,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
