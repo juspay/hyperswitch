@@ -2,10 +2,9 @@ mod transformers;
 
 use common_utils::{date_time, crypto::{SignMessage, self}};
 use hex::encode;
-use time::{format_description, OffsetDateTime, PrimitiveDateTime};
+use time::{format_description::{self, well_known}, OffsetDateTime, PrimitiveDateTime, serde};
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
@@ -40,8 +39,18 @@ where
             Some(val) => val,
             None => "".to_string()
         };
-        #[serde(with = "common_utils::custom_serde::iso8601")]
-        let date:PrimitiveDateTime = date_time::now();
+        // #[serde(with = "common_utils::custom_serde::iso8601")]
+        // let date:PrimitiveDateTime = date_time::now();
+        let format = format_description::parse(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].000Z",
+        )
+        .into_report()
+        .change_context(errors::ConnectorError::InvalidDateFormat)?;
+        let date = date_time::now()
+                    .format(&format)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidDateFormat)?;
+
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let reqForSign: String = format!("{}{}{}",auth.xLogin.to_string(),date.to_string(),dlocal_req);
         let authz =

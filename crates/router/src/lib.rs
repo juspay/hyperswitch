@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
 #[cfg(feature = "stripe")]

@@ -48,3 +48,8 @@ api_secret = "MySecretKey"
 key1 = "Merchant Id"
 api_key = "API Key"
 api_secret = "API Secret Key"
+
+[dlocal]
+key1 = "t3Xx74amrn"
+api_key = "pXnn2rwEvs"
+api_secret = "U3MeMGoGLUN32BlCXJLdAheBT6xP6o9tA"
