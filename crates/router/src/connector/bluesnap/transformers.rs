@@ -6,28 +6,28 @@ use crate::{
 };
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
     amount: String,
     credit_card: Card,
     currency: String,
     soft_descriptor: Option<String>,
-    card_transaction_type: String,
+    card_transaction_type: BluesnapPaymentStatus,
     card_holder_info: CardHolderInfo,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapVoidRequest {
-    card_transaction_type: String,
+    card_transaction_type: BluesnapPaymentStatus,
     transaction_id: String
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let card_transaction_type = String::from("AUTH_REVERSAL");
+        let card_transaction_type = BluesnapPaymentStatus::AuthReversal;
         let transaction_id = String::from(&item.request.connector_transaction_id);
 
         Ok(Self {
@@ -36,11 +36,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
         })
     }
 }
-
-// pub struct PaymentIntentResponse {
-//     pub amount: i64,
-//     pub valuted_shopper_id: 
-// }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -68,9 +63,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                     "automatic".to_string()
                 };
                 let auth_mode = if capture_method.to_lowercase() == "manual" {
-                    "AUTH_ONLY"
+                    BluesnapPaymentStatus::AuthOnly
                 } else {
-                    "AUTH_CAPTURE"
+                    BluesnapPaymentStatus::AuthCapture
                 };
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
@@ -82,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                     },
                     currency: item.request.currency.to_string(),
                     soft_descriptor: item.description.clone(),
-                    card_transaction_type: auth_mode.to_string(),
+                    card_transaction_type: auth_mode,
                     card_holder_info: CardHolderInfo {
                         first_name: ccard.card_holder_name.peek().clone(),
                     },
@@ -116,15 +111,21 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType  {
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapPaymentStatus {
     #[default]
-    Success,
+    AuthOnly,
+    AuthCapture,
+    AuthReversal,
 }
 
 impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
-    fn from(_item: BluesnapPaymentStatus) -> Self {
-        Self::Charged
+    fn from(item: BluesnapPaymentStatus) -> Self {
+        match item {
+            BluesnapPaymentStatus::AuthOnly => Self::Authorized,
+            BluesnapPaymentStatus::AuthCapture => Self::Charged,
+            BluesnapPaymentStatus::AuthReversal => Self::Voided,
+        }
     }
 }
 
@@ -134,12 +135,13 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
 pub struct BluesnapPaymentsResponse {
     processing_info: BluesnapPaymentsProcessingInfoResponse,
     transaction_id: String,
+    card_transaction_type: BluesnapPaymentStatus,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsProcessingInfoResponse {
-    processing_status: BluesnapPaymentStatus,
+    processing_status: String,
     cvv_response_code: String,
     authorization_code: String,
     avs_response_code_zip: String,
@@ -152,7 +154,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BluesnapPaymentsResponse, T, type
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, BluesnapPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.processing_info.processing_status),
+            status: enums::AttemptStatus::from(item.response.card_transaction_type),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,

@@ -107,7 +107,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "services/2/transactions"
+            "/transactions"
         ))
     }
 
@@ -128,7 +128,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+            .method(services::Method::Put)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .body(types::PaymentsVoidType::get_request_body(self, req)?)
