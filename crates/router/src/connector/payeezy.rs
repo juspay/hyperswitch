@@ -4,7 +4,7 @@ use base64::Engine;
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
 use rand::distributions::DistString;
-use ring::{digest, hmac};
+use ring::{hmac};
 
 use crate::{
     configs::settings,
@@ -28,40 +28,30 @@ use transformers as payeezy;
 #[derive(Debug, Clone)]
 pub struct Payeezy;
 
-impl Payeezy {
-    pub fn generate_digest(&self, payload: &[u8]) -> String {
-        let payload_digest = digest::digest(&digest::SHA256, payload);
-        consts::BASE64_ENGINE.encode(payload_digest)
-    }
-}
-
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payeezy
 where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = payeezy::PayeezyAuthType::try_from(&_req.connector_auth_type)?;
-        let request_payload = self.get_request_body(_req)?;
-        let sha256 = request_payload.map_or("{}".to_string(), |s| s);
+        let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
+        let option_request_payload = self.get_request_body(req)?;
+        let request_payload = option_request_payload.map_or("{}".to_string(), |s| s);
         let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis().to_string();
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
-        let signature_string = format!("{}{}{}{}{}", auth.api_key, nonce, timestamp, auth.merchant_token, sha256);
-
+        let signature_string = format!("{}{}{}{}{}", auth.api_key, nonce, timestamp, auth.merchant_token, request_payload);
         let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.as_bytes());
         let tag = hmac::sign(&key, signature_string.as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
-
-        Ok(vec![ (headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsSyncType::get_content_type(self).to_string())
-            , ("apikey".to_string(), auth.api_key)
-            , ("token".to_string(), auth.merchant_token)
-           , ("Authorization".to_string(), signature_value)
-           , ("nonce".to_string(), nonce)
-           , ("timestamp".to_string(), timestamp)
+        Ok(vec![ (headers::CONTENT_TYPE.to_string(), types::PaymentsSyncType::get_content_type(self).to_string()),
+                 ("apikey".to_string(), auth.api_key),
+                 ("token".to_string(), auth.merchant_token),
+                 ("Authorization".to_string(), signature_value),
+                 ("nonce".to_string(), nonce),
+                 ("timestamp".to_string(), timestamp),
            ])
     }
 }
@@ -79,16 +69,9 @@ impl ConnectorCommon for Payeezy {
         connectors.payeezy.base_url.as_ref()
     }
 
-    fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-        let auth: payeezy::PayeezyAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
-    }
-
     fn build_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(payeezy_error_response=?res);
         let response: payeezy::PayeezyErrorResponse = res

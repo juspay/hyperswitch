@@ -18,6 +18,13 @@ pub enum PayeezyPaymentMethod {
     PayeezyCard(PayeezyCard),
 }
 
+#[derive(Default, Debug, Serialize, Eq, PartialEq, Clone)]
+pub enum PayeezyPaymentMethodType {
+    #[default]
+    #[serde(rename = "credit_card")]
+    Card,
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Serialize, Eq, PartialEq, Clone, Debug)]
 pub struct PayeezyPaymentsRequest {
@@ -27,13 +34,6 @@ pub struct PayeezyPaymentsRequest {
     pub amount : i64,
     pub currency_code : String,
     pub credit_card : PayeezyPaymentMethod
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq, Clone)]
-pub enum PayeezyPaymentMethodType {
-    #[default]
-    #[serde(rename = "credit_card")]
-    Card,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest  {
