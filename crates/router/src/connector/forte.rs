@@ -1,6 +1,7 @@
 mod transformers;
 
 use std::fmt::Debug;
+use base64::Engine;
 use error_stack::{ResultExt, IntoReport};
 
 use crate::{
@@ -15,14 +16,57 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
-    }
+    }, consts
 };
-
 
 use transformers as forte;
 
 #[derive(Debug, Clone)]
 pub struct Forte;
+
+impl Forte {
+    pub fn generate_authorization_token(
+        &self,
+        auth: &forte::ForteAuthType
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let forte::ForteAuthType {
+            api_key,
+            api_secret,
+            ..
+        } = auth;
+        let key = &format!("{}:{}",api_key,api_secret);
+        let signed_data = consts::BASE64_ENGINE.encode(key);
+        Ok(format!("Basic {signed_data}"))
+    }
+    pub fn get_organization_id(
+        &self,
+        auth: &forte::ForteAuthType
+    ) -> String {
+        let forte::ForteAuthType {
+            organization_key,
+            ..
+        } = auth;
+        if let Some((id, loc_id)) = organization_key.split_once('@'){
+            return format!("org_{}",id);
+        } else {
+            return format!("org_436912");
+        }
+    }
+    pub fn get_location_id(
+        &self,
+        auth: &forte::ForteAuthType
+    ) -> String {
+        let forte::ForteAuthType {
+            organization_key,
+            ..
+        } = auth;
+        if let Some((id, loc_id)) = organization_key.split_once('@'){
+            return format!("loc_{}",loc_id);
+        } else {
+            return format!("loc_314201");
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Forte 
 where
@@ -32,7 +76,17 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        let auth = forte::ForteAuthType::try_from(&_req.connector_auth_type)?;
+        let auth_token: String = self.generate_authorization_token(&auth)?;
+        let content_type = Self::get_content_type(self);
+        let merchant_id = self.get_organization_id(&auth);
+        println!("headers {auth_token},{content_type},{merchant_id}");
+        Ok(vec![
+            (headers::AUTHORIZATION.to_string(), auth_token),
+            (headers::CONTENT_TYPE.to_string(), content_type.to_string()),
+            (headers::ACCEPT.to_string(), content_type.to_string()),
+            (headers::X_FORTE_ORGANIZATION_ID.to_string(),merchant_id)
+        ])
     }
 }
 
@@ -42,8 +96,7 @@ impl ConnectorCommon for Forte {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json" 
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -109,7 +162,15 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let transaction_id = _req.payment_id.clone();
+        let base_url = self.base_url(_connectors);
+        let auth = forte::ForteAuthType::try_from(&_req.connector_auth_type)?;
+        let organization_id = self.get_organization_id(&auth);
+        let location_id = self.get_location_id(&auth);
+        println!("baseurk -> {base_url},{organization_id},{location_id},{transaction_id}");
+        Ok(format!(
+            "{base_url}/organizations/{organization_id}/locations/{location_id}/transactions/{transaction_id}"
+        ))
     }
 
     fn build_request(
@@ -121,7 +182,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .headers(self.get_headers(req, connectors)?)
                 .build(),
         ))
     }
@@ -260,7 +321,13 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let base_url = self.base_url(_connectors);
+        let auth = forte::ForteAuthType::try_from(&_req.connector_auth_type)?;
+        let organization_id = self.get_organization_id(&auth);
+        let location_id = self.get_location_id(&auth);
+        Ok(format!(
+            "{base_url}/organizations/{organization_id}/locations/{location_id}/transactions/sale"
+        ))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -293,8 +360,10 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: forte::FortePaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: forte::FortePaymentsResponse = res.response.parse_struct("FortePaymentsResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(fortepayments_create_response=?response);
+        let raw = res.status_code;
+        println!("responsse ->{raw}");
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -303,9 +372,27 @@ impl
         .try_into()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: forte::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        self.build_error_response(res)
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
     }
 }
 

@@ -1,27 +1,109 @@
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api, storage::enums}};
+use api_models::payments as api_models;
+use common_utils::pii::{self};
+use masking::{Secret};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct FortePaymentsRequest {}
+pub struct FortePaymentsRequest {
+    pub authorization_amount: i64,
+    pub subtotal_amount: i64,
+    pub billing_address: BillingAddress,
+    pub card : CardDetails,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
+pub struct BillingAddress {
+    pub first_name: String,
+    pub last_name: String,
+    pub physical_address : Option<PhysicalAddress>
+}
+
+#[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
+pub struct PhysicalAddress {
+    street_line1: Option<String>,
+    street_line2: Option<String>,
+    locality : Option<String>,
+    region : Option<String>,
+    country : Option<String>,
+    postal_code : Option<String>
+}
+
+#[derive(Default, Clone, Debug, Serialize, Eq, PartialEq, Deserialize)]
+pub struct CardDetails {
+    pub account_number: Secret<String, pii::CardNumber>,
+    pub expire_year: Secret<String>,
+    pub expire_month: Secret<String>,
+    pub name_on_card: String,
+    pub card_type: String,
+    pub card_verification_value: Secret<String>,
+}
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        todo!()
+        match _item.request.payment_method_data {
+            api::PaymentMethod::Card(ref card) => {
+                make_card_request(&_item.address, &_item.request, card)
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
     }
 }
 
+fn make_card_request(
+    address: &types::PaymentAddress,
+    req: &types::PaymentsAuthorizeData,
+    ccard: &api_models::Card,
+) -> Result<FortePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let card = CardDetails {
+        account_number: ccard.card_number.clone(),
+        expire_month: ccard.card_exp_month.clone(),
+        expire_year: ccard.card_exp_year.clone(),
+        card_verification_value: ccard.card_cvc.clone(),
+        name_on_card : format!("Jennifer McFly"),
+        card_type: "visa".to_string(),
+    };
+    let address = address.billing.as_ref().and_then(|a| a.address.clone());
+    let billing_address = BillingAddress {
+        first_name: format!("Jennifer"), // address.as_ref().and_then(|a| a.first_name.clone()),
+        last_name: format!("McFly"), //address.as_ref().and_then(|a| a.last_name.clone()),
+        physical_address : None
+    };
+
+    Ok(FortePaymentsRequest {
+        authorization_amount:req.amount,
+        subtotal_amount:req.amount,
+        card,
+        billing_address,
+    })
+}
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct ForteAuthType {
-    pub(super) api_key: String
+    pub api_key: String,
+    pub api_secret: String,
+    pub organization_key : String
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+        if let types::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } = _auth_type
+        {
+            Ok(Self {
+                api_key: api_key.to_string(),
+                api_secret: api_secret.to_string(),
+                organization_key: key1.to_string(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        }
     }
 }
 // PaymentsResponse
@@ -29,36 +111,124 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
-    Succeeded,
-    Failed,
+    Authorized,
+    Declined,
+    Review,
+    Settled,
+    Voided,
     #[default]
-    Processing,
+    Ready
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+
+pub struct FortePaymentSyncResponse {
+    pub transaction_id : String,
+    pub organization_id : String,
+    pub location_id: String,
+    pub action: String,
+    pub status: FortePaymentStatus,
+    pub authorization_amount : f32,
+    pub authorization_code : f32,
+    pub received_date : String,
+    pub billing_address: BillingAddress,
+    pub card : CardResponseDetails,
+    pub response : TestResponse,
+    pub list : SelfLinks,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, FortePaymentSyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            FortePaymentSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id,
+                ),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl From<FortePaymentStatus> for enums::AttemptStatus {
     fn from(item: FortePaymentStatus) -> Self {
         match item {
-            FortePaymentStatus::Succeeded => Self::Charged,
-            FortePaymentStatus::Failed => Self::Failure,
-            FortePaymentStatus::Processing => Self::Authorizing,
+            FortePaymentStatus::Authorized => Self::Authorized,
+            FortePaymentStatus::Declined => Self::Failure,
+            FortePaymentStatus::Review => Self::Pending,
+            FortePaymentStatus::Settled => Self::Charged,
+            FortePaymentStatus::Voided => Self::Voided,
+            FortePaymentStatus::Ready => Self::Started,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+
 pub struct FortePaymentsResponse {
-    status: FortePaymentStatus,
-    id: String,
+    pub transaction_id : String,
+    pub location_id: String,
+    pub action: String,
+    pub authorization_amount : f32,
+    pub entered_by : String,
+    pub billing_address: BillingAddress,
+    pub card : CardResponseDetails,
+    pub response : TestResponse,
+    pub list : Option<SelfLinks>,
+    pub authorization_code : Option<String>
+}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TestResponse {
+    environment : String,
+    response_type : String,
+    response_code : String,
+    response_desc : String,
+    authorization_code : String,
+    avs_result : Option<String>,
+    cvv_result : Option<String>,
+}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CardResponseDetails {
+    pub expire_year: i32,
+    pub expire_month: i32,
+    pub name_on_card: String,
+    pub last_4_account_number: String,
+    pub masked_account_number: String,
+    pub card_type : String,
+    pub customer_accounting_code : Option <String>
+}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SelfLinks {
+    pub disputes: String,
+    pub settlements: String,
+    #[serde(rename = "self")]
+    pub self_: String,
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(enums::AttemptStatus::Authorized),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
@@ -129,5 +299,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
  }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ForteErrorResponse {}
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ErrorResponse {
+    pub error: ErrorDetails,
+}
+
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ErrorDetails {
+    pub code: Option<String>,
+    #[serde(rename = "type")]
+    pub error_type: Option<String>,
+    pub message: Option<String>,
+    pub param: Option<String>,
+}

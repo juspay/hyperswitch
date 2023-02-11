@@ -106,7 +106,7 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.forte]
-base_url = 
+base_url = "https://sandbox.forte.net/api/v3"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]

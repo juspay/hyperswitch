@@ -50,6 +50,7 @@ pub mod headers {
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const DATE: &str = "Date";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_FORTE_ORGANIZATION_ID: &str = "X-Forte-Auth-Organization-Id";
 }
 
 pub mod pii {
