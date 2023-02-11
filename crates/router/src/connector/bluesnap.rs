@@ -317,6 +317,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
