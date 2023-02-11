@@ -112,10 +112,18 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions/trn_{}",
+            api::ConnectorCommon::base_url(self, connectors),connector_payment_id
+        ))
     }
 
     fn build_request(
