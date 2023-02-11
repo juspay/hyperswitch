@@ -848,7 +848,7 @@ pub(crate) fn validate_payment_method_fields_present(
     Ok(())
 }
 
-pub fn can_call_connector(
+pub fn check_force_psync_precondition(
     status: &storage_enums::AttemptStatus,
     connector_transaction_id: &Option<String>,
 ) -> bool {
