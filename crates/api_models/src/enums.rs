@@ -519,6 +519,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Forte,
     Fiserv,
     Globalpay,
     Klarna,

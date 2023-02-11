@@ -84,6 +84,9 @@ base_url = "https://apple-pay-gateway.apple.com/"
 [connectors.klarna]
 base_url = "https://api-na.playground.klarna.com/"
 
+[connectors.forte]
+base_url = 
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "cybersource", "shift4", "worldpay", "globalpay"]
+cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "cybersource", "shift4", "worldpay", "globalpay", "forte"]
