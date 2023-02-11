@@ -1,6 +1,6 @@
 mod transformers;
 
-use common_utils::{date_time, crypto::{SignMessage, self}};
+use common_utils::{date_time, crypto::{SignMessage, self}, ext_traits::Encode};
 use hex::encode;
 use time::{format_description::{self, well_known}, OffsetDateTime, PrimitiveDateTime, serde};
 use std::fmt::Debug;
@@ -92,7 +92,7 @@ impl ConnectorCommon for Dlocal {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: dlocal::DlocalErrorResponse = res
             .response
-            .parse_struct("Shift4 ErrorResponse")
+            .parse_struct("Dlocal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
@@ -146,9 +146,9 @@ impl
         Ok(format!(
             "{}{}{}{}",
             self.base_url(connectors),
-            "payments",
+            "payments/",
             cancelData.cancel_id,
-            "cancel"
+            "/cancel"
         ))
     }
 
@@ -198,6 +198,8 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("logging response void");
+        println!("{:#?}",res.response);
         self.build_error_response(res)
     }
 }
@@ -334,6 +336,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -361,6 +364,8 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("logging response capture");
+        println!("{:#?}",res.response);
         self.build_error_response(res)
     }
 }

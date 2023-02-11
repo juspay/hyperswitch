@@ -134,9 +134,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest
         };
         Ok(Self {
             authorization_id: (item.request.connector_transaction_id.clone())
-            , amount: (amount_to_capture) // take amount_to_capture and
+            , amount: (amount_to_capture)
             , currency: (item.request.currency.to_string())
-            , order_id: (item.payment_id.clone()) // check the order id
+            , order_id: (item.payment_id.clone())
         })
     }
 }

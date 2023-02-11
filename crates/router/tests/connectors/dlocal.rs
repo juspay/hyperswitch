@@ -420,9 +420,10 @@ async fn should_fail_void_payment_for_auto_capture() {
         .void_payment(txn_id.unwrap(), None, None)
         .await
         .unwrap();
+    let x = void_response.response.unwrap_err();
     assert_eq!(
-        void_response.response.unwrap_err().message,
-        "You cannot cancel this PaymentIntent because it has a status of succeeded."
+        x.code,
+        "5021",
     );
 }
 
@@ -430,12 +431,13 @@ async fn should_fail_void_payment_for_auto_capture() {
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
-        .capture_payment("123456789".to_string(), None, None)
+        .capture_payment("123456sdf789".to_string(), None, None)
         .await
         .unwrap();
+    let x = capture_response.response.unwrap_err();
     assert_eq!(
-        capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        x.code,
+        "3003",
     );
 }
 
