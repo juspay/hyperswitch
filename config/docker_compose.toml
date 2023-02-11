@@ -106,7 +106,7 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.payeezy]
-base_url = "https://api-cert.payeezy.com"
+base_url = "https://api-cert.payeezy.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
