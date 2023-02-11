@@ -110,12 +110,8 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
 impl api::PaymentVoid for Payeezy {}
 
-impl
-    ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Payeezy
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Payeezy
 {
     fn get_headers(
         &self,
@@ -149,8 +145,10 @@ impl
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
         let payeezy_req =
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
 
@@ -163,9 +161,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsVoidType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -305,8 +301,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
         let payeezy_req =
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
 

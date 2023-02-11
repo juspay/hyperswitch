@@ -1,3 +1,8 @@
+use common_utils::ext_traits::{Encode, ValueExt};
+use error_stack::ResultExt;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     core::errors,
     pii::{self, PeekInterface},
@@ -8,10 +13,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use common_utils::ext_traits::{Encode, ValueExt};
-use error_stack::ResultExt;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
 
 #[derive(Eq, PartialEq, Serialize, Clone, Debug)]
 pub struct PayeezyCard {
@@ -248,16 +249,18 @@ impl<F, T>
                 "void" => enums::AttemptStatus::Voided,
                 _ => enums::AttemptStatus::Pending,
             },
-            PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match item.response.transaction_type.as_str() {
-                "authorize" => enums::AttemptStatus::AuthorizationFailed,
-                "capture" => enums::AttemptStatus::AuthorizationFailed,
-                "void" => enums::AttemptStatus::VoidFailed,
-                _ => enums::AttemptStatus::Pending,
-            },
+            PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => {
+                match item.response.transaction_type.as_str() {
+                    "authorize" => enums::AttemptStatus::AuthorizationFailed,
+                    "capture" => enums::AttemptStatus::AuthorizationFailed,
+                    "void" => enums::AttemptStatus::VoidFailed,
+                    _ => enums::AttemptStatus::Pending,
+                }
+            }
         };
 
         Ok(Self {
-            status: status,
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction_id,
