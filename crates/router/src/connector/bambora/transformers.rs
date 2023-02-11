@@ -1,40 +1,40 @@
-use masking::{PeekInterface};
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
-use crate::{core::errors,types::{self,api, storage::enums}};
+
+use crate::{
+    core::errors,
+    types::{self, api, storage::enums},
+};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraPaymentsRequest {
     amount: i64,
     payment_method: String,
-    card: Card
+    card: Card,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_method_data = item.request.payment_method_data.clone();
-        let payment_method =
-            match payment_method_data {
-                api::PaymentMethod::Card(ref _item) => String::from("card"),
-                _ => todo!()
-            };
-        let card =
-            match payment_method_data {
-                api::PaymentMethod::Card(ref item) => {
-                    Card {
-                        name: item.card_holder_name.peek().clone(),
-                        number: item.card_number.peek().clone(),
-                        expiry_month: item.card_exp_month.peek().clone(),
-                        expiry_year: item.card_exp_year.peek().clone(),
-                        cvd: item.card_cvc.peek().clone()
-                    }
-                }
-                _ => todo!()
-            };
+        let payment_method = match payment_method_data {
+            api::PaymentMethod::Card(ref _item) => String::from("card"),
+            _ => todo!(),
+        };
+        let card = match payment_method_data {
+            api::PaymentMethod::Card(ref item) => Card {
+                name: item.card_holder_name.peek().clone(),
+                number: item.card_number.peek().clone(),
+                expiry_month: item.card_exp_month.peek().clone(),
+                expiry_year: item.card_exp_year.peek().clone(),
+                cvd: item.card_cvc.peek().clone(),
+            },
+            _ => todo!(),
+        };
         Ok(Self {
             amount: item.request.amount,
-            payment_method: payment_method,
+            payment_method,
             card,
         })
     }
@@ -43,10 +43,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct BamboraAuthType {
-    pub(super) api_key: String
+    pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType  {
+impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
@@ -82,12 +82,17 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 pub struct BamboraPaymentsResponse {
     approved: BamboraPaymentStatus,
     id: String,
-    response: Option<String>
+    response: Option<String>,
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Charged,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -110,8 +115,8 @@ pub struct BamboraRefundRequest {}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 
@@ -139,8 +144,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-}
+pub struct RefundResponse {}
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
@@ -153,13 +157,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+    for types::RefundsRouterData<api::RSync>
 {
-     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-     }
- }
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(
+        _item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -172,5 +179,5 @@ pub struct Card {
     number: String,
     expiry_month: String,
     expiry_year: String,
-    cvd: String
+    cvd: String,
 }
