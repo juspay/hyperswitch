@@ -26,7 +26,7 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
     pub amount: i64, //amount in cents, hence passed as integer
-    pub currency: enums::Currency,
+    pub currency: enums::Currency ,
     pub country: Option<String>,
     pub payment_method_id: String,
     pub payment_method_flow: String,
@@ -42,7 +42,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let should_capture = matches!(
-                    item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None
                 );
                 let payment_request = Self {
@@ -89,16 +88,24 @@ fn get_currency(item: enums::Currency) -> String{
         _ => "IN".to_string()
     }
 }
+
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct DlocalAuthType {
-    pub(super) api_key: String
+    pub(super) xLogin: String,
+    pub(super) xTransKey: String,
+    pub(super) secret : String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey { api_key , key1, api_secret} = auth_type {
+            Ok(Self { xLogin: (api_key.to_string()), xTransKey: (key1.to_string()), secret: (api_secret.to_string()) })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        }
+
     }
 }
 // PaymentsResponse
