@@ -186,6 +186,8 @@ pub enum BamboraPREAuthType {
     PAs,
     #[default]
     P,
+    #[serde(rename = "PAC")]
+    Pac,
 }
 
 impl From<BamboraPREAuthType> for enums::AttemptStatus {
@@ -193,6 +195,7 @@ impl From<BamboraPREAuthType> for enums::AttemptStatus {
         match item {
             BamboraPREAuthType::P => Self::Charged,
             BamboraPREAuthType::PAs => Self::Authorized,
+            BamboraPREAuthType::Pac => Self::Charged,
         }
     }
 }
@@ -355,35 +358,67 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraCaptureRequest {
 }
 
 
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BamboraCaptureResponse{
+    pub id: i64,
+    #[serde(rename = "authorizing_merchant_id")]
+    pub authorizing_merchant_id: i64,
+    pub approved: i64,
+    #[serde(rename = "message_id")]
+    pub message_id: i64,
+    pub message: BambaroPaymentStatus,
+    #[serde(rename = "auth_code")]
+    pub auth_code: String,
+    pub created: String,
+    pub amount: f64,
+    #[serde(rename = "order_number")]
+    pub order_number: String,
+    #[serde(rename = "type")]
+    pub type_field: BamboraPREAuthType,
+    pub comments: String,
+    #[serde(rename = "batch_number")]
+    pub batch_number: String,
+    #[serde(rename = "total_refunds")]
+    pub total_refunds: f64,
+    #[serde(rename = "total_completions")]
+    pub total_completions: f64,
+    #[serde(rename = "payment_method")]
+    pub payment_method: String,
+    pub card: SyncResponseCard,
+    pub billing: Billing,
+    pub shipping: Shipping,
+    pub custom: Custom,
+    #[serde(rename = "adjusted_by")]
+    pub adjusted_by: Vec<Option<serde_json::Value>>,
+    pub links: Vec<Link>,
+}
 
-// impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
-//     for types::PaymentsCaptureRouterData
-// {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(
-//         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
-//     ) -> Result<Self, Self::Error> {
-//         let (status, amount_captured) = match item.response.status.as_str() {
-//             "received" => (
-//                 storage_enums::AttemptStatus::Charged,
-//                 Some(item.response.amount.value),
-//             ),
-//             _ => (storage_enums::AttemptStatus::Pending, None),
-//         };
-//         Ok(Self {
-//             status,
-//             response: Ok(types::PaymentsResponseData::TransactionResponse {
-//                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
-//                 redirect: false,
-//                 redirection_data: None,
-//                 mandate_reference: None,
-//                 connector_metadata: None,
-//             }),
-//             amount_captured,
-//             ..item.data
-//         })
-//     }
-// }
+
+impl TryFrom<types::PaymentsCaptureResponseRouterData<BamboraCaptureResponse>> for types::PaymentsCaptureRouterData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from( item: types::PaymentsCaptureResponseRouterData<BamboraCaptureResponse>, ) -> Result<Self, Self::Error> {
+        let (status, amount_captured) = match item.response.message {
+            BambaroPaymentStatus::Approved => (
+                storage_enums::AttemptStatus::Charged,
+                Some(item.response.amount as i64),
+            ),
+            _ => (storage_enums::AttemptStatus::Pending, None),
+        };
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.to_string()),
+                redirect: false,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            amount_captured,
+            ..item.data
+        })
+    }
+}
 
 //TODO: Fill the struct with respective fields
 // REFUND :
