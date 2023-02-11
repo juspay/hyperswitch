@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::{
     core::errors,
-    pii::PeekInterface,
+    pii::{self, PeekInterface, Secret},
     types::{self, api, storage::enums},
 };
 
@@ -40,7 +40,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    card_number: String,
+    card_number: Secret<String, pii::CardNumber>,
     expiration_month: String,
     expiration_year: String,
     security_code: String,
@@ -70,7 +70,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
                     credit_card: Card {
-                        card_number: ccard.card_number.peek().clone(),
+                        card_number: ccard.card_number.clone(),
                         expiration_month: ccard.card_exp_month.peek().clone(),
                         expiration_year: ccard.card_exp_year.peek().clone(),
                         security_code: ccard.card_cvc.peek().clone(),
