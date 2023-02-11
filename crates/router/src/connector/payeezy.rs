@@ -45,21 +45,20 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&_req.connector_auth_type)?;
         let request_payload = self.get_request_body(_req)?;
-        let sha256 =
-            self.generate_digest(request_payload.map_or("{}".to_string(), |s| s).as_bytes());
+        let sha256 = request_payload.map_or("{}".to_string(), |s| s);
         let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis().to_string();
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
         let signature_string = format!("{}{}{}{}{}", auth.api_key, nonce, timestamp, auth.merchant_token, sha256);
-        let key_value = consts::BASE64_ENGINE
-            .decode(auth.api_secret)
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
-        let signature_value =
-            consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
 
-        Ok(vec![ ("apikey".to_string(), auth.api_key)
-           , ("token".to_string(), auth.merchant_token)
+        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.as_bytes());
+        let tag = hmac::sign(&key, signature_string.as_bytes());
+        let hmac_sign = hex::encode(tag);
+        let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
+
+        Ok(vec![ (headers::CONTENT_TYPE.to_string(),
+                    types::PaymentsSyncType::get_content_type(self).to_string())
+            , ("apikey".to_string(), auth.api_key)
+            , ("token".to_string(), auth.merchant_token)
            , ("Authorization".to_string(), signature_value)
            , ("nonce".to_string(), nonce)
            , ("timestamp".to_string(), timestamp)
@@ -298,8 +297,11 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+        let connector_req = payeezy::PayeezyPaymentsRequest::try_from(req)?;
         let payeezy_req =
-            utils::Encode::<payeezy::PayeezyPaymentsRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        print!("==>Req {}", payeezy_req);
         Ok(Some(payeezy_req))
     }
 
@@ -328,6 +330,7 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
         let response: payeezy::PayeezyPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        print!("==>Response {:?}", response);
         logger::debug!(payeezypayments_create_response=?response);
         types::ResponseRouterData {
             response,

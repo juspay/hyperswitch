@@ -2,7 +2,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api::{self, }, storage::enums},pii::{self, PeekInterface}};
 
-#[derive(Eq, PartialEq, Serialize, Clone)]
+#[derive(Eq, PartialEq, Serialize, Clone, Debug)]
 pub struct PayeezyCard {
     #[serde(rename = "type")]
     pub card_type : String,
@@ -12,14 +12,14 @@ pub struct PayeezyCard {
     pub cvv : Secret<String>
 }
 
-#[derive(Serialize, Eq, PartialEq, Clone)]
-#[serde(tag = "type")]
+#[derive(Serialize, Eq, PartialEq, Clone, Debug)]
+#[serde(untagged)]
 pub enum PayeezyPaymentMethod {
     PayeezyCard(PayeezyCard),
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Serialize, Eq, PartialEq, Clone)]
+#[derive(Serialize, Eq, PartialEq, Clone, Debug)]
 pub struct PayeezyPaymentsRequest {
     pub merchant_ref : String,
     pub transaction_type : String,
@@ -74,7 +74,7 @@ fn get_payment_method_data(
                 card_type: String::from("visa"),
                 cardholder_name: card.card_holder_name.clone(),
                 card_number: card.card_number.clone(),
-                exp_date: format!("{}/{}", card.card_exp_month.peek().clone(), card.card_exp_year.peek().clone()),
+                exp_date: format!("{}{}", card.card_exp_month.peek().clone(), card.card_exp_year.peek().clone()),
                 cvv: card.card_cvc.clone(),
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
