@@ -222,10 +222,16 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(connectors),
+            "v1/transactions",
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(

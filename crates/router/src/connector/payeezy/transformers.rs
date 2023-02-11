@@ -1,3 +1,5 @@
+use common_utils::ext_traits::{Encode, ValueExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use crate::{core::errors,types::{self,api::{self, }, storage::enums},pii::{self, PeekInterface}};
@@ -135,7 +137,7 @@ pub struct PayeezyPaymentsResponse {
     validation_status : String,
     transaction_type : String,
     transaction_id : String,
-    transaction_tag : String,
+    transaction_tag : Option<String>,
     method : String,
     amount : String,
     currency : String,
@@ -145,9 +147,28 @@ pub struct PayeezyPaymentsResponse {
     gateway_message : String
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayeezyPaymentsMetadata {
+    transaction_tag: String,
+}
+
 impl<F,T> TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+
+        let metadata = item
+            .response
+            .transaction_tag
+            .map(|txn_tag| {
+                Encode::<'_, PayeezyPaymentsMetadata>::encode_to_value(&construct_payeezy_payments_metadata(
+                    txn_tag,
+                ))
+            })
+            .transpose()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata",
+            })?;
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.transaction_status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -155,7 +176,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: metadata,
             }),
             ..item.data
         })
@@ -238,4 +259,10 @@ pub struct PayeezyErrorResponse {
     pub transaction_status : String,
     #[serde(rename = "Error")]
     pub error : PayeezyError
+}
+
+fn construct_payeezy_payments_metadata(transaction_tag: String) -> PayeezyPaymentsMetadata {
+    PayeezyPaymentsMetadata {
+        transaction_tag
+    }
 }
