@@ -6,9 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-web = "4.3.0"
 error-stack = "0.2.4"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
+mime = "0.3.16"
+reqwest = "0.11.14"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 strum = { version = "0.24.1", features = ["derive"] }

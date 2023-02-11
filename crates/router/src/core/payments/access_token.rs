@@ -48,6 +48,28 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
+pub fn update_router_data_with_access_token_result<F, Req, Res>(
+    add_access_token_result: &types::AddAccessTokenResult,
+    router_data: &mut types::RouterData<F, Req, Res>,
+    call_connector_action: &payments::CallConnectorAction,
+) {
+    // Update router data with access token or error only if it will be calling connector
+    let should_update_router_data = matches!(
+        (
+            add_access_token_result.connector_supports_access_token,
+            call_connector_action
+        ),
+        (true, payments::CallConnectorAction::Trigger)
+    );
+
+    if should_update_router_data {
+        match add_access_token_result.access_token_result.as_ref() {
+            Ok(access_token) => router_data.access_token = access_token.clone(),
+            Err(connector_error) => router_data.response = Err(connector_error.clone()),
+        }
+    }
+}
+
 pub async fn add_access_token<
     F: Clone + 'static,
     Req: Debug + Clone + 'static,
