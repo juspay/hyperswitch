@@ -1,6 +1,9 @@
+use std::ptr::eq;
+
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
+use storage_models::schema::payment_attempt::payment_method_id;
 use crate::{core::errors,types::{self,api, storage::enums}};
-use self::{storage::enums as storage_enums};
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Payer {
@@ -23,7 +26,7 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
     pub amount: i64, //amount in cents, hence passed as integer
-    pub currency: storage_enums::Currency,
+    pub currency: enums::Currency,
     pub country: Option<String>,
     pub payment_method_id: String,
     pub payment_method_flow: String,
@@ -36,12 +39,56 @@ pub struct DlocalPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        let amount = item.request.amount,
-        let currency = item.request.currency,
-
+        match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => {
+                let should_capture = matches!(
+                    item.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic) | None
+                );
+                let payment_request = Self {
+                    amount: item.request.amount,
+                    country: Some(get_currency(item.request.currency)),
+                    currency : item.request.currency,
+                    payment_method_id : "CARD".to_string(),
+                    payment_method_flow : "DIRECT".to_string(),
+                    payer : Payer {
+                        name: ccard.card_holder_name.peek().clone(),
+                        email: match &item.request.email{ 
+                            Some (c) => c.peek().clone().to_string(),
+                            None => "dummyEmail@gmail.com".to_string()
+                        },
+                        document: "48230764433".to_string()
+                    },
+                    card : Card {
+                        holder_name: ccard.card_holder_name.peek().clone(),
+                        number: ccard.card_number.peek().clone(),
+                        cvv: ccard.card_cvc.peek().clone(),
+                        expiration_month: ccard.card_exp_month.peek().clone().parse::<i32>().unwrap(),
+                        expiration_year: ccard.card_exp_year.peek().clone().parse::<i32>().unwrap(),
+                        capture: should_capture.to_string()
+                    },
+                    order_id : item.payment_id.clone(),
+                    notification_url : match &item.return_url {
+                        Some (val) => val.to_string(),
+                        None => "http://wwww.sandbox.juspay.in/hackathon/H1005".to_string()
+                    }
+                    };
+                Ok(payment_request)
+            }
+            _ => Err(
+                errors::ConnectorError::NotImplemented("Current Payment Method".to_string()).into(),
+            ),
+        }
+        
     }
 }
 
+fn get_currency(item: enums::Currency) -> String{
+    match item{
+        BRL => "BR".to_string(),
+        _ => "IN".to_string()
+    }
+}
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct DlocalAuthType {
