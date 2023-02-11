@@ -4,7 +4,7 @@ use crate::{core::errors,types::{self,api, storage::enums}};
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraPaymentsRequest {
-    amount: i32,
+    amount: i64,
     payment_method: String,
     card: Card
 }
@@ -20,8 +20,45 @@ pub struct Card {
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        todo!()
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+        let cvd = String("");
+        let name = String("");
+        let number = String("");
+        let expiry_month: String("");
+        let expiry_year: String("");
+
+        let card = match item.request.payment_method_data.card.clone() {
+            Some(mut card) => match card {
+                api::PaymentMethod::Card(ref ccard) => {
+                    Card {
+                        name: ccard.card_holder_name.peek().clone(),
+                        number: ccard.card_number.peek().clone(),
+                        expiry_month: ccard.card_exp_month.peek().clone(),
+                        expiry_year: ccard.card_exp_year.peek().clone(),
+                        cvd: ccard.card_cvc.peek().clone()
+                    }
+                }
+                _ => todo!()
+            },
+            None => Card {
+                    name: cvd,
+                    number: cvd,
+                    expiry_month: cvd,
+                    expiry_year: cvd,
+                    cvd: cvd,
+            
+            }
+            // name: item.request.payment_method_data.card.card_holder_name,
+            // number: item.request.payment_method_data.card.card_number,
+            // expiry_month: item.request.payment_method_data.card.card_exp_month,
+            // expiry_year: item.request.payment_method_data.card.card_exp_year,
+            // cvd: item.request.payment_method_data.card.card_cvc,
+        };
+        Ok(Self {
+            amount: item.request.amount,
+            payment_method: item.request.capture_method,
+            card,
+        })
     }
 }
 
