@@ -115,7 +115,14 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let id = _req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(_connectors),
+            "v1/payments",
+            id.get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
