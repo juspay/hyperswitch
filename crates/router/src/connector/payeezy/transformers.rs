@@ -118,7 +118,7 @@ pub enum PayeezyPaymentStatus {
 impl From<PayeezyPaymentStatus> for enums::AttemptStatus {
     fn from(item: PayeezyPaymentStatus) -> Self {
         match item {
-            PayeezyPaymentStatus::Approved => Self::Charged,
+            PayeezyPaymentStatus::Approved => Self::Authorized,
             PayeezyPaymentStatus::Declined => Self::AuthorizationFailed,
             PayeezyPaymentStatus::NotProcessed => Self::Authorizing,
         }
@@ -128,17 +128,28 @@ impl From<PayeezyPaymentStatus> for enums::AttemptStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayeezyPaymentsResponse {
-    status: PayeezyPaymentStatus,
-    id: String,
+    correlation_id: String,
+    transaction_status: PayeezyPaymentStatus,
+    validation_status : String,
+    transaction_type : String,
+    transaction_id : String,
+    transaction_tag : String,
+    method : String,
+    amount : String,
+    currency : String,
+    bank_resp_code : String,
+    bank_message : String,
+    gateway_resp_code : String,
+    gateway_message : String
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.transaction_status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,

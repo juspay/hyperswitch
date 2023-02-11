@@ -104,7 +104,7 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 base_url = "https://eu.sandbox.api-ingenico.com/"
 
 [connectors.payeezy]
-base_url = "https://api-cert.payeezy.com"
+base_url = "https://api-cert.payeezy.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
