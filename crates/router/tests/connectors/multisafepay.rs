@@ -279,7 +279,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethod::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: Secret::new("374500000000015".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
