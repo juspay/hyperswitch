@@ -1,21 +1,25 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.
     pub account_name: String,
     /// The amount to transfer between Payer and Merchant for a SALE or a REFUND. It is always
     /// represented in the lowest denomiation of the related currency.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<String>,
     /// Indicates if the merchant would accept an authorization for an amount less than the
     /// requested amount. This is available for CP channel
     /// only where the balance not authorized can be processed again using a different card.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_mode: Option<AuthorizationMode>,
     /// Indicates whether the transaction is to be captured automatically, later or later using
     /// more than 1 partial capture.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_mode: Option<CaptureMode>,
     /// The amount of the transaction that relates to cashback.It is always represented in the
     /// lowest denomiation of the related currency.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cashback_amount: Option<String>,
     /// Describes whether the transaction was processed in a face to face(CP) scenario or a
     /// Customer Not Present (CNP) scenario.
@@ -23,56 +27,74 @@ pub struct GlobalpayPaymentsRequest {
     /// The amount that reflects the charge the merchant applied to the transaction for availing
     /// of a more convenient purchase.It is always represented in the lowest denomiation of the
     /// related currency.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub convenience_amount: Option<String>,
     /// The country in ISO-3166-1(alpha-2 code) format.
     pub country: String,
     /// The currency of the amount in ISO-4217(alpha-3)
     pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency_conversion: Option<CurrencyConversion>,
     /// Merchant defined field to describe the transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<Device>,
     /// The amount of the gratuity for a transaction.It is always represented in the lowest
     /// denomiation of the related currency.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gratuity_amount: Option<String>,
     /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub initiator: Option<Initiator>,
     /// Indicates the source IP Address of the system used to create the transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     /// Indicates the language the transaction was executed in. In the format ISO-639-1 (alpha-2)
     /// or ISO-639-1 (alpha-2)_ISO-3166(alpha-2)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<Language>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lodging: Option<Lodging>,
     /// Indicates to Global Payments where the merchant wants to receive notifications of certain
     /// events that occur on the Global Payments system.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notifications: Option<Notifications>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order: Option<Order>,
     /// The merchant's payer reference for the transaction
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payer_reference: Option<String>,
     pub payment_method: PaymentMethod,
     /// Merchant defined field to reference the transaction.
     pub reference: String,
     /// A merchant defined reference for the location that created the transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub site_reference: Option<String>,
     /// Stored data information used to create a transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credential: Option<StoredCredential>,
     /// The amount that reflects the additional charge the merchant applied to the transaction
     /// for using a specific payment method.It is always represented in the lowest denomiation of
     /// the related currency.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub surcharge_amount: Option<String>,
     /// Indicates the total or expected total of captures that will executed against a
     /// transaction flagged as being captured multiple times.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub total_capture_count: Option<i64>,
     /// Describes whether the transaction is a SALE, that moves funds from Payer to Merchant, or
     /// a REFUND where funds move from Merchant to Payer.
     #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub globalpay_payments_request_type: Option<GlobalpayPaymentsRequestType>,
     /// The merchant's user reference for the transaction. This represents the person who
     /// processed the transaction on the merchant's behalf like a clerk or cashier reference.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_reference: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct GlobalpayRefreshTokenRequest {
     pub app_id: String,
     pub nonce: String,
@@ -80,189 +102,250 @@ pub struct GlobalpayRefreshTokenRequest {
     pub grant_type: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CurrencyConversion {
     /// A unique identifier generated by Global Payments to identify the currency conversion. It
     /// can be used to reference a currency conversion when processing a sale or a refund
     /// transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Device {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<Capabilities>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_modes: Option<Vec<Vec<DeviceEntryMode>>>,
     /// Describes whether a device prompts a payer for a gratuity when the payer is entering
     /// their payment method details to the device.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gratuity_prompt_mode: Option<GratuityPromptMode>,
     /// Describes the receipts a device prints when processing a transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub print_receipt_mode: Option<PrintReceiptMode>,
     /// The sequence number from the device used to align with processing platform.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sequence_number: Option<String>,
     /// A unique identifier for the physical device. This value persists with the device even if
     /// it is repurposed.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub serial_number: Option<String>,
     /// The time from the device in ISO8601 format
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Capabilities {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_modes: Option<Vec<AuthorizationMode>>,
     /// The number of lines that can be used to display information on the device.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub display_line_count: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled_response: Option<Vec<EnabledResponse>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_modes: Option<Vec<CapabilitiesEntryMode>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud: Option<Vec<AuthorizationMode>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mobile: Option<Vec<Mobile>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payer_verifications: Option<Vec<PayerVerification>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Lodging {
     /// A reference that identifies the booking reference for a lodging stay.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub booking_reference: Option<String>,
     /// The amount charged for one nights lodging.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub daily_rate_amount: Option<String>,
     /// A reference that identifies the booking reference for a lodging stay.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date_checked_in: Option<String>,
     /// The check out date for a lodging stay.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date_checked_out: Option<String>,
     /// The total number of days of the lodging stay.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_days: Option<f64>,
     #[serde(rename = "lodging.charge_items")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lodging_charge_items: Option<Vec<LodgingChargeItem>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LodgingChargeItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_program_codes: Option<Vec<PaymentMethodProgramCode>>,
     /// A reference that identifies the charge item, such as a lodging folio number.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     /// The total amount for the list of charge types for a charge item.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub total_amount: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub types: Option<Vec<TypeElement>>,
 }
 
 /// Indicates to Global Payments where the merchant wants to receive notifications of certain
 /// events that occur on the Global Payments system.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Notifications {
     /// The merchant URL that will receive the notification when the customer has completed the
     /// authentication.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub challenge_return_url: Option<String>,
     /// The merchant URL that will receive the notification when the customer has completed the
     /// authentication when the authentication is decoupled and separate to the purchase.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decoupled_challenge_return_url: Option<String>,
     /// The merchant URL to return the payer to, once the payer has completed payment using the
     /// payment method. This returns control of the payer's payment experience to the merchant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     /// The merchant URL to notify the merchant of the latest status of the transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status_url: Option<String>,
     /// The merchant URL that will receive the notification when the 3DS ACS successfully gathers
     /// de ice informatiSon and tonotification_configurations.cordingly.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_method_return_url: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Order {
     /// Merchant defined field common to all transactions that are part of the same order.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct PaymentMethod {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub apm: Option<Apm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<Authentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<BankTransfer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub digital_wallet: Option<DigitalWallet>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encryption: Option<Encryption>,
     /// Indicates how the payment method information was obtained by the Merchant for this
     /// transaction.
     pub entry_mode: PaymentMethodEntryMode,
     /// Indicates whether to execute the fingerprint signature functionality.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint_mode: Option<FingerprintMode>,
     /// Specify the first name of the owner of the payment method.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     /// Unique Global Payments generated id used to reference a stored payment method on the
     /// Global Payments system. Often referred to as the payment method token. This value can be
     /// used instead of payment method details such as a card number and expiry date.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     /// Specify the surname of the owner of the payment method.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     /// The full name of the owner of the payment method.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Contains the value a merchant wishes to appear on the payer's payment method statement
     /// for this transaction
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub narrative: Option<String>,
     /// Indicates whether to store the card as part of a transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub storage_mode: Option<CardStorageMode>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Apm {
     /// A string used to identify the payment method provider being used to execute this
     /// transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<ApmProvider>,
 }
 
 /// Information outlining the degree of authentication executed related to a transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Authentication {
     /// Information outlining the degree of 3D Secure authentication executed.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<ThreeDs>,
     /// A message authentication code that is used to confirm the security and integrity of the
     /// messaging to Global Payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mac: Option<String>,
 }
 
 /// Information outlining the degree of 3D Secure authentication executed.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ThreeDs {
     /// The reference created by the 3DSecure Directory Server to identify the specific
     /// authentication attempt.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ds_trans_reference: Option<String>,
     /// An indication of the degree of the authentication and liability shift obtained for this
     /// transaction. It is determined during the 3D Secure process. 2 or 1  for Mastercard
     /// indicates the merchant has a liability shift. 5 or 6  for Visa or Amex indicates the
     /// merchant has a liability shift. However for Amex if the payer is not enrolled the eci may
     /// still be 6 but liability shift has not bee achieved.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     /// Indicates if any exemptions apply to this transaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exempt_status: Option<ExemptStatus>,
     /// Indicates the version of 3DS
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message_version: Option<String>,
     /// The reference created by the 3DSecure provider to identify the specific authentication
     /// attempt.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server_trans_reference: Option<String>,
     /// The authentication value created as part of the 3D Secure process.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BankTransfer {
     /// The number or reference for the payer's bank account.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank: Option<Bank>,
     /// The number or reference for the check
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub check_reference: Option<String>,
     /// The type of bank account associated with the payer's bank account.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub number_type: Option<NumberType>,
     /// Indicates how the transaction was authorized by the merchant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sec_code: Option<SecCode>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Bank {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Address>,
     /// The local identifier code for the bank.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
     /// The name of the bank.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Address {
     /// Merchant defined field common to all transactions that are part of the same order.
     pub city: Option<String>,
@@ -282,7 +365,7 @@ pub struct Address {
     pub state: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Card {
     /// The card providers description of their card product.
     pub account_type: Option<String>,
@@ -318,7 +401,7 @@ pub struct Card {
     pub track: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DigitalWallet {
     /// First line of the address associated with the card.
     pub avs_address: Option<String>,
@@ -350,7 +433,7 @@ pub struct DigitalWallet {
     pub token_format: Option<TokenFormat>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Encryption {
     /// The encryption info used when sending encrypted card data to Global Payments.
     pub info: Option<String>,
@@ -361,7 +444,7 @@ pub struct Encryption {
 }
 
 /// Stored data information used to create a transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StoredCredential {
     /// Indicates the transaction processing model being executed when using stored
     /// credentials.
@@ -378,7 +461,7 @@ pub struct StoredCredential {
 /// only where the balance not authorized can be processed again using a different card.
 ///
 /// Describes the instruction a device can indicate to the clerk in the case of fraud.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthorizationMode {
     /// Indicates merchant would accept an authorization for an amount less than the
@@ -392,7 +475,7 @@ pub enum AuthorizationMode {
 
 /// Indicates whether the transaction is to be captured automatically, later or later using
 /// more than 1 partial capture.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaptureMode {
     /// If a transaction is authorized, funds will exchange between the payer and
@@ -413,7 +496,7 @@ pub enum CaptureMode {
 /// Describes whether the transaction was processed in a face to face(CP) scenario or a
 /// Customer Not Present (CNP) scenario.
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub enum Channel {
     #[default]
     #[serde(rename = "CNP")]
@@ -430,7 +513,7 @@ pub enum Channel {
 
 /// Describes the data the device can handle when it receives a response for a card
 /// authorization.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EnabledResponse {
     Avs,
@@ -440,7 +523,7 @@ pub enum EnabledResponse {
 }
 
 /// Describes the entry mode capabilities a device has.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CapabilitiesEntryMode {
     Chip,
@@ -451,7 +534,7 @@ pub enum CapabilitiesEntryMode {
 }
 
 /// Describes the mobile features a device has
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mobile {
     IntegratedCardReader,
@@ -459,7 +542,7 @@ pub enum Mobile {
 }
 
 /// Describes the capabilities a device has to verify a payer.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayerVerification {
     ContactlessSignature,
@@ -469,7 +552,7 @@ pub enum PayerVerification {
 
 /// Describes the allowed entry modes to obtain payment method information from the payer as
 /// part of a transaction request.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeviceEntryMode {
     Chip,
@@ -480,7 +563,7 @@ pub enum DeviceEntryMode {
 
 /// Describes whether a device prompts a payer for a gratuity when the payer is entering
 /// their payment method details to the device.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GratuityPromptMode {
     NotRequired,
@@ -488,7 +571,7 @@ pub enum GratuityPromptMode {
 }
 
 /// Describes the receipts a device prints when processing a transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PrintReceiptMode {
     Both,
@@ -499,7 +582,7 @@ pub enum PrintReceiptMode {
 
 /// Describes whether the transaction is a SALE, that moves funds from Payer to Merchant, or
 /// a REFUND where funds move from Merchant to Payer.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobalpayPaymentsRequestType {
     /// indicates the movement, or the attempt to move, funds from merchant to the
@@ -511,7 +594,7 @@ pub enum GlobalpayPaymentsRequestType {
 }
 
 /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Initiator {
     /// The transaction was initiated by the merchant, who is getting paid by the
@@ -523,7 +606,7 @@ pub enum Initiator {
 
 /// Indicates the language the transaction was executed in. In the format ISO-639-1 (alpha-2)
 /// or ISO-639-1 (alpha-2)_ISO-3166(alpha-2)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Language {
     #[serde(rename = "fr")]
     Fr,
@@ -537,7 +620,7 @@ pub enum Language {
 
 /// Describes the payment method programs, typically run by card brands such as Amex, Visa
 /// and MC.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodProgramCode {
     AssuredReservation,
@@ -548,7 +631,7 @@ pub enum PaymentMethodProgramCode {
 
 /// Describes the types of charges associated with a transaction. This can be one or more
 /// than more charge type.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TypeElement {
     GiftShop,
@@ -562,8 +645,8 @@ pub enum TypeElement {
 
 /// A string used to identify the payment method provider being used to execute this
 /// transaction.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum ApmProvider {
     Giropay,
     Ideal,
@@ -573,7 +656,7 @@ pub enum ApmProvider {
 }
 
 /// Indicates if any exemptions apply to this transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ExemptStatus {
     LowValue,
@@ -584,7 +667,7 @@ pub enum ExemptStatus {
 }
 
 /// The type of bank account associated with the payer's bank account.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NumberType {
     Checking,
@@ -593,7 +676,7 @@ pub enum NumberType {
 
 /// Indicates how the transaction was authorized by the merchant.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SecCode {
     /// Cash Concentration or Disbursement - Can be either a credit or debit application
@@ -624,7 +707,7 @@ pub enum SecCode {
 
 /// Indicates if a fallback mechanism was used to obtain the card information when EMV/chip
 /// did not work as expected.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ChipCondition {
     /// indicates the previous transaction with this card failed.
@@ -635,7 +718,7 @@ pub enum ChipCondition {
 
 /// Card Verification Value Indicator sent by the Merchant indicating the CVV
 /// availability.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CvvIndicator {
     /// indicates the cvv is present but cannot be read.
@@ -648,7 +731,7 @@ pub enum CvvIndicator {
 }
 
 /// Indicates whether the card is a debit or credit card.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Funding {
     /// indicates the card is an, Electronic Benefits Transfer, for cash
@@ -669,7 +752,7 @@ pub enum Funding {
 }
 
 /// Identifies who provides the digital wallet for the Payer.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DigitalWalletProvider {
     Applepay,
@@ -678,7 +761,7 @@ pub enum DigitalWalletProvider {
 
 /// Indicates if the actual card number or a token is being used to process the
 /// transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TokenFormat {
     /// The value in the digital wallet token field is a real card number
@@ -690,7 +773,7 @@ pub enum TokenFormat {
 }
 
 /// The encryption method used when sending encrypted card data to Global Payments.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Method {
     Ksn,
@@ -699,7 +782,7 @@ pub enum Method {
 
 /// Indicates how the payment method information was obtained by the Merchant for this
 /// transaction.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodEntryMode {
     /// A CP channel entry mode where the payment method information was obtained from a
@@ -738,7 +821,7 @@ pub enum PaymentMethodEntryMode {
 }
 
 /// Indicates whether to execute the fingerprint signature functionality.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FingerprintMode {
     /// Always check and create the fingerprint value regardless of the result of the
@@ -750,7 +833,7 @@ pub enum FingerprintMode {
 }
 
 /// Indicates whether to store the card as part of a transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CardStorageMode {
     /// ///  The card information is always stored irrespective of whether the payment
@@ -764,7 +847,7 @@ pub enum CardStorageMode {
 /// Indicates the transaction processing model being executed when using stored
 /// credentials.
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Model {
     /// The transaction is a repeat transaction initiated by the merchant and
@@ -787,7 +870,7 @@ pub enum Model {
 }
 
 /// The reason stored credentials are being used to to create a transaction.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Reason {
     Delayed,
@@ -799,7 +882,7 @@ pub enum Reason {
 
 /// Indicates the order of this transaction in the sequence of a planned repeating
 /// transaction processing model.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Sequence {
     First,

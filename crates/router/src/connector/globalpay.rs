@@ -477,6 +477,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let globalpay_req =
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("{:?}",globalpay_req);
         Ok(Some(globalpay_req))
     }
 
@@ -485,6 +486,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        println!("{:?}",req);
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

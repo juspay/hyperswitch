@@ -1,8 +1,8 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::ResultExt;
+use error_stack::{ResultExt, IntoReport};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
-
+use url::Url;
 use super::{
     requests::{self, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
@@ -11,7 +11,7 @@ use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
     consts,
     core::errors,
-    types::{self, api, storage::enums, ErrorResponse},
+    types::{self, api, storage::enums, ErrorResponse}, services::{self, RedirectForm},
 };
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -26,29 +26,62 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             .and_then(|o| o.get("account_name"))
             .map(|o| o.to_string())
             .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
-        let card = item.get_card()?;
-        Ok(Self {
-            account_name,
-            amount: Some(item.request.amount.to_string()),
-            currency: item.request.currency.to_string(),
-            reference: item.attempt_id.to_string(),
-            country: item.get_billing_country()?,
-            capture_mode: item.request.capture_method.map(|f| match f {
-                enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                _ => requests::CaptureMode::Auto,
+        
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ccard) => Ok(Self {
+                account_name,
+                amount: Some(item.request.amount.to_string()),
+                currency: item.request.currency.to_string(),
+                reference: item.get_attempt_id()?,
+                country: item.get_billing_country()?,
+                capture_mode: item.request.capture_method.map(|f| match f {
+                    enums::CaptureMethod::Manual => requests::CaptureMode::Later,
+                    _ => requests::CaptureMode::Auto,
+                }),
+                payment_method: requests::PaymentMethod {
+                    card: Some(requests::Card {
+                        number: ccard.get_card_number(),
+                        expiry_month: ccard.get_card_expiry_month(),
+                        expiry_year: ccard.get_card_expiry_year_2_digit(),
+                        cvv: ccard.get_card_cvc(),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
             }),
-            payment_method: requests::PaymentMethod {
-                card: Some(requests::Card {
-                    number: card.get_card_number(),
-                    expiry_month: card.get_card_expiry_month(),
-                    expiry_year: card.get_card_expiry_year_2_digit(),
-                    cvv: card.get_card_cvc(),
+            api::PaymentMethod::Wallet(wallet_data) => match wallet_data.issuer_name {
+                api_models::enums::WalletIssuer::Paypal => Ok(Self {
+                    account_name,
+                    amount: Some(item.request.amount.to_string()),
+                    currency: item.request.currency.to_string(),
+                    reference: item.get_attempt_id()?,
+                    country: item.get_billing_country()?,
+                    capture_mode: item.request.capture_method.map(|f| match f {
+                        enums::CaptureMethod::Manual => requests::CaptureMode::Later,
+                        _ => requests::CaptureMode::Auto,
+                    }),
+                    payment_method: requests::PaymentMethod {
+                        apm: Some(requests::Apm {
+                            provider: Some(requests::ApmProvider::Paypal)
+                        }),
+                        ..Default::default()
+                    },
+                    notifications: Some(requests::Notifications {
+                        return_url: item
+                            .router_return_url
+                            .clone(),
+                        challenge_return_url: None,
+                        decoupled_challenge_return_url: None,
+                        status_url: None,
+                        three_ds_method_return_url: None
+                    }),
                     ..Default::default()
                 }),
-                ..Default::default()
+                _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
             },
-            ..Default::default()
-        })
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
     }
 }
 
@@ -134,7 +167,8 @@ impl From<GlobalpayPaymentStatus> for enums::AttemptStatus {
             GlobalpayPaymentStatus::Declined | GlobalpayPaymentStatus::Rejected => Self::Failure,
             GlobalpayPaymentStatus::Preauthorized => Self::Authorized,
             GlobalpayPaymentStatus::Reversed => Self::Voided,
-            GlobalpayPaymentStatus::Initiated | GlobalpayPaymentStatus::Pending => Self::Pending,
+            GlobalpayPaymentStatus::Initiated => Self::AuthenticationPending,
+            GlobalpayPaymentStatus::Pending => Self::Pending
         }
     }
 }
@@ -154,6 +188,10 @@ fn get_payment_response(
     status: enums::AttemptStatus,
     response: GlobalpayPaymentsResponse,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
+    let redirection_data = match response.payment_method.clone() {
+        Some(p) => parse_base_url(p.redirect_url),
+        None => None
+    };
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {
             message: response
@@ -164,7 +202,8 @@ fn get_payment_response(
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
-            redirection_data: None,
+            redirection_data: redirection_data.clone(),
+            redirect: redirection_data.is_some(),
             mandate_reference: None,
             connector_metadata: None,
         }),
@@ -190,6 +229,32 @@ impl<F, T>
             response: get_payment_response(status, item.response),
             ..item.data
         })
+    }
+}
+
+fn parse_base_url(opt_url_string: Option<String>) -> Option<RedirectForm> {
+    match opt_url_string {
+        Some(url_string) => {
+            let base_url_res = Url::parse(url_string.as_ref());
+
+            match base_url_res {
+                Ok(base_url) => {
+                    let mut base_ = base_url.clone();
+                    base_.set_query(None);
+                    Some(RedirectForm {
+                        url: base_url.to_string(),
+                        method: services::Method::Get,
+                        form_fields: std::collections::HashMap::from_iter(
+                            base_url
+                                .query_pairs()
+                                .map(|(k, v)| (k.to_string(), v.to_string())),
+                        ),
+                    })
+                }
+                Err(_err) => None,
+            }
+        }
+        None => None,
     }
 }
 
