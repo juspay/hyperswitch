@@ -240,6 +240,17 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureTransactionRequest {
     }
 }
 
+impl TryFrom<&types::PaymentsCancelRouterData> for VoidATransactionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            action:String::from("void"),
+            entered_by:String::from("Jaffer"),
+            authorization_code: String::from("0SF381"),
+        })
+    }
+}
+
 impl<F,T> TryFrom<types::ResponseRouterData<F, CaptureTransactionResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, CaptureTransactionResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {

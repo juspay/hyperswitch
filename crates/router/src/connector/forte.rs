@@ -115,16 +115,50 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        // let req_obj = forte::CaptureTransactionRequest::try_from(req)?;
-        // let req =
-        //     utils::Encode::<forte::CaptureTransactionRequest>::encode_to_string_of_json(
-        //         &req_obj,
-        //     )
-        //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        // Ok(Some(req))
-        todo!()
+        let request = utils::Encode::<forte::VoidATransactionRequest>::convert_and_encode(_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(request))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Put)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .body(types::PaymentsVoidType::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: forte::FortePaymentsResponse = res
+            .response
+            .parse_struct("PaymentCancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(payments_cancel_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 
 }
@@ -245,14 +279,14 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        // let req_obj = forte::CaptureTransactionRequest::try_from(req)?;
-        // let req =
-        //     utils::Encode::<forte::CaptureTransactionRequest>::encode_to_string_of_json(
-        //         &req_obj,
-        //     )
-        //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        // Ok(Some(req))
-        todo!()
+        let req_obj = forte::CaptureTransactionRequest::try_from(req)?;
+        let req =
+            utils::Encode::<forte::CaptureTransactionRequest>::encode_to_string_of_json(
+                &req_obj,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(req))
+        // todo!()
     }
 
     fn build_request(
