@@ -485,8 +485,14 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let connector_payment_id = &req
+            .request
+            .connector_transaction_id;
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions/trn_{}",
+            api::ConnectorCommon::base_url(self, connectors),connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -510,7 +516,7 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
         logger::debug!(target: "router::connector::forte", response=?res);
-        let response: forte::RefundResponse = res.response.parse_struct("forte RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: forte::FortePaymentsResponse = res.response.parse_struct("forte RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),

@@ -380,18 +380,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CaptureTransactionRe
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
-                refund_status: enums::RefundStatus::Success,
+                refund_status: enums::RefundStatus::Success, // todo --Add proper mapping after knowing all the possible status from connector
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, FortePaymentsResponse>> for types::RefundsRouterData<api::RSync>
 {
      type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
+    fn try_from(item: types::RefundsResponseRouterData<api::RSync, FortePaymentsResponse>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status: enums::RefundStatus::Success, // todo --Add proper mapping after knowing all the possible status from connector
+            }),
+            ..item.data
+        })
      }
  }
 
