@@ -400,7 +400,7 @@ impl
             ord_id,
             api_key
         );
-        print!("refund{:?}",x);
+        print!("refund data check{:?}",x);
         Ok(format!(
             "{}v1/json/orders/{}/refunds?api_key={}",
             url,
