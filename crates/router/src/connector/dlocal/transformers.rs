@@ -218,8 +218,7 @@ impl From<DlocalPaymentStatus> for enums::AttemptStatus {
 #[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
-    id: String,
-    card: Option<Card>
+    id: String
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
@@ -231,10 +230,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types:
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
-                mandate_reference: match item.response.card {
-                    Some(val) => val.clone().installments,
-                    None => None
-                },
+                mandate_reference: None,
                 connector_metadata: None,
             }),
             ..item.data
