@@ -32,7 +32,18 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string(),
+            ),
+            ("X-Forte-Auth-Organization-Id".to_string(), "org_436911".to_string()),
+            (
+                headers::AUTHORIZATION.to_string(),
+                // format!("Basic {}", access_token.token),
+                format!("Basic {}", "Njk0M2NhZTVjNjdlZGFlNGMwNDQxNzcxNjFiMjM2ZTU6OGY5MmU1ZjY2ODY0ODBlMTNjZDlmOTU0Y2I4OGVmZWU="),
+            ),
+        ])
     }
 }
 
@@ -109,7 +120,17 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let connector_payment_id = _req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(
+            format!(
+            "{}/trn_{}",
+            self.base_url(_connectors),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -260,7 +281,11 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let capture_method = _req.request.capture_method;
+        match capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) => Ok(format!("{}/sale", self.base_url(_connectors))),
+            _ => Ok(format!("{}/authorize", self.base_url(_connectors)))
+        }
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -293,7 +318,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: generic::GenericPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: generic::GenericPaymentsResponse = res.response.parse_struct("GenericPaymentsResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(genericpayments_create_response=?response);
         types::ResponseRouterData {
             response,
