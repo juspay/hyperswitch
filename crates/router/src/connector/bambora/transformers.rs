@@ -235,17 +235,17 @@ pub struct BamboraPaymentsSyncResponse{
     pub order_number: String,
     #[serde(rename = "type")]
     pub type_field: BamboraPREAuthType,
-    pub comments: String,
+    pub comments: Option<String>,
     #[serde(rename = "batch_number")]
-    pub batch_number: String,
+    pub batch_number: Option<String>,
     #[serde(rename = "total_refunds")]
-    pub total_refunds: f64,
+    pub total_refunds: Option<f64>,
     #[serde(rename = "total_completions")]
-    pub total_completions: f64,
+    pub total_completions: Option<f64>,
     #[serde(rename = "payment_method")]
     pub payment_method: String,
     pub card: SyncResponseCard,
-    pub billing: Billing,
+    pub billing: Option<Billing>,
     pub shipping: Shipping,
     pub custom: Custom,
     #[serde(rename = "adjusted_by")]
@@ -257,11 +257,11 @@ pub struct BamboraPaymentsSyncResponse{
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncResponseCard {
-    pub name: String,
+    pub name: Option<String>,
     #[serde(rename = "expiry_month")]
-    pub expiry_month: String,
+    pub expiry_month: Option<String>,
     #[serde(rename = "expiry_year")]
-    pub expiry_year: String,
+    pub expiry_year: Option<String>,
     #[serde(rename = "card_type")]
     pub card_type: String,
     #[serde(rename = "last_four")]
@@ -272,12 +272,14 @@ pub struct SyncResponseCard {
     pub cvd_result: String,
     #[serde(rename = "cavv_result")]
     pub cavv_result: String,
+    #[serde(rename = "avs")]
+    pub avs: Avs,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Billing {
-    pub name: String,
+    pub name: Option<String>,
     #[serde(rename = "address_line1")]
     pub address_line1: String,
     #[serde(rename = "address_line2")]
@@ -296,7 +298,7 @@ pub struct Billing {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Shipping {
-    pub name: String,
+    pub name: Option<String>,
     #[serde(rename = "address_line1")]
     pub address_line1: String,
     #[serde(rename = "address_line2")]
@@ -361,12 +363,12 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraCaptureRequest {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraCaptureResponse{
-    pub id: i64,
+    pub id: String,
     #[serde(rename = "authorizing_merchant_id")]
     pub authorizing_merchant_id: i64,
-    pub approved: i64,
+    pub approved: String,
     #[serde(rename = "message_id")]
-    pub message_id: i64,
+    pub message_id: String,
     pub message: BambaroPaymentStatus,
     #[serde(rename = "auth_code")]
     pub auth_code: String,
@@ -376,21 +378,21 @@ pub struct BamboraCaptureResponse{
     pub order_number: String,
     #[serde(rename = "type")]
     pub type_field: BamboraPREAuthType,
-    pub comments: String,
+    pub comments: Option<String>,
     #[serde(rename = "batch_number")]
-    pub batch_number: String,
+    pub batch_number: Option<String>,
     #[serde(rename = "total_refunds")]
-    pub total_refunds: f64,
+    pub total_refunds: Option<f64>,
     #[serde(rename = "total_completions")]
-    pub total_completions: f64,
+    pub total_completions: Option<f64>,
     #[serde(rename = "payment_method")]
     pub payment_method: String,
     pub card: SyncResponseCard,
-    pub billing: Billing,
-    pub shipping: Shipping,
-    pub custom: Custom,
+    pub billing: Option<Billing>,
+    pub shipping: Option<Shipping>,
+    pub custom: Option<Custom>,
     #[serde(rename = "adjusted_by")]
-    pub adjusted_by: Vec<Option<serde_json::Value>>,
+    pub adjusted_by: Option<Vec<Option<serde_json::Value>>>,
     pub links: Vec<Link>,
 }
 
@@ -533,12 +535,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BamboraErrorResponse {}
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorResponse {
-    pub status: i32,
-    pub code: String,
-    pub message: String,
-    pub error_type: String,
-    pub psp_reference: Option<String>,
-}
+// #[derive(Debug, Default, Serialize, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct ErrorResponse {
+//     pub status: i32,
+//     pub code: String,
+//     pub message: String,
+//     pub error_type: String,
+//     pub psp_reference: Option<String>,
+// }

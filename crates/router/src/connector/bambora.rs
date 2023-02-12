@@ -38,7 +38,7 @@ where
                 "application/json".to_string(),
             ),
         ];
-        
+
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
         Ok(headers)
@@ -106,14 +106,17 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.as_str();
+        let id: &str = req.request.connector_transaction_id.as_str();
         Ok(format!(
             "{}v1/payments/{}/void",
             self.base_url(connectors),
             id
         ))
     }
-
+    fn get_request_body(&self, req: &types::PaymentsCancelRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+        let bambora_req = utils::Encode::<bambora::BamboraCancelRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bambora_req))
+    }
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -263,7 +266,7 @@ impl
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.as_str();
+        let id: &str = req.request.connector_transaction_id.as_str();
         Ok(format!(
             "{}{}/{}/completions",
             self.base_url(connectors),
@@ -296,6 +299,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -416,16 +420,7 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        let response: bambora ::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
