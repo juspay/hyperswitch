@@ -37,9 +37,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 expiry_month: item.card_exp_month.peek().clone(),
                 expiry_year: item.card_exp_year.peek().clone(),
                 cvd: item.card_cvc.peek().clone(),
-                #[serde(rename = "3d_secure")]
-                three_d_secure: Some(ThreeDSecure),
                 complete: true,
+                three_d_secure: None,
             },
             _ => todo!(),
         };
@@ -203,17 +202,20 @@ pub struct ApiErrorResponse {
     pub reference: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Serialize, Debug, Eq, PartialEq)]
 pub struct Card {
-    name: String,
-    number: String,
-    expiry_month: String,
-    expiry_year: String,
-    cvd: String,
-    complete: bool,
+    pub name: String,
+    pub number: String,
+    pub expiry_month: String,
+    pub  expiry_year: String,
+    pub cvd: String,
+    pub complete: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "3d_secure")]
+    pub three_d_secure:Option<ThreeDSecure>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(serde::Deserialize, Serialize, Debug, Default, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSecure {
     browser: Browser,
@@ -222,7 +224,7 @@ pub struct ThreeDSecure {
     auth_required: bool,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(serde::Deserialize, Serialize, Default, Debug, Eq, PartialEq)]
 pub struct Browser {
     accept_header: String,
     java_enabled: String,
