@@ -519,6 +519,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Mollie,
     Fiserv,
     Globalpay,
     Klarna,
@@ -563,6 +564,7 @@ pub enum RoutableConnectors {
     Payu,
     Rapyd,
     Shift4,
+    Mollie,
     Stripe,
     Worldline,
     Worldpay,
