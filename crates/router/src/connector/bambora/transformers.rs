@@ -101,7 +101,7 @@ impl From<BamboraPaymentStatus> for enums::AttemptStatus {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraPaymentsResponse {
     pub id: String,
@@ -137,7 +137,7 @@ pub struct Custom {
     pub ref5: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     #[serde(rename = "card_type")]
@@ -188,6 +188,7 @@ pub enum BamboraPREAuthType {
     P,
     #[serde(rename = "PAC")]
     Pac,
+    R,
 }
 
 impl From<BamboraPREAuthType> for enums::AttemptStatus {
@@ -196,6 +197,8 @@ impl From<BamboraPREAuthType> for enums::AttemptStatus {
             BamboraPREAuthType::P => Self::Charged,
             BamboraPREAuthType::PAs => Self::Authorized,
             BamboraPREAuthType::Pac => Self::Charged,
+            BamboraPREAuthType::R => Self::Pending,
+            
         }
     }
 }
@@ -217,7 +220,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BamboraPaymentsResponse, T, types
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraPaymentsSyncResponse{
     pub id: i64,
@@ -254,7 +257,7 @@ pub struct BamboraPaymentsSyncResponse{
 }
 
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncResponseCard {
     pub name: String,
@@ -274,7 +277,7 @@ pub struct SyncResponseCard {
     pub cavv_result: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Billing {
     pub name: String,
@@ -293,7 +296,7 @@ pub struct Billing {
     pub email_address: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shipping {
     pub name: String,
@@ -358,7 +361,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraCaptureRequest {
 }
 
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BamboraCaptureResponse{
     pub id: i64,
@@ -474,19 +477,23 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<BamboraCancelResponse>> for
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct BamboraRefundRequest {}
+pub struct BamboraRefundRequest {
+    amount: i64,
+}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.request.refund_amount,
+        })
     }
 }
 
 // Type definition for Refund Response
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -506,28 +513,49 @@ impl From<RefundStatus> for enums::RefundStatus {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
+    pub id: i64,
+    #[serde(rename = "authorizing_merchant_id")]
+    pub authorizing_merchant_id: i64,
+    pub approved: i64,
+    #[serde(rename = "message_id")]
+    pub message_id: i64,
+    pub message: BambaroPaymentStatus,
+    #[serde(rename = "auth_code")]
+    pub auth_code: String,
+    pub created: String,
+    pub amount: f64,
+    #[serde(rename = "order_number")]
+    pub order_number: String,
+    #[serde(rename = "type")]
+    pub type_field: BamboraPREAuthType,
+    #[serde(rename = "payment_method")]
+    pub payment_method: String,
+    pub card: SyncResponseCard,
+    pub custom: Custom,
+    pub links: Vec<Link>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        todo!()
+impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>> for types::RefundsRouterData<F> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: types::RefundsResponseRouterData<F, RefundResponse>,) -> Result<Self, Self::Error> {
+        let refund_status = match item.response.message {
+            // From the docs, the only value returned is "received", outcome of refund is available
+            // through refund notification webhook
+            BambaroPaymentStatus::Approved => storage_enums::RefundStatus::Success,
+            _ => storage_enums::RefundStatus::Pending,
+        };
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
-{
-     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-     }
- }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
