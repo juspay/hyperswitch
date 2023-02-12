@@ -329,7 +329,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
         match item {
             MultisafepayPaymentStatus::Succeeded => Self::Charged,
             MultisafepayPaymentStatus::Failed => Self::Failure,
-            MultisafepayPaymentStatus::Pending => Self::Authorized,
+            MultisafepayPaymentStatus::Pending => Self::AuthenticationPending,
         }
     }
 }
