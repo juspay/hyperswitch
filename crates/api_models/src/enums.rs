@@ -567,6 +567,7 @@ pub enum RoutableConnectors {
     Stripe,
     Worldline,
     Worldpay,
+    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
