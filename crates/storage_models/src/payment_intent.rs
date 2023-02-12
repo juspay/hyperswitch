@@ -103,6 +103,9 @@ pub enum PaymentIntentUpdate {
         billing_address_id: Option<String>,
         return_url: Option<String>,
     },
+    PaymentAttemptUpdate {
+        attempt_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -122,6 +125,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
+    pub attempt_id: String,
 }
 
 impl PaymentIntentUpdate {
@@ -231,6 +235,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 client_secret: make_client_secret_null_if_success(Some(status)),
                 modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::PaymentAttemptUpdate { attempt_id } => Self {
+                attempt_id,
                 ..Default::default()
             },
         }
