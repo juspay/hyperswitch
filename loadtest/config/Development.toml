@@ -85,7 +85,7 @@ base_url = "https://apple-pay-gateway.apple.com/"
 base_url = "https://api-na.playground.klarna.com/"
 
 [connectors.multisafepay]
-base_url = 
+base_url = "https://testapi.multisafepay.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]

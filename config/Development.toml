@@ -104,7 +104,7 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 base_url = "https://eu.sandbox.api-ingenico.com/"
 
 [connectors.multisafepay]
-base_url = ""
+base_url = "https://testapi.multisafepay.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
