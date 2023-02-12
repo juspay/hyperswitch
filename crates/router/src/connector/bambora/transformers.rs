@@ -425,10 +425,10 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BamboraCaptureResponse>> f
 
 //Cancel Authorization
 #[derive(Default, Debug, Serialize)]
-pub struct BamboreCancelRequest {
+pub struct BamboraCancelRequest {
     pub amount: Option<String>,
 }
-impl TryFrom<&types::PaymentsCancelRouterData> for BamboreCancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for BamboraCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -560,3 +560,13 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>> for types::
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BamboraErrorResponse {}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorResponse {
+    pub status: i32,
+    pub code: String,
+    pub message: String,
+    pub error_type: String,
+    pub psp_reference: Option<String>,
+}
