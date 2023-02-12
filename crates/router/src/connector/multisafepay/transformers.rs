@@ -145,13 +145,13 @@ pub struct Customer {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GatewayInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+    pub card_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_holder_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_expiry_date: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_cvc: Option<Secret<String>>,
+    pub card_cvc: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flexible_3d: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -257,9 +257,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         let gateway_info = match _item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 GatewayInfo {
-                    card_number: Some(ccard.card_number.clone()),
+                    card_number: Some(ccard.card_number.clone().expose()),
                     card_expiry_date: Some((format!("{}{}", ccard.card_exp_year.clone().expose(), ccard.card_exp_month.clone().expose())).parse::<i32>().unwrap()),
-                    card_cvc: Some(ccard.card_cvc.clone()),
+                    card_cvc: Some(ccard.card_cvc.clone().expose()),
                     card_holder_name: None,
                     flexible_3d: None,
                     moto: None,
