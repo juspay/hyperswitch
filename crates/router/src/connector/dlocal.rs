@@ -2,13 +2,11 @@ mod transformers;
 
 use crate::{
     configs::settings,
-    
     core::{
         errors::{self, CustomResult},
         payments,
     },
     headers, logger,
-    
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -161,37 +159,51 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let dlocal_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .unwrap();
+        Ok(format!(
+            "{}{}{}{}",
+            self.base_url(connectors),
+            "payments/",
+            dlocal_id,
+            "/status"
+        ))
         // Ok(format!("{}{}", self.base_url(connectors)))
     }
 
     fn build_request(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        todo!()
-        // let timestamp = "2023-02-11T10:19:00.805Z";
-        // let loginkey = "pXnn2rwEvs";
-        // let auth: dlocal::DlocalAuthType = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
-        // let dlocal_req = utils::Encode::<dlocal::DlocalPaymentsRequest>::convert_and_encode(req)
-        //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let timestamp = "2023-02-11T10:19:00.805Z";
+        let auth: dlocal::DlocalAuthType =
+            dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
 
-        // let signature =
-        //     self.generate_signature(&auth, &dlocal_req, &timestamp, &loginkey)?;
+        let dlocal_req = "".to_string();
 
-        // Ok(Some(
-        //     services::RequestBuilder::new()
-        //         .method(services::Method::Get)
-        //         .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-        //         .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-        //         .headers(signature)
-        //         .body(Some(dlocal_req))
-        //         .build(),
-        // ))
+        let signature = self.generate_signature(&auth, &dlocal_req, &timestamp)?;
+
+        let mut headers = self.build_headers(req, connectors)?;
+
+        headers.append(&mut vec![(
+            "Authorization".to_string(),
+            format!("V2-HMAC-SHA256, Signature: {}", signature),
+        )]);
+        println!("{:#?}", dlocal_req);
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .headers(headers)
+                .build(),
+        ))
     }
 
     fn get_error_response(
@@ -345,7 +357,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let auth: dlocal::DlocalAuthType =
             dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
 
-        let dlocal_req = types::PaymentsAuthorizeType::get_request_body(self, req)?.unwrap_or("".to_string());
+        let dlocal_req =
+            types::PaymentsAuthorizeType::get_request_body(self, req)?.unwrap_or("".to_string());
 
         let signature = self.generate_signature(&auth, &dlocal_req, &timestamp)?;
 
