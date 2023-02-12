@@ -129,7 +129,7 @@ pub trait ConnectorActions: Connector {
             .authorize_payment(authorize_data, payment_info.clone())
             .await
             .unwrap();
-        assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+        assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
         let txn_id = get_connector_transaction_id(authorize_response.response);
         let response = self
             .capture_payment(txn_id.unwrap(), capture_data, payment_info)
@@ -165,7 +165,7 @@ pub trait ConnectorActions: Connector {
             .authorize_payment(authorize_data, payment_info.clone())
             .await
             .unwrap();
-        assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+        assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
         let txn_id = get_connector_transaction_id(authorize_response.response);
         tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
         let response = self
