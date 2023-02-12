@@ -12,7 +12,7 @@ pub struct Payer {
     pub document: String,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Card {
     pub holder_name: String,
     pub number: String,
@@ -20,6 +20,8 @@ pub struct Card {
     pub expiration_month: i32,
     pub expiration_year: i32,
     pub capture: String,
+    pub installments_id: Option<String>,
+    pub installments: Option<String>,
 }
 
 //TODO: Fill the struct with respective fields
@@ -57,7 +59,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                             Some (c) => c.peek().clone().to_string(),
                             None => "dummyEmail@gmail.com".to_string()
                         },
-                        document: "08533195966".to_string()
+                        document: "39915685009".to_string()
                     },
                     card : Card {
                         holder_name: ccard.card_holder_name.peek().clone(),
@@ -65,7 +67,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                         cvv: ccard.card_cvc.peek().clone(),
                         expiration_month: ccard.card_exp_month.peek().clone().parse::<i32>().unwrap(),
                         expiration_year: ccard.card_exp_year.peek().clone().parse::<i32>().unwrap(),
-                        capture: should_capture.to_string()
+                        capture: should_capture.to_string(),
+                        installments_id: match item.request.mandate_id.clone() {
+                            Some(val) => Some(val.mandate_id),
+                            None => None
+                        },
+                        installments: Some("1".to_string())
                     },
                     order_id : item.payment_id.clone(),
                     notification_url : match &item.return_url {
@@ -161,7 +168,7 @@ impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType  {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Eq, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum DlocalPaymentStatus {
     AUTHORIZED,
@@ -208,10 +215,11 @@ impl From<DlocalPaymentStatus> for enums::AttemptStatus {
 //     "order_id": "657434343",
 //     "notification_url": "http://merchant.com/notifications"
 // }
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
     id: String,
+    card: Option<Card>
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
@@ -223,7 +231,10 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types:
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 redirect: false,
-                mandate_reference: None,
+                mandate_reference: match item.response.card {
+                    Some(val) => val.clone().installments,
+                    None => None
+                },
                 connector_metadata: None,
             }),
             ..item.data
