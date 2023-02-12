@@ -104,9 +104,8 @@ pub trait GetTracker<F, D, R>: Send {
     where
         Self: Sized,
     {
-        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
-            format!("post connector update tracker not found")
-        })
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| format!("post connector update tracker not found"))
     }
 }
 
