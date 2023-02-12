@@ -394,6 +394,13 @@ impl
         let url = self.base_url(_connectors);
         let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
         let ord_id = _req.payment_id.clone();
+        let x = format!(
+            "{}v1/json/orders/{}/refunds?api_key={}",
+            url,
+            ord_id,
+            api_key
+        );
+        print!("refund{:?}",x);
         Ok(format!(
             "{}v1/json/orders/{}/refunds?api_key={}",
             url,
