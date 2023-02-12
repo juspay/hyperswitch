@@ -433,12 +433,7 @@ impl api::Refund for Bambora {}
 impl api::RefundExecute for Bambora {}
 impl api::RefundSync for Bambora {}
 
-impl
-    ConnectorIntegration<
-        api::Execute,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > for Bambora {
+impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData,> for Bambora {
     fn get_headers(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
@@ -447,13 +442,23 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let id = req.request.connector_transaction_id.as_str();
+        Ok(format!(
+            "{}{}/{}/returns",
+            self.base_url(connectors),
+            "v1/payments",
+            id
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let bambora_req = utils::Encode::<bambora::BamboraRefundRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = bambora::BamboraRefundRequest::try_from(req)?;
+        let bambora_req =
+            utils::Encode::<bambora::BamboraRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
+
     }
 
     fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
@@ -472,7 +477,7 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
         logger::debug!(target: "router::connector::bambora", response=?res);
-        let response: bambora::RefundResponse = res.response.parse_struct("bambora RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: bambora::RefundResponse = res.response.parse_struct("RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -483,59 +488,73 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: bambora ::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.code,
+            message: response.message,
+            reason: None,
+        })
     }
 }
 
-impl
-    ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bambora {
-    fn get_headers(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
+// impl
+//     ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bambora {
+//     fn get_headers(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+//         self.build_headers(req, connectors)
+//     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
+//     fn get_content_type(&self) -> &'static str {
+//         self.common_get_content_type()
+//     }
 
-    fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
-    }
+//     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+//         let id = req.request.connector_transaction_id.as_str();
+//         Ok(format!(
+//             "{}{}/{}/returns",
+//             self.base_url(connectors),
+//             "v1/payments",
+//             id
+//         ))
+//     }
+//     fn build_request(
+//         &self,
+//         req: &types::RefundSyncRouterData,
+//         connectors: &settings::Connectors,
+//     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+//         Ok(Some(
+//             services::RequestBuilder::new()
+//                 .method(services::Method::Get)
+//                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+//                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+//                 .body(types::RefundSyncType::get_request_body(self, req)?)
+//                 .build(),
+//         ))
+//     }
 
-    fn build_request(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
-                .build(),
-        ))
-    }
+//     fn handle_response(
+//         &self,
+//         data: &types::RefundSyncRouterData,
+//         res: Response,
+//     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
+//         logger::debug!(target: "router::connector::bambora", response=?res);
+//         let response: bambora::RefundResponse = res.response.parse_struct("bambora RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+//         types::ResponseRouterData {
+//             response,
+//             data: data.clone(),
+//             http_code: res.status_code,
+//         }
+//         .try_into()
+//         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+//     }
 
-    fn handle_response(
-        &self,
-        data: &types::RefundSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
-        logger::debug!(target: "router::connector::bambora", response=?res);
-        let response: bambora::RefundResponse = res.response.parse_struct("bambora RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-}
+//     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+//         self.build_error_response(res)
+//     }
+// }
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Bambora {
