@@ -321,15 +321,15 @@ pub enum MultisafepayPaymentStatus {
     Succeeded,
     Failed,
     #[default]
-    Processing,
+    Pending,
 }
 
 impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
     fn from(item: MultisafepayPaymentStatus) -> Self {
         match item {
             MultisafepayPaymentStatus::Succeeded => Self::Charged,
-            MultisafepayPaymentStatus::Failed => Self::Failure,
-            MultisafepayPaymentStatus::Processing => Self::Authorized,
+            MultisafepayPaymentStatus::Failed => Self::Charged,
+            MultisafepayPaymentStatus::Pending => Self::Authorized,
         }
     }
 }
@@ -372,7 +372,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, 
             }
         });
         
-        let status = if (item.response.success) && (item.response.data.capture.unwrap_or(String::from("none")) == "manual") { MultisafepayPaymentStatus::Succeeded } else { MultisafepayPaymentStatus::Processing };
+        let status = if (item.response.success) && (item.response.data.capture.unwrap_or(String::from("none")) == "manual") { MultisafepayPaymentStatus::Succeeded } else { MultisafepayPaymentStatus::Pending };
 
         Ok(Self {
             status: enums::AttemptStatus::from(status),
