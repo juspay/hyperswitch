@@ -298,7 +298,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: multisafepay::MultisafepayPaymentsResponse = res.response.parse_struct("MultisafepayPaymentsResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(multisafepaypayments_create_response=?response);
         types::ResponseRouterData {
             response,
