@@ -333,7 +333,15 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let url = self.base_url(_connectors);
+        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let ord_id = _req.payment_id.clone();
+        Ok(format!(
+            "{}v1/json/orders/{}/refunds?api_key={}",
+            url,
+            ord_id,
+            api_key
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
