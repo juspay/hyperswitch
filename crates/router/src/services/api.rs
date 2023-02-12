@@ -195,7 +195,7 @@ pub async fn call_connector_api(
     request: Request,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
-
+    println!("<<<<{:?}", request);
     let response = send_request(state, request).await;
 
     let elapsed_time = current_time.elapsed();

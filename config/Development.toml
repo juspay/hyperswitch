@@ -3,11 +3,15 @@ enabled = false
 
 [log.console]
 enabled = true
-level = "WARN"
+level = "DEBUG"
 log_format = "default"
 
 [log.telemetry]
 enabled = false
+
+[secrets]
+admin_api_key = "test_admin" # admin API key for admin authentication
+jwt_secret = "secret" 
 
 # TODO: Update database credentials before running application
 [master_database]
@@ -15,7 +19,7 @@ username = "db_user"
 password = "db_pass"
 host = "localhost"
 port = 5432
-dbname = "hyperswitch_db"
+dbname = "vipulgupta"
 pool_size = 5
 
 [replica_database]
@@ -23,7 +27,7 @@ username = "replica_user"
 password = "replica_pass"
 host = "localhost"
 port = 5432
-dbname = "hyperswitch_db"
+dbname = "vipulgupta"
 pool_size = 5
 
 [proxy]
@@ -104,7 +108,7 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 base_url = "https://eu.sandbox.api-ingenico.com/"
 
 [connectors.netseasy]
-base_url = ""
+base_url = "https://test.api.dibspayment.eu/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
