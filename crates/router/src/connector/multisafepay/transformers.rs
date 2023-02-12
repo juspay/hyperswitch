@@ -7,6 +7,7 @@ use masking::{PeekInterface, ExposeInterface};
 use regex::Error;
 use reqwest::redirect::Attempt;
 use serde::{Deserialize, Serialize};
+use storage_models::schema::address::first_name;
 use url::Url;
 use uuid::Uuid;
 use crate::{core::errors,pii::{self, Secret},services,types::{self,api, storage::enums}, utils::OptionExt};
@@ -18,7 +19,8 @@ pub enum Gateway {
     Creditcard,
     Maestro,
     Mastercard,
-    Visa
+    Visa,
+    Klarna,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -159,17 +161,54 @@ pub struct GatewayInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moto: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub term_url: Option<String>
+    pub term_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct DeliveryObject {
+    first_name: String,
+    last_name: String,
+    address1: String,
+    house_number: String,
+    zip_code: String,
+    city: String,
+    country: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct Item {
+    pub name: String, 
+    pub unit_price: i64,
+    pub description: String,
+} 
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct ShoppingCart {
+    pub item: Vec<Item>
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct DefaultObject {
+    shipping_taxed: bool,
+    rate: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct TaxObject {
+    pub default: DefaultObject
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct CheckoutOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub validate_cart: Option<bool>
+    pub validate_cart: Option<bool>,
+    pub tax_tables: TaxObject
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -185,10 +224,10 @@ pub struct MultisafepayPaymentsRequest {
     pub customer: Option<Customer>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_info: Option<GatewayInfo>,
-    // pub delivery: Option<DeliveryObject>,
+    pub delivery: Option<DeliveryObject>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checkout_options: Option<CheckoutOptions>,
-    // pub shopping_cart: Option<ShoppingCart>,
+    pub shopping_cart: Option<ShoppingCart>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub items: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -255,6 +294,32 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             Some(desc) => desc,
             None => String::from("Default Description"),
         };
+        
+        let defaultDelivery = DeliveryObject {
+            first_name: String::from("default"),
+            last_name: String::from("default"),
+            address1: String::from("default"),
+            house_number: String::from("default"),
+            zip_code: String::from("default"),
+            city: String::from("default"),
+            country: String::from("default")
+        };
+
+        let delivery = match _item.address.billing.clone() {
+            Some(addr) => match addr.address {
+                Some(addrs) => DeliveryObject {
+                    first_name: addrs.first_name.unwrap_or(Secret::new("default".to_string())).expose(),
+                    last_name: addrs.last_name.unwrap_or(Secret::new("default".to_string())).expose(),
+                    address1: addrs.line1.unwrap_or(Secret::new("default".to_string())).expose(),
+                    house_number: addrs.line2.unwrap_or(Secret::new("default".to_string())).expose(),
+                    zip_code: addrs.zip.unwrap_or(Secret::new("default".to_string())).expose(),
+                    city: addrs.city.unwrap_or("default".to_string()),
+                    country: addrs.country.unwrap_or("default".to_string()),
+                },
+                None => defaultDelivery
+            },
+            None => defaultDelivery
+        };
 
         let gateway_info = match _item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
@@ -266,24 +331,75 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     flexible_3d: None,
                     moto: None,
                     term_url: None,
+                    email: None,
                 }
-            }
+            },
+            api::PaymentMethod::PayLater(ref paylater) => {
+                GatewayInfo {
+                    card_number: None,
+                    card_expiry_date: None,
+                    card_cvc: None,
+                    card_holder_name: None,
+                    flexible_3d: None,
+                    moto: None,
+                    term_url: None,
+                    email: Some(match paylater {
+                        api_models::payments::PayLaterData::KlarnaRedirect { 
+                            issuer_name, 
+                            billing_email, 
+                            billing_country 
+                        } => billing_email.clone(),
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            "Only KlarnaRedirect is implemented".to_string(),
+                        ))?
+                    }),
+                }
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
-                "No Card Details".to_string(),
+                "Payment method not Implemented".to_string(),
             ))?,
         };
+
+        let _type = match _item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => String::from("direct"),
+            api::PaymentMethod::PayLater(ref paylater) => String::from("redirect"),
+            _ => String::from("redirect"),
+        };
+
+        let gateway = match _item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => Gateway::Amex,
+            api::PaymentMethod::PayLater(ref paylater) => Gateway::Klarna,
+            _ => Gateway::Amex,
+        };
+
         println!("Printing Gatwaya ---> {:?}",gateway_info);
         Ok(Self {
-            _type: Some(String::from("direct")),
-            gateway: Gateway::Amex,
+            _type: Some(_type),
+            gateway,
             order_id: _item.payment_id.to_string(),
             currency: _item.request.currency.to_string(),
             amount: _item.request.amount,
-            description,
+            description: description.clone(),
             payment_options,
             customer,
+            delivery: Some(delivery),
             gateway_info: Some(gateway_info),
-            checkout_options: Some(CheckoutOptions { validate_cart: Some(false) }),
+            checkout_options: Some(CheckoutOptions { 
+                validate_cart: Some(false),
+                tax_tables: TaxObject {
+                    default: DefaultObject {
+                        shipping_taxed: false,
+                        rate: 0.0,
+                    }
+                }
+            }),
+            shopping_cart: Some(ShoppingCart {
+                item: vec!(Item {
+                    name: String::from("Item"),
+                    unit_price: 10,
+                    description: description.clone(),
+                })
+            }),
             capture: None,
             items: None,
             recurring_model: None,
@@ -360,7 +476,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, 
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         println!("payment URL check {:?}", item.response.data.payment_url);
-        println!("status check {:?}", item.response.data.status);
+        println!("order_id check {:?}", item.response.data.order_id);
         
         let redirection_data = match item.response.data.payment_url.clone() {
             Some(url) => Some({
