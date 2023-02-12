@@ -32,7 +32,7 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 }
 
