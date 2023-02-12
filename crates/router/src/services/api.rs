@@ -163,6 +163,7 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
+                    println!("multisafepayreq --->{:?}",request);
                     let response = call_connector_api(state, request).await;
                     println!("multisafepay --->{:?}",response);
                     match response {

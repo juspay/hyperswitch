@@ -404,7 +404,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
         Ok(Self {
-            currency: _item.payment_id.clone(),
+            currency: _item.request.currency.to_string(),
             amount: _item.request.amount,
             description: _item.description.clone(),
             refund_order_id: Some(_item.payment_id.clone()),
