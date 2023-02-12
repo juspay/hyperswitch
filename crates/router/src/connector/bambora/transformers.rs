@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
 };
-use serde::{Deserialize, Serialize};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
