@@ -343,27 +343,28 @@ pub struct Data {
     pub amount:i64,
     pub description: String,
     pub capture: Option<String>,
+    pub payment_url: Url,
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MultisafepayPaymentsResponse {
-    success: bool,
-    data: Data,
-    payment_url: Url
+    pub success: bool,
+    pub data: Data,
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         let redirection_data = Some({
-            let mut base_url = item.response.payment_url.clone();
+            let mut base_url = item.response.data.payment_url.clone();
             base_url.set_query(None);
             services::RedirectForm {
                 url: base_url.to_string(),
                 method: services::Method::Get,
                 form_fields: std::collections::HashMap::from_iter(
                     item.response
+                        .data
                         .payment_url
                         .query_pairs()
                         .map(|(k, v)| (k.to_string(), v.to_string())),
