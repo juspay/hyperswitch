@@ -273,7 +273,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
 
         Ok(Self {
             _type: Some(String::from("direct")),
-            gateway: Gateway::Creditcard,
+            gateway: Gateway::Amex,
             order_id: _item.payment_id.to_string(),
             currency: _item.request.currency.to_string(),
             amount: _item.request.amount,
@@ -328,7 +328,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
     fn from(item: MultisafepayPaymentStatus) -> Self {
         match item {
             MultisafepayPaymentStatus::Succeeded => Self::Charged,
-            MultisafepayPaymentStatus::Failed => Self::Charged,
+            MultisafepayPaymentStatus::Failed => Self::Failure,
             MultisafepayPaymentStatus::Pending => Self::Authorized,
         }
     }
@@ -338,7 +338,6 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
 pub struct Data {
     #[serde(rename = "type")]
     pub _type: Option<String>,
-    pub gateway: Gateway,
     pub order_id: String,
     pub currency: String,
     pub amount:i64,
