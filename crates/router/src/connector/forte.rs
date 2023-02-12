@@ -432,8 +432,11 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+    fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions",
+            api::ConnectorCommon::base_url(self, connectors)
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -457,7 +460,7 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
         logger::debug!(target: "router::connector::forte", response=?res);
-        let response: forte::RefundResponse = res.response.parse_struct("forte RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: forte::CaptureTransactionResponse = res.response.parse_struct("forte RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),

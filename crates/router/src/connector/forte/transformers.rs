@@ -196,6 +196,20 @@ pub struct VoidATransactionResponse {
 }
 
 //Void a Transaction Types - End
+
+//Capture A Transaction Response Types
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForteRefundRequest {
+    #[serde(rename = "original_transaction_id")]
+    pub original_transaction_id: String,
+    pub action: String,
+    #[serde(rename = "authorization_amount")]
+    pub authorization_amount: f64,
+    #[serde(rename = "authorization_code")]
+    pub authorization_code: String,
+}
+//Capture A Transaction Types- End
 //Types End
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -314,16 +328,18 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::
         })
     }
 }
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct ForteRefundRequest {}
+
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+        let flt = item.request.amount as f64;
+        Ok(Self {
+            action:String::from("reverse"),
+            original_transaction_id: item.request.connector_transaction_id.clone(),
+            authorization_amount: flt,
+            authorization_code: String::from("0SF381"),
+        })
     }
 }
 
@@ -354,14 +370,20 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, CaptureTransactionResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, CaptureTransactionResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status: enums::RefundStatus::Success,
+            }),
+            ..item.data
+        })
     }
 }
 
