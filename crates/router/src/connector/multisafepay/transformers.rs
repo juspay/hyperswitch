@@ -5,8 +5,10 @@ use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{PeekInterface, ExposeInterface};
 use regex::Error;
+use reqwest::redirect::Attempt;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use uuid::Uuid;
 use crate::{core::errors,pii::{self, Secret},services,types::{self,api, storage::enums}, utils::OptionExt};
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -172,7 +174,7 @@ pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub _type: Option<String>,
-    pub gateway: String,
+    pub gateway: Gateway,
     pub order_id: String,
     pub currency: String,
     pub amount:i64,
@@ -273,7 +275,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         println!("Printing Gatwaya ---> {:?}",gateway_info);
         Ok(Self {
             _type: Some(String::from("direct")),
-            gateway: String::from("AMEX"),
+            gateway: Gateway::Amex,
             order_id: _item.payment_id.to_string(),
             currency: _item.request.currency.to_string(),
             amount: _item.request.amount,
@@ -315,21 +317,21 @@ impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType  {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MultisafepayPaymentStatus {
-    Succeeded,
-    Failed,
+    Completed,
+    Declined,
     #[default]
-    Pending,
+    Initialized,
 }
 
 impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
     fn from(item: MultisafepayPaymentStatus) -> Self {
         match item {
-            MultisafepayPaymentStatus::Succeeded => Self::Charged,
-            MultisafepayPaymentStatus::Failed => Self::Failure,
-            MultisafepayPaymentStatus::Pending => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Completed => Self::Charged,
+            MultisafepayPaymentStatus::Declined => Self::Failure,
         }
     }
 }
@@ -343,7 +345,8 @@ pub struct Data {
     pub amount:i64,
     pub description: String,
     pub capture: Option<String>,
-    pub payment_url: Url,
+    pub payment_url: Option<Url>,
+    pub status: MultisafepayPaymentStatus,
 }
 
 //TODO: Fill the struct with respective fields
@@ -356,30 +359,34 @@ pub struct MultisafepayPaymentsResponse {
 impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
-        let redirection_data = Some({
-            let mut base_url = item.response.data.payment_url.clone();
-            base_url.set_query(None);
-            services::RedirectForm {
-                url: base_url.to_string(),
-                method: services::Method::Get,
-                form_fields: std::collections::HashMap::from_iter(
-                    item.response
-                        .data
-                        .payment_url
-                        .query_pairs()
-                        .map(|(k, v)| (k.to_string(), v.to_string())),
-                ),
-            }
-        });
+        println!("payment URL check {:?}", item.response.data.payment_url);
+        println!("status check {:?}", item.response.data.status);
         
-        let status = if (item.response.success) && (item.response.data.capture.unwrap_or(String::from("none")) == "manual") { MultisafepayPaymentStatus::Succeeded } else { MultisafepayPaymentStatus::Pending };
+        let redirection_data = match item.response.data.payment_url.clone() {
+            Some(url) => Some({
+                    let mut base_url = url.clone();
+                    base_url.set_query(None);
+                    services::RedirectForm {
+                        url: base_url.to_string(),
+                        method: services::Method::Get,
+                        form_fields: std::collections::HashMap::from_iter(
+                            url
+                                .query_pairs()
+                                .map(|(k, v)| (k.to_string(), v.to_string())),
+                        ),
+                    }
+                }),
+            None => None,
+        };
+        
+        let status = item.response.data.status;
 
         Ok(Self {
             status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
                 redirection_data,
-                redirect: true,
+                redirect: item.response.data.payment_url.is_some(),
                 mandate_reference: None,
                 connector_metadata: None,
             }),
