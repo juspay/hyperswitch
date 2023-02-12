@@ -82,6 +82,7 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_status: refund.refund_status,
         }),
         access_token: None,
+        authorization_code: None,
     };
 
     Ok(router_data)

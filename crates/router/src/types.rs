@@ -88,7 +88,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_meta_data: Option<serde_json::Value>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
-
+    pub authorization_code: Option<String>,
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 

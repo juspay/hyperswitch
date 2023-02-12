@@ -99,6 +99,7 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
+        authorization_code: None,
     };
 
     Ok(router_data)
