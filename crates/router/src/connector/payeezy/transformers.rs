@@ -46,6 +46,29 @@ pub struct PayeezyPaymentsRequest {
     pub amount: i64,
     pub currency_code: String,
     pub credit_card: PayeezyPaymentMethod,
+    pub stored_credentials: Option<StoredCredentials>,
+}
+
+#[derive(Serialize, Eq, PartialEq, Clone, Debug)]
+pub struct StoredCredentials {
+    pub sequence: Sequence,
+    pub initiator: Initiator,
+    pub is_scheduled: String,
+    pub cardbrand_original_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Sequence {
+    First,
+    Subsequent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Initiator {
+    Merchant,
+    CardHolder,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
@@ -64,12 +87,49 @@ fn get_card_specific_payment_data(
     let merchant_ref = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
     let method = PayeezyPaymentMethodType::Card;
     let amount = item.request.amount;
-    let transaction_type = match item.request.capture_method {
-        Some(storage_models::enums::CaptureMethod::Manual) => String::from("authorize"),
-        _ => String::from("purchase"),
-    };
     let currency_code = item.request.currency.to_string();
     let credit_card = get_payment_method_data(item)?;
+
+    let mandate = item
+        .request
+        .mandate_id
+        .clone()
+        .and_then(|mandate_ids| mandate_ids.connector_mandate_id);
+
+    let off_session = item
+        .request
+        .off_session
+        .and_then(|value| mandate.as_ref().map(|_| value));
+
+    let (transaction_type, stored_credentials) = match &item.request.setup_mandate_details {
+        Some(_setup_mandate_details) => (
+            String::from("recurring"),
+            Some(StoredCredentials {
+                sequence: Sequence::First,
+                initiator: Initiator::Merchant,
+                is_scheduled: String::from("true"),
+                cardbrand_original_transaction_id: None,
+            }),
+        ),
+        _ => match off_session {
+            Some(true) => (
+                String::from("recurring"),
+                Some(StoredCredentials {
+                    sequence: Sequence::Subsequent,
+                    initiator: Initiator::CardHolder,
+                    is_scheduled: String::from("true"),
+                    cardbrand_original_transaction_id: mandate,
+                }),
+            ),
+            _ => match item.request.capture_method {
+                Some(storage_models::enums::CaptureMethod::Manual) => {
+                    (String::from("authorize"), None)
+                }
+                _ => (String::from("purchase"), None),
+            },
+        },
+    };
+
     Ok(PayeezyPaymentsRequest {
         merchant_ref,
         transaction_type,
@@ -77,6 +137,7 @@ fn get_card_specific_payment_data(
         amount,
         currency_code,
         credit_card,
+        stored_credentials,
     })
 }
 
@@ -157,6 +218,12 @@ pub struct PayeezyPaymentsResponse {
     bank_message: String,
     gateway_resp_code: String,
     gateway_message: String,
+    stored_credentials: Option<PaymentsStoredCredentials>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PaymentsStoredCredentials {
+    cardbrand_original_transaction_id: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -245,11 +312,17 @@ impl<F, T>
                 field_name: "connector_metadata",
             })?;
 
+        let mandate_reference = item
+            .response
+            .stored_credentials
+            .map(|credentials| credentials.cardbrand_original_transaction_id);
+
         let status = match item.response.transaction_status {
             PayeezyPaymentStatus::Approved => match item.response.transaction_type.as_str() {
                 "authorize" => enums::AttemptStatus::Authorized,
                 "capture" => enums::AttemptStatus::Charged,
                 "purchase" => enums::AttemptStatus::Charged,
+                "recurring" => enums::AttemptStatus::Charged,
                 "void" => enums::AttemptStatus::Voided,
                 _ => enums::AttemptStatus::Pending,
             },
@@ -258,6 +331,7 @@ impl<F, T>
                     "authorize" => enums::AttemptStatus::AuthorizationFailed,
                     "capture" => enums::AttemptStatus::CaptureFailed,
                     "purchase" => enums::AttemptStatus::AuthorizationFailed,
+                    "recurring" => enums::AttemptStatus::AuthorizationFailed,
                     "void" => enums::AttemptStatus::VoidFailed,
                     _ => enums::AttemptStatus::Pending,
                 }
@@ -272,7 +346,7 @@ impl<F, T>
                 ),
                 redirection_data: None,
                 redirect: false,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: metadata,
             }),
             ..item.data

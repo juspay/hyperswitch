@@ -112,7 +112,7 @@ pub fn mk_add_card_response(
         expiry_year: Some(card.card_exp_year),
         card_token: Some(response.external_id.into()), // [#256]
         card_fingerprint: Some(response.card_fingerprint),
-        card_holder_name: None,
+        card_holder_name: card.card_holder_name,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -192,7 +192,7 @@ pub fn get_card_detail(
         expiry_year: response.card_exp_year,
         card_token: Some(response.external_id.into()), //TODO ?
         card_fingerprint: Some(response.card_fingerprint),
-        card_holder_name: None,
+        card_holder_name: response.name_on_card,
     };
     Ok(card_detail)
 }
