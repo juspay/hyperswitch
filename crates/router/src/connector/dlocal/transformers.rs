@@ -1,9 +1,12 @@
 use std::ptr::eq;
 
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use storage_models::schema::payment_attempt::payment_method_id;
-use crate::{core::errors,types::{self,api, storage::enums}};
+use crate::{core::errors,types::{self,api, storage::enums}, services};
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Payer {
@@ -22,6 +25,12 @@ pub struct Card {
     pub capture: String,
 }
 
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ThreeDSecureReqData {
+    pub force: bool,
+}
+
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
@@ -31,9 +40,12 @@ pub struct DlocalPaymentsRequest {
     pub payment_method_id: String,
     pub payment_method_flow: String,
     pub payer: Payer,
-    pub card: Card,
+    pub card: Option<Card>,
     pub order_id: String,
     pub notification_url: String,
+    pub three_dsecure: Option<ThreeDSecureReqData>,
+    pub callback_url: Option<String>,
+    // pub wallet: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
@@ -49,7 +61,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                     amount: item.request.amount,
                     country: Some(get_currency(item.request.currency)),
                     currency : item.request.currency,
-                    payment_method_id : "CARD".to_string(),
+                    payment_method_id :  "CARD".to_string(),
                     payment_method_flow : "DIRECT".to_string(),
                     payer : Payer {
                         name: ccard.card_holder_name.peek().clone(),
@@ -57,22 +69,65 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest  {
                             Some (c) => c.peek().clone().to_string(),
                             None => "dummyEmail@gmail.com".to_string()
                         },
-                        document: "08533195966".to_string()
+                        document: "43463226979".to_string()
                     },
-                    card : Card {
+                    card : Some(Card {
                         holder_name: ccard.card_holder_name.peek().clone(),
                         number: ccard.card_number.peek().clone(),
                         cvv: ccard.card_cvc.peek().clone(),
                         expiration_month: ccard.card_exp_month.peek().clone().parse::<i32>().unwrap(),
                         expiration_year: ccard.card_exp_year.peek().clone().parse::<i32>().unwrap(),
                         capture: should_capture.to_string()
-                    },
+                    }),
                     order_id : item.payment_id.clone(),
                     notification_url : match &item.return_url {
                         Some (val) => val.to_string(),
                         None => "http://wwww.sandbox.juspay.in/hackathon/H1005".to_string()
-                    }
+                    },
+                    three_dsecure : match item.auth_type {
+                        ThreeDs => Some(ThreeDSecureReqData { force: (true) }),
+                        NoThreeDs => None,
+                    },
+                    // wallet: None,
+                    callback_url : item.return_url.clone(),
                     };
+                println!("hellloo please log the request");
+                println!("{:#?}",payment_request);
+                Ok(payment_request)
+            }
+            api::PaymentMethod::Wallet(ref wallet) => {
+                let should_capture = matches!(
+                    item.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic) | None
+                );
+                let payment_request = Self {
+                    amount: item.request.amount,
+                    country: Some(get_currency(item.request.currency)),
+                    currency : item.request.currency,
+                    payment_method_id :  "MP".to_string(),
+                    payment_method_flow : "REDIRECT".to_string(),
+                    payer : Payer {
+                        name: match &item.request.email{
+                            Some (c) => c.peek().clone().to_string(),
+                            None => "dummyEmail@gmail.com".to_string()
+                        },
+                        email: match &item.request.email{
+                            Some (c) => c.peek().clone().to_string(),
+                            None => "dummyEmail@gmail.com".to_string()
+                        },
+                        document: "43463226979".to_string()
+                    },
+                    card : None,
+                    order_id : item.payment_id.clone(),
+                    notification_url : match &item.return_url {
+                        Some (val) => val.to_string(),
+                        None => "http://wwww.sandbox.juspay.in/hackathon/H1005".to_string()
+                    },
+                    // wallet:None,
+                    three_dsecure : None,
+                    callback_url : item.return_url.clone(),
+                    };
+                println!("hellloo please log the request");
                 println!("{:#?}",payment_request);
                 Ok(payment_request)
             }
@@ -170,6 +225,7 @@ pub enum DlocalPaymentStatus {
     CANCELLED,
     #[default]
     PENDING,
+    REJECTED
 }
 
 impl From<DlocalPaymentStatus> for enums::AttemptStatus {
@@ -178,8 +234,9 @@ impl From<DlocalPaymentStatus> for enums::AttemptStatus {
             DlocalPaymentStatus::AUTHORIZED => Self::Authorized,
             DlocalPaymentStatus::VERIFIED => Self::Authorized,
             DlocalPaymentStatus::PAID => Self::Charged,
-            DlocalPaymentStatus::PENDING => Self::Pending,
-            DlocalPaymentStatus::CANCELLED => Self::Voided
+            DlocalPaymentStatus::PENDING => Self::AuthenticationPending,
+            DlocalPaymentStatus::CANCELLED => Self::Voided,
+            DlocalPaymentStatus::REJECTED => Self::AuthenticationFailed,
         }
     }
 }
@@ -208,24 +265,55 @@ impl From<DlocalPaymentStatus> for enums::AttemptStatus {
 //     "order_id": "657434343",
 //     "notification_url": "http://merchant.com/notifications"
 // }
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ThreeDSecureResData {
+    pub redirect_url: String,
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
     id: String,
+    three_dsecure: Option<ThreeDSecureResData>,
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, DlocalPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+
+        let threeDSData = match item.response.three_dsecure {
+            Some(val) => {
+                let redirection_url_response = Url::parse(&val.redirect_url)
+                                                .into_report()
+                                                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                                                .attach_printable("Failed to parse redirection url").unwrap();
+                let form_field_for_redirection =std::collections::HashMap::from_iter(
+                        redirection_url_response
+                        .query_pairs()
+                        .map(|(k, v)| (k.to_string(), v.to_string())),
+                );
+                Some(services::RedirectForm {
+                    url: val.redirect_url,
+                    method: services::Method::Get,
+                    form_fields: form_field_for_redirection,
+                })
+            },
+            None => None
+        };
+
+        println!("hellloo please log the response");
+        let response = types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+            redirection_data: threeDSData.clone(),
+            redirect: threeDSData.clone().is_some(),
+            mandate_reference: None,
+            connector_metadata: None,
+        };
+        println!("{:#?}",response);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                redirect: false,
-                mandate_reference: None,
-                connector_metadata: None,
-            }),
+            response: Ok(response),
             ..item.data
         })
     }

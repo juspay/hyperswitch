@@ -513,6 +513,13 @@ fn get_payment_method_data(
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
             }
+            // throw exception
+            api_enums::WalletIssuer::MP => {
+                let wallet = AdyenPaypal {
+                    payment_type: PaymentType::Paypal,
+                };
+                Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
+            }
         },
         api_models::payments::PaymentMethod::PayLater(ref pay_later_data) => match pay_later_data {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
