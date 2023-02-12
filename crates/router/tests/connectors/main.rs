@@ -7,6 +7,7 @@ mod checkout;
 mod connector_auth;
 mod cybersource;
 mod fiserv;
+mod forte;
 mod globalpay;
 mod payu;
 mod rapyd;
