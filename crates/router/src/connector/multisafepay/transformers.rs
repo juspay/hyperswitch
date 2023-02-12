@@ -172,7 +172,7 @@ pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub _type: Option<String>,
-    pub gateway: Gateway,
+    pub gateway: String,
     pub order_id: String,
     pub currency: String,
     pub amount:i64,
@@ -273,7 +273,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         println!("Printing Gatwaya ---> {:?}",gateway_info);
         Ok(Self {
             _type: Some(String::from("direct")),
-            gateway: Gateway::Amex,
+            gateway: String::from("AMEX"),
             order_id: _item.payment_id.to_string(),
             currency: _item.request.currency.to_string(),
             amount: _item.request.amount,
