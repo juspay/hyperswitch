@@ -383,6 +383,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, 
                 mandate_reference: None,
                 connector_metadata: None,
             }),
+            amount_captured: Some(item.response.data.amount),
             ..item.data
         })
     }
