@@ -163,7 +163,9 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
+                    println!("<<<<{:?} somthing ", request);
                     let response = call_connector_api(state, request).await;
+                    println!(">>>>{:?}", response);
                     match response {
                         Ok(body) => {
                             let response = match body {
@@ -187,7 +189,6 @@ where
         }
     }
 }
-
 #[instrument(skip_all)]
 pub async fn call_connector_api(
     state: &AppState,
