@@ -53,7 +53,8 @@ impl ConnectorCommon for Generic {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
+        // todo!()
+        "application/json"
         // Ex: "application/x-www-form-urlencoded"
     }
 
@@ -89,7 +90,83 @@ impl
         types::PaymentsCancelData,
         types::PaymentsResponseData,
     > for Generic
-{}
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = &req.request.connector_transaction_id;
+        let v :Vec<&str> = connector_payment_id.as_str().split(":_:").collect();
+        let pp = format!(
+            "{}/{}",
+            self.base_url(connectors),
+            v[0].to_string()
+        );
+        println!("something url--> {pp:?}");
+        Ok(pp)
+    }
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        // todo!()
+        let connector_req = generic::GenericPaymentsVoidRequest::try_from(_req)?;
+        let _req = utils::Encode::<generic::GenericPaymentsVoidRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Put)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .body(types::PaymentsVoidType::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
+    }
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: generic::GenericResponse = res
+            .response
+            .parse_struct("Generic Response")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(generic_create_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
 
 impl api::ConnectorAccessToken for Generic {}
 
@@ -199,14 +276,22 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        // todo!()
+        Ok(self.base_url(_connectors).to_string())
     }
 
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
+        // todo!()
+        let connector_req = generic::GenericPaymentsCaptureRequest::try_from(_req)?;
+        let _req = utils::Encode::<generic::GenericPaymentsCaptureRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(_req))
+        
     }
 
     fn build_request(
@@ -216,11 +301,12 @@ impl
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(services::Method::Put)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -235,12 +321,11 @@ impl
             .parse_struct("Generic PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(genericpayments_create_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 

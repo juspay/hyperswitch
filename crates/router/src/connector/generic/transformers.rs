@@ -120,10 +120,15 @@ pub struct GenericPaymentsResponse {
 impl<F,T> TryFrom<types::ResponseRouterData<F, GenericPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, GenericPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        let mut txn_id= String::from(item.response.transaction_id);
+        txn_id.push_str(":_:");
+        txn_id.push_str(item.response.response.authorization_code.as_str());
+        txn_id.push_str(":_:");
+        txn_id.push_str(item.response.entered_by.as_str());
         Ok(Self {
             status: enums::AttemptStatus::from(enums::AttemptStatus::Authorized),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId("111".to_string()),
+                resource_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 redirection_data: None,
                 redirect: false,
                 mandate_reference: None,
@@ -131,6 +136,82 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, GenericPaymentsResponse, T, types
             }),
             ..item.data
         })
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DefaultResponse {
+    response_type : String,
+    response_code:String,
+    response_desc:String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GenericResponse {
+    transaction_id: String,
+    response: DefaultResponse
+}
+
+impl<F,T> TryFrom<types::ResponseRouterData<F, GenericResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: types::ResponseRouterData<F, GenericResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(enums::AttemptStatus::Authorized),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
+                redirection_data: None,
+                redirect: false,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, PartialEq)]
+pub struct GenericPaymentsCaptureRequest {
+    action: String,
+    transaction_id: String,
+    authorization_code : String
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for GenericPaymentsCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let v :Vec<&str> = item.request.connector_transaction_id.as_str().split(":_:").collect();
+        let pp = Self {
+            action: "capture".to_string(),
+            transaction_id: v[0].to_string(),
+            authorization_code: v[1].to_string(),
+        };
+        println!("something 4--> {pp:?}");
+        let tmp = serde_json::to_string(&pp);
+        println!("something 5 --> {tmp:?}");
+    Ok(pp)
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, PartialEq)]
+pub struct GenericPaymentsVoidRequest {
+    action: String,
+    authorization_code: String,
+    entered_by: String
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for GenericPaymentsVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let v :Vec<&str> = item.request.connector_transaction_id.as_str().split(":_:").collect();
+        let pp = Self {
+            action: "void".to_string(),
+            authorization_code: v[1].to_string(),
+            entered_by: v[2].to_string()
+        };
+        println!("something 4--> {pp:?}");
+        let tmp = serde_json::to_string(&pp);
+        println!("something 5 --> {tmp:?}");
+    Ok(pp)
     }
 }
 
