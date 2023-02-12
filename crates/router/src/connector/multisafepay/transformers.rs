@@ -270,7 +270,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 "No Card Details".to_string(),
             ))?,
         };
-
+        println!("Printing Gatwaya ---> {:?}",gateway_info);
         Ok(Self {
             _type: Some(String::from("direct")),
             gateway: Gateway::Amex,
