@@ -181,7 +181,8 @@ pub struct DeliveryObject {
 pub struct Item {
     pub name: String, 
     pub unit_price: i64,
-    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub quantity: i64,
 } 
 
@@ -398,7 +399,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 items: vec!(Item {
                     name: String::from("Item"),
                     unit_price: _item.request.amount.clone() / 100,
-                    description: description.clone(),
+                    description: Some(description.clone()),
                     quantity: 1,
                 })
             }),
@@ -519,12 +520,13 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, 
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
     pub currency: String,
     pub amount: i64,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,
+    pub checkout_data: ShoppingCart,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
@@ -534,7 +536,15 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
             currency: _item.request.currency.to_string(),
             amount: _item.request.amount,
             description: _item.description.clone(),
-            refund_order_id: Some(_item.payment_id.clone()),
+            refund_order_id: Some(Uuid::new_v4().to_string()),
+            checkout_data: ShoppingCart {
+                items: vec!(Item {
+                    name: String::from("Item"),
+                    unit_price: _item.request.amount.clone() / 100,
+                    description: None,
+                    quantity: 1,
+                })
+            }
         })
     }
 }
