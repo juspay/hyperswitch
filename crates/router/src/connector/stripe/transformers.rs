@@ -434,7 +434,7 @@ fn create_stripe_payment_method(
                     payment_method_types: pm_type.clone(),
                     payment_method_data_type: pm_type.clone(),
                     bank_name,
-                    bank_specific_data: bank_specific_data,
+                    bank_specific_data,
                 }),
                 pm_type,
                 billing_address,
