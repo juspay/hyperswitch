@@ -153,7 +153,7 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
             BluesnapPaymentStatus::AuthOnly => Self::Authorized,
             BluesnapPaymentStatus::AuthCapture => Self::Charged,
             BluesnapPaymentStatus::AuthReversal => Self::Voided,
-            BluesnapPaymentStatus::Capture => Self::CaptureInitiated,
+            BluesnapPaymentStatus::Capture => Self::Charged,
         }
     }
 }
