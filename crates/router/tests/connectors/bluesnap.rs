@@ -451,7 +451,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
+        "Refund amount cannot be more than the refundable order amount.",
     );
 }
 

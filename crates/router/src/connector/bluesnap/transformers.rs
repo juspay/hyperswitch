@@ -202,31 +202,22 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BluesnapPaymentsResponse, T, type
     }
 }
 
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Eq, PartialEq, Serialize)]
-pub struct BluesnapRefundRequestData {
+pub struct BluesnapRefundRequest {
     amount: String,
     reason: String,
-}
-
-#[derive(Default, Debug, Serialize)]
-pub struct BluesnapRefundRequest {
-    refund: BluesnapRefundRequestData,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund: BluesnapRefundRequestData {
-                reason: item.request.reason.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "item.request.reason",
-                    },
-                )?,
-                amount: item.request.refund_amount.to_string(),
-            },
+            reason: item.request.reason.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "item.request.reason",
+                },
+            )?,
+            amount: item.request.refund_amount.to_string(),
         })
     }
 }
@@ -310,10 +301,4 @@ pub struct ErrorDetails {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapErrorResponse {
     pub message: Vec<ErrorDetails>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapCaptureErrorResponse {
-    pub message: String,
 }
