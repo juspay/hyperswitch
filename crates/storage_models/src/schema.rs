@@ -29,6 +29,24 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    api_keys (key_id) {
+        key_id -> Varchar,
+        merchant_id -> Varchar,
+        name -> Varchar,
+        description -> Nullable<Varchar>,
+        hash_key -> Varchar,
+        hashed_api_key -> Varchar,
+        prefix -> Varchar,
+        created_at -> Timestamp,
+        expires_at -> Nullable<Timestamp>,
+        last_used -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     configs (key) {
         id -> Int4,
         key -> Varchar,
@@ -158,8 +176,8 @@ diesel::table! {
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         locker_id -> Nullable<Varchar>,
-        routing_algorithm -> Nullable<Json>,
         metadata -> Nullable<Jsonb>,
+        routing_algorithm -> Nullable<Json>,
     }
 }
 
@@ -174,7 +192,7 @@ diesel::table! {
         connector_account_details -> Json,
         test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
-        merchant_connector_id -> Int4,
+        merchant_connector_id -> Varchar,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
@@ -348,6 +366,7 @@ diesel::table! {
 
 diesel::allow_tables_to_appear_in_same_query!(
     address,
+    api_keys,
     configs,
     connector_response,
     customers,

@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use error_stack::IntoReport;
 use router_env::{instrument, tracing};
 
@@ -98,12 +98,19 @@ impl PaymentAttempt {
         merchant_id: &str,
     ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
-        generics::generic_filter::<<Self as HasTable>::Table, _, Self>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            Self,
+        >(
             conn,
             dsl::payment_id
                 .eq(payment_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                 .and(dsl::status.eq(enums::AttemptStatus::Charged)),
+            None,
+            None,
             None,
         )
         .await?

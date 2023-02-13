@@ -25,7 +25,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::AppState,
+    routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
     types::{
         self, api,
@@ -384,18 +384,19 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth))]
-pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut>(
-    state: &'b AppState,
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut>(
+    state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U>,
+    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> RouterResult<ApplicationResponse<Q>>
 where
-    F: Fn(&'b AppState, U, T) -> Fut,
+    F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = RouterResponse<Q>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    A: AppStateInfo,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
@@ -407,18 +408,19 @@ where
     skip(request, payload, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, T, U, Q, F, Fut>(
-    state: &'b AppState,
+pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut>(
+    state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U>,
+    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b AppState, U, T) -> Fut,
+    F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = RouterResult<ApplicationResponse<Q>>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    A: AppStateInfo,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -564,19 +566,35 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
         html {
             meta name="viewport" content="width=device-width, initial-scale=1";
             head {
-                style { "#loading { -webkit-animation: rotation 2s infinite linear; } @-webkit-keyframes rotation{ from { -webkit-transform: rotate(0deg); } to { -webkit-transform: rotate(359deg); } }" }
+                style {
+                    r##"
+                    
+                    "## 
+                }
+                (PreEscaped(r##"
+                <style>
+                    #loader1 { 
+                        width: 500px,
+                    } 
+                    @media max-width: 600px { 
+                        #loader1 { 
+                            width: 200px 
+                        } 
+                    }
+                </style>
+                "##))
             }
 
             body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                div id="Loader1" class="lottie" style="width: 500px; height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                 (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
                 (PreEscaped(r#"
                 <script>
                 var anime = bodymovin.loadAnimation({
-                    container: document.getElementById('Loader1'),
+                    container: document.getElementById('loader1'),
                     renderer: 'svg',
                     loop: true,
                     autoplay: true,
