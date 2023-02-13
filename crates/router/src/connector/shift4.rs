@@ -310,6 +310,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        println!("REQUESTT {:#?}", &req);
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -328,6 +329,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("RESPONSEE {:#?}", &res);
         let response: shift4::Shift4PaymentsResponse = res
             .response
             .parse_struct("Shift4PaymentsResponse")

@@ -14,6 +14,7 @@ pub struct Shift4PaymentsRequest {
     currency: String,
     description: Option<String>,
     captured: bool,
+    three_d_secure: Option<ThreeDSecure>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -28,6 +29,24 @@ pub struct Card {
     cardholder_name: String,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecure {
+    require_attempt: bool,
+    require_enrolled_card: bool,
+    require_successful_liability_shift_for_enrolled_card: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureInfo {
+    amount: String,
+    currency: String,
+    enrolled: bool,
+    liability_shift: Shift4PaymentStatus,
+    authentication_flow: Shift4AuthenticationFlow,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -37,6 +56,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None
                 );
+                let three_d_secure = if item.auth_type == enums::AuthenticationType::ThreeDs {
+                    Some(ThreeDSecure {
+                        require_attempt: false,
+                        require_enrolled_card: false,
+                        require_successful_liability_shift_for_enrolled_card: true,
+                    })
+                } else {
+                    None
+                };
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
                     card: Card {
@@ -45,6 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
                         exp_year: ccard.card_exp_year.peek().clone(),
                         cardholder_name: ccard.card_holder_name.peek().clone(),
                     },
+                    three_d_secure: three_d_secure,
                     currency: item.request.currency.to_string(),
                     description: item.description.clone(),
                     captured: submit_for_settlement,
@@ -83,6 +112,15 @@ pub enum Shift4PaymentStatus {
     Failed,
     #[default]
     Pending,
+    NotPossible,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Shift4AuthenticationFlow {
+    Frictionless,
+    #[default]
+    Challenge,
 }
 
 impl From<Shift4PaymentStatus> for enums::AttemptStatus {
@@ -90,6 +128,7 @@ impl From<Shift4PaymentStatus> for enums::AttemptStatus {
         match item {
             Shift4PaymentStatus::Successful => Self::Charged,
             Shift4PaymentStatus::Failed => Self::Failure,
+            Shift4PaymentStatus::NotPossible => Self::Failure,
             Shift4PaymentStatus::Pending => Self::Pending,
         }
     }
@@ -132,6 +171,7 @@ fn get_payment_status(response: &Shift4PaymentsResponse) -> enums::AttemptStatus
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct Shift4PaymentsResponse {
     id: String,
     currency: String,
@@ -139,6 +179,7 @@ pub struct Shift4PaymentsResponse {
     status: Shift4PaymentStatus,
     captured: bool,
     refunded: bool,
+    three_d_secure_info: Option<ThreeDSecureInfo>,
 }
 
 impl<F, T>
