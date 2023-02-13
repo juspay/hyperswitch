@@ -377,8 +377,6 @@ impl serde::Serialize for ListPaymentMethod {
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
         state.serialize_field("payment_experience", &self.payment_experience)?;
-        state.serialize_field("accepted_currencies", &self.accepted_currencies)?;
-        state.serialize_field("accepted_countries", &self.accepted_countries)?;
         match self.payment_method {
             api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
                 state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
