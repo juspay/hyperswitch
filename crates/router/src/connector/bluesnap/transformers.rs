@@ -165,15 +165,7 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
 pub struct BluesnapPaymentsResponse {
     processing_info: BluesnapPaymentsProcessingInfoResponse,
     transaction_id: String,
-    refunds: Option<RefundObj>,
     card_transaction_type: BluesnapPaymentStatus,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RefundObj {
-    balance_amount: String,
-    refund: Vec<Refund>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -219,9 +211,18 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, BluesnapPaymentsResponse, T, type
 pub struct BluesnapRefundRequest {}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            refund: BluesnapRefundRequestData {
+                reason: item.request.reason.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "item.request.reason",
+                    },
+                )?,
+                amount: item.request.refund_amount.to_string(),
+            },
+        })
     }
 }
 
@@ -256,13 +257,7 @@ pub struct RefundResponse {
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
-    refunds: RefundObject,
-}
-
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RefundObject {
-    refund: Vec<RefundResponse>,
+    transaction_id: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
@@ -272,13 +267,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_item = match item.response.refunds.refund.first() {
-            Some(refund_item) => refund_item,
-            _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: refund_item.refund_transaction_id.to_string(),
+                connector_refund_id: item.response.transaction_id.clone(),
                 refund_status: enums::RefundStatus::Success,
             }),
             ..item.data
@@ -305,25 +296,23 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
-{
-     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-     }
- }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct BluesnapErrorResponse {
-    pub error: ErrorDetails,
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorDetails {
+    pub code: String,
+    pub description: String,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct ErrorDetails {
-    pub code: Option<String>,
-    #[serde(rename = "type")]
-    pub error_type: Option<String>,
-    pub message: Option<String>,
-    pub param: Option<String>,
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapErrorResponse {
+    pub message: Vec<ErrorDetails>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapCaptureErrorResponse {
+    pub message: String,
 }
