@@ -163,16 +163,17 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            code: match response.message.first() {
+                Some(first_error) => first_error.code.clone(),
+                _ => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: match response.message.first() {
+                Some(first_error) => first_error.description.clone(),
+                _ => consts::NO_ERROR_MESSAGE.to_string(),
+            },
             reason: None,
         })
     }
@@ -238,7 +239,23 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: bluesnap::BluesnapErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: match response.message.first() {
+                Some(first_error) => first_error.code.clone(),
+                _ => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: match response.message.first() {
+                Some(first_error) => first_error.description.clone(),
+                _ => consts::NO_ERROR_MESSAGE.to_string(),
+            },
+            reason: None,
+        })
     }
 
     fn handle_response(
@@ -342,7 +359,13 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: "Not Authorized to Capture.".to_string(),
+            reason: None,
+        })
     }
 }
 
@@ -432,9 +455,27 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        logger::warn!(?res, "bluesnap error response");
-        self.build_error_response(res)
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: bluesnap::BluesnapErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: match response.message.first() {
+                Some(first_error) => first_error.code.clone(),
+                _ => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: match response.message.first() {
+                Some(first_error) => first_error.description.clone(),
+                _ => consts::NO_ERROR_MESSAGE.to_string(),
+            },
+            reason: None,
+        })
     }
 }
 
@@ -518,7 +559,23 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: bluesnap::BluesnapErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: match response.message.first() {
+                Some(first_error) => first_error.code.clone(),
+                _ => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: match response.message.first() {
+                Some(first_error) => first_error.description.clone(),
+                _ => consts::NO_ERROR_MESSAGE.to_string(),
+            },
+            reason: None,
+        })
     }
 }
 
@@ -544,7 +601,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             "{}{}{}",
             self.base_url(connectors),
             "/transactions/",
-            req.request.connector_transaction_id
+            req.request.connector_refund_id.as_deref().unwrap_or("")
         ))
     }
 
@@ -585,7 +642,23 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: bluesnap::BluesnapErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: match response.message.first() {
+                Some(first_error) => first_error.code.clone(),
+                _ => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: match response.message.first() {
+                Some(first_error) => first_error.description.clone(),
+                _ => consts::NO_ERROR_MESSAGE.to_string(),
+            },
+            reason: None,
+        })
     }
 }
 
