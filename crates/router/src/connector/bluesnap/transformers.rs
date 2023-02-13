@@ -10,11 +10,12 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
     amount: String,
-    credit_card: Card,
+    credit_card: Option<Card>,
     currency: String,
     soft_descriptor: Option<String>,
     card_transaction_type: BluesnapPaymentStatus,
-    card_holder_info: CardHolderInfo,
+    card_holder_info: Option<CardHolderInfo>,
+    wallet_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -97,18 +98,41 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                 };
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
-                    credit_card: Card {
+                    credit_card: Some(Card {
                         card_number: ccard.card_number.clone(),
                         expiration_month: ccard.card_exp_month.peek().clone(),
                         expiration_year: ccard.card_exp_year.peek().clone(),
                         security_code: ccard.card_cvc.peek().clone(),
-                    },
+                    }),
                     currency: item.request.currency.to_string(),
+                    wallet_id: None,
                     soft_descriptor: item.description.clone(),
                     card_transaction_type: auth_mode,
-                    card_holder_info: CardHolderInfo {
+                    card_holder_info: Some(CardHolderInfo {
                         first_name: ccard.card_holder_name.peek().clone(),
-                    },
+                    }),
+                };
+                Ok(payment_request)
+            }
+            api::PaymentMethod::Wallet(ref _wallet_data) => {
+                let capture_method = if let Some(capture_method) = item.request.capture_method {
+                    capture_method.to_string()
+                } else {
+                    "automatic".to_string()
+                };
+                let auth_mode = if capture_method.to_lowercase() == "manual" {
+                    BluesnapPaymentStatus::AuthOnly
+                } else {
+                    BluesnapPaymentStatus::AuthCapture
+                };
+                let payment_request = Self {
+                    wallet_id: Some("21".to_string()),
+                    amount: item.request.amount.to_string(),
+                    credit_card: None,
+                    currency: item.request.currency.to_string(),
+                    card_transaction_type: auth_mode,
+                    card_holder_info: None,
+                    soft_descriptor: item.description.clone(),
                 };
                 Ok(payment_request)
             }
