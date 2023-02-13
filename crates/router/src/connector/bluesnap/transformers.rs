@@ -37,6 +37,34 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
     }
 }
 
+#[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapCaptureRequest {
+    card_transaction_type: BluesnapPaymentStatus,
+    transaction_id: String,
+    amount: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let card_transaction_type = BluesnapPaymentStatus::Capture;
+        let transaction_id = String::from(&item.request.connector_transaction_id);
+        match item.request.amount_to_capture {
+            Some(amount_capture) => Ok(Self {
+                    card_transaction_type,
+                    transaction_id,
+                    amount: Some(amount_capture.to_string()),
+                }),
+            _ => Ok(Self {
+                card_transaction_type,
+                transaction_id,
+                amount: None,
+            }),
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
@@ -116,6 +144,7 @@ pub enum BluesnapPaymentStatus {
     AuthOnly,
     AuthCapture,
     AuthReversal,
+    Capture,
 }
 
 impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
@@ -124,6 +153,7 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
             BluesnapPaymentStatus::AuthOnly => Self::Authorized,
             BluesnapPaymentStatus::AuthCapture => Self::Charged,
             BluesnapPaymentStatus::AuthReversal => Self::Voided,
+            BluesnapPaymentStatus::Capture => Self::CaptureInitiated,
         }
     }
 }
