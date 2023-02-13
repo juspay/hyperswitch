@@ -182,11 +182,12 @@ pub struct Item {
     pub name: String, 
     pub unit_price: i64,
     pub description: String,
+    pub quantity: i64,
 } 
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ShoppingCart {
-    pub item: Vec<Item>
+    pub items: Vec<Item>
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -378,7 +379,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             gateway,
             order_id: _item.payment_id.to_string(),
             currency: _item.request.currency.to_string(),
-            amount: _item.request.amount,
+            amount: _item.request.amount.clone(),
             description: description.clone(),
             payment_options,
             customer,
@@ -394,10 +395,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 }
             }),
             shopping_cart: Some(ShoppingCart {
-                item: vec!(Item {
+                items: vec!(Item {
                     name: String::from("Item"),
-                    unit_price: 10,
+                    unit_price: _item.request.amount.clone() / 100,
                     description: description.clone(),
+                    quantity: 1,
                 })
             }),
             capture: None,
@@ -456,13 +458,13 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
 pub struct Data {
     #[serde(rename = "type")]
     pub _type: Option<String>,
-    pub order_id: String,
-    pub currency: String,
-    pub amount:i64,
-    pub description: String,
+    pub order_id: Option<String>,
+    pub currency: Option<String>,
+    pub amount: Option<i64>,
+    pub description: Option<String>,
     pub capture: Option<String>,
     pub payment_url: Option<Url>,
-    pub status: MultisafepayPaymentStatus,
+    pub status: Option<MultisafepayPaymentStatus>,
 }
 
 //TODO: Fill the struct with respective fields
@@ -495,18 +497,20 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, 
             None => None,
         };
         
-        let status = item.response.data.status;
+        let default_status = if (item.response.success) { MultisafepayPaymentStatus::Initialized } else { MultisafepayPaymentStatus::Declined };
+
+        let status = item.response.data.status.unwrap_or(default_status);
 
         Ok(Self {
             status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id.unwrap_or(Uuid::new_v4().to_string())),
                 redirection_data,
                 redirect: item.response.data.payment_url.is_some(),
                 mandate_reference: None,
                 connector_metadata: None,
             }),
-            amount_captured: Some(item.response.data.amount),
+            amount_captured: Some(item.response.data.amount.unwrap_or(0)),
             ..item.data
         })
     }
