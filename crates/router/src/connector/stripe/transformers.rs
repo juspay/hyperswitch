@@ -134,39 +134,51 @@ pub struct StripePayLaterData {
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Default)]
-pub struct StripeBankName {
-    #[serde(rename = "payment_method_data[eps][bank]")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub eps_bank_name: Option<enums::PaymentIssuer>,
-    #[serde(rename = "payment_method_data[ideal][bank]")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ideal_bank_name: Option<enums::PaymentIssuer>,
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum StripeBankName {
+    Eps {
+        #[serde(rename = "payment_method_data[eps][bank]")]
+        bank_name: enums::PaymentIssuer,
+    },
+    Ideal {
+        #[serde(rename = "payment_method_data[ideal][bank]")]
+        ideal_bank_name: enums::PaymentIssuer,
+    },
 }
 
-impl TryFrom<(&StripePaymentMethodType, Option<&enums::PaymentIssuer>)> for StripeBankName {
-    type Error = errors::ConnectorError;
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum BankSpecificData {
+    Sofort {
+        #[serde(rename = "payment_method_options[sofort][preferred_language]")]
+        preferred_language: String,
+        #[serde(rename = "payment_method_data[sofort][country]")]
+        country: String,
+    },
+}
 
-    fn try_from(
-        (stripe_pm_type, pm_issuer): (&StripePaymentMethodType, Option<&enums::PaymentIssuer>),
-    ) -> Result<Self, Self::Error> {
-        match (stripe_pm_type, pm_issuer) {
-            (StripePaymentMethodType::Eps, Some(eps_bank_name)) => Ok(Self {
-                eps_bank_name: Some(eps_bank_name.to_owned()),
-                ..Self::default()
-            }),
-            (StripePaymentMethodType::Ideal, Some(ideal_bank_name)) => Ok(Self {
-                ideal_bank_name: Some(ideal_bank_name.to_owned()),
-                ..Self::default()
-            }),
-            // Passing issuer is compulsory if pm type is eps or ideal
-            (StripePaymentMethodType::Eps | StripePaymentMethodType::Ideal, None) => {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_issuer",
-                })
-            }
-            _ => Err(errors::ConnectorError::MismatchedPaymentData),
+fn get_bank_name(
+    stripe_pm_type: &StripePaymentMethodType,
+    pm_issuer: Option<&enums::PaymentIssuer>,
+) -> Result<Option<StripeBankName>, errors::ConnectorError> {
+    match (stripe_pm_type, pm_issuer) {
+        (StripePaymentMethodType::Eps, Some(eps_bank_name)) => Ok(Some(StripeBankName::Eps {
+            bank_name: eps_bank_name.to_owned(),
+        })),
+        (StripePaymentMethodType::Ideal, Some(ideal_bank_name)) => {
+            Ok(Some(StripeBankName::Ideal {
+                ideal_bank_name: ideal_bank_name.to_owned(),
+            }))
         }
+        // Passing issuer is compulsory if pm type is eps or ideal
+        (StripePaymentMethodType::Eps | StripePaymentMethodType::Ideal, None) => {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_issuer",
+            })
+        }
+        (StripePaymentMethodType::Sofort, _) => Ok(None),
+        _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -178,6 +190,8 @@ pub struct StripeBankRedirectData {
     // Required only for eps and ideal
     #[serde(flatten)]
     pub bank_name: Option<StripeBankName>,
+    #[serde(flatten)]
+    pub bank_specific_data: Option<BankSpecificData>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -336,8 +350,20 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                 name: Some(ideal_data.billing_details.billing_name.clone()),
                 ..Self::default()
             }),
-            _ => Err(errors::ConnectorError::MismatchedPaymentData),
+            _ => Ok(Self::default()),
         }
+    }
+}
+
+fn get_bank_specific_data(
+    bank_redirect_data: &payments::BankRedirectData,
+) -> Option<BankSpecificData> {
+    match bank_redirect_data {
+        payments::BankRedirectData::Sofort(sofort_data) => Some(BankSpecificData::Sofort {
+            country: sofort_data.country.to_owned(),
+            preferred_language: sofort_data.preferred_language.to_owned(),
+        }),
+        _ => None,
     }
 }
 
@@ -401,11 +427,14 @@ fn create_stripe_payment_method(
         payments::PaymentMethod::BankRedirect(bank_redirect_data) => {
             let billing_address = StripeBillingAddress::try_from(bank_redirect_data)?;
             let pm_type = infer_stripe_bank_redirect_issuer(payment_method_type)?;
+            let bank_specific_data = get_bank_specific_data(bank_redirect_data);
+            let bank_name = get_bank_name(&pm_type, issuer)?;
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type.clone(),
                     payment_method_data_type: pm_type.clone(),
-                    bank_name: Some(StripeBankName::try_from((&pm_type, issuer))?),
+                    bank_name,
+                    bank_specific_data: bank_specific_data,
                 }),
                 pm_type,
                 billing_address,
@@ -555,6 +584,8 @@ pub enum StripePaymentStatus {
     RequiresConfirmation,
     Canceled,
     RequiresCapture,
+    // This is the case in
+    Pending,
 }
 
 impl From<StripePaymentStatus> for enums::AttemptStatus {
@@ -568,6 +599,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
             StripePaymentStatus::RequiresCapture => Self::Authorized,
+            StripePaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -1032,6 +1064,7 @@ pub enum StripePaymentMethodOptions {
     Eps {},
     Giropay {},
     Ideal {},
+    Sofort {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
@@ -1163,6 +1196,7 @@ impl
                 payment_method_types: pm_type.clone(),
                 payment_method_data_type: pm_type,
                 bank_name: None,
+                bank_specific_data: None,
             })),
             api::PaymentMethod::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethod::Paypal => Ok(Self::Paypal),
