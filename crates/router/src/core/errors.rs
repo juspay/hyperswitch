@@ -398,3 +398,11 @@ pub enum WebhooksFlowError {
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApiKeyError {
+    #[error("Failed to read API key hash from hexadecimal string")]
+    FailedToReadHashFromHex,
+    #[error("Failed to verify provided API key hash against stored API key hash")]
+    HashVerificationFailed,
+}

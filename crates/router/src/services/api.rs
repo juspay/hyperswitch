@@ -566,19 +566,35 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
         html {
             meta name="viewport" content="width=device-width, initial-scale=1";
             head {
-                style { "#loading { -webkit-animation: rotation 2s infinite linear; } @-webkit-keyframes rotation{ from { -webkit-transform: rotate(0deg); } to { -webkit-transform: rotate(359deg); } }" }
+                style {
+                    r##"
+                    
+                    "## 
+                }
+                (PreEscaped(r##"
+                <style>
+                    #loader1 { 
+                        width: 500px,
+                    } 
+                    @media max-width: 600px { 
+                        #loader1 { 
+                            width: 200px 
+                        } 
+                    }
+                </style>
+                "##))
             }
 
             body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                div id="Loader1" class="lottie" style="width: 500px; height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                 (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
                 (PreEscaped(r#"
                 <script>
                 var anime = bodymovin.loadAnimation({
-                    container: document.getElementById('Loader1'),
+                    container: document.getElementById('loader1'),
                     renderer: 'svg',
                     loop: true,
                     autoplay: true,

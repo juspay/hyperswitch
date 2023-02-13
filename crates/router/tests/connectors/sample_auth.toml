@@ -5,6 +5,10 @@
 api_key = "Bearer MyApiKey"
 key1 = "MyEntityId"
 
+[adyen]
+api_key = "Bearer MyApiKey"
+key1 = "MerchantId"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"

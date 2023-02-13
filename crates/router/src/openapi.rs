@@ -17,7 +17,10 @@ Our APIs accept and return JSON in the HTTP body, and return standard HTTP respo
 You can consume the APIs directly using your favorite HTTP/REST library.
 
 We have a testing environment referred to "sandbox", which you can setup to test API calls without
-affecting production data. Currently, our sandbox environment is live while our production environment is under development and will be available soon. You can sign up on our Dashboard to get API keys to access Hyperswitch API.
+affecting production data.
+Currently, our sandbox environment is live while our production environment is under development
+and will be available soon.
+You can sign up on our Dashboard to get API keys to access Hyperswitch API.
 
 ### Environment
 
@@ -32,13 +35,13 @@ Use the following base URLs when making requests to the APIs:
 
 When you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant
 account, you are given a secret key (also referred as api-key) and a publishable key.
-You may authenticate all API requests with Hyperswitch server by providing the appropriate key in the
-request Authorization header.
+You may authenticate all API requests with Hyperswitch server by providing the appropriate key in
+the request Authorization header.
 
 | Key           |  Description                                                                                  |
 |---------------|-----------------------------------------------------------------------------------------------|
 | Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |
-| Production    | Unique identifier for your account. Used to authenticate API requests from your app’s client  |
+| Production    | Unique identifier for your account. Used to authenticate API requests from your app's client  |
 
 Never share your secret api keys. Keep them guarded and secure.
 "#,
@@ -47,13 +50,14 @@ Never share your secret api keys. Keep them guarded and secure.
         (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment")
     ),
     tags(
-        (name = "Merchant Account"),// , description = "Create and manage merchant accounts"),
-        (name = "Merchant Connector Account"),// , description = "Create and manage merchant connector accounts"),
-        (name = "Payments"),// , description = "Create and manage one-time payments, recurring payments and mandates"),
-        (name = "Refunds"),// , description = "Create and manage refunds for successful payments"),
-        (name = "Mandates"),// , description = "Manage mandates"),
-        (name = "Customers"),// , description = "Create and manage customers"),
-        (name = "Payment Methods")// , description = "Create and manage payment methods of customers")
+        (name = "Merchant Account", description = "Create and manage merchant accounts"),
+        (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
+        (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
+        (name = "Refunds", description = "Create and manage refunds for successful payments"),
+        (name = "Mandates", description = "Manage mandates"),
+        (name = "Customers", description = "Create and manage customers"),
+        (name = "Payment Methods", description = "Create and manage payment methods of customers"),
+        (name = "API Key", description = "Create and manage API Keys"),
     ),
     paths(
         crate::routes::refunds::refunds_create,
@@ -92,6 +96,11 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::customers::customers_retrieve,
         crate::routes::customers::customers_update,
         crate::routes::customers::customers_delete,
+        crate::routes::api_keys::api_key_create,
+        crate::routes::api_keys::api_key_retrieve,
+        crate::routes::api_keys::api_key_update,
+        crate::routes::api_keys::api_key_revoke,
+        crate::routes::api_keys::api_key_list,
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -181,6 +190,12 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,
         crate::types::api::admin::WebhookDetails,
+        crate::types::api::api_keys::ApiKeyExpiration,
+        crate::types::api::api_keys::CreateApiKeyRequest,
+        crate::types::api::api_keys::CreateApiKeyResponse,
+        crate::types::api::api_keys::RetrieveApiKeyResponse,
+        crate::types::api::api_keys::RevokeApiKeyResponse,
+        crate::types::api::api_keys::UpdateApiKeyRequest
     ))
 )]
 pub struct ApiDoc;
