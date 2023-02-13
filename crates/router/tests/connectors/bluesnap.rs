@@ -36,6 +36,7 @@ static CONNECTOR: BluesnapTest = BluesnapTest {};
 
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
+// passed
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
@@ -46,6 +47,7 @@ async fn should_only_authorize_payment() {
 }
 
 // Captures a payment using the manual capture flow (Non 3DS).
+// 
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
@@ -73,6 +75,7 @@ async fn should_partially_capture_authorized_payment() {
 }
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
+// passed
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR

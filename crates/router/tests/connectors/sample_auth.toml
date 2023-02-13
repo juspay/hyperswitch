@@ -13,6 +13,9 @@ key1 = "MerchantId"
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
 
+[bluesnap]
+api_key = "QVBJXzE2NzYxMDk1NDc3OTUxOTk3MjA0MDU1Okp1c3BheUAxMjM0"
+
 [checkout]
 api_key = "Bearer MyApiKey"
 key1 = "MyProcessingChannelId"

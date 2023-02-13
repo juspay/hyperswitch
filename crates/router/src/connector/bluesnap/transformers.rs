@@ -41,7 +41,8 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCaptureRequest {
     card_transaction_type: BluesnapPaymentStatus,
-    transaction_id: String
+    transaction_id: String,
+    amount: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
@@ -49,11 +50,18 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let card_transaction_type = BluesnapPaymentStatus::Capture;
         let transaction_id = String::from(&item.request.connector_transaction_id);
-
-        Ok(Self {
-            card_transaction_type,
-            transaction_id,
-        })
+        match item.request.amount_to_capture {
+            Some(amount_capture) => Ok(Self {
+                    card_transaction_type,
+                    transaction_id,
+                    amount: Some(amount_capture.to_string()),
+                }),
+            _ => Ok(Self {
+                card_transaction_type,
+                transaction_id,
+                amount: None,
+            }),
+        }
     }
 }
 
