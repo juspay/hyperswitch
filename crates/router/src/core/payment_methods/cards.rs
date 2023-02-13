@@ -477,24 +477,20 @@ fn filter_pm_country_based(
         (None, Some(ref r)) => (None, Some(r.to_vec()), false),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            if l.enable_all {
-                (Some(l.to_owned()), Some(r.to_vec()), true)
+            let enable_only = if l.enable_all {
+                filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
             } else {
-                let enable_only = if l.enable_only.is_some() {
-                    filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
-                } else {
-                    filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
-                };
-                (
-                    Some(admin::AcceptedCountries {
-                        enable_all: false,
-                        enable_only,
-                        disable_only: None,
-                    }),
-                    Some(r.to_vec()),
-                    true,
-                )
-            }
+                filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
+            };
+            (
+                Some(admin::AcceptedCountries {
+                    enable_all: l.enable_all,
+                    enable_only,
+                    disable_only: None,
+                }),
+                Some(r.to_vec()),
+                true,
+            )
         }
     }
 }
@@ -512,24 +508,20 @@ fn filter_pm_currencies_based(
         (None, Some(ref r)) => (None, Some(r.to_vec()), false),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            if l.enable_all {
-                (Some(l.to_owned()), Some(r.to_vec()), true)
+            let enable_only = if l.enable_all {
+                filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
             } else {
-                let enable_only = if l.enable_only.is_some() {
-                    filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
-                } else {
-                    filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
-                };
-                (
-                    Some(admin::AcceptedCurrencies {
-                        enable_all: false,
-                        enable_only,
-                        disable_only: None,
-                    }),
-                    Some(r.to_vec()),
-                    true,
-                )
-            }
+                filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
+            };
+            (
+                Some(admin::AcceptedCurrencies {
+                    enable_all: l.enable_all,
+                    enable_only,
+                    disable_only: None,
+                }),
+                Some(r.to_vec()),
+                true,
+            )
         }
     }
 }
@@ -612,13 +604,12 @@ async fn filter_payment_country_based(
         address.country.as_ref().map_or(true, |country| {
             pm.accepted_countries.clone().map_or(true, |ac| {
                 if ac.enable_all {
-                    true
+                    ac.disable_only.map_or(true, |disable_countries| {
+                        disable_countries.contains(country)
+                    })
                 } else {
                     ac.enable_only
                         .map_or(false, |enable_countries| enable_countries.contains(country))
-                        || !ac.disable_only.map_or(false, |disable_countries| {
-                            disable_countries.contains(country)
-                        })
                 }
             })
         })
@@ -632,12 +623,12 @@ fn filter_payment_currency_based(
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.clone().map_or(true, |ac| {
             if ac.enable_all {
-                true
+                ac.disable_only.map_or(true, |disable_currencies| {
+                    disable_currencies.contains(&currency.foreign_into())
+                })
             } else {
                 ac.enable_only.map_or(false, |enable_currencies| {
                     enable_currencies.contains(&currency.foreign_into())
-                }) || !ac.disable_only.map_or(false, |disable_currencies| {
-                    disable_currencies.contains(&currency.foreign_into())
                 })
             }
         })
