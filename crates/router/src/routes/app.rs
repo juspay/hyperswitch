@@ -1,8 +1,8 @@
 use actix_web::{web, Scope};
 
-#[cfg(feature = "olap")]
-use super::admin::*;
 use super::health::*;
+#[cfg(feature = "olap")]
+use super::{admin::*, api_keys::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -227,6 +227,11 @@ impl MerchantAccount {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
             .service(
+                web::resource("/{id}/kv")
+                    .route(web::post().to(merchant_account_toggle_kv))
+                    .route(web::get().to(merchant_account_kv_status)),
+            )
+            .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
                     .route(web::post().to(update_merchant_account))
@@ -326,6 +331,24 @@ impl Configs {
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update)),
+            )
+    }
+}
+
+pub struct ApiKeys;
+
+#[cfg(feature = "olap")]
+impl ApiKeys {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/api_keys")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(api_key_create)))
+            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(
+                web::resource("/{key_id}")
+                    .route(web::get().to(api_key_retrieve))
+                    .route(web::post().to(api_key_update))
+                    .route(web::delete().to(api_key_revoke)),
             )
     }
 }
