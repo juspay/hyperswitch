@@ -3,7 +3,7 @@ enabled = false
 
 [log.console]
 enabled = true
-level = "WARN"
+level = "DEBUG"
 log_format = "default"
 
 [log.telemetry]
