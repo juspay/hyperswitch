@@ -137,7 +137,6 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType  {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapPaymentStatus {
@@ -159,7 +158,6 @@ impl From<BluesnapPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsResponse {
@@ -229,18 +227,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
     #[default]
-    Processing,
+    Succeeded,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
@@ -279,9 +273,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
        
         Ok(Self {
