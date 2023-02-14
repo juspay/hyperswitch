@@ -81,7 +81,7 @@ where
     }
 }
 
-#[instrument(skip(request, payload, state, func, api_auth))]
+#[instrument(skip_all)]
 pub async fn compatibility_wrap_util<'a, 'b, A, U, T, Q, F, Fut>(
     state: &'b A,
     request: &'a HttpRequest,
