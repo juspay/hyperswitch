@@ -106,7 +106,7 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.multisafepay]
-base_url = 
+base_url = "https://testapi.multisafepay.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
