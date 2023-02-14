@@ -282,7 +282,9 @@ fn get_card_product_id(
             return Ok(k.clone());
         }
     }
-    Ok(Gateway::CreditCard)
+    Err(error_stack::Report::new(
+        errors::ConnectorError::NotImplemented("Payment Method".into()),
+    ))
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsRequest  {
