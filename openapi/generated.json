@@ -778,11 +778,7 @@
           "requires_capture"
         ]
       },
-      "KlarnaRedirectIssuer": {
-        "type": "string",
-        "enum": ["stripe"]
-      },
-      "KlarnaSdkIssuer": {
+      "KlarnaIssuer": {
         "type": "string",
         "enum": ["klarna"]
       },
@@ -1071,7 +1067,7 @@
                 "required": ["issuer_name", "billing_email", "billing_country"],
                 "properties": {
                   "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaRedirectIssuer"
+                    "$ref": "#/components/schemas/KlarnaIssuer"
                   },
                   "billing_email": {
                     "type": "string",
@@ -1094,7 +1090,7 @@
                 "required": ["issuer_name", "token"],
                 "properties": {
                   "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaSdkIssuer"
+                    "$ref": "#/components/schemas/KlarnaIssuer"
                   },
                   "token": {
                     "type": "string",
