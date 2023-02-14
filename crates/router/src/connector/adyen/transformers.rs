@@ -971,26 +971,6 @@ pub struct ErrorResponse {
     pub psp_reference: Option<String>,
 }
 
-// #[cfg(test)]
-// mod test_adyen_transformers {
-//     use super::*;
-
-//     #[test]
-//     fn verify_transform_from_router_to_adyen_req() {
-//         let router_req = PaymentsRequest {
-//             amount: 0.0,
-//             currency: "None".to_string(),
-//             ..Default::default()
-//         };
-//         println!("{:#?}", &router_req);
-//         let adyen_req = AdyenPaymentRequest::from(router_req);
-//         println!("{:#?}", &adyen_req);
-//         let adyen_req_json: String = serde_json::to_string(&adyen_req).unwrap();
-//         println!("{}", adyen_req_json);
-//         assert_eq!(true, true)
-//     }
-// }
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {

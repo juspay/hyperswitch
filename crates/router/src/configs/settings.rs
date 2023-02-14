@@ -154,6 +154,7 @@ pub struct Connectors {
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
+	pub expresscheckout: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

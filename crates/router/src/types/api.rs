@@ -176,7 +176,8 @@ impl ConnectorData {
             "stripe" => Ok(Box::new(&connector::Stripe)),
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
-            _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
+            "expresscheckout" => Ok(Box::new(&connector::Expresscheckout)),
+			_ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
