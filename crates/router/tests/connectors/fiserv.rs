@@ -1,7 +1,6 @@
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 use serde_json::json;
-use serial_test;
 
 use crate::{
     connector_auth,
