@@ -457,10 +457,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let transaction_type = match data.request.capture_method {
-            Some(storage_models::enums::CaptureMethod::Manual) => authorizedotnet::TransactionType::PaymentAuthOnly,
-            _ => authorizedotnet::TransactionType::Payment
+            Some(storage_models::enums::CaptureMethod::Manual) => {
+                authorizedotnet::TransactionType::PaymentAuthOnly
+            }
+            _ => authorizedotnet::TransactionType::Payment,
         };
-        
 
         types::RouterData::try_from((
             types::ResponseRouterData {

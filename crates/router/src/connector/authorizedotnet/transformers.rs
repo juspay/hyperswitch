@@ -10,7 +10,11 @@ use crate::{
     core::errors,
     pii::PeekInterface,
     services,
-    types::{self, api, storage::enums, transformers::{Foreign, ForeignTryFrom}},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{Foreign, ForeignTryFrom},
+    },
     utils::OptionExt,
 };
 
@@ -369,18 +373,32 @@ pub enum AuthorizedotnetPaymentStatus {
 
 pub type AuthorizedotnetRefundStatus = AuthorizedotnetPaymentStatus;
 
-impl TryFrom<Foreign<(AuthorizedotnetPaymentStatus, TransactionType)>> for Foreign<enums::AttemptStatus> {
+impl TryFrom<Foreign<(AuthorizedotnetPaymentStatus, TransactionType)>>
+    for Foreign<enums::AttemptStatus>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: Foreign<(AuthorizedotnetPaymentStatus, TransactionType)>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: Foreign<(AuthorizedotnetPaymentStatus, TransactionType)>,
+    ) -> Result<Self, Self::Error> {
         Ok(match item.0 {
-            (AuthorizedotnetPaymentStatus::Approved, TransactionType::Payment | TransactionType::Capture) => enums::AttemptStatus::Charged,
-            (AuthorizedotnetPaymentStatus::Approved, TransactionType::PaymentAuthOnly) => enums::AttemptStatus::Authorized,
-            (AuthorizedotnetPaymentStatus::Approved, TransactionType::Void) => enums::AttemptStatus::Voided,
+            (
+                AuthorizedotnetPaymentStatus::Approved,
+                TransactionType::Payment | TransactionType::Capture,
+            ) => enums::AttemptStatus::Charged,
+            (AuthorizedotnetPaymentStatus::Approved, TransactionType::PaymentAuthOnly) => {
+                enums::AttemptStatus::Authorized
+            }
+            (AuthorizedotnetPaymentStatus::Approved, TransactionType::Void) => {
+                enums::AttemptStatus::Voided
+            }
             (AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error, _) => {
                 enums::AttemptStatus::Failure
             }
-            (AuthorizedotnetPaymentStatus::HeldForReview
-            | AuthorizedotnetPaymentStatus::NeedPayerConsent, _) => enums::AttemptStatus::Pending,
+            (
+                AuthorizedotnetPaymentStatus::HeldForReview
+                | AuthorizedotnetPaymentStatus::NeedPayerConsent,
+                _,
+            ) => enums::AttemptStatus::Pending,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed).into_report()?,
         }
         .into())
@@ -475,7 +493,10 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
-        let status = enums::AttemptStatus::foreign_try_from((item.response.transaction_response.response_code, data.1))?;
+        let status = enums::AttemptStatus::foreign_try_from((
+            item.response.transaction_response.response_code,
+            data.1,
+        ))?;
         let error = item
             .response
             .transaction_response
