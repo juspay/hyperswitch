@@ -155,6 +155,20 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
         self.build_error_response(res)
     }
 }
@@ -218,6 +232,20 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
         self.build_error_response(res)
     }
 
@@ -327,6 +355,20 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
         self.build_error_response(res)
     }
 }
@@ -364,7 +406,7 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let req_obj = intuit::IntuitPaymentsRequest::try_from(req).unwrap();
+        let req_obj = intuit::IntuitPaymentsRequest::try_from(req)?;
         let req =
             utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(
                 &req_obj,
@@ -410,6 +452,20 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
         self.build_error_response(res)
     }
 }
@@ -478,6 +534,20 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
         self.build_error_response(res)
     }
 }
@@ -535,6 +605,20 @@ impl
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
         self.build_error_response(res)
     }
 }

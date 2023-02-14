@@ -219,7 +219,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct IntuitErrorResponse {
-    pub status: Option<String>,
+pub struct IntuitErrorData {
     pub message: String,
+    pub code: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct IntuitErrorResponse {
+    pub errors: Vec<IntuitErrorData>,
 }
