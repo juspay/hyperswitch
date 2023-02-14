@@ -59,6 +59,8 @@ pub enum StorageError {
         entity: &'static str,
         key: Option<String>,
     },
+    #[error("Timed out while trying to connect to the database")]
+    DatabaseConnectionError,
     #[error("KV error")]
     KVError,
     #[error("Serialization failure")]

@@ -86,7 +86,7 @@ mod storage {
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             storage_types::Refund::find_by_internal_reference_id_merchant_id(
                 &conn,
                 internal_reference_id,
@@ -102,7 +102,7 @@ mod storage {
             new: storage_types::RefundNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
@@ -112,7 +112,7 @@ mod storage {
             connector_transaction_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             storage_types::Refund::find_by_merchant_id_connector_transaction_id(
                 &conn,
                 merchant_id,
@@ -129,7 +129,7 @@ mod storage {
             refund: storage_types::RefundUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             this.update(&conn, refund)
                 .await
                 .map_err(Into::into)
@@ -142,7 +142,7 @@ mod storage {
             refund_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                 .await
                 .map_err(Into::into)
@@ -166,7 +166,7 @@ mod storage {
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             storage_types::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
                 .map_err(Into::into)
@@ -181,7 +181,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
         ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
-            let conn = pg_connection(&self.replica_pool).await;
+            let conn = pg_connection(&self.replica_pool).await?;
             <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
                 &conn,
                 merchant_id,
@@ -220,7 +220,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let database_call = || async {
-                let conn = pg_connection(&self.master_pool).await;
+                let conn = pg_connection(&self.master_pool).await?;
                 storage_types::Refund::find_by_internal_reference_id_merchant_id(
                     &conn,
                     internal_reference_id,
@@ -259,7 +259,7 @@ mod storage {
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
@@ -309,7 +309,7 @@ mod storage {
                         })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
-                            let conn = pg_connection(&self.master_pool).await;
+                            let conn = pg_connection(&self.master_pool).await?;
 
                             let reverse_lookups = vec![
                                 storage_types::ReverseLookupNew {
@@ -367,7 +367,7 @@ mod storage {
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     storage_types::Refund::find_by_merchant_id_connector_transaction_id(
                         &conn,
                         merchant_id,
@@ -407,7 +407,7 @@ mod storage {
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     this.update(&conn, refund)
                         .await
                         .map_err(Into::into)
@@ -467,7 +467,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let database_call = || async {
-                let conn = pg_connection(&self.master_pool).await;
+                let conn = pg_connection(&self.master_pool).await?;
                 storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                     .await
                     .map_err(Into::into)
@@ -514,7 +514,7 @@ mod storage {
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     storage_types::Refund::find_by_payment_id_merchant_id(
                         &conn,
                         payment_id,
@@ -553,7 +553,7 @@ mod storage {
         ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.replica_pool).await;
+                    let conn = pg_connection(&self.replica_pool).await?;
                     <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit)
                         .await
                         .map_err(Into::into)

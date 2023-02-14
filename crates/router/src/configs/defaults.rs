@@ -20,6 +20,7 @@ impl Default for super::settings::Database {
             port: 5432,
             dbname: String::new(),
             pool_size: 5,
+            connection_timeout: 10,
         }
     }
 }
