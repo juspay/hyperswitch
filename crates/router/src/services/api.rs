@@ -485,7 +485,6 @@ where
     T: actix_web::ResponseError + error_stack::Context + Clone,
 {
     logger::error!(?error);
-    // error.current_context().error_response()
     HttpResponse::from_error(error.current_context().clone())
 }
 

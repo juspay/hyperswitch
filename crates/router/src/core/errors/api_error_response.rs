@@ -304,19 +304,19 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 7,
                 format!("Invalid value provided: {field_name}"), None
             )),
-            Self::ClientSecretNotGiven => AER::ForbiddenPrivateResource(ApiError::new(
+            Self::ClientSecretNotGiven => AER::NotFound(ApiError::new(
                 "IR",
                 8,
                 "Client secret was not provided", None
             )),
             Self::ClientSecretInvalid => {
-                AER::ForbiddenPrivateResource(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
+                AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
             }
             Self::MandateActive => {
-                AER::ForbiddenPrivateResource(ApiError::new("IR", 10, "Customer has active mandate/subsciption", None))
+                AER::BadRequest(ApiError::new("IR", 10, "Customer has active mandate/subsciption", None))
             }
             Self::CustomerRedacted => {
-                AER::ForbiddenPrivateResource(ApiError::new("IR", 11, "Customer has already been redacted", None))
+                AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
             }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
