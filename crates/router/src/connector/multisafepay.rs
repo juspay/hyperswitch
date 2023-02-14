@@ -109,9 +109,8 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(_connectors);
-        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
         let ord_id = _req.payment_id.clone();
-        println!("Sync API being hit");
         Ok(format!(
             "{}v1/json/orders/{}?api_key={}",
             url,
@@ -298,7 +297,6 @@ impl
             )?)
             .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
             .build();
-        println!("authorizePay --->{:?}", requeue);
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -354,7 +352,7 @@ impl
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         let url = self.base_url(_connectors);
-        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
         let ord_id = _req.payment_id.clone();
         Ok(format!(
             "{}v1/json/orders/{}/refunds?api_key={}",
@@ -366,7 +364,6 @@ impl
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
         let multisafepay_req = utils::Encode::<multisafepay::MultisafepayRefundRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("refund_request_check --->{:?}",multisafepay_req);
         Ok(Some(multisafepay_req))
     }
 
@@ -413,15 +410,8 @@ impl
 
     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         let url = self.base_url(_connectors);
-        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
         let ord_id = _req.payment_id.clone();
-        let x = format!(
-            "{}v1/json/orders/{}/refunds?api_key={}",
-            url,
-            ord_id,
-            api_key
-        );
-        print!("refund data check{:?}",x);
         Ok(format!(
             "{}v1/json/orders/{}/refunds?api_key={}",
             url,
