@@ -46,6 +46,34 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+    pub async fn update_with_attempt_id(
+        self,
+        conn: &PgPooledConn,
+        payment_attempt: PaymentAttemptUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::attempt_id
+                .eq(self.attempt_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            PaymentAttemptUpdateInternal::from(payment_attempt),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
