@@ -16,12 +16,12 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, services,
+    headers, logger, services,
     types::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, BytesExt, OptionExt}, logger,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ impl Fiserv {
     }
 }
 
-impl api::ConnectorCommon for Fiserv {
+impl ConnectorCommon for Fiserv {
     fn id(&self) -> &'static str {
         "fiserv"
     }
@@ -172,7 +172,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}ch/payments/v1/cancels",  //The docs has this url wrong, cancels is the working endpoint
+            "{}ch/payments/v1/cancels", //The docs has this url wrong, cancels is the working endpoint
             connectors.fiserv.base_url
         ))
     }
@@ -182,11 +182,9 @@ impl
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = fiserv::FiservCancelRequest::try_from(req)?;
-        let fiserv_req = utils::Encode::<fiserv::FiservCancelRequest>::encode_to_string_of_json(
-            &connector_req,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("cancellllll{:?}", fiserv_req);
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservCancelRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(fiserv_req))
     }
 
@@ -198,12 +196,8 @@ impl
         let request = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVoidType::get_url(
-                    self, req, connectors,
-                )?)
-                .headers(types::PaymentsVoidType::get_headers(
-                    self, req, connectors,
-                )?)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         );
@@ -235,7 +229,6 @@ impl
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
-
 }
 
 impl api::PaymentSync for Fiserv {}
@@ -311,9 +304,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         );
@@ -325,10 +316,11 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: fiserv::FiservPaymentsResponse = res
+        let response: fiserv::FiservPaymentsSyncResponse = res
             .response
-            .parse_struct("Fiserv Payment Response")
+            .parse_struct("Fiserv PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -557,7 +549,6 @@ impl
             &connector_req,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("autzzzzz{:?}", fiserv_req);
         Ok(Some(fiserv_req))
     }
 
@@ -631,7 +622,6 @@ impl
             reason: None,
         })
     }
-
 }
 
 impl api::Refund for Fiserv {}
@@ -690,11 +680,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = fiserv::FiservRefundRequest::try_from(req)?;
-        let fiserv_req = utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json(
-            &connector_req,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("@@@@@{:?}", fiserv_req);
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(fiserv_req))
     }
     fn build_request(
@@ -719,10 +707,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::fiserv", response=?res);
-        let response: fiserv::RefundResponse = res
-            .response
-            .parse_struct("fiserv RefundResponse")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: fiserv::RefundResponse =
+            res.response
+                .parse_struct("fiserv RefundResponse")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -797,7 +785,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let fiserv_req =
             utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                println!("ahhhhhhhhhh{:?}", fiserv_req);
         Ok(Some(fiserv_req))
     }
 
@@ -810,9 +797,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         );
@@ -826,13 +811,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::fiserv", response=?res);
 
-        let response: Vec<fiserv::RefundResponse> = res
+        let response: fiserv::RefundSyncResponse = res
             .response
             .parse_struct("Fiserv Refund Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             // response:response.first().get_required_value("gatewayResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed).try_into(),
-            response: response[0].clone(),
+            response,
             data: data.clone(),
             http_code: res.status_code,
         }
