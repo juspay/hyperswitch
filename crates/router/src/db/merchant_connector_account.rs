@@ -38,7 +38,8 @@ impl ConnectorAccessToken for Store {
         // being refreshed by other request then wait till it finishes and use the same access token
         let key = format!("access_token_{merchant_id}_{connector_name}");
         let maybe_token = self
-            .redis_conn
+            .redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
             .get_key::<Option<Vec<u8>>>(&key)
             .await
             .change_context(errors::StorageError::KVError)
@@ -63,7 +64,8 @@ impl ConnectorAccessToken for Store {
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
-        self.redis_conn
+        self.redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
             .map_err(|error| {
