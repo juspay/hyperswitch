@@ -304,7 +304,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 7,
                 format!("Invalid value provided: {field_name}"), None
             )),
-            Self::ClientSecretNotGiven => AER::NotFound(ApiError::new(
+            Self::ClientSecretNotGiven => AER::BadRequest(ApiError::new(
                 "IR",
                 8,
                 "Client secret was not provided", None
@@ -371,31 +371,31 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payment with the specified payment_id '{payment_id}' already exists in our records"), None))
             }
             Self::RefundNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Refund does not exist in our records.", None))
+                AER::NotFound(ApiError::new("HE", 2, "Refund does not exist in our records.", None))
             }
             Self::CustomerNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Customer does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Customer does not exist in our records", None))
             }
             Self::ConfigNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Config key does not exist in our records.", None))
+                AER::NotFound(ApiError::new("HE", 2, "Config key does not exist in our records.", None))
             }
             Self::PaymentNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Payment does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))
             }
             Self::PaymentMethodNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Payment method does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Payment method does not exist in our records", None))
             }
             Self::MerchantAccountNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
             Self::MerchantConnectorAccountNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", None))
             }
             Self::ResourceIdNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Resource ID does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Resource ID does not exist in our records", None))
             }
             Self::MandateNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "Mandate does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "Mandate does not exist in our records", None))
             }
             Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 3, "Return URL is not configured and not passed in payments request", None)),
             Self::RefundNotPossible { connector } => {
@@ -406,16 +406,16 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 3, "The payment has not succeeded yet. Please pass a successful payment to initiate refund", None)),
             Self::SuccessfulPaymentNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 4, "Successful payment not found for the given payment id", None))
+                AER::NotFound(ApiError::new("HE", 4, "Successful payment not found for the given payment id", None))
             }
             Self::IncorrectConnectorNameGiven => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 4, "The connector provided in the request is incorrect or not available", None))
+                AER::NotFound(ApiError::new("HE", 4, "The connector provided in the request is incorrect or not available", None))
             }
             Self::AddressNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 4, "Address does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
             },
             Self::ApiKeyNotFound => {
-                AER::ForbiddenPrivateResource(ApiError::new("HE", 2, "API Key does not exist in our records", None))
+                AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
             }
         }
     }

@@ -120,12 +120,12 @@ impl ApiErrorResponse {
             | Self::Conflict(_)
             | Self::Gone(_)
             | Self::Unprocessable(_)
-            | Self::NotImplemented(_) => "invalid_request",
+            | Self::NotImplemented(_)
+            | Self::MethodNotAllowed(_)
+            | Self::NotFound(_)
+            | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
             Self::ConnectorError(_, _) => "connector",
-            Self::MethodNotAllowed(_) => "invalid_request",
-            Self::NotFound(_) => "invalid_request",
-            Self::BadRequest(_) => "invalid_request",
         }
     }
 }
