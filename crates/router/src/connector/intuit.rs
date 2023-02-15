@@ -472,7 +472,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = intuit::IntuitRefundRequest::try_from(req).unwrap();
+        let req_obj = intuit::IntuitRefundRequest::try_from(req)?;
         let req =
             utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
