@@ -82,9 +82,28 @@ pub struct MerchantDetails {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionInteraction {
-    origin: String,
-    eci_indicator: String,
-    pos_condition_code: String,
+    origin: TransactionInteractionOrigin,
+    eci_indicator: TransactionInteractionEciIndicator,
+    pos_condition_code: TransactionInteractionPosConditionCode,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TransactionInteractionOrigin {
+    #[default]
+    Ecom,
+}
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransactionInteractionEciIndicator {
+    #[default]
+    ChannelEncrypted,
+}
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransactionInteractionPosConditionCode {
+    #[default]
+    CardNotPresentEcom,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
@@ -116,9 +135,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
         };
 
         let transaction_interaction = TransactionInteraction {
-            origin: "ECOM".to_string(), //Payment is being made in online mode, card not present
-            eci_indicator: "CHANNEL_ENCRYPTED".to_string(), // transaction encryption such as SSL/TLS, but authentication was not performed
-            pos_condition_code: "CARD_NOT_PRESENT_ECOM".to_string(), //card not present in online transaction
+            origin: TransactionInteractionOrigin::Ecom, //Payment is being made in online mode, card not present
+            eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted, // transaction encryption such as SSL/TLS, but authentication was not performed
+            pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom, //card not present in online transaction
         };
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ref ccard) => {
@@ -129,23 +148,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
                     security_code: ccard.card_cvc.clone(),
                 };
                 Source::PaymentCard { card }
-            }
-            api::PaymentMethod::Wallet(wallet_data) => {
-                // let json_value = wallet_data.token
-                // .ok_or_else(utils::missing_field_err("Wallet token"))?
-                // .parse_struct("GooglePayToken")
-                // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                // println!("oooooooooo{:?}", json_value);
-                match wallet_data.issuer_name{
-                    api_models::enums::WalletIssuer::GooglePay => Source::GooglePay {
-                        data: r#"{\"encryptedMessage\":\"XqpMeRFRqQJkusxA/yCsxLHwW/KaSWGAEjqoo0uinoLGbzZJ3oMqir/Ldq+FhSSDHH+jNfIrT0Zfv32F0LzjxRgjjUiu6bhgBa4376JEhtH7NmrEb76pS0KZiqdIqghtpUY0eLMkVz4bpGghsr7SFAEPyjzvHxSSRAik3ZCM5vKDuA4pGCsH6zCYr12JGUafB6Mvbauu3+GVsIcJhnG/j6qr1Jos8b1V5ywEyY1Xgs9fyD2IwGQ04ni7BqVqYNyPzqTEXNcRVnW7nzk1KXBhcT/S2Ug36rax0hDNUQxAS09gqw4Xof6ixLcXCpXhgSGNje3l1AFdWu1chRI6fVZe77mgR66FMAVCdLYEQmouUIBtBCT5WCQKPxxg4Hiu/DU3bhOw09ZYT6v8n0U4ai5wJOj2QwqRHEaGUhBN+2WuJofhxDixprdyVdLdmkuxdKzLyQ\\u003d\\u003d\",\"ephemeralPublicKey\":\"BIfDllJB8/HGArug55HLXzrlepO6QyiA3MiOeT515jVMYcOhvld+XjGiGAeFtvD2a0IFPSaENwZQQvCMDmiRBAY\\u003d\",\"tag\":\"Lv5GX9dq2axzKagRML8S1FrU6/T4hGhrB7sv714NCmw\\u003d\"}"#.to_string(),
-                        signature: r#"MEUCIHV5hJ3ijgF+pOdqviqX6NYoIOKdAQvLOevFDW+WF2iGAiEA1vnaeat8ZoSuIp8V6o2aiPcC9TdDyeR0RvImCY8vQWs\u003d"#.to_string(),
-                        version: "ECv1".to_string() 
-                    },
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Unknown Wallet in Payment Method".to_string(),
-                    ))?,
-                }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment Methods".to_string(),
@@ -221,8 +223,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
             },
             transaction_details: TransactionDetails {
                 capture_flag: None,
-                // reversal_reason_code:Some(ReversalReasonCodes::try_from(cancellation_reason)?),
-                reversal_reason_code: Some(cancellation_reason.parse_enum("ReversalReasonCodes").change_context(errors::ConnectorError::MissingRequiredField { field_name: "cancellation reason should be: VOID, TIMEOUT, SUSPECTED_FRAUD, CARD_OVERRIDE" })?)
+                reversal_reason_code: Some(cancellation_reason.parse_enum("ReversalReasonCodes").change_context(errors::ConnectorError::InvalidDataFormat { field_name: "cancellation reason should be: VOID, TIMEOUT, SUSPECTED_FRAUD, CARD_OVERRIDE" })?)
             },
         })
     }
@@ -291,7 +292,7 @@ pub struct FiservPaymentsResponse {
 #[serde(rename_all = "camelCase")]
 #[serde(transparent)]
 pub struct FiservPaymentsSyncResponse {
-    vector_of_sync_response: Vec<FiservPaymentsResponse>,
+    sync_responses: Vec<FiservPaymentsResponse>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -349,7 +350,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let gateway_resp = match item.response.vector_of_sync_response.first() {
+        let gateway_resp = match item.response.sync_responses.first() {
             Some(gateway_response) => gateway_response,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
@@ -526,7 +527,7 @@ pub struct RefundResponse {
 #[serde(rename_all = "camelCase")]
 #[serde(transparent)]
 pub struct RefundSyncResponse {
-    vector_of_sync_response: Vec<FiservPaymentsResponse>,
+    sync_responses: Vec<FiservPaymentsResponse>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -557,7 +558,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let gateway_resp = match item.response.vector_of_sync_response.first() {
+        let gateway_resp = match item.response.sync_responses.first() {
             Some(gateway_response) => gateway_response,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };

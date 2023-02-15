@@ -270,6 +270,8 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Invalid Data format")]
+    InvalidDataFormat { field_name: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]

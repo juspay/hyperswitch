@@ -16,10 +16,11 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, logger,
+    services::{self, api::ConnectorIntegration},
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
     },
     utils::{self, BytesExt},
 };
@@ -49,6 +50,45 @@ impl Fiserv {
     }
 }
 
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Fiserv
+where
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
+    fn build_headers(
+        &self,
+        req: &types::RouterData<Flow, Request, Response>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let auth: fiserv::FiservAuthType =
+            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
+        // let api_key = auth.api_key.clone();
+
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+
+        let fiserv_req = self
+            .get_request_body(req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let client_request_id = Uuid::new_v4().to_string();
+        let hmac = self
+            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            (headers::CLIENT_REQUEST_ID.to_string(), client_request_id),
+            (headers::AUTH_TOKEN_TYPE.to_string(), "HMAC".to_string()),
+            (headers::TIMESTAMP.to_string(), timestamp.to_string()),
+            (headers::AUTHORIZATION.to_string(), hmac),
+        ];
+        headers.append(&mut auth_header);
+        Ok(headers)
+    }
+}
+
 impl ConnectorCommon for Fiserv {
     fn id(&self) -> &'static str {
         "fiserv"
@@ -60,6 +100,15 @@ impl ConnectorCommon for Fiserv {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.fiserv.base_url.as_ref()
+    }
+    fn get_auth_header(
+        &self,
+        auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let auth: fiserv::FiservAuthType = auth_type
+            .try_into()
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(headers::API_KEY.to_string(), auth.api_key)])
     }
     fn build_error_response(
         &self,
@@ -74,14 +123,14 @@ impl ConnectorCommon for Fiserv {
 
         let message = match (error, details) {
             (Some(err), _) => err
-                .iter()
-                .map(|v| v.message.clone())
-                .collect::<Vec<String>>()
+                .into_iter()
+                .map(|v| v.message)
+                .collect::<Vec<_>>()
                 .join(""),
             (None, Some(err_details)) => err_details
-                .iter()
-                .map(|v| v.message.clone())
-                .collect::<Vec<String>>()
+                .into_iter()
+                .map(|v| v.message)
+                .collect::<Vec<_>>()
                 .join(""),
             (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
@@ -97,12 +146,8 @@ impl ConnectorCommon for Fiserv {
 
 impl api::ConnectorAccessToken for Fiserv {}
 
-impl
-    services::ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for Fiserv
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Fiserv
 {
     // Not Implemented (R)
 }
@@ -112,54 +157,23 @@ impl api::Payment for Fiserv {}
 impl api::PreVerify for Fiserv {}
 
 #[allow(dead_code)]
-impl
-    services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Fiserv
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Fiserv
 {
 }
 
 impl api::PaymentVoid for Fiserv {}
 
 #[allow(dead_code)]
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Fiserv
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Fiserv
 {
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        let api_key = auth.api_key.clone();
-
-        let fiserv_req = self
-            .get_request_body(req)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp.to_string()),
-            ("Authorization".to_string(), hmac),
-        ];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -234,39 +248,15 @@ impl
 impl api::PaymentSync for Fiserv {}
 
 #[allow(dead_code)]
-impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Fiserv
 {
     fn get_headers(
         &self,
         req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        let api_key = auth.api_key.clone();
-
-        let fiserv_req = self
-            .get_request_body(req)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp.to_string()),
-            ("Authorization".to_string(), hmac),
-        ];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -339,42 +329,15 @@ impl
 }
 
 impl api::PaymentCapture for Fiserv {}
-impl
-    services::ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Fiserv
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Fiserv
 {
     fn get_headers(
         &self,
         req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        let api_key = auth.api_key.clone();
-
-        let fiserv_req = self
-            .get_request_body(req)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp.to_string()),
-            ("Authorization".to_string(), hmac),
-        ];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -476,53 +439,22 @@ impl
 impl api::PaymentSession for Fiserv {}
 
 #[allow(dead_code)]
-impl
-    services::ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Fiserv
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Fiserv
 {
 }
 
 impl api::PaymentAuthorize for Fiserv {}
 
-impl
-    services::ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Fiserv
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Fiserv
 {
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        let api_key = auth.api_key.clone();
-
-        let fiserv_req = self
-            .get_request_body(req)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp.to_string()),
-            ("Authorization".to_string(), hmac),
-        ];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -629,38 +561,13 @@ impl api::RefundExecute for Fiserv {}
 impl api::RefundSync for Fiserv {}
 
 #[allow(dead_code)]
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Fiserv
-{
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Fiserv {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        let api_key = auth.api_key.clone();
-
-        let fiserv_req = self
-            .get_request_body(req)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp.to_string()),
-            ("Authorization".to_string(), hmac),
-        ];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
         "application/json"
@@ -728,38 +635,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 }
 
 #[allow(dead_code)]
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Fiserv
-{
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Fiserv {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        let api_key = auth.api_key.clone();
-
-        let fiserv_req = self
-            .get_request_body(req)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            ("Api-Key".to_string(), api_key),
-            ("Timestamp".to_string(), timestamp.to_string()),
-            ("Authorization".to_string(), hmac),
-        ];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {

@@ -42,14 +42,18 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 /// Header Constants
 pub mod headers {
-    pub const X_API_KEY: &str = "X-API-KEY";
-    pub const CONTENT_TYPE: &str = "Content-Type";
-    pub const X_ROUTER: &str = "X-router";
-    pub const AUTHORIZATION: &str = "Authorization";
     pub const ACCEPT: &str = "Accept";
-    pub const X_API_VERSION: &str = "X-ApiVersion";
+    pub const API_KEY: &str = "API-KEY";
+    pub const AUTHORIZATION: &str = "Authorization";
+    pub const AUTH_TOKEN_TYPE: &str = "Auth-Token-Type";
+    pub const CLIENT_REQUEST_ID: &str = "Client-Request-Id";
+    pub const CONTENT_TYPE: &str = "Content-Type";
     pub const DATE: &str = "Date";
+    pub const TIMESTAMP: &str = "Timestamp";
+    pub const X_API_KEY: &str = "X-API-KEY";
+    pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_ROUTER: &str = "X-router";
 }
 
 pub mod pii {
