@@ -6,7 +6,7 @@ use crate::{
     types::{self, api, storage::enums},
 };
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::Map};
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ExpresscheckoutPaymentsRequest {
@@ -20,8 +20,8 @@ pub struct ExpresscheckoutPaymentsRequest {
     currency: String,
     #[serde(rename = "order.gateway_id")]
     gateway_id: u8,
-    #[serde(rename = "order.metadata.RAZORPAY:gateway_reference_id")]
-    gateway_ref_id: Option<String>,
+    #[serde(flatten)]
+    gateway_reference_metadata: HashMap<String, String>,
     merchant_id: String,
     payment_method_type: PaymentMethodType,
     card_number: String,
@@ -48,17 +48,29 @@ enum PaymentMethodType {
 //     gateway_id: u8
 // }
 
+#[derive(Deserialize, Debug)]
+pub struct GatewayMetadata {
+    gateway_id: u8,
+    gateway_reference_key: String,
+    gateway_reference_value: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExpresscheckoutPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let is_manual_capture = item.request.capture_method.map_or(false, |r| r == enums::CaptureMethod::Manual);
-        //Hardcoding gateway reference id as the currenct architecture doesn't provide seamless integration of a payment aggregator
-        let gateway_ref_id = if is_manual_capture {
-            Some("razorpay_refund".to_string())
-        }else{
-            Some("rzp_bin_test".to_string())
-        };
-
+        let metadata = item.connector_meta_data.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: ("metadata"),
+            },
+        )?;
+        let gateway_metadata: GatewayMetadata = serde_json::from_value(metadata)
+            .map_err(|_| errors::ConnectorError::NoConnectorMetaData)?;
+        let mut gateway_reference_key_prefix = String::from("order.");
+        gateway_reference_key_prefix.push_str(&gateway_metadata.gateway_reference_key);
+        let gateway_reference_metadata = HashMap::from([(
+            gateway_reference_key_prefix,
+            gateway_metadata.gateway_reference_value,
+        )]);
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let return_url: String = item
@@ -70,8 +82,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExpresscheckoutPaymentsReq
                     amount: item.request.amount.to_string(),
                     return_url,
                     currency: item.request.currency.to_string().to_uppercase(),
-                    gateway_id: 23,
-                    gateway_ref_id,
+                    gateway_id: gateway_metadata.gateway_id,
+                    gateway_reference_metadata,
                     merchant_id: item.merchant_id.clone(),
                     payment_method_type: PaymentMethodType::Card,
                     card_number: ccard.card_number.peek().clone(),
@@ -147,7 +159,6 @@ impl From<ExpresscheckoutPaymentStatus> for enums::AttemptStatus {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExpresscheckoutPaymentsResponse {
@@ -257,7 +268,6 @@ pub enum RefundStatus {
     Pending,
 }
 
-
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
@@ -281,7 +291,6 @@ pub struct RefundStatusBlock {
     unique_request_id: String,
 }
 
-
 fn deserialize_refund_status_default<'de, D, RefundStatus>(
     deserializer: D,
 ) -> Result<RefundStatus, D::Error>
@@ -296,14 +305,20 @@ where
     }
 }
 
-fn get_status_from_refund_response(refund_id: &str, response: RefundResponse) -> enums::RefundStatus {
-    response.refunds.into_iter().fold(enums::RefundStatus::Pending, |acc, r| {
-        if r.unique_request_id == refund_id {
-            enums::RefundStatus::from(r.status)
-        } else {
-            acc
-        }
-    })
+fn get_status_from_refund_response(
+    refund_id: &str,
+    response: RefundResponse,
+) -> enums::RefundStatus {
+    response
+        .refunds
+        .into_iter()
+        .fold(enums::RefundStatus::Pending, |acc, r| {
+            if r.unique_request_id == refund_id {
+                enums::RefundStatus::from(r.status)
+            } else {
+                acc
+            }
+        })
 }
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
@@ -312,15 +327,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-            let refund_id = item.data.request.refund_id.clone();
-            let status = get_status_from_refund_response(&refund_id, item.response);
-            Ok(Self {
-                response: Ok(types::RefundsResponseData {
-                    connector_refund_id: item.data.request.refund_id.clone(),
-                    refund_status: status,
-                }),
-                ..item.data
-            })
+        let refund_id = item.data.request.refund_id.clone();
+        let status = get_status_from_refund_response(&refund_id, item.response);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.data.request.refund_id.clone(),
+                refund_status: status,
+            }),
+            ..item.data
+        })
     }
 }
 
