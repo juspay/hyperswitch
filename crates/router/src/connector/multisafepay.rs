@@ -133,7 +133,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: multisafepay::MultisafepayErrorResponse = res
+            .response
+            .parse_struct("multisafepay::MultisafepayErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code.to_string(),
+            message: response.error_info,
+            reason: None,
+        })
     }
 
     fn handle_response(
@@ -260,7 +269,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(_connectors);
-        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0]
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0]
             .1
             .clone();
         Ok(format!("{}v1/json/orders?api_key={}", url, api_key))
@@ -281,16 +290,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let requeue = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::PaymentsAuthorizeType::get_url(
-                self, req, connectors,
-            )?)
-            .headers(types::PaymentsAuthorizeType::get_headers(
-                self, req, connectors,
-            )?)
-            .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
-            .build();
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -328,7 +327,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: multisafepay::MultisafepayErrorResponse = res
+            .response
+            .parse_struct("multisafepay::MultisafepayErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code.to_string(),
+            message: response.error_info,
+            reason: None,
+        })
     }
 }
 
@@ -416,7 +424,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: multisafepay::MultisafepayErrorResponse = res
+            .response
+            .parse_struct("multisafepay::MultisafepayErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code.to_string(),
+            message: response.error_info,
+            reason: None,
+        })
     }
 }
 
@@ -489,7 +506,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: multisafepay::MultisafepayErrorResponse = res
+            .response
+            .parse_struct("multisafepay::MultisafepayErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code.to_string(),
+            message: response.error_info,
+            reason: None,
+        })
     }
 }
 
