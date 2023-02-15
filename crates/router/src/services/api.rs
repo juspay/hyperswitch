@@ -164,7 +164,6 @@ where
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
                     let response = call_connector_api(state, request).await;
-                    println!("intuit response ---->> {:?}", response);
                     match response {
                         Ok(body) => {
                             let response = match body {
