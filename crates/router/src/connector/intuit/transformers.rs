@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
-use crate::{connector::utils, core::errors,types::{self,api, storage::enums}, pii::PeekInterface};
+
+use crate::{
+    connector::utils,
+    core::errors,
+    pii::PeekInterface,
+    types::{self, api, storage::enums},
+};
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -9,7 +15,7 @@ pub struct IntuitPaymentsRequest {
     description: String,
     context: Context,
     card: Card,
-    capture: bool
+    capture: bool,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -28,9 +34,9 @@ pub struct Context {
     is_ecommerce: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let submit_for_settlement = matches!(
@@ -40,9 +46,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest  {
                 Ok(Self {
                     amount: item.request.amount.to_string(),
                     currency: item.request.currency.to_string().to_uppercase(),
-                    context: Context { 
+                    context: Context {
                         mobile: item.request.browser_info.clone().map_or(true, |_| false),
-                        is_ecommerce: false
+                        is_ecommerce: false,
                     },
                     card: Card {
                         number: ccard.card_number.peek().clone(),
@@ -73,16 +79,16 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest
                 .request
                 .amount_to_capture
                 .map(|amount| amount.to_string())
-                .ok_or_else(utils::missing_field_err("amount_to_capture"))?
+                .ok_or_else(utils::missing_field_err("amount_to_capture"))?,
         })
     }
 }
 
 pub struct IntuitAuthType {
-    pub(super) api_key: String
+    pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for IntuitAuthType  {
+impl TryFrom<&types::ConnectorAuthType> for IntuitAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
@@ -105,7 +111,7 @@ pub enum IntuitPaymentStatus {
     Issued,
     Declined,
     Settled,
-    Refunded
+    Refunded,
 }
 
 impl From<IntuitPaymentStatus> for enums::AttemptStatus {
@@ -128,9 +134,14 @@ pub struct IntuitPaymentsResponse {
     id: String,
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, IntuitPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, IntuitPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: types::ResponseRouterData<F, IntuitPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::ResponseRouterData<F, IntuitPaymentsResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -150,14 +161,14 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, IntuitPaymentsResponse, T, types:
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntuitRefundRequest {
-    amount: String
+    amount: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for IntuitRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount.to_string()
+            amount: item.request.refund_amount.to_string(),
         })
     }
 }
@@ -168,7 +179,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IntuitRefundRequest {
 pub enum IntuitRefundStatus {
     Issued,
     #[default]
-    Declined
+    Declined,
 }
 
 impl From<IntuitRefundStatus> for enums::RefundStatus {
@@ -184,7 +195,7 @@ impl From<IntuitRefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     pub id: String,
     pub amount: String,
-    pub status: IntuitRefundStatus
+    pub status: IntuitRefundStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -197,21 +208,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status)
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+    for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status)
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })

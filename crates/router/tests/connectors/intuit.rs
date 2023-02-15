@@ -99,7 +99,7 @@ async fn should_sync_authorized_payment() {
 
 // Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
-// #[ignore = "Payments Void URL is documented incorrectly on gateway's end"]
+#[ignore = "Payments Void URL is documented incorrectly on gateway's end"]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
@@ -308,8 +308,8 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.is_err(),
-        true,
+        response.response.unwrap_err().message,
+        "card.number is invalid.",
     );
 }
 
@@ -330,8 +330,8 @@ async fn should_fail_payment_for_empty_card_number() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.is_err(),
-        true,
+        response.response.unwrap_err().message,
+        "card.cvc is invalid.",
     );
 }
 
@@ -352,8 +352,8 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.is_err(),
-        true,
+        response.response.unwrap_err().message,
+        "card.cvc is invalid.",
     );
 }
 
@@ -374,8 +374,8 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.is_err(),
-        true,
+        response.response.unwrap_err().message,
+        "card.expmonth is invalid.",
     );
 }
 
@@ -396,8 +396,8 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.is_err(),
-        true,
+        response.response.unwrap_err().message,
+        "card.expyear is invalid.",
     );
 }
 
@@ -413,8 +413,8 @@ async fn should_fail_void_payment_for_auto_capture() {
         .await
         .unwrap();
     assert_eq!(
-        void_response.response.is_err(),
-        true
+        void_response.response.unwrap_err().message,
+        "uri is invalid."
     );
 }
 
@@ -426,10 +426,9 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
 
-    println!("{:?}", capture_response.response);
     assert_eq!(
-        capture_response.response.is_err(),
-        true
+        capture_response.response.unwrap_err().message,
+        "chargeId is invalid."
     );
 }
 
@@ -447,12 +446,5 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.is_err(),
-        true,
-    );
+    assert_eq!(response.response.unwrap_err().message, "amount is invalid.",);
 }
-
-// Connector dependent test cases goes here
-
-// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests

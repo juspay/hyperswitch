@@ -167,7 +167,7 @@ pub trait ConnectorActions: Connector {
             .unwrap();
         assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
         let txn_id = get_connector_transaction_id(authorize_response.response);
-        tokio::time::sleep(Duration::from_secs(10)).await; // to avoid 404 error
+        tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await; // to avoid 404 error
         let response = self
             .void_payment(txn_id.unwrap(), void_data, payment_info)
             .await

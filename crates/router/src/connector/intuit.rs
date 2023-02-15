@@ -1,34 +1,35 @@
 mod transformers;
 
 use std::fmt::Debug;
-use error_stack::{ResultExt, IntoReport};
+
+use error_stack::{IntoReport, ResultExt};
+use transformers as intuit;
 use uuid::Uuid;
 
 use crate::{
     configs::settings,
     connector::utils::RefundsRequestData,
-    utils::{self, BytesExt},
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services::{self, ConnectorIntegration},
+    headers, logger,
+    services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
-    }
+    },
+    utils::{self, BytesExt},
 };
-
-
-use transformers as intuit;
 
 #[derive(Debug, Clone)]
 pub struct Intuit;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Intuit 
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Intuit
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,{
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
@@ -64,34 +65,50 @@ impl ConnectorCommon for Intuit {
         connectors.intuit.base_url.as_ref()
     }
 
-    fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
+    fn get_auth_header(
+        &self,
+        auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: intuit::IntuitAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: intuit::IntuitErrorResponse = res
+            .response
+            .parse_struct("Intuit ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Some(error_resp) = response.errors.get(0) {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_resp.code.clone(),
+                message: error_resp.message.clone(),
+                reason: None,
+            });
+        }
+
+        Ok(ErrorResponse::default())
     }
 }
 
 impl api::Payment for Intuit {}
 
 impl api::PreVerify for Intuit {}
-impl
-    ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Intuit
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Intuit
 {
 }
 
 impl api::PaymentVoid for Intuit {}
 
-impl
-    ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Intuit
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Intuit
 {
     fn get_headers(
         &self,
@@ -139,7 +156,7 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         logger::debug!(payments_void_response=?res);
-        let response: intuit:: IntuitPaymentsResponse = res
+        let response: intuit::IntuitPaymentsResponse = res
             .response
             .parse_struct("intuit PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -155,20 +172,6 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: intuit::IntuitErrorResponse = res
-            .response
-            .parse_struct("Intuit ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
-        }
-
         self.build_error_response(res)
     }
 }
@@ -181,8 +184,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 }
 
 impl api::PaymentSync for Intuit {}
-impl
-    ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Intuit
 {
     fn get_headers(
@@ -232,20 +234,6 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: intuit::IntuitErrorResponse = res
-            .response
-            .parse_struct("Intuit ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
-        }
-
         self.build_error_response(res)
     }
 
@@ -255,7 +243,7 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: intuit:: IntuitPaymentsResponse = res
+        let response: intuit::IntuitPaymentsResponse = res
             .response
             .parse_struct("intuit PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -268,14 +256,9 @@ impl
     }
 }
 
-
 impl api::PaymentCapture for Intuit {}
-impl
-    ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Intuit
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Intuit
 {
     fn get_headers(
         &self,
@@ -307,11 +290,10 @@ impl
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = intuit::IntuitPaymentsCaptureRequest::try_from(req)?;
-        let req =
-            utils::Encode::<intuit::IntuitPaymentsCaptureRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req = utils::Encode::<intuit::IntuitPaymentsCaptureRequest>::encode_to_string_of_json(
+            &req_obj,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -355,45 +337,28 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: intuit::IntuitErrorResponse = res
-            .response
-            .parse_struct("Intuit ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
-        }
-
         self.build_error_response(res)
     }
 }
 
 impl api::PaymentSession for Intuit {}
 
-impl
-    ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Intuit
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Intuit
 {
     //TODO: implement sessions flow
 }
 
 impl api::PaymentAuthorize for Intuit {}
 
-impl
-    ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Intuit {
-    fn get_headers(&self, req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Intuit
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -401,17 +366,25 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Ok(format!("{}/quickbooks/v4/payments/charges", self.base_url(connectors)))
+    fn get_url(
+        &self,
+        _req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/quickbooks/v4/payments/charges",
+            self.base_url(connectors)
+        ))
     }
 
-    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = intuit::IntuitPaymentsRequest::try_from(req)?;
         let req =
-            utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -438,9 +411,15 @@ impl
         &self,
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        logger::debug!("intuit payment authorize response ---------- {:?}", res.response);
-        let response: intuit::IntuitPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!(
+            "intuit payment authorize response ---------- {:?}",
+            res.response
+        );
+        let response: intuit::IntuitPaymentsResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(payments_create_response=?response);
         types::ResponseRouterData {
             response,
@@ -451,21 +430,10 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        let response: intuit::IntuitErrorResponse = res
-            .response
-            .parse_struct("Intuit ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
-        }
-
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
@@ -474,13 +442,12 @@ impl api::Refund for Intuit {}
 impl api::RefundExecute for Intuit {}
 impl api::RefundSync for Intuit {}
 
-impl
-    ConnectorIntegration<
-        api::Execute,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > for Intuit {
-    fn get_headers(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Intuit {
+    fn get_headers(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -488,7 +455,11 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}/quickbooks/v4/payments/charges/{}/refunds",
@@ -497,21 +468,28 @@ impl
         ))
     }
 
-    fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
+    fn get_request_body(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = intuit::IntuitRefundRequest::try_from(req).unwrap();
         let req =
-            utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<intuit::IntuitPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
-    fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
+    fn build_request(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(self, req, connectors)?)
+            .headers(types::RefundExecuteType::get_headers(
+                self, req, connectors,
+            )?)
             .body(self.get_request_body(req)?)
             .build();
         Ok(Some(request))
@@ -521,9 +499,12 @@ impl
         &self,
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
+    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         logger::debug!(target: "router::connector::intuit", response=?res);
-        let response: intuit::RefundResponse = res.response.parse_struct("intuit RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: intuit::RefundResponse =
+            res.response
+                .parse_struct("intuit RefundResponse")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -533,28 +514,20 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        let response: intuit::IntuitErrorResponse = res
-            .response
-            .parse_struct("Intuit ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
-        }
-
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
 
-impl
-    ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Intuit {
-    fn get_headers(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Intuit {
+    fn get_headers(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -562,7 +535,11 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
@@ -592,9 +569,12 @@ impl
         &self,
         data: &types::RefundSyncRouterData,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::intuit", response=?res);
-        let response: intuit::RefundResponse = res.response.parse_struct("intuit RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: intuit::RefundResponse =
+            res.response
+                .parse_struct("intuit RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -604,21 +584,10 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
-    fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        let response: intuit::IntuitErrorResponse = res
-            .response
-            .parse_struct("Intuit ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
-        }
-
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
 }
