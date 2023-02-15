@@ -1,4 +1,5 @@
 pub mod address;
+pub mod api_keys;
 pub mod cache;
 pub mod configs;
 pub mod connector_response;
@@ -35,23 +36,24 @@ pub trait StorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + payment_attempt::PaymentAttemptInterface
-    + mandate::MandateInterface
     + address::AddressInterface
+    + api_keys::ApiKeyInterface
     + configs::ConfigInterface
+    + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
+    + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
-    + merchant_account::MerchantAccountInterface
-    + merchant_connector_account::MerchantConnectorAccountInterface
-    + merchant_connector_account::ConnectorAccessToken
     + locker_mock_up::LockerMockUpInterface
+    + mandate::MandateInterface
+    + merchant_account::MerchantAccountInterface
+    + merchant_connector_account::ConnectorAccessToken
+    + merchant_connector_account::MerchantConnectorAccountInterface
+    + payment_attempt::PaymentAttemptInterface
     + payment_intent::PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + process_tracker::ProcessTrackerInterface
-    + refund::RefundInterface
     + queue::QueueInterface
-    + ephemeral_key::EphemeralKeyInterface
-    + connector_response::ConnectorResponseInterface
+    + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + 'static
 {

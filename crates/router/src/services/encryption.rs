@@ -1,6 +1,7 @@
 use std::{num::Wrapping, str};
 
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "basilisk")]
 use josekit::jwe;
 use rand;
 use ring::{aead::*, error::Unspecified};
@@ -175,6 +176,7 @@ pub fn get_key_id(keys: &Jwekey) -> &str {
     }
 }
 
+#[cfg(feature = "basilisk")]
 pub async fn encrypt_jwe(
     keys: &Jwekey,
     msg: &str,

@@ -1,12 +1,12 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, ResultExt};
+use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
 use crate::{
     consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    env::{self, Env},
     pii::Secret,
     services::api as service_api,
     types::{
@@ -19,12 +19,11 @@ use crate::{
 
 #[inline]
 pub fn create_merchant_api_key() -> String {
-    let id = Uuid::new_v4().simple();
-    match env::which() {
-        Env::Development => format!("dev_{id}"),
-        Env::Production => format!("prd_{id}"),
-        Env::Sandbox => format!("snd_{id}"),
-    }
+    format!(
+        "{}_{}",
+        router_env::env::prefix_for_env(),
+        Uuid::new_v4().simple()
+    )
 }
 
 pub async fn create_merchant_account(
@@ -463,4 +462,82 @@ pub async fn delete_payment_connector(
         deleted: is_deleted,
     };
     Ok(service_api::ApplicationResponse::Json(response))
+}
+
+pub async fn kv_for_merchant(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+    enable: bool,
+) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    // check if the merchant account exists
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
+    let updated_merchant_account = match (enable, merchant_account.storage_scheme) {
+        (true, enums::MerchantStorageScheme::RedisKv)
+        | (false, enums::MerchantStorageScheme::PostgresOnly) => Ok(merchant_account),
+        (true, enums::MerchantStorageScheme::PostgresOnly) => {
+            db.update_merchant(
+                merchant_account,
+                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
+                    storage_scheme: enums::MerchantStorageScheme::RedisKv,
+                },
+            )
+            .await
+        }
+        (false, enums::MerchantStorageScheme::RedisKv) => {
+            db.update_merchant(
+                merchant_account,
+                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
+                    storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
+                },
+            )
+            .await
+        }
+    }
+    .map_err(|error| {
+        error
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to switch merchant_storage_scheme")
+    })?;
+    let kv_status = matches!(
+        updated_merchant_account.storage_scheme,
+        enums::MerchantStorageScheme::RedisKv
+    );
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleKVResponse {
+            merchant_id: updated_merchant_account.merchant_id,
+            kv_enabled: kv_status,
+        },
+    ))
+}
+
+pub async fn check_merchant_account_kv_status(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    // check if the merchant account exists
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
+    let kv_status = matches!(
+        merchant_account.storage_scheme,
+        enums::MerchantStorageScheme::RedisKv
+    );
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleKVResponse {
+            merchant_id: merchant_account.merchant_id,
+            kv_enabled: kv_status,
+        },
+    ))
 }
