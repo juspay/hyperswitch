@@ -414,7 +414,3 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(response.response.is_err(), true,);
 }
-
-// Connector dependent test cases goes here
-
-// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests

@@ -218,7 +218,6 @@ pub struct ShoppingCart {
     pub items: Vec<Item>,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
@@ -478,7 +477,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct MultisafepayAuthType {
     pub(super) api_key: String,
@@ -497,7 +495,6 @@ impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Eq, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MultisafepayPaymentStatus {
@@ -532,7 +529,6 @@ pub struct Data {
     pub error_info: Option<String>,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MultisafepayPaymentsResponse {
     pub success: bool,
@@ -597,7 +593,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
@@ -646,7 +641,6 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
@@ -659,7 +653,6 @@ pub struct RefundData {
     pub error_code: Option<i32>,
     pub error_info: Option<String>,
 }
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub success: bool,
@@ -712,7 +705,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MultisafepayErrorResponse {
     pub success: bool,
