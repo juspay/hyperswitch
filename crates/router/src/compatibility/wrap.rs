@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use error_stack::report;
+use common_utils::errors::ErrorSwitch;
 use router_env::{instrument, tracing};
 use serde::Serialize;
 
@@ -24,15 +24,13 @@ where
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
     Q: Serialize + std::fmt::Debug + 'a,
     S: From<Q> + Serialize,
-    E: From<errors::ApiErrorResponse>
-        + Serialize
-        + error_stack::Context
-        + actix_web::ResponseError
-        + Clone,
+    E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
     A: AppStateInfo,
 {
-    let resp = compatibility_wrap_util(state, request, payload, func, api_authentication).await;
+    let resp: common_utils::errors::CustomResult<_, E> =
+        api::server_wrap_util(state, request, payload, func, api_authentication).await;
     match resp {
         Ok(api::ApplicationResponse::Json(router_resp)) => {
             let pg_resp = S::try_from(router_resp);
@@ -75,29 +73,8 @@ where
             .map_into_boxed_body(),
         Err(error) => {
             logger::error!(api_response_error=?error);
-            let pg_error = E::from(error.current_context().clone());
-            api::log_and_return_error_response(report!(pg_error))
+            // let pg_error = E::from(error.current_context().clone());
+            api::log_and_return_error_response(error)
         }
     }
-}
-
-#[instrument(skip_all)]
-pub async fn compatibility_wrap_util<'a, 'b, A, U, T, Q, F, Fut>(
-    state: &'b A,
-    request: &'a HttpRequest,
-    payload: T,
-    func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
-) -> RouterResult<api::ApplicationResponse<Q>>
-where
-    F: Fn(&'b A, U, T) -> Fut,
-    Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
-    Q: Serialize + std::fmt::Debug + 'a,
-    T: std::fmt::Debug,
-    A: AppStateInfo,
-{
-    let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), state)
-        .await?;
-    func(state, auth_out, payload).await
 }

@@ -385,21 +385,21 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E>(
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
-) -> CustomResult<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>
+) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
-    CustomResult<ApplicationResponse<Q>, E>:
-        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
+    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
+    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)

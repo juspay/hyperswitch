@@ -2,6 +2,7 @@ use actix_web::{body, dev::ServiceResponse, middleware::ErrorHandlerResponse, Re
 use http::StatusCode;
 
 use super::ApiErrorResponse;
+use crate::logger;
 pub fn custom_error_handlers<B: body::MessageBody + 'static>(
     res: ServiceResponse<B>,
 ) -> actix_web::Result<ErrorHandlerResponse<B>> {
@@ -10,7 +11,9 @@ pub fn custom_error_handlers<B: body::MessageBody + 'static>(
         StatusCode::METHOD_NOT_ALLOWED => ApiErrorResponse::InvalidHttpMethod,
         _ => ApiErrorResponse::InternalServerError,
     };
+
     let (req, res) = res.into_parts();
+    logger::warn!(error_response=?res);
     let res = match res.error() {
         Some(_) => res.map_into_boxed_body(),
         None => error_response.error_response(),

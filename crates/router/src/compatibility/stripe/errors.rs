@@ -529,3 +529,9 @@ impl From<serde_qs::Error> for StripeErrorCode {
         }
     }
 }
+
+impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        self.clone().into()
+    }
+}

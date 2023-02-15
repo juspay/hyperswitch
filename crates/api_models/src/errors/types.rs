@@ -3,7 +3,7 @@ use reqwest::StatusCode;
 #[derive(Debug, serde::Serialize)]
 pub enum ErrorType {
     InvalidRequestError,
-    HyperswitchError,
+    RouterError,
     ConnectorError,
 }
 
@@ -34,22 +34,22 @@ impl ApiError {
 #[derive(Debug, serde::Serialize)]
 struct ErrorResponse {
     #[serde(rename = "type")]
-    type_: String,
+    error_type: &'static str,
     message: String,
     code: String,
     #[serde(flatten)]
     extra: Extra,
 }
 
-impl From<&ApiErrorResponse> for ErrorResponse {
-    fn from(value: &ApiErrorResponse) -> Self {
+impl From<ApiErrorResponse> for ErrorResponse {
+    fn from(value: ApiErrorResponse) -> Self {
         let error_info = value.get_internal_error();
-        let error_type = value.error_type().to_string();
+        let error_type = value.error_type();
         Self {
             code: format!("{}_{}", error_info.sub_code, error_info.error_identifier),
-            message: error_info.error_message.clone(),
-            type_: error_type,
-            extra: error_info.extra.clone().unwrap_or_default(),
+            message: error_info.error_message,
+            error_type,
+            extra: error_info.extra.unwrap_or_default(),
         }
     }
 }
@@ -84,7 +84,7 @@ pub enum ApiErrorResponse {
 
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let error_response: ErrorResponse = self.into();
+        let error_response: ErrorResponse = self.clone().into();
         write!(
             f,
             r#"{{"error":{}}}"#,
@@ -95,7 +95,7 @@ impl ::core::fmt::Display for ApiErrorResponse {
 }
 
 impl ApiErrorResponse {
-    pub(crate) fn get_internal_error(&self) -> &ApiError {
+    pub(crate) fn get_internal_error(&self) -> ApiError {
         match self {
             Self::Unauthorized(i)
             | Self::ForbiddenCommonResource(i)
@@ -108,11 +108,11 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
-            | Self::ConnectorError(i, _) => i,
+            | Self::ConnectorError(i, _) => i.clone(),
         }
     }
 
-    pub(crate) fn error_type(&self) -> &str {
+    pub(crate) fn error_type(&self) -> &'static str {
         match self {
             Self::Unauthorized(_)
             | Self::ForbiddenCommonResource(_)
