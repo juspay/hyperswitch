@@ -519,7 +519,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
-	Multisafepay,
+    Multisafepay,
     Fiserv,
     Globalpay,
     Klarna,

@@ -1,15 +1,20 @@
-
 use std::collections::HashMap;
 
 use common_utils::pii::Email;
-use masking::{ExposeInterface};
-use serde::{Deserialize, Serialize};
 use error_stack::{IntoReport, ResultExt};
-use url::Url;
-use uuid::Uuid;
+use masking::ExposeInterface;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use crate::{core::errors,pii::{self, Secret},services,types::{self,api, storage::enums}};
+use serde::{Deserialize, Serialize};
+use url::Url;
+use uuid::Uuid;
+
+use crate::{
+    core::errors,
+    pii::{self, Secret},
+    services,
+    types::{self, api, storage::enums},
+};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -32,7 +37,7 @@ pub enum Gateway {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Coupons {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub allow: Option<Vec<String>>
+    pub allow: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -44,14 +49,14 @@ pub struct Mistercash {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub qr_only: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub qr_size: Option<String>
+    pub qr_size: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub struct Gateways {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mistercash: Option<Mistercash>
+    pub mistercash: Option<Mistercash>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -59,7 +64,7 @@ pub struct Settings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub coupons: Option<Coupons>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub gateways: Option<Gateways>
+    pub gateways: Option<Gateways>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -67,7 +72,7 @@ pub struct PaymentOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notification_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub notification_method: Option<String>, 
+    pub notification_method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -75,12 +80,11 @@ pub struct PaymentOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub close_window: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub settings: Option<Settings>, 
+    pub settings: Option<Settings>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub allowed_countries: Option<Vec<String>>
-
+    pub allowed_countries: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -104,7 +108,7 @@ pub struct Browser {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub platform: Option<String>
+    pub platform: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -142,13 +146,13 @@ pub struct Customer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<masking::Secret<String, Email>>, 
+    pub email: Option<masking::Secret<String, Email>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub referrer: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reference: Option<String>
+    pub reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -202,12 +206,12 @@ pub struct CheckoutOptions {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Item {
-    pub name: String, 
+    pub name: String,
     pub unit_price: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub quantity: i64,
-} 
+}
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ShoppingCart {
@@ -261,12 +265,12 @@ static CARD_REGEX: Lazy<HashMap<Gateway, Result<Regex, regex::Error>>> = Lazy::n
     // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
     // [#379]: Determine card issuer from card BIN number
     map.insert(Gateway::MasterCard, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(
-        Gateway::Amex,
-        Regex::new(r"^3[47][0-9]{13}$"),
-    );
+    map.insert(Gateway::Amex, Regex::new(r"^3[47][0-9]{13}$"));
     map.insert(Gateway::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-    map.insert(Gateway::Maestro, Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"));
+    map.insert(
+        Gateway::Maestro,
+        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+    );
     map
 });
 
@@ -287,37 +291,39 @@ fn get_card_product_id(
     ))
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsRequest  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        let _type = match _item.request.payment_method_data {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let _type = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref _ccard) => Type::Direct,
             api::PaymentMethod::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
-        let gateway = match _item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => get_card_product_id(ccard.card_number.clone().expose().as_str())?,
+        let gateway = match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => {
+                get_card_product_id(ccard.card_number.clone().expose().as_str())?
+            }
             api::PaymentMethod::PayLater(ref _paylater) => Gateway::Klarna,
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Payment method not Implemented".to_string())
-            )?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not Implemented".to_string(),
+            ))?,
         };
 
-        let description = match _item.description.clone() {
+        let description = match item.description.clone() {
             Some(desc) => desc,
             None => String::from("Default Description"),
         };
 
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: _item.return_url.clone(),
-            cancel_url: None, 
+            redirect_url: item.return_url.clone(),
+            cancel_url: None,
             close_window: None,
             notification_method: None,
             settings: None,
             template_id: None,
-            allowed_countries: None
+            allowed_countries: None,
         };
 
         let customer = Customer {
@@ -337,10 +343,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             state: None,
             country: None,
             phone: None,
-            email: _item.request.email.clone(),
+            email: item.request.email.clone(),
             user_agent: None,
             referrer: None,
-            reference: None
+            reference: None,
         };
 
         let default_delivery = DeliveryObject {
@@ -353,14 +359,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             country: String::from("default"),
         };
 
-        let delivery = match _item.address.billing.clone() {
+        let delivery = match item.address.billing.clone() {
             Some(addr) => match addr.address {
                 Some(addrs) => DeliveryObject {
-                    first_name: addrs.first_name.unwrap_or(Secret::new("default".to_string())).expose(),
-                    last_name: addrs.last_name.unwrap_or(Secret::new("default".to_string())).expose(),
-                    address1: addrs.line1.unwrap_or(Secret::new("default".to_string())).expose(),
-                    house_number: addrs.line2.unwrap_or(Secret::new("default".to_string())).expose(),
-                    zip_code: addrs.zip.unwrap_or(Secret::new("default".to_string())).expose(),
+                    first_name: addrs
+                        .first_name
+                        .unwrap_or(Secret::new("default".to_string()))
+                        .expose(),
+                    last_name: addrs
+                        .last_name
+                        .unwrap_or(Secret::new("default".to_string()))
+                        .expose(),
+                    address1: addrs
+                        .line1
+                        .unwrap_or(Secret::new("default".to_string()))
+                        .expose(),
+                    house_number: addrs
+                        .line2
+                        .unwrap_or(Secret::new("default".to_string()))
+                        .expose(),
+                    zip_code: addrs
+                        .zip
+                        .unwrap_or(Secret::new("default".to_string()))
+                        .expose(),
                     city: addrs.city.unwrap_or("default".to_string()),
                     country: addrs.country.unwrap_or("default".to_string()),
                 },
@@ -369,70 +390,74 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             None => default_delivery,
         };
 
-        let gateway_info = match _item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
-                GatewayInfo {
-                    card_number: Some(ccard.card_number.clone().expose()),
-                    card_expiry_date: Some((format!("{}{}", ccard.card_exp_year.clone().expose(), ccard.card_exp_month.clone().expose())).parse::<i32>().unwrap_or_default()),
-                    card_cvc: Some(ccard.card_cvc.clone().expose()),
-                    card_holder_name: None,
-                    flexible_3d: None,
-                    moto: None,
-                    term_url: None,
-                    email: None,
-                }
+        let gateway_info = match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => GatewayInfo {
+                card_number: Some(ccard.card_number.clone().expose()),
+                card_expiry_date: Some(
+                    (format!(
+                        "{}{}",
+                        ccard.card_exp_year.clone().expose(),
+                        ccard.card_exp_month.clone().expose()
+                    ))
+                    .parse::<i32>()
+                    .unwrap_or_default(),
+                ),
+                card_cvc: Some(ccard.card_cvc.clone().expose()),
+                card_holder_name: None,
+                flexible_3d: None,
+                moto: None,
+                term_url: None,
+                email: None,
             },
-            api::PaymentMethod::PayLater(ref paylater) => {
-                GatewayInfo {
-                    card_number: None,
-                    card_expiry_date: None,
-                    card_cvc: None,
-                    card_holder_name: None,
-                    flexible_3d: None,
-                    moto: None,
-                    term_url: None,
-                    email: Some(match paylater {
-                        api_models::payments::PayLaterData::KlarnaRedirect { 
-                            issuer_name, 
-                            billing_email, 
-                            billing_country, 
-                        } => billing_email.clone(),
-                        _ => Err(
-                            errors::ConnectorError::NotImplemented("Only KlarnaRedirect is implemented".to_string())
-                        )?,
-                    }),
-                }
+            api::PaymentMethod::PayLater(ref paylater) => GatewayInfo {
+                card_number: None,
+                card_expiry_date: None,
+                card_cvc: None,
+                card_holder_name: None,
+                flexible_3d: None,
+                moto: None,
+                term_url: None,
+                email: Some(match paylater {
+                    api_models::payments::PayLaterData::KlarnaRedirect {
+                        issuer_name,
+                        billing_email,
+                        billing_country,
+                    } => billing_email.clone(),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Only KlarnaRedirect is implemented".to_string(),
+                    ))?,
+                }),
             },
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Payment method not Implemented".to_string())
-            )?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not Implemented".to_string(),
+            ))?,
         };
 
-        let checkout_options = CheckoutOptions { 
+        let checkout_options = CheckoutOptions {
             validate_cart: Some(false),
             tax_tables: TaxObject {
                 default: DefaultObject {
                     shipping_taxed: false,
                     rate: 0.0,
-                }
-            }
+                },
+            },
         };
 
         let shopping_cart = ShoppingCart {
-            items: vec!(Item {
+            items: vec![Item {
                 name: String::from("Item"),
-                unit_price: _item.request.amount.clone() as f64 / 100.00,
+                unit_price: item.request.amount.clone() as f64 / 100.00,
                 description: Some(description.clone()),
                 quantity: 1,
-            })
+            }],
         };
 
         Ok(Self {
             _type,
             gateway,
-            order_id: _item.payment_id.to_string(),
-            currency: _item.request.currency.to_string(),
-            amount: _item.request.amount.clone(),
+            order_id: item.payment_id.to_string(),
+            currency: item.request.currency.to_string(),
+            amount: item.request.amount.clone(),
             description: description.clone(),
             payment_options: Some(payment_options),
             customer: Some(customer),
@@ -448,7 +473,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             seconds_active: Some(259200),
             var1: None,
             var2: None,
-            var3: None
+            var3: None,
         })
     }
 }
@@ -456,10 +481,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct MultisafepayAuthType {
-    pub(super) api_key: String
+    pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType  {
+impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
@@ -514,34 +539,53 @@ pub struct MultisafepayPaymentsResponse {
     pub data: Data,
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            MultisafepayPaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
         let redirection_data = match item.response.data.payment_url.clone() {
             Some(url) => Some({
-                    let mut base_url = url.clone();
-                    base_url.set_query(None);
-                    services::RedirectForm {
-                        url: base_url.to_string(),
-                        method: services::Method::Get,
-                        form_fields: std::collections::HashMap::from_iter(
-                            url
-                                .query_pairs()
-                                .map(|(k, v)| (k.to_string(), v.to_string())),
-                        ),
-                    }
-                }),
+                let mut base_url = url.clone();
+                base_url.set_query(None);
+                services::RedirectForm {
+                    url: base_url.to_string(),
+                    method: services::Method::Get,
+                    form_fields: std::collections::HashMap::from_iter(
+                        url.query_pairs()
+                            .map(|(k, v)| (k.to_string(), v.to_string())),
+                    ),
+                }
+            }),
             None => None,
         };
-        
-        let default_status = if item.response.success { MultisafepayPaymentStatus::Initialized } else { MultisafepayPaymentStatus::Declined };
+
+        let default_status = if item.response.success {
+            MultisafepayPaymentStatus::Initialized
+        } else {
+            MultisafepayPaymentStatus::Declined
+        };
 
         let status = item.response.data.status.unwrap_or(default_status);
 
         Ok(Self {
             status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id.unwrap_or(Uuid::new_v4().to_string())),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response
+                        .data
+                        .order_id
+                        .unwrap_or(Uuid::new_v4().to_string()),
+                ),
                 redirection_data,
                 redirect: item.response.data.payment_url.is_some(),
                 mandate_reference: None,
@@ -567,20 +611,20 @@ pub struct MultisafepayRefundRequest {
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            currency: _item.request.currency.to_string(),
-            amount: _item.request.amount,
-            description: _item.description.clone(),
+            currency: item.request.currency.to_string(),
+            amount: item.request.amount,
+            description: item.description.clone(),
             refund_order_id: Some(Uuid::new_v4().to_string()),
             checkout_data: ShoppingCart {
-                items: vec!(Item {
+                items: vec![Item {
                     name: String::from("Item"),
-                    unit_price: _item.request.amount.clone() as f64 / 100.00,
+                    unit_price: item.request.amount.clone() as f64 / 100.00,
                     description: None,
                     quantity: 1,
-                }),
-            }
+                }],
+            },
         })
     }
 }
@@ -627,40 +671,51 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_stat = if _item.response.success { RefundStatus::Succeeded } else { RefundStatus::Failed };
+        let refund_stat = if item.response.success {
+            RefundStatus::Succeeded
+        } else {
+            RefundStatus::Failed
+        };
 
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: _item.response.data.refund_id.to_string(),
+                connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: enums::RefundStatus::from(refund_stat),
             }),
-            .._item.data
+            ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+    for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-        let refund_status = if _item.response.success { RefundStatus::Succeeded } else { RefundStatus::Failed };
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = if item.response.success {
+            RefundStatus::Succeeded
+        } else {
+            RefundStatus::Failed
+        };
 
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: _item.response.data.refund_id.to_string(),
+                connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: enums::RefundStatus::from(refund_status),
             }),
-            .._item.data
+            ..item.data
         })
     }
- }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MultisafepayErrorResponse {
     pub success: bool,
-    pub error_code: i32, 
+    pub error_code: i32,
     pub error_info: String,
 }

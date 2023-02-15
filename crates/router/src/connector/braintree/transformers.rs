@@ -359,4 +359,3 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         })
     }
 }
-
