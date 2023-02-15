@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use reqwest::StatusCode;
 
 #[derive(Debug, serde::Serialize)]
@@ -32,24 +34,24 @@ impl ApiError {
 }
 
 #[derive(Debug, serde::Serialize)]
-struct ErrorResponse {
+struct ErrorResponse<'a> {
     #[serde(rename = "type")]
     error_type: &'static str,
-    message: String,
+    message: Cow<'a, str>,
     code: String,
     #[serde(flatten)]
-    extra: Extra,
+    extra: &'a Option<Extra>,
 }
 
-impl From<ApiErrorResponse> for ErrorResponse {
-    fn from(value: ApiErrorResponse) -> Self {
+impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
+    fn from(value: &'a ApiErrorResponse) -> Self {
         let error_info = value.get_internal_error();
         let error_type = value.error_type();
         Self {
             code: format!("{}_{}", error_info.sub_code, error_info.error_identifier),
-            message: error_info.error_message,
+            message: Cow::Borrowed(value.get_internal_error().error_message.as_str()),
             error_type,
-            extra: error_info.extra.unwrap_or_default(),
+            extra: &error_info.extra,
         }
     }
 }
@@ -84,7 +86,7 @@ pub enum ApiErrorResponse {
 
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let error_response: ErrorResponse = self.clone().into();
+        let error_response: ErrorResponse<'_> = self.into();
         write!(
             f,
             r#"{{"error":{}}}"#,
@@ -95,7 +97,7 @@ impl ::core::fmt::Display for ApiErrorResponse {
 }
 
 impl ApiErrorResponse {
-    pub(crate) fn get_internal_error(&self) -> ApiError {
+    pub(crate) fn get_internal_error(&self) -> &ApiError {
         match self {
             Self::Unauthorized(i)
             | Self::ForbiddenCommonResource(i)
@@ -108,7 +110,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
-            | Self::ConnectorError(i, _) => i.clone(),
+            | Self::ConnectorError(i, _) => i,
         }
     }
 
