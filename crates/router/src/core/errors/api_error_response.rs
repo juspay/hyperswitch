@@ -133,6 +133,8 @@ pub enum ApiErrorResponse {
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
     MandateNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
+    ApiKeyNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Return URL is not configured and not passed in payments request")]
     ReturnUrlUnavailable,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard")]
@@ -231,7 +233,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::IncorrectConnectorNameGiven
             | Self::ResourceIdNotFound
             | Self::ConfigNotFound
-            | Self::AddressNotFound => StatusCode::BAD_REQUEST, // 400
+            | Self::AddressNotFound
+            | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod

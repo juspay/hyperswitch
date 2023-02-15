@@ -337,3 +337,49 @@ pub async fn payment_connector_delete(
     )
     .await
 }
+
+// Merchant Account - Toggle KV
+
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<admin::ToggleKVRequest>,
+) -> HttpResponse {
+    let payload = json_payload.into_inner();
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        (merchant_id, payload),
+        |state, _, (merchant_id, payload)| {
+            kv_for_merchant(&*state.store, merchant_id, payload.kv_enabled)
+        },
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+// Merchant Account - KV Status
+
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_kv_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        merchant_id,
+        |state, _, req| check_merchant_account_kv_status(&*state.store, req),
+        &auth::AdminApiAuth,
+    )
+    .await
+}

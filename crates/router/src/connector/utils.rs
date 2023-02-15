@@ -40,6 +40,7 @@ pub trait PaymentsRequestData {
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
 }
 
 pub trait RefundsRequestData {
@@ -90,6 +91,12 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             .billing
             .as_ref()
             .ok_or_else(missing_field_err("billing"))
+    }
+
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
 }
 
