@@ -16,6 +16,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    db_wrapper,
     routes::AppState,
     types::{
         self,
@@ -52,40 +53,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
-        let (payment_intent, payment_attempt, connector_response);
+        // let (payment_intent, payment_attempt, connector_response);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
+
+        // let mut parallel_db_calls = db_wrapper::DbCalls;
 
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type,
-                merchant_account,
-            )
-            .await?;
-
-        let shipping_address = helpers::get_address_for_payment_request(
-            db,
-            request.shipping.as_ref(),
-            None,
-            merchant_id,
-            &request.customer_id,
-        )
-        .await?;
-
-        let billing_address = helpers::get_address_for_payment_request(
-            db,
-            request.billing.as_ref(),
-            None,
-            merchant_id,
-            &request.customer_id,
-        )
-        .await?;
+        let payment_method_type: Option<storage_models::enums::PaymentMethodType> =
+            request.payment_method.map(ForeignInto::foreign_into);
 
         let browser_info = request
             .browser_info
@@ -98,54 +77,75 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        payment_attempt = db
-            .insert_payment_attempt(
-                Self::make_payment_attempt(
-                    &payment_id,
-                    merchant_id,
-                    money,
-                    payment_method_type,
-                    request,
-                    browser_info,
-                ),
-                storage_scheme,
-            )
-            .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
-            })?;
+        let shipping_address_id = request
+            .shipping
+            .as_ref()
+            .map(|_| common_utils::generate_id(consts::ID_LENGTH, "add"));
 
-        payment_intent = db
-            .insert_payment_intent(
-                Self::make_payment_intent(
-                    &payment_id,
-                    merchant_id,
-                    money,
-                    request,
-                    shipping_address.clone().map(|x| x.address_id),
-                    billing_address.clone().map(|x| x.address_id),
-                )?,
-                storage_scheme,
-            )
-            .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
-            })?;
-        connector_response = db
-            .insert_connector_response(
-                Self::make_connector_response(&payment_attempt),
-                storage_scheme,
-            )
-            .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
-            })?;
+        let billing_address_id = request
+            .billing
+            .as_ref()
+            .map(|_| common_utils::generate_id(consts::ID_LENGTH, "add"));
+
+        let new_payment_intent = Self::make_payment_intent(
+            &payment_id,
+            merchant_id,
+            money,
+            request,
+            shipping_address_id.as_ref(),
+            billing_address_id.as_ref(),
+        )?;
+
+        let new_payment_attempt = Self::make_payment_attempt(
+            &payment_id,
+            merchant_id,
+            money,
+            payment_method_type,
+            request,
+            browser_info,
+        );
+
+        let new_connector_response = Self::make_connector_response(&new_payment_attempt);
+
+        let shipping_address_caller = helpers::create_and_insert_address_if_present(
+            request.shipping.as_ref(),
+            shipping_address_id.as_ref(),
+            merchant_id,
+            request.customer_id.as_ref(),
+        )
+        .await?;
+
+        let billing_address_caller = helpers::create_and_insert_address_if_present(
+            request.billing.as_ref(),
+            billing_address_id.as_ref(),
+            merchant_id,
+            request.customer_id.as_ref(),
+        )
+        .await?;
+
+        let db_calls = db_wrapper::DbCalls {
+            payment_intent: Some(db_wrapper::PaymentIntentCaller::Insert(new_payment_intent)),
+            payment_attempt: db_wrapper::PaymentAttemptCaller::Insert(new_payment_attempt),
+            connector_response: db_wrapper::ConnectorResponseCaller::Insert(new_connector_response),
+            billing_address: billing_address_caller,
+            shipping_address: shipping_address_caller,
+        };
+
+        let db_wrapper::DbCallResults {
+            payment_intent,
+            payment_attempt,
+            connector_response,
+            billing_address,
+
+            shipping_address,
+        } = db_wrapper::make_db_calls(db_calls, db, storage_scheme).await;
+
+        let payment_intent = payment_intent.ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+        let payment_attempt = payment_attempt?;
+        let connector_response = connector_response?;
+        let shipping_address = shipping_address?;
+        let billing_address = billing_address?;
 
         let mandate_id = request
             .mandate_id
@@ -162,6 +162,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })
             .await
             .transpose()?;
+
+        let (token, payment_method_type, setup_mandate) =
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type,
+                merchant_account,
+            )
+            .await?;
 
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
@@ -443,8 +452,8 @@ impl PaymentCreate {
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
-        shipping_address_id: Option<String>,
-        billing_address_id: Option<String>,
+        shipping_address_id: Option<&String>,
+        billing_address_id: Option<&String>,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -473,8 +482,8 @@ impl PaymentCreate {
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
             return_url: request.return_url.clone(),
-            shipping_address_id,
-            billing_address_id,
+            shipping_address_id: shipping_address_id.cloned(),
+            billing_address_id: billing_address_id.cloned(),
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata,
@@ -484,14 +493,18 @@ impl PaymentCreate {
 
     #[instrument(skip_all)]
     pub fn make_connector_response(
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &storage::PaymentAttemptNew,
     ) -> storage::ConnectorResponseNew {
         storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
             attempt_id: payment_attempt.attempt_id.clone(),
-            created_at: payment_attempt.created_at,
-            modified_at: payment_attempt.modified_at,
+            created_at: payment_attempt
+                .created_at
+                .unwrap_or(common_utils::date_time::now()),
+            modified_at: payment_attempt
+                .modified_at
+                .unwrap_or(common_utils::date_time::now()),
             connector_name: payment_attempt.connector.clone(),
             connector_transaction_id: None,
             authentication_data: None,

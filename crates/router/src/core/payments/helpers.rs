@@ -19,6 +19,7 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
+    db_wrapper,
     routes::AppState,
     scheduler::{metrics, workflows::payment_sync},
     services,
@@ -84,6 +85,71 @@ pub async fn get_address_for_payment_request(
             None => None,
         },
     })
+}
+
+pub async fn get_address_for_payment_request_better_version(
+    req_address: Option<&api::Address>,
+    address_id: Option<&String>,
+    merchant_id: &str,
+    customer_id: &Option<String>,
+) -> CustomResult<Option<db_wrapper::AddressCaller>, errors::ApiErrorResponse> {
+    match (req_address, address_id) {
+        (Some(address), Some(address_id)) => Ok(Some(db_wrapper::AddressCaller::Update {
+            address_id: address_id.to_owned(),
+            address_update: address.foreign_into(),
+        })),
+        (Some(address), None) => {
+            let customer_id = customer_id
+                .as_deref()
+                .get_required_value("customer_id")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_id",
+                })?;
+
+            let address_details = address.address.clone().unwrap_or_default();
+            let new_address = storage::AddressNew {
+                phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
+                country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+                customer_id: customer_id.to_string(),
+                merchant_id: merchant_id.to_string(),
+
+                ..address_details.foreign_into()
+            };
+            Ok(Some(db_wrapper::AddressCaller::Insert(new_address)))
+        }
+        (None, Some(address_id)) => Ok(Some(db_wrapper::AddressCaller::Query {
+            address_id: address_id.to_owned(),
+        })),
+        _ => Ok(None),
+    }
+}
+
+pub async fn create_and_insert_address_if_present(
+    address_from_request: Option<&api::Address>,
+    address_id: Option<&String>,
+    merchant_id: &str,
+    customer_id: Option<&String>,
+) -> CustomResult<Option<db_wrapper::AddressCaller>, errors::ApiErrorResponse> {
+    match (address_from_request, address_id) {
+        (Some(address), Some(address_id)) => {
+            let address_details = address.address.clone().unwrap_or_default();
+            let customer_id = customer_id
+                .get_required_value("customer_id")
+                .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+
+            let new_address = storage::AddressNew {
+                phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
+                country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+                customer_id: customer_id.to_string(),
+                merchant_id: merchant_id.to_string(),
+                address_id: address_id.to_string(),
+
+                ..address_details.foreign_into()
+            };
+            Ok(Some(db_wrapper::AddressCaller::Insert(new_address)))
+        }
+        _ => Ok(None),
+    }
 }
 
 pub async fn get_address_by_id(

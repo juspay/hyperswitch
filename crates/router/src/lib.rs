@@ -10,6 +10,7 @@ pub(crate) mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
+pub mod db_wrapper;
 pub mod env;
 pub(crate) mod macros;
 pub mod routes;

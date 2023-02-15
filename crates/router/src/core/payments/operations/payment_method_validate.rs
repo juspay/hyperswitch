@@ -86,16 +86,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while getting payment_intent_id from PaymentIdType")?;
 
+        let new_payment_attempt =
+            Self::make_payment_attempt(&payment_id, merchant_id, request.payment_method, request);
+
         payment_attempt = match db
-            .insert_payment_attempt(
-                Self::make_payment_attempt(
-                    &payment_id,
-                    merchant_id,
-                    request.payment_method,
-                    request,
-                ),
-                storage_scheme,
-            )
+            .insert_payment_attempt(new_payment_attempt.clone(), storage_scheme)
             .await
         {
             Ok(payment_attempt) => Ok(payment_attempt),
@@ -119,7 +114,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         connector_response = match db
             .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt),
+                PaymentCreate::make_connector_response(&new_payment_attempt),
                 storage_scheme,
             )
             .await
