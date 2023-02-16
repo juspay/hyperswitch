@@ -163,7 +163,6 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
-                    logger::warn!(?request,"bluesnap request");
                     let response = call_connector_api(state, request).await;
                     match response {
                         Ok(body) => {
