@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 use crate::core::errors;
 
-#[derive(Debug, router_derive::ApiError)]
+#[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
 pub enum StripeErrorCode {
     /*
@@ -527,5 +527,11 @@ impl From<serde_qs::Error> for StripeErrorCode {
                 param: None,
             },
         }
+    }
+}
+
+impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        self.clone().into()
     }
 }
