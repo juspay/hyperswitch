@@ -65,6 +65,30 @@ impl ConnectorCommon for Bluesnap {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Basic {}", auth.api_key))])
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(bluesnap_error_response=?res);
+        let response: bluesnap::BluesnapErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: match response.message.first() {
+                Some(first_error) => first_error.code.clone(),
+                _ => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: match response.message.first() {
+                Some(first_error) => first_error.description.clone(),
+                _ => consts::NO_ERROR_MESSAGE.to_string(),
+            },
+            reason: None,
+        })
+    }
 }
 
 impl api::Payment for Bluesnap {}
@@ -157,25 +181,9 @@ impl
 
     fn get_error_response(
         &self,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluesnap::BluesnapErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: match response.message.first() {
-                Some(first_error) => first_error.code.clone(),
-                _ => consts::NO_ERROR_CODE.to_string(),
-            },
-            message: match response.message.first() {
-                Some(first_error) => first_error.description.clone(),
-                _ => consts::NO_ERROR_MESSAGE.to_string(),
-            },
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -237,25 +245,9 @@ impl
 
     fn get_error_response(
         &self,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluesnap::BluesnapErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: match response.message.first() {
-                Some(first_error) => first_error.code.clone(),
-                _ => consts::NO_ERROR_CODE.to_string(),
-            },
-            message: match response.message.first() {
-                Some(first_error) => first_error.description.clone(),
-                _ => consts::NO_ERROR_MESSAGE.to_string(),
-            },
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 
     fn handle_response(
@@ -457,25 +449,9 @@ impl
 
     fn get_error_response(
         &self,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluesnap::BluesnapErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: match response.message.first() {
-                Some(first_error) => first_error.code.clone(),
-                _ => consts::NO_ERROR_CODE.to_string(),
-            },
-            message: match response.message.first() {
-                Some(first_error) => first_error.description.clone(),
-                _ => consts::NO_ERROR_MESSAGE.to_string(),
-            },
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -557,25 +533,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_error_response(
         &self,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluesnap::BluesnapErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: match response.message.first() {
-                Some(first_error) => first_error.code.clone(),
-                _ => consts::NO_ERROR_CODE.to_string(),
-            },
-            message: match response.message.first() {
-                Some(first_error) => first_error.description.clone(),
-                _ => consts::NO_ERROR_MESSAGE.to_string(),
-            },
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -640,25 +600,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_error_response(
         &self,
-        res: Response,
+        res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluesnap::BluesnapErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: match response.message.first() {
-                Some(first_error) => first_error.code.clone(),
-                _ => consts::NO_ERROR_CODE.to_string(),
-            },
-            message: match response.message.first() {
-                Some(first_error) => first_error.description.clone(),
-                _ => consts::NO_ERROR_MESSAGE.to_string(),
-            },
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
