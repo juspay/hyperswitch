@@ -62,7 +62,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         .await?;
 
         router_response.map(|_| ()).or_else(|error_response| {
-            fp_utils::when((200..300).contains(&error_response.status_code), || {
+            fp_utils::when(!(200..300).contains(&error_response.status_code), || {
                 Err(errors::ApiErrorResponse::ExternalConnectorError {
                     code: error_response.code,
                     message: error_response.message,
