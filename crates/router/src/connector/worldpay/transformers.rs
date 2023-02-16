@@ -91,11 +91,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 entity: item.payment_id.clone(),
                 ..Default::default()
             },
-            transaction_reference: item.attempt_id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "attempt_id",
-                },
-            )?,
+            transaction_reference: item.attempt_id.clone(),
             channel: None,
             customer: None,
         })
