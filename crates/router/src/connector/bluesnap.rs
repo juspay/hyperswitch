@@ -108,7 +108,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/transactions"
+            "/services/2/transactions"
         ))
     }
 
@@ -142,7 +142,7 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: bluesnap::BluesnapPaymentsResponse = res
+        let response: bluesnap::BluesnapSyncPaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -216,7 +216,7 @@ impl
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "/transactions/",
+            "/services/2/transactions/",
             connector_payment_id
         ))
     }
@@ -264,7 +264,7 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::bluesnap", response=?res);
-        let response: bluesnap::BluesnapPaymentsResponse = res
+        let response: bluesnap::BluesnapSyncPaymentsResponse = res
             .response
             .parse_struct("bluesnap OrderResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -307,7 +307,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/transactions"
+            "/services/2/transactions"
         ))
     }
 
@@ -341,9 +341,9 @@ impl
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: bluesnap::BluesnapPaymentsResponse = res
+        let response: bluesnap::BluesnapSyncPaymentsResponse = res
             .response
-            .parse_struct("Bluesnap PaymentsResponse")
+            .parse_struct("Bluesnap ChargePaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(bluesnappayments_create_response=?response);
         types::ResponseRouterData {
@@ -405,7 +405,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/transactions"
+            "/services/2/transactions"
         ))
     }
 
@@ -444,7 +444,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: bluesnap::BluesnapPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: bluesnap::BluesnapChargePaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(bluesnappayments_create_response=?response);
         types::ResponseRouterData {
             response,
@@ -504,7 +504,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "/transactions/refund/",
+            "/services/2/transactions/refund/",
             req.request.connector_transaction_id
         ))
     }
@@ -600,7 +600,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "/transactions/",
+            "/services/2/transactions/",
             req.request.connector_refund_id.as_deref().unwrap_or("")
         ))
     }
