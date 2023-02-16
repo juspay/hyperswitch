@@ -14,6 +14,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             Self::ConnectorError(_, code) => *code,
+            Self::MethodNotAllowed(_) => StatusCode::METHOD_NOT_ALLOWED,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
         }
     }
 

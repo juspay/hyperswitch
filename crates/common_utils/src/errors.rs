@@ -85,6 +85,7 @@ where
     V: ErrorSwitch<U> + error_stack::Context,
     U: error_stack::Context,
 {
+    #[track_caller]
     fn switch(self) -> Result<T, error_stack::Report<U>> {
         match self {
             Ok(i) => Ok(i),
