@@ -155,7 +155,7 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.expresscheckout]
-base_url = 
+base_url = "https://sandbox.juspay.in/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]

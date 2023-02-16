@@ -78,7 +78,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExpresscheckoutPaymentsReq
                     order_id: attempt_id.to_string(),
                     amount: item.request.amount.to_string(),
                     return_url,
-                    currency: item.request.currency.to_string().to_uppercase(),
+                    currency: item.request.currency.to_string(),
                     gateway_id: gateway_metadata.gateway_id,
                     gateway_reference_metadata,
                     merchant_id: item.merchant_id.clone(),
@@ -313,11 +313,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_id = item.data.request.refund_id.clone();
-        let status = get_status_from_refund_response(&refund_id, item.response);
+        let connector_refund_id = item.data.request.refund_id.clone();
+        let status = get_status_from_refund_response(&connector_refund_id, item.response);
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.data.request.refund_id.clone(),
+                connector_refund_id,
                 refund_status: status,
             }),
             ..item.data

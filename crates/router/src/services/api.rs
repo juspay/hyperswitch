@@ -568,18 +568,18 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
             head {
                 style {
                     r##"
-
-                    "##
+                    
+                    "## 
                 }
                 (PreEscaped(r##"
                 <style>
-                    #loader1 {
+                    #loader1 { 
                         width: 500px,
-                    }
-                    @media max-width: 600px {
-                        #loader1 {
-                            width: 200px
-                        }
+                    } 
+                    @media max-width: 600px { 
+                        #loader1 { 
+                            width: 200px 
+                        } 
                     }
                 </style>
                 "##))
