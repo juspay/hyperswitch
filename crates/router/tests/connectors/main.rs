@@ -3,6 +3,7 @@
 mod aci;
 mod adyen;
 mod authorizedotnet;
+mod bluesnap;
 mod checkout;
 mod connector_auth;
 mod cybersource;
@@ -12,7 +13,6 @@ mod payu;
 mod rapyd;
 mod shift4;
 mod stripe;
-mod bluesnap;
 mod utils;
 mod worldline;
 mod worldpay;
