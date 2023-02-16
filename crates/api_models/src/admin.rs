@@ -340,3 +340,20 @@ pub struct DeleteMcaResponse {
     #[schema(example = false)]
     pub deleted: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleKVResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: String,
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleKVRequest {
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
