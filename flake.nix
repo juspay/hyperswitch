@@ -1,10 +1,13 @@
 {
-  description = "hyperswitch devshell";
+  description = "hyperswitch";
 
   inputs = {
+    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
     nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";
-    rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url  = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    # nixpkgs.follows = "cargo2nix/nixpkgs";
+    # flake-utils.follows = "cargo2nix/flake-utils";
   };
 
   # cache for faster access
@@ -17,30 +20,36 @@
     "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
   ];
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = inputs: with inputs;
     flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ (import rust-overlay) ];
+        let
         pkgs = import nixpkgs {
-          inherit system overlays;
+            inherit system;
+            overlays = [cargo2nix.overlays.default (import rust-overlay)];
         };
 
-        frameworks = pkgs.darwin.apple_sdk.frameworks;
-
-      in
-      with pkgs;
-      {
-        devShells.default = mkShell {
-
-          buildInputs =  [
-            openssl
-            pkg-config
-            exa
-            fd
-            rust-bin.stable."1.65.0".default
-          ] ++ lib.optionals stdenv.isDarwin [ frameworks.CoreServices frameworks.Foundation ]; # arch might have issue finding these libs.
-
+        rustPkgs = pkgs.rustBuilder.makePackageSet {
+            rustVersion = "1.65.0";
+            packageFun = import ./Cargo.nix;
         };
-      }
-    );
+
+        in rec {
+            packages = {
+                router = (rustPkgs.workspace.router {}).bin;
+                # router-scheduler = pkgs.lib.elemAt (rustPkgs.workspace.router {}).all 1;
+                default = packages.router;
+            };
+            devShells.default = mkShell {
+
+                buildInputs =  [
+                    openssl
+                    pkg-config
+                    exa
+                    fd
+                    rust-bin.stable."1.65.0".default
+                ] ++ lib.optionals stdenv.isDarwin [ frameworks.CoreServices frameworks.Foundation ]; # arch might have issue finding these libs.
+
+            };
+        }
+   );
 }
