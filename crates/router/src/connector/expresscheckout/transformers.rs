@@ -1,12 +1,13 @@
 use crate::{
     connector::utils::{self},
-    core::errors,
-    pii::PeekInterface,
+    core::{errors},
     services::{self, api::request::Method},
     types::{self, api, storage::enums},
 };
+
+use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap, iter::Map};
+use std::{collections::HashMap};
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ExpresscheckoutPaymentsRequest {
@@ -24,11 +25,11 @@ pub struct ExpresscheckoutPaymentsRequest {
     gateway_reference_metadata: HashMap<String, String>,
     merchant_id: String,
     payment_method_type: PaymentMethodType,
-    card_number: String,
-    card_exp_month: String,
-    card_exp_year: String,
-    name_on_card: String,
-    card_security_code: String,
+    card_number: Secret<String, common_utils::pii::CardNumber>,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+    name_on_card: Secret<String>,
+    card_security_code: Secret<String>,
     format: String,
     save_to_locker: bool,
 }
@@ -38,15 +39,6 @@ enum PaymentMethodType {
     #[default]
     Card,
 }
-
-// #[derive(Default, Debug, Eq, PartialEq, Serialize)]
-// pub struct OrderDetails {
-//     order_id: String,
-//     amount: String,
-//     return_url: String,
-//     currency: String,
-//     gateway_id: u8
-// }
 
 #[derive(Deserialize, Debug)]
 pub struct GatewayMetadata {
@@ -71,14 +63,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExpresscheckoutPaymentsReq
             gateway_reference_key_prefix,
             gateway_metadata.gateway_reference_value,
         )]);
+        let attempt_id = item.attempt_id.as_deref().ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(String::from(
+                "attempt_id not found for authorization",
+            )),
+        )?;
         match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => {
                 let return_url: String = item
-                    .return_url
+                    .router_return_url
                     .clone()
-                    .ok_or_else(utils::missing_field_err("return_url"))?;
+                    .ok_or_else(utils::missing_field_err("router_return_url"))?;
                 Ok(Self {
-                    order_id: item.payment_id.clone(),
+                    order_id: attempt_id.to_string(),
                     amount: item.request.amount.to_string(),
                     return_url,
                     currency: item.request.currency.to_string().to_uppercase(),
@@ -86,11 +83,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExpresscheckoutPaymentsReq
                     gateway_reference_metadata,
                     merchant_id: item.merchant_id.clone(),
                     payment_method_type: PaymentMethodType::Card,
-                    card_number: ccard.card_number.peek().clone(),
-                    card_exp_month: ccard.card_exp_month.peek().clone(),
-                    card_exp_year: ccard.card_exp_year.peek().clone(),
-                    name_on_card: ccard.card_holder_name.peek().clone(),
-                    card_security_code: ccard.card_cvc.peek().clone(),
+                    card_number: ccard.card_number.clone(),
+                    card_exp_month: ccard.card_exp_month.clone(),
+                    card_exp_year: ccard.card_exp_year.clone(),
+                    name_on_card: ccard.card_holder_name.clone(),
+                    card_security_code: ccard.card_cvc.clone(),
                     format: String::from("json"),
                     save_to_locker: false,
                 })
@@ -161,7 +158,7 @@ impl From<ExpresscheckoutPaymentStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ExpresscheckoutPaymentsResponse {
+pub struct GenericPaymentsResponse {
     #[serde(default, deserialize_with = "deserialize_error_default")]
     status: ExpresscheckoutPaymentStatus,
     txn_uuid: Option<String>,
@@ -194,23 +191,12 @@ pub struct AuthenticationData {
 }
 
 impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            ExpresscheckoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, GenericPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            ExpresscheckoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, GenericPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -240,7 +226,7 @@ pub struct ExpresscheckoutRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for ExpresscheckoutRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let refund_req = Self {
             unique_request_id: item.request.refund_id.clone(),
@@ -323,7 +309,7 @@ fn get_status_from_refund_response(
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -342,7 +328,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -358,6 +344,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ExpresscheckoutErrorResponse {}
+pub struct ExpresscheckoutErrorResponse {
+    pub status: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExpressCheckoutRedirectResponse {
+    pub status: ExpresscheckoutPaymentStatus,
+}

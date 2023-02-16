@@ -5,6 +5,7 @@ use std::fmt::Debug;
 
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments::{self},
@@ -41,12 +42,8 @@ where
             ("x-merchantid".to_string(), req.merchant_id.clone()),
             ("version".to_string(), String::from("2018-10-25")),
         ];
-        let auth = expresscheckout::ExpresscheckoutAuthType::try_from(&req.connector_auth_type)?;
-        let auth_header = (
-            headers::AUTHORIZATION.to_string(),
-            format!("Basic {}", auth.api_key),
-        );
-        headers.push(auth_header);
+        let mut auth = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth);
         Ok(headers)
     }
 }
@@ -64,12 +61,50 @@ impl ConnectorCommon for Expresscheckout {
         connectors.expresscheckout.base_url.as_ref()
     }
 
-    // fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-    //     let auth: expresscheckout::ExpresscheckoutAuthType = auth_type
-    //         .try_into()
-    //         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-    //     Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
-    // }
+    fn build_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response = if res.response.is_empty() {
+            ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                reason: if res.status_code == 401 {
+                    Some("Invalid Api Key".to_string())
+                } else {
+                    None
+                },
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                status_code: res.status_code,
+            }
+        } else {
+            let error_response: expresscheckout::ExpresscheckoutErrorResponse = res
+                .response
+                .parse_struct("Expresscheckout ErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            ErrorResponse {
+                status_code: res.status_code,
+                code: error_response
+                    .status
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: error_response
+                    .error_message
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+            }
+        };
+        Ok(response)
+    }
+
+    fn get_auth_header(
+        &self,
+        auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let auth = expresscheckout::ExpresscheckoutAuthType::try_from(auth_type)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Basic {}", auth.api_key),
+        )])
+    }
 }
 
 impl api::Payment for Expresscheckout {}
@@ -102,32 +137,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let res = req
-            .response
-            .as_ref()
-            .map_err(|_| errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        if let types::PaymentsResponseData::TransactionResponse { resource_id, .. } = res {
-            if let types::ResponseId::ConnectorTransactionId(r) = resource_id {
-                Ok(format!(
-                    "{}{}{}{}",
-                    self.base_url(connectors),
-                    "v2/txns/",
-                    r,
-                    "/void/"
-                ))
-            } else {
-                Err(errors::ConnectorError::FailedToObtainIntegrationUrl).into_report()
-            }
-        } else {
-            Err(errors::ConnectorError::FailedToObtainIntegrationUrl).into_report()
-        }
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(Some(String::from("")))
+        Ok(format!(
+            "{}v2/txns/{}/void/",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -149,11 +163,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: expresscheckout::ExpresscheckoutPaymentsResponse = res
+        let response: expresscheckout::GenericPaymentsResponse = res
             .response
-            .parse_struct("Expresscheckout PaymentsResponse")
+            .parse_struct("Expresscheckout CancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(expresscheckoutpayments_create_response=?response);
+        logger::debug!(expresscheckoutpayments_cancel_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -178,6 +192,18 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
+fn get_attempt_id<F, Req, Res>(
+    router_data: &types::RouterData<F, Req, Res>,
+) -> Result<String, errors::ConnectorError> {
+    router_data
+        .attempt_id
+        .as_deref()
+        .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
+            String::from("attempt_id not found"),
+        ))
+        .map(|d| d.to_string())
+}
+
 impl api::PaymentSync for Expresscheckout {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Expresscheckout
@@ -199,12 +225,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "orders/",
-            req.payment_id.clone()
-        );
+        let attempt_id = get_attempt_id(req)?;
+        let url = format!("{}{}{}", self.base_url(connectors), "orders/", attempt_id);
         Ok(url)
     }
 
@@ -234,9 +256,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: expresscheckout::ExpresscheckoutPaymentsResponse = res
+        let response: expresscheckout::GenericPaymentsResponse = res
             .response
-            .parse_struct("expresscheckout PaymentsResponse")
+            .parse_struct("Expresscheckout PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -268,25 +290,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let res = req
-            .response
-            .as_ref()
-            .map_err(|_| errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        if let types::PaymentsResponseData::TransactionResponse { resource_id, .. } = res {
-            if let types::ResponseId::ConnectorTransactionId(r) = resource_id {
-                Ok(format!(
-                    "{}{}{}{}",
-                    self.base_url(connectors),
-                    "v2/txns/",
-                    r,
-                    "/capture/"
-                ))
-            } else {
-                Err(errors::ConnectorError::FailedToObtainIntegrationUrl).into_report()
-            }
-        } else {
-            Err(errors::ConnectorError::FailedToObtainIntegrationUrl).into_report()
-        }
+        Ok(format!(
+            "{}v2/txns/{}/capture/",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -317,9 +325,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: expresscheckout::ExpresscheckoutPaymentsResponse = res
+        let response: expresscheckout::GenericPaymentsResponse = res
             .response
-            .parse_struct("Expresscheckout PaymentsResponse")
+            .parse_struct("Expresscheckout PaymentCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(expresscheckoutpayments_create_response=?response);
         types::ResponseRouterData {
@@ -369,15 +377,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "txns/"))
+        Ok(format!("{}txns/", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = expresscheckout::ExpresscheckoutPaymentsRequest::try_from(req)?;
         let expresscheckout_req =
-            utils::Encode::<expresscheckout::ExpresscheckoutPaymentsRequest>::convert_and_url_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<expresscheckout::ExpresscheckoutPaymentsRequest>::encode(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(expresscheckout_req))
     }
 
@@ -405,9 +417,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: expresscheckout::ExpresscheckoutPaymentsResponse = res
+        let response: expresscheckout::GenericPaymentsResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("Expresscheckout PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(expresscheckoutpayments_create_response=?response);
         types::ResponseRouterData {
@@ -451,12 +463,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        type RouterDataImpl = types::RefundsRouterData<api::Execute>;
+        let attempt_id = get_attempt_id(req)?;
         Ok(format!(
-            "{}{}{}{}",
+            "{}orders/{}/refunds/",
             self.base_url(connectors),
-            "orders/",
-            req.payment_id.clone(),
-            "/refunds"
+            attempt_id
         ))
     }
 
@@ -496,7 +508,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         logger::debug!(target: "router::connector::expresscheckout", response=?res);
         let response: expresscheckout::RefundResponse = res
             .response
-            .parse_struct("expresscheckout RefundResponse")
+            .parse_struct("Expresscheckout RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::ResponseRouterData {
             response,
@@ -535,12 +547,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let attempt_id = get_attempt_id(req)?;
         Ok(format!(
-            "{}{}{}{}",
+            "{}orders/{}/status/",
             self.base_url(connectors),
-            "orders/",
-            req.payment_id,
-            "/status"
+            attempt_id
         ))
     }
 
@@ -565,7 +576,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         logger::debug!(target: "router::connector::expresscheckout", response=?res);
         let response: expresscheckout::RefundResponse = res
             .response
-            .parse_struct("expresscheckout RefundResponse")
+            .parse_struct("Expresscheckout RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
@@ -611,8 +622,22 @@ impl api::IncomingWebhook for Expresscheckout {
 impl services::ConnectorRedirectResponse for Expresscheckout {
     fn get_flow_type(
         &self,
-        _query_params: &str,
+        query_params: &str,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        let query = serde_urlencoded::from_str::<transformers::ExpressCheckoutRedirectResponse>(
+            query_params,
+        )
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if query.status == transformers::ExpresscheckoutPaymentStatus::PendingVbv
+            || query.status == transformers::ExpresscheckoutPaymentStatus::PendingAuthentication
+        {
+            Ok(payments::CallConnectorAction::Trigger)
+        } else {
+            Ok(payments::CallConnectorAction::StatusUpdate(
+                query.status.into(),
+            ))
+        }
     }
 }
