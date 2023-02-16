@@ -68,7 +68,7 @@ impl ConnectorCommon for Bluesnap {
 
     fn build_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(bluesnap_error_response=?res);
         let response: bluesnap::BluesnapErrorResponse = res
@@ -181,7 +181,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -245,7 +245,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -351,11 +351,16 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: String = res
+        .response
+        .parse_struct("ErrorResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(bluesnap_error_response=?res);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
-            message: "Not Authorized to Capture.".to_string(),
+            message: response,
             reason: None,
         })
     }
@@ -449,7 +454,7 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -533,7 +538,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
@@ -600,7 +605,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }

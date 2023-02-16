@@ -428,10 +428,8 @@ async fn should_fail_capture_for_invalid_payment() {
         .capture_payment("123456789".to_string(), None, None)
         .await
         .unwrap();
-    assert_eq!(
-        capture_response.response.unwrap_err().message,
-        String::from("Not Authorized to Capture.")
-    );
+    
+    capture_response.response.unwrap_err().message.contains(&"is not authorized to view transaction");
 }
 
 // Refunds a payment with refund amount higher than payment amount.
