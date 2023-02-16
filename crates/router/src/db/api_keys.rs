@@ -41,7 +41,7 @@ impl ApiKeyInterface for Store {
         &self,
         api_key: storage::ApiKeyNew,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         api_key
             .insert(&conn)
             .await
@@ -54,7 +54,7 @@ impl ApiKeyInterface for Store {
         key_id: String,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::ApiKey::update_by_key_id(&conn, key_id, api_key)
             .await
             .map_err(Into::into)
@@ -62,7 +62,7 @@ impl ApiKeyInterface for Store {
     }
 
     async fn revoke_api_key(&self, key_id: &str) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::ApiKey::revoke_by_key_id(&conn, key_id)
             .await
             .map_err(Into::into)
@@ -73,7 +73,7 @@ impl ApiKeyInterface for Store {
         &self,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::ApiKey::find_optional_by_key_id(&conn, key_id)
             .await
             .map_err(Into::into)
@@ -86,7 +86,7 @@ impl ApiKeyInterface for Store {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<storage::ApiKey>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::ApiKey::find_by_merchant_id(&conn, merchant_id, limit, offset)
             .await
             .map_err(Into::into)

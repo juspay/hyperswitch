@@ -1,3 +1,4 @@
+use error_stack::ResultExt;
 use storage_models::{errors, StorageResult};
 
 use super::{MockDb, Store};
@@ -15,12 +16,16 @@ pub trait ReverseLookupInterface {
 #[async_trait::async_trait]
 impl ReverseLookupInterface for Store {
     async fn insert_reverse_lookup(&self, new: ReverseLookupNew) -> StorageResult<ReverseLookup> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool)
+            .await
+            .change_context(errors::DatabaseError::DatabaseConnectionError)?;
         new.insert(&conn).await
     }
 
     async fn get_lookup_by_lookup_id(&self, id: &str) -> StorageResult<ReverseLookup> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool)
+            .await
+            .change_context(errors::DatabaseError::DatabaseConnectionError)?;
         ReverseLookup::find_by_lookup_id(id, &conn).await
     }
 }

@@ -73,7 +73,6 @@ where
             .map_into_boxed_body(),
         Err(error) => {
             logger::error!(api_response_error=?error);
-            // let pg_error = E::from(error.current_context().clone());
             api::log_and_return_error_response(error)
         }
     }
