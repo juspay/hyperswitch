@@ -46,11 +46,11 @@ where
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
-                    return errors::ApiErrorResponse::Unauthorized;
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-                errors::ApiErrorResponse::InternalServerError
             })
-            .into_report()
     }
 }
 
@@ -94,11 +94,11 @@ impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for MerchantIdAuth
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
-                    return errors::ApiErrorResponse::Unauthorized;
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-                errors::ApiErrorResponse::InternalServerError
             })
-            .into_report()
     }
 }
 
@@ -120,11 +120,11 @@ impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for PublishableKey
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
-                    return errors::ApiErrorResponse::Unauthorized;
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-                errors::ApiErrorResponse::InternalServerError
             })
-            .into_report()
     }
 }
 
