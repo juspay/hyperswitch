@@ -470,9 +470,9 @@ async fn filter_payment_methods(
 
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
-    right: &Option<Vec<String>>,
+    req_country_list: &Option<Vec<String>>,
 ) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
-    match (accepted_countries, right) {
+    match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (None, Some(r.to_vec()), false),
         (Some(l), None) => (Some(l.to_owned()), None, true),
@@ -497,13 +497,13 @@ fn filter_pm_country_based(
 
 fn filter_pm_currencies_based(
     accepted_currency: &Option<admin::AcceptedCurrencies>,
-    right: &Option<Vec<api_enums::Currency>>,
+    req_currency_list: &Option<Vec<api_enums::Currency>>,
 ) -> (
     Option<admin::AcceptedCurrencies>,
     Option<Vec<api_enums::Currency>>,
     bool,
 ) {
-    match (accepted_currency, right) {
+    match (accepted_currency, req_currency_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (None, Some(r.to_vec()), false),
         (Some(l), None) => (Some(l.to_owned()), None, true),
@@ -602,13 +602,14 @@ async fn filter_payment_country_based(
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries.clone().map_or(true, |ac| {
+            pm.accepted_countries.as_ref().map_or(true, |ac| {
                 if ac.enable_all {
-                    ac.disable_only.map_or(true, |disable_countries| {
+                    ac.disable_only.as_ref().map_or(true, |disable_countries| {
                         disable_countries.contains(country)
                     })
                 } else {
                     ac.enable_only
+                        .as_ref()
                         .map_or(false, |enable_countries| enable_countries.contains(country))
                 }
             })
@@ -621,13 +622,13 @@ fn filter_payment_currency_based(
     pm: &api::ListPaymentMethod,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
-        pm.accepted_currencies.clone().map_or(true, |ac| {
+        pm.accepted_currencies.as_ref().map_or(true, |ac| {
             if ac.enable_all {
-                ac.disable_only.map_or(true, |disable_currencies| {
+                ac.disable_only.as_ref().map_or(true, |disable_currencies| {
                     disable_currencies.contains(&currency.foreign_into())
                 })
             } else {
-                ac.enable_only.map_or(false, |enable_currencies| {
+                ac.enable_only.as_ref().map_or(false, |enable_currencies| {
                     enable_currencies.contains(&currency.foreign_into())
                 })
             }
