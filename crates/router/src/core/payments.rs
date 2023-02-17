@@ -111,16 +111,15 @@ where
 
     let connector = match should_call_connector(&operation, &payment_data) {
         true => Some(
-                route_connector(
-                    state,
-                    &merchant_account,
-                    &mut payment_data,
-                    connector_details,
-                )
-                .await?
-            ),
-        false => None
-
+            route_connector(
+                state,
+                &merchant_account,
+                &mut payment_data,
+                connector_details,
+            )
+            .await?,
+        ),
+        false => None,
     };
 
     let (operation, mut payment_data) = operation
