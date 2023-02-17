@@ -389,7 +389,7 @@ impl<F, T>
                 let mut base_url = response.url.clone();
                 base_url.set_query(None);
                 services::RedirectForm {
-                    url: base_url.to_string(),
+                    endpoint: base_url.to_string(),
                     method: services::Method::Get,
                     form_fields: std::collections::HashMap::from_iter(
                         response
@@ -445,7 +445,7 @@ impl<F, T>
                 let mut base_url = response.url.clone();
                 base_url.set_query(None);
                 services::RedirectForm {
-                    url: base_url.to_string(),
+                    endpoint: base_url.to_string(),
                     method: services::Method::Get,
                     form_fields: std::collections::HashMap::from_iter(
                         response
