@@ -1,7 +1,9 @@
 mod transformers;
 
-use error_stack::{IntoReport, ResultExt};
 use std::fmt::Debug;
+
+use error_stack::{IntoReport, ResultExt};
+use transformers as expresscheckout;
 
 use crate::{
     configs::settings,
@@ -19,8 +21,6 @@ use crate::{
     },
     utils::{self, BytesExt},
 };
-
-use transformers as expresscheckout;
 
 #[derive(Debug, Clone)]
 pub struct Expresscheckout;

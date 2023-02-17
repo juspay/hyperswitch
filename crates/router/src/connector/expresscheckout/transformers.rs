@@ -1,13 +1,14 @@
-use crate::{
-    connector::utils::{self},
-    core::{errors},
-    services::{self, api::request::Method},
-    types::{self, api, storage::enums},
-};
+use std::collections::HashMap;
 
 use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap};
+
+use crate::{
+    connector::utils::{self},
+    core::errors,
+    services::{self, api::request::Method},
+    types::{self, api, storage::enums},
+};
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ExpresscheckoutPaymentsRequest {
