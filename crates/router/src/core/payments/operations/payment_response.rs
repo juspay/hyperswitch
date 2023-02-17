@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_utils::fp_utils;
 use error_stack::ResultExt;
 use router_derive;
 
@@ -60,13 +61,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         )
         .await?;
 
-        router_response.map_err(|error_response| {
-            errors::ApiErrorResponse::ExternalConnectorError {
-                message: error_response.message,
-                code: error_response.code,
-                status_code: error_response.status_code,
-                connector,
-            }
+        router_response.map(|_| ()).or_else(|error_response| {
+            fp_utils::when(!(200..300).contains(&error_response.status_code), || {
+                Err(errors::ApiErrorResponse::ExternalConnectorError {
+                    code: error_response.code,
+                    message: error_response.message,
+                    connector,
+                    status_code: error_response.status_code,
+                })
+            })
         })?;
 
         Ok(payment_data)
