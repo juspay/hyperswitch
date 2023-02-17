@@ -1,11 +1,10 @@
 use common_utils::ext_traits::AsyncExt;
+use error_stack::{self, ResultExt};
 use futures::join;
 use router_derive::Setter;
 use storage_models::{
     self, address, connector_response, enums as storage_enums, payment_attempt, payment_intent,
 };
-
-use error_stack::{self, ResultExt};
 
 use crate::{
     core::errors::{self, StorageErrorExt},
