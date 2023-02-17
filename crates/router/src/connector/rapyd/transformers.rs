@@ -200,7 +200,6 @@ impl From<transformers::Foreign<(RapydPaymentStatus, NextAction)>>
             ) => enums::AttemptStatus::Voided,
             (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
             (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
-            _ => enums::AttemptStatus::Pending,
         }
         .into()
     }
