@@ -1,3 +1,11 @@
+# 0.2.1 (2023-02-17)
+
+## Fixes
+- fix payment_status not updated when adding payment method ([#446])
+- Decide connector only when the payment method is confirm ([10ea4919ba07d3198a6bbe3f3d4d817a23605924](https://github.com/juspay/hyperswitch/commit/10ea4919ba07d3198a6bbe3f3d4d817a23605924))
+- Fix panics caused with empty diesel updates ([448595498114cd15158b4a78fc32d8e6dc1b67ee](https://github.com/juspay/hyperswitch/commit/448595498114cd15158b4a78fc32d8e6dc1b67ee))
+
+
 # 0.2.0 (2023-01-23) - Initial Release
 
 ## Supported Connectors
@@ -37,4 +45,4 @@
 - Merchants
 - ConnectorAccounts
 
-*May not be supported on all connectors
+\*May not be supported on all connectors
