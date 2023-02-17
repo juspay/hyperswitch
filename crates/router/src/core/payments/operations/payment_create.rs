@@ -140,7 +140,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             shipping_address,
         } = db_wrapper::make_db_calls(db_calls, db, storage_scheme).await;
 
-        let payment_intent = payment_intent.ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        let payment_intent =
+            payment_intent?.ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let payment_attempt = payment_attempt?;
         let connector_response = connector_response?;
