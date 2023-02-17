@@ -164,7 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
-        let (token, payment_method_type, setup_mandate) =
+        let (token, _payment_method_type, setup_mandate) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,

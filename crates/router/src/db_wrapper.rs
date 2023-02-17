@@ -71,7 +71,7 @@ impl GetQuery for PaymentIntentCaller {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> Result<Self::ResultItem, error_stack::Report<errors::ApiErrorResponse>> {
         match self {
-            PaymentIntentCaller::Insert(payment_intent_new) => {
+            Self::Insert(payment_intent_new) => {
                 let payment_id = payment_intent_new.payment_id.clone();
                 db.insert_payment_intent(payment_intent_new, storage_scheme)
                     .await
@@ -94,7 +94,7 @@ impl GetQuery for PaymentAttemptCaller {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> Result<Self::ResultItem, error_stack::Report<errors::ApiErrorResponse>> {
         match self {
-            PaymentAttemptCaller::Insert(payment_attempt_new) => {
+            Self::Insert(payment_attempt_new) => {
                 let payment_id = payment_attempt_new.payment_id.clone();
                 db.insert_payment_attempt(payment_attempt_new, storage_scheme)
                     .await
@@ -104,7 +104,7 @@ impl GetQuery for PaymentAttemptCaller {
                         })
                     })
             }
-            PaymentAttemptCaller::Query {
+            Self::Query {
                 attempt_id,
                 merchant_id,
             } => db
@@ -117,7 +117,7 @@ impl GetQuery for PaymentAttemptCaller {
                 .map_err(|error| {
                     error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                 }),
-            PaymentAttemptCaller::Update {
+            Self::Update {
                 current_payment_attempt,
                 payment_attempt_update,
             } => db
@@ -143,7 +143,7 @@ impl GetQuery for ConnectorResponseCaller {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> Result<Self::ResultItem, error_stack::Report<errors::ApiErrorResponse>> {
         match self {
-            ConnectorResponseCaller::Insert(connector_response_new) => {
+            Self::Insert(connector_response_new) => {
                 let payment_id = connector_response_new.payment_id.clone();
                 db.insert_connector_response(connector_response_new, storage_scheme)
                     .await
@@ -153,7 +153,7 @@ impl GetQuery for ConnectorResponseCaller {
                         })
                     })
             }
-            ConnectorResponseCaller::Query {
+            Self::Query {
                 attempt_id,
                 merchant_id,
                 payment_id,
@@ -168,7 +168,7 @@ impl GetQuery for ConnectorResponseCaller {
                 .map_err(|error| {
                     error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                 }),
-            ConnectorResponseCaller::Update {
+            Self::Update {
                 current_connector_response,
                 connector_response_update,
             } => db
@@ -194,16 +194,16 @@ impl GetQuery for AddressCaller {
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> Result<Self::ResultItem, error_stack::Report<errors::ApiErrorResponse>> {
         match self {
-            AddressCaller::Insert(address_new) => db
+            Self::Insert(address_new) => db
                 .insert_address(address_new)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error when inserting the address"),
-            AddressCaller::Query { address_id } => db
+            Self::Query { address_id } => db
                 .find_address(&address_id)
                 .await
                 .change_context(errors::ApiErrorResponse::AddressNotFound),
-            AddressCaller::Update {
+            Self::Update {
                 address_id,
                 address_update,
             } => db
