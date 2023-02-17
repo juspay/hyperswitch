@@ -24,6 +24,18 @@ use transformers as {{project-name | downcase}};
 #[derive(Debug, Clone)]
 pub struct {{project-name | downcase | pascal_case}};
 
+impl api::Payment for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
+impl api::ConnectorAccessToken for {{project-name | downcase | pascal_case}} {}
+impl api::PreVerify for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentAuthorize for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentCapture for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentVoid for {{project-name | downcase | pascal_case}} {}
+impl api::Refund for {{project-name | downcase | pascal_case}} {}
+impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
+impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for {{project-name | downcase | pascal_case}} 
 where
     Self: ConnectorIntegration<Flow, Request, Response>,{
@@ -32,7 +44,7 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("build_headers method".to_string()).into())
     }
 }
 
@@ -42,8 +54,8 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
         // Ex: "application/x-www-form-urlencoded"
+        ""
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -58,181 +70,6 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 }
 
-impl api::Payment for {{project-name | downcase | pascal_case}} {}
-
-impl api::PreVerify for {{project-name | downcase | pascal_case}} {}
-impl
-    ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{
-}
-
-impl api::PaymentVoid for {{project-name | downcase | pascal_case}} {}
-
-impl
-    ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{}
-
-impl api::ConnectorAccessToken for {{project-name | downcase | pascal_case}} {}
-
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for {{project-name | downcase | pascal_case}}
-{
-}
-
-impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
-impl
-    ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for {{project-name | downcase | pascal_case}}
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!({{project-name | downcase}}_payment_sync_response=?res);
-        let response: {{project-name | downcase}}:: {{project-name | downcase | pascal_case}}PaymentsResponse = res
-            .response
-            .parse_struct("{{project-name | downcase}} PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-}
-
-
-impl api::PaymentCapture for {{project-name | downcase | pascal_case}} {}
-impl
-    ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCaptureRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        logger::debug!({{project-name | downcase}}_payments_capture_response=?res);
-        let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
-            .response
-            .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-}
-
-impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
-
 impl
     ConnectorIntegration<
         api::Session,
@@ -243,7 +80,19 @@ impl
     //TODO: implement sessions flow
 }
 
-impl api::PaymentAuthorize for {{project-name | downcase | pascal_case}} {}
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for {{project-name | downcase | pascal_case}}
+{
+}
+
+impl
+    ConnectorIntegration<
+        api::Verify,
+        types::VerifyRequestData,
+        types::PaymentsResponseData,
+    > for {{project-name | downcase | pascal_case}}
+{
+}
 
 impl
     ConnectorIntegration<
@@ -260,7 +109,7 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -309,9 +158,154 @@ impl
     }
 }
 
-impl api::Refund for {{project-name | downcase | pascal_case}} {}
-impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
-impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
+impl
+    ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for {{project-name | downcase | pascal_case}}
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        logger::debug!({{project-name | downcase}}_payment_sync_response=?res);
+        let response: {{project-name | downcase}}:: {{project-name | downcase | pascal_case}}PaymentsResponse = res
+            .response
+            .parse_struct("{{project-name | downcase}} PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    > for {{project-name | downcase | pascal_case}}
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCaptureRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        logger::debug!({{project-name | downcase}}_payments_capture_response=?res);
+        let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
+            .response
+            .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    > for {{project-name | downcase | pascal_case}}
+{}
 
 impl
     ConnectorIntegration<
@@ -328,7 +322,7 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -378,7 +372,7 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(

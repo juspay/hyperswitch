@@ -26,6 +26,7 @@ sed  -r -i'' -e "s/cards = \[(.*)\]/cards = [\1, \"${pg}\"]/" config/config.exam
 sed -i'' -e "s/\[connectors.supported\]/[connectors.${pg}]\nbase_url = ""\n\n[connectors.supported]/" loadtest/config/Development.toml
 sed  -r -i'' -e "s/cards = \[(.*)\]/cards = [\1, \"${pg}\"]/" loadtest/config/Development.toml
 sed -i'' -e "s/Dummy,/Dummy,\n\t${pgc},/" crates/api_models/src/enums.rs
+sed -i'' -e "s/pub enum RoutableConnectors {/pub enum RoutableConnectors {\n\t${pgc},/" crates/api_models/src/enums.rs
 # remove temporary files created in above step
 rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/Development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/Development.toml-e crates/api_models/src/enums.rs-e
 cd $conn/ 
