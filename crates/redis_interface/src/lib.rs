@@ -25,7 +25,7 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use fred::interfaces::ClientLike;
+use fred::interfaces::{ClientLike, PubsubInterface};
 use futures::StreamExt;
 use router_env::logger;
 
@@ -35,9 +35,57 @@ pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
     join_handles: Vec<fred::types::ConnectHandle>,
+    subscriber: RedisClient,
+    publisher: RedisClient,
     pub is_redis_available: Arc<atomic::AtomicBool>,
 }
 
+pub struct RedisClient {
+    inner: fred::prelude::RedisClient,
+}
+
+impl RedisClient {
+    pub async fn new(
+        config: fred::types::RedisConfig,
+        policy: fred::types::ReconnectPolicy,
+    ) -> CustomResult<Self, errors::RedisError> {
+        let client = fred::prelude::RedisClient::new(config);
+        client.connect(Some(policy));
+        client
+            .wait_for_connect()
+            .await
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+        Ok(Self { inner: client })
+    }
+    #[inline]
+    pub async fn subscribe(
+        &self,
+        channel: impl AsRef<str>,
+    ) -> CustomResult<usize, errors::RedisError> {
+        self.inner
+            .subscribe(channel.as_ref())
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SubscribeError)
+    }
+    #[inline]
+    pub async fn publish(
+        &self,
+        channel: impl AsRef<str>,
+        key: impl AsRef<str>,
+    ) -> CustomResult<usize, errors::RedisError> {
+        self.inner
+            .publish(channel.as_ref(), key.as_ref())
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SubscribeError)
+    }
+    #[inline]
+    pub fn on_message(&self) -> fred::prelude::AsyncStream<(String, fred::prelude::RedisValue)> {
+        self.inner.on_message()
+    }
+}
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new(conf: &RedisSettings) -> CustomResult<Self, errors::RedisError> {
@@ -72,6 +120,11 @@ impl RedisConnectionPool {
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
         );
+
+        let subscriber = RedisClient::new(config.clone(), policy.clone()).await?;
+
+        let publisher = RedisClient::new(config.clone(), policy.clone()).await?;
+
         let pool = fred::pool::RedisPool::new(config, conf.pool_size)
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
@@ -89,6 +142,8 @@ impl RedisConnectionPool {
             config,
             join_handles,
             is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
+            subscriber,
+            publisher,
         })
     }
 
@@ -114,6 +169,32 @@ impl RedisConnectionPool {
                 futures::future::ready(())
             })
             .await;
+    }
+}
+
+#[async_trait::async_trait]
+pub trait PubSubInterface {
+    async fn subscribe(&self, channel: &str) -> CustomResult<usize, errors::RedisError>;
+    async fn publish(&self, channel: &str, key: &str) -> CustomResult<usize, errors::RedisError>;
+    async fn on_message(&self);
+}
+
+#[async_trait::async_trait]
+impl PubSubInterface for RedisConnectionPool {
+    #[inline]
+    async fn subscribe(&self, channel: &str) -> CustomResult<usize, errors::RedisError> {
+        self.subscriber.subscribe(channel).await
+    }
+    #[inline]
+    async fn publish(&self, channel: &str, key: &str) -> CustomResult<usize, errors::RedisError> {
+        self.publisher.publish(channel, key).await
+    }
+    #[inline]
+    async fn on_message(&self) {
+        let mut message = self.subscriber.on_message();
+        while let Some((_, key)) = message.next().await {
+            logger::error!("{:?}", key);
+        }
     }
 }
 
