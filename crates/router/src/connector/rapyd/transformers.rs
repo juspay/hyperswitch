@@ -192,7 +192,6 @@ impl From<transformers::Foreign<(RapydPaymentStatus, NextAction)>>
             (RapydPaymentStatus::Active, NextAction::PendingCapture) => {
                 enums::AttemptStatus::Authorized
             }
-            (RapydPaymentStatus::Active, _) => enums::AttemptStatus::Pending,
             (
                 RapydPaymentStatus::CanceledByClientOrBank
                 | RapydPaymentStatus::Expired
@@ -200,8 +199,8 @@ impl From<transformers::Foreign<(RapydPaymentStatus, NextAction)>>
                 _,
             ) => enums::AttemptStatus::Voided,
             (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
-
             (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
+            _ => enums::AttemptStatus::Pending,
         }
         .into()
     }
