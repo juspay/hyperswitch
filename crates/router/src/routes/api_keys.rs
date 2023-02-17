@@ -65,7 +65,7 @@ pub async fn api_key_retrieve(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
-    let (key_id, _merchant_id) = path.into_inner();
+    let (_merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
@@ -99,7 +99,7 @@ pub async fn api_key_update(
     path: web::Path<(String, String)>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
-    let (key_id, _merchant_id) = path.into_inner();
+    let (_merchant_id, key_id) = path.into_inner();
     let payload = json_payload.into_inner();
 
     api::server_wrap(
@@ -133,7 +133,7 @@ pub async fn api_key_revoke(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
-    let (key_id, _merchant_id) = path.into_inner();
+    let (_merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
