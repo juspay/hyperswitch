@@ -369,12 +369,15 @@ pub struct RedirectForm {
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
-    fn from((redirect_url, method): (url::Url, Method)) -> Self {
+    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
         let form_fields = std::collections::HashMap::from_iter(
             redirect_url
                 .query_pairs()
                 .map(|(key, value)| (key.to_string(), value.to_string())),
         );
+
+        // Do not include query params in the endpoint
+        redirect_url.set_query(None);
 
         Self {
             endpoint: redirect_url.to_string(),
