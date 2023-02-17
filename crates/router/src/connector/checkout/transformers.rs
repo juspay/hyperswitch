@@ -224,14 +224,9 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .links
-            .redirect
-            .map(|href| {
-                services::RedirectForm::try_from((href.redirection_url, services::Method::Get))
-            })
-            .transpose()?;
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
@@ -257,14 +252,9 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .links
-            .redirect
-            .map(|href| {
-                services::RedirectForm::try_from((href.redirection_url, services::Method::Get))
-            })
-            .transpose()?;
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((

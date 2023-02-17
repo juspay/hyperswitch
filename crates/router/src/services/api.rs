@@ -368,20 +368,19 @@ pub struct RedirectForm {
     pub form_fields: HashMap<String, String>,
 }
 
-impl TryFrom<(url::Url, Method)> for RedirectForm {
-    type Error = errors::ConnectorError;
-
-    fn try_from((redirect_url, method): (url::Url, Method)) -> Result<Self, Self::Error> {
+impl From<(url::Url, Method)> for RedirectForm {
+    fn from((redirect_url, method): (url::Url, Method)) -> Self {
         let form_fields = std::collections::HashMap::from_iter(
             redirect_url
                 .query_pairs()
                 .map(|(key, value)| (key.to_string(), value.to_string())),
         );
-        Ok(Self {
+
+        Self {
             endpoint: redirect_url.to_string(),
             method,
             form_fields,
-        })
+        }
     }
 }
 
