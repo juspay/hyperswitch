@@ -75,6 +75,8 @@ Check the Table Of Contents to jump to the relevant section.
 
 ## Set up a Rust environment and other dependencies
 
+If you are using nix, please skip the setup dependencies and jump to [Set up the database](#set-up-the-database)
+
 ### Set up dependencies on Ubuntu-based systems
 
 This section of the guide provides instructions to install dependencies on
@@ -332,6 +334,12 @@ Once you're done with configuring the application, proceed with
 
    ```shell
    cargo run
+   ```
+
+   Compile and run the application using nix:
+
+   ```shell
+   nix run
    ```
 
 2. Verify that the server is up and running by hitting the health endpoint:
