@@ -469,6 +469,8 @@ impl Default for PaymentAuthorizeType {
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+            payment_experience: None,
+            payment_issuer: None,
         };
         Self(data)
     }

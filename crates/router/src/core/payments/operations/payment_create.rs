@@ -433,6 +433,8 @@ impl PaymentCreate {
             last_synced,
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
+            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
+            payment_issuer: request.payment_issuer.map(ForeignInto::foreign_into),
             ..storage::PaymentAttemptNew::default()
         }
     }

@@ -227,8 +227,6 @@ impl PaymentAttemptInterface for MockDb {
             tax_amount: payment_attempt.tax_amount,
             payment_method_id: payment_attempt.payment_method_id,
             payment_method: payment_attempt.payment_method,
-            payment_flow: payment_attempt.payment_flow,
-            redirect: payment_attempt.redirect,
             connector_transaction_id: payment_attempt.connector_transaction_id,
             capture_method: payment_attempt.capture_method,
             capture_on: payment_attempt.capture_on,
@@ -244,6 +242,8 @@ impl PaymentAttemptInterface for MockDb {
             payment_token: None,
             error_code: payment_attempt.error_code,
             connector_metadata: None,
+            payment_experience: payment_attempt.payment_experience,
+            payment_issuer: payment_attempt.payment_issuer,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -366,8 +366,6 @@ mod storage {
                         tax_amount: payment_attempt.tax_amount,
                         payment_method_id: payment_attempt.payment_method_id.clone(),
                         payment_method: payment_attempt.payment_method,
-                        payment_flow: payment_attempt.payment_flow,
-                        redirect: payment_attempt.redirect,
                         connector_transaction_id: payment_attempt.connector_transaction_id.clone(),
                         capture_method: payment_attempt.capture_method,
                         capture_on: payment_attempt.capture_on,
@@ -383,6 +381,8 @@ mod storage {
                         payment_token: payment_attempt.payment_token.clone(),
                         error_code: payment_attempt.error_code.clone(),
                         connector_metadata: payment_attempt.connector_metadata.clone(),
+                        payment_experience: payment_attempt.payment_experience.clone(),
+                        payment_issuer: payment_attempt.payment_issuer,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);

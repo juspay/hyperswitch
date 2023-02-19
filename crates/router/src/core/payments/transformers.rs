@@ -65,7 +65,6 @@ where
         .map(|id| types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
             redirection_data: None,
-            redirect: false,
             mandate_reference: None,
             connector_metadata: None,
         });
@@ -430,6 +429,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
+            payment_experience: payment_data.payment_attempt.payment_experience,
+            payment_issuer: payment_data.payment_attempt.payment_issuer,
             order_details,
         })
     }
