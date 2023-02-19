@@ -80,7 +80,7 @@ where
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),
-        attempt_id: Some(payment_data.payment_attempt.attempt_id.clone()),
+        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
         connector_auth_type: auth_type,

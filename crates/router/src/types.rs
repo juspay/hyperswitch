@@ -76,7 +76,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
-    pub attempt_id: Option<String>,
+    pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
