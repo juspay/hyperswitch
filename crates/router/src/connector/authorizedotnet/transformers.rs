@@ -561,8 +561,7 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transaction_response.transaction_id,
                     ),
-                    redirection_data,
-                    redirect,
+                    redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: metadata,
                 }),
@@ -826,7 +825,6 @@ impl<F, Req>
                     item.response.transaction.transaction_id,
                 ),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),

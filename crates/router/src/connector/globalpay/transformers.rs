@@ -31,7 +31,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             account_name,
             amount: Some(item.request.amount.to_string()),
             currency: item.request.currency.to_string(),
-            reference: item.get_attempt_id()?,
+            reference: item.attempt_id.to_string(),
             country: item.get_billing_country()?,
             capture_mode: item.request.capture_method.map(|f| match f {
                 enums::CaptureMethod::Manual => requests::CaptureMode::Later,
@@ -165,7 +165,6 @@ fn get_payment_response(
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
             redirection_data: None,
-            redirect: false,
             mandate_reference: None,
             connector_metadata: None,
         }),

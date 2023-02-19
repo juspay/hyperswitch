@@ -95,6 +95,7 @@ pub enum PaymentIntentUpdate {
     Update {
         amount: i64,
         currency: storage_enums::Currency,
+        setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
@@ -158,6 +159,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::Update {
                 amount,
                 currency,
+                setup_future_usage,
                 status,
                 customer_id,
                 shipping_address_id,
@@ -167,6 +169,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount: Some(amount),
                 currency: Some(currency),
                 status: Some(status),
+                setup_future_usage,
                 customer_id,
                 client_secret: make_client_secret_null_if_success(Some(status)),
                 shipping_address_id,

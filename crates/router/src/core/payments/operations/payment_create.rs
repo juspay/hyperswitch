@@ -420,7 +420,7 @@ impl PaymentCreate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
             amount: amount.into(),
             currency,
@@ -433,6 +433,8 @@ impl PaymentCreate {
             last_synced,
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
+            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
+            payment_issuer: request.payment_issuer.map(ForeignInto::foreign_into),
             ..storage::PaymentAttemptNew::default()
         }
     }
