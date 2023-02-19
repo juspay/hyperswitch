@@ -170,7 +170,10 @@ impl MerchantConnectorAccountInterface for Store {
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await;
-        t.insert(&conn).await.map_err(Into::into).into_report()
+        t.insert(&conn).await.map_err(|error| {
+            logger::debug!(hola_error=?error);
+            Into::into(error)
+        }).into_report()
     }
 
     async fn find_merchant_connector_account_by_merchant_id_list(

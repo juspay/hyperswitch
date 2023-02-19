@@ -87,11 +87,15 @@ base_url = "https://api-na.playground.klarna.com/"
 [connectors.nuvei]
 base_url = "https://ppp-test.nuvei.com/"
 
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
     "adyen",
+    "airwallex",
     "authorizedotnet",
     "braintree",
     "checkout",

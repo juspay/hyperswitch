@@ -4,6 +4,8 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
+    pub adyen: Option<BodyKey>,
+	pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,

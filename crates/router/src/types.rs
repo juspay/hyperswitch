@@ -93,6 +93,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
+    pub reference_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -414,6 +415,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for PaymentsPreAuthorizeRouterData 
             payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
+            reference_id: data.reference_id.clone(),
         }
     }
 }

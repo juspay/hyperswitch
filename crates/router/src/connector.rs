@@ -1,5 +1,6 @@
 pub mod aci;
 pub mod adyen;
+pub mod airwallex;
 pub mod applepay;
 pub mod authorizedotnet;
 pub mod braintree;
@@ -18,7 +19,7 @@ pub mod worldline;
 pub mod worldpay;
 
 pub use self::{
-    aci::Aci, adyen::Adyen, applepay::Applepay, authorizedotnet::Authorizedotnet,
+    aci::Aci, adyen::Adyen, airwallex::Airwallex, applepay::Applepay, authorizedotnet::Authorizedotnet,
     braintree::Braintree, checkout::Checkout, cybersource::Cybersource, fiserv::Fiserv,
     globalpay::Globalpay, klarna::Klarna, nuvei::Nuvei, payu::Payu, rapyd::Rapyd, shift4::Shift4,
     stripe::Stripe, worldline::Worldline, worldpay::Worldpay,
