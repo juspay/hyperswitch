@@ -34,15 +34,15 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        api_key.push(
+        let mut header = self.get_auth_header(&req.connector_auth_type)?;
+        header.push(
 
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string(),
             )
         );
-        Ok(api_key)
+        Ok(header)
     }
 }
 
