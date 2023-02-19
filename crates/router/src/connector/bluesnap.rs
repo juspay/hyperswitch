@@ -132,7 +132,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/services/2/transactions"
+            "services/2/transactions"
         ))
     }
 
@@ -224,7 +224,7 @@ impl
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "/services/2/transactions/",
+            "services/2/transactions/",
             connector_payment_id
         ))
     }
@@ -299,7 +299,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/services/2/transactions"
+            "services/2/transactions"
         ))
     }
 
@@ -402,7 +402,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/services/2/transactions"
+            "services/2/transactions"
         ))
     }
 
@@ -485,7 +485,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "/services/2/transactions/refund/",
+            "services/2/transactions/refund/",
             req.request.connector_transaction_id
         ))
     }
@@ -565,7 +565,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
-            "/services/2/transactions/",
+            "services/2/transactions/",
             req.request.connector_refund_id.as_deref().unwrap_or("")
         ))
     }
