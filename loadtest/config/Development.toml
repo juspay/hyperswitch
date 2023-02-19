@@ -85,7 +85,7 @@ base_url = "https://apple-pay-gateway.apple.com/"
 base_url = "https://api-na.playground.klarna.com/"
 
 [connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com"
+base_url = "https://sandbox.bluesnap.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]

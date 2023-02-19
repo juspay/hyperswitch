@@ -106,7 +106,7 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com"
+base_url = "https://sandbox.bluesnap.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
