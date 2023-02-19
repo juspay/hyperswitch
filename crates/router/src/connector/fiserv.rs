@@ -79,8 +79,8 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
-            (headers::CLIENT_REQUEST_ID.to_string(), client_request_id),
-            (headers::AUTH_TOKEN_TYPE.to_string(), "HMAC".to_string()),
+            ("Client-Request-Id".to_string(), client_request_id),
+            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
             (headers::TIMESTAMP.to_string(), timestamp.to_string()),
             (headers::AUTHORIZATION.to_string(), hmac),
         ];
