@@ -5,7 +5,7 @@ use error_stack::{report, IntoReport, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
 use crate::{
-    core::errors::{self, RouterResult, StorageErrorExt},
+    core::errors::{self, RouterResult},
     db::StorageInterface,
     routes::{app::AppStateInfo, AppState},
     services::api,
@@ -44,8 +44,13 @@ where
             .store()
             .find_merchant_account_by_api_key(api_key)
             .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)
-            .attach_printable("Merchant not authenticated")
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })
     }
 }
 
@@ -87,7 +92,13 @@ impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for MerchantIdAuth
             .store
             .find_merchant_account_by_merchant_id(self.0.as_ref())
             .await
-            .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::Unauthorized))
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })
     }
 }
 
@@ -107,8 +118,13 @@ impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for PublishableKey
             .store
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)
-            .attach_printable("Merchant not authenticated")
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })
     }
 }
 

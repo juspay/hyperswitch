@@ -53,13 +53,13 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 /// # Example
 ///
 /// ```
-/// use router_derive::{DieselEnum, diesel_enum};
+/// use router_derive::diesel_enum;
 ///
 /// // Deriving `FromStr` and `ToString` using the `strum` crate, you can also implement it
 /// // yourself if required.
 /// #[derive(strum::Display, strum::EnumString)]
-/// #[derive(Debug, DieselEnum)]
-/// #[diesel_enum]
+/// #[derive(Debug)]
+/// #[diesel_enum(storage_type = "pg_enum")]
 /// enum Color {
 ///     Red,
 ///     Green,
@@ -69,32 +69,64 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 #[proc_macro_derive(DieselEnum)]
 pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
-
     let tokens =
         macros::diesel_enum_derive_inner(&ast).unwrap_or_else(|error| error.to_compile_error());
     tokens.into()
 }
 
+/// Similar to [`DieselEnum`] but uses text when storing in the database, this is to avoid
+/// making changes to the database when the enum variants are added or modified
+///
+/// # Example
+/// [DieselEnum]: macro@crate::diesel_enum
+///
+/// ```
+/// use router_derive::{diesel_enum};
+///
+/// // Deriving `FromStr` and `ToString` using the `strum` crate, you can also implement it
+/// // yourself if required.
+/// #[derive(strum::Display, strum::EnumString)]
+/// #[derive(Debug)]
+/// #[diesel_enum(storage_type = "text")]
+/// enum Color {
+///     Red,
+///     Green,
+///     Blue,
+/// }
+/// ```
+#[proc_macro_derive(DieselEnumText)]
+pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let tokens = macros::diesel_enum_text_derive_inner(&ast)
+        .unwrap_or_else(|error| error.to_compile_error());
+    tokens.into()
+}
+
 /// Derives the boilerplate code required for using an enum with `diesel` and a PostgreSQL database.
 ///
-/// Works in tandem with the [`DieselEnum`][DieselEnum] derive macro to achieve the desired results.
+/// Storage Type can either be "text" or "pg_enum"
+/// Choosing text will store the enum as text in the database, whereas pg_enum will map it to the
+/// database enum
+///
+/// Works in tandem with the [`DieselEnum`][DieselEnum] and [`DieselEnumText`][DieselEnumText] derive macro to achieve the desired results.
 /// The enum is required to implement (or derive) the [`ToString`][ToString] and the
 /// [`FromStr`][FromStr] traits for the [`DieselEnum`][DieselEnum] derive macro to be used.
 ///
 /// [DieselEnum]: crate::DieselEnum
+/// [DieselEnumText]: crate::DieselEnumText
 /// [FromStr]: ::core::str::FromStr
 /// [ToString]: ::std::string::ToString
 ///
 /// # Example
 ///
 /// ```
-/// use router_derive::{DieselEnum, diesel_enum};
+/// use router_derive::{diesel_enum};
 ///
 /// // Deriving `FromStr` and `ToString` using the `strum` crate, you can also implement it
 /// // yourself if required. (Required by the DieselEnum derive macro.)
 /// #[derive(strum::Display, strum::EnumString)]
-/// #[derive(Debug, DieselEnum)]
-/// #[diesel_enum]
+/// #[derive(Debug)]
+/// #[diesel_enum(storage_type = "text")]
 /// enum Color {
 ///     Red,
 ///     Green,

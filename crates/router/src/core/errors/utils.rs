@@ -15,6 +15,7 @@ pub trait StorageErrorExt {
 }
 
 impl StorageErrorExt for error_stack::Report<errors::StorageError> {
+    #[track_caller]
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
@@ -98,6 +99,12 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         reason.to_string(),
                     ),
+                }
+            }
+            errors::ConnectorError::MismatchedPaymentData => {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name:
+                        "payment_method_data and payment_issuer, payment_experience does not match",
                 }
             }
             _ => errors::ApiErrorResponse::InternalServerError,

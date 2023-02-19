@@ -239,6 +239,8 @@ async fn payments_create_core_adyen_no_redirect() {
         mandate_id: None,
         client_secret: None,
         browser_info: None,
+        payment_experience: None,
+        payment_issuer: None,
     };
 
     let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {

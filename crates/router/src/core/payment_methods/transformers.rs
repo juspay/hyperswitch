@@ -127,9 +127,7 @@ pub fn mk_add_card_response(
         payment_method_issuer_code: req.payment_method_issuer_code,
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
-        payment_experience: Some(vec![
-            api_models::payment_methods::PaymentExperience::RedirectToUrl,
-        ]), // [#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
     }
 }
 
