@@ -6,7 +6,7 @@ use crate::{
 };
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
     amount: String,
@@ -17,7 +17,7 @@ pub struct BluesnapPaymentsRequest {
     card_holder_info: CardHolderInfo,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapVoidRequest {
     card_transaction_type: BluesnapTxnType,
@@ -37,7 +37,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
     }
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCaptureRequest {
     card_transaction_type: BluesnapTxnType,
@@ -137,10 +137,9 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType  {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapTxnType {
-    #[default]
     AuthOnly,
     AuthCapture,
     AuthReversal,
@@ -228,7 +227,7 @@ impl From<transformers::Foreign<(BluesnapTxnType, Option<BluesnapSyncProcessingS
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapChargePaymentsResponse {
     processing_info: BluesnapChargePaymentsProcessingInfoResponse,
@@ -236,7 +235,7 @@ pub struct BluesnapChargePaymentsResponse {
     card_transaction_type: BluesnapTxnType,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapSyncPaymentsResponse {
     processing_info: BluesnapSyncPaymentsProcessingInfoResponse,
@@ -338,33 +337,20 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     }
 }
 
-// Type definition for Refund Response
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    #[default] // refund creation will fail with a non-200 response code if it is invalid
-    Succeeded,
-}
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-        }
-    }
-}
 
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    refund_transaction_id: i32,
+    refund_transaction_id: Option<i32>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
     transaction_id: String,
+    card_transaction_type: BluesnapTxnType,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
@@ -377,7 +363,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone(),
-                refund_status: enums::RefundStatus::Success,
+                refund_status: match item.response.card_transaction_type {
+                    BluesnapTxnType::Refund => enums::RefundStatus::Success,
+                    _ => enums::RefundStatus::Failure
+                },
             }),
             ..item.data
         })
@@ -395,8 +384,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
        
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.refund_transaction_id.to_string(),
-                refund_status: enums::RefundStatus::Success,
+                connector_refund_id: item.response.refund_transaction_id.unwrap_or(0).to_string(),
+                refund_status: match item.response.refund_transaction_id {
+                    Some(_refund_transaction_id) => enums::RefundStatus::Success,
+                    _ => enums::RefundStatus::Failure,
+                },
             }),
             ..item.data
         })
