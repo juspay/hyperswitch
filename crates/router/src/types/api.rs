@@ -162,6 +162,7 @@ impl ConnectorData {
         match connector_name {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
+            "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
@@ -177,7 +178,7 @@ impl ConnectorData {
             "stripe" => Ok(Box::new(&connector::Stripe)),
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
-            _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
+			_ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }

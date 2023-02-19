@@ -137,6 +137,7 @@ pub struct SupportedConnectors {
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+	pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub braintree: ConnectorParams,

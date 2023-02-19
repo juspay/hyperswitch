@@ -383,6 +383,7 @@ pub trait ConnectorActions: Connector {
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
+            reference_id: None,
         }
     }
 

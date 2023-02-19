@@ -108,10 +108,14 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 [connectors.nuvei]
 base_url = "https://ppp-test.nuvei.com/"
 
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "adyen",
+    "airwallex",
     "authorizedotnet",
     "braintree",
     "checkout",

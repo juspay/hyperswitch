@@ -47,6 +47,7 @@ wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
     "adyen",
+    "airwallex",
     "authorizedotnet",
     "braintree",
     "checkout",
@@ -121,6 +122,9 @@ base_url = "https://eu.sandbox.api-ingenico.com/"
 
 [connectors.nuvei]
 base_url = "https://ppp-test.nuvei.com/"
+
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
