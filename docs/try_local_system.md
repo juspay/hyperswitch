@@ -75,7 +75,8 @@ Check the Table Of Contents to jump to the relevant section.
 
 ## Set up a Rust environment and other dependencies
 
-If you are using nix, please skip the setup dependencies and jump to [Set up the database](#set-up-the-database)
+If you are using `nix`, please skip the setup dependencies step and jump to 
+[Set up the database](#set-up-the-database).
 
 ### Set up dependencies on Ubuntu-based systems
 
@@ -336,7 +337,7 @@ Once you're done with configuring the application, proceed with
    cargo run
    ```
 
-   Compile and run the application using nix:
+   If you are using `nix`, you can compile and run the application using `nix`:
 
    ```shell
    nix run
