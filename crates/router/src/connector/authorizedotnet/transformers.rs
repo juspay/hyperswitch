@@ -524,7 +524,6 @@ impl<F, T>
                 field_name: "connector_metadata",
             })?;
         let mut redirection_data = None;
-        let mut redirect = false;
 
         if item.response.transaction_response.redirect_url.is_some() {
             let redirection_url_response = Url::parse(
@@ -551,7 +550,6 @@ impl<F, T>
                 method: services::Method::Get,
                 form_fields: form_field_for_redirection,
             });
-            redirect = true;
         }
         Ok(Self {
             status,
@@ -561,7 +559,7 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transaction_response.transaction_id,
                     ),
-                    redirection_data: None,
+                    redirection_data,
                     mandate_reference: None,
                     connector_metadata: metadata,
                 }),
