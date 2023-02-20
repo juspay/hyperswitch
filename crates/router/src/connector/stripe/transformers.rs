@@ -616,7 +616,6 @@ impl<F, T>
         let response = error_res.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
