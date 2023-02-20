@@ -308,7 +308,7 @@ pub struct Charges {
     data: Vec<String>,
     has_more: bool,
     total_count: i32,
-    url: String
+    url: String,
 }
 
 impl Charges {

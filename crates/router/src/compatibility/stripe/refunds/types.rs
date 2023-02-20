@@ -24,7 +24,7 @@ pub struct StripeCreateRefundResponse {
     pub currency: String,
     pub payment_intent: String,
     pub status: StripeRefundStatus,
-    pub created: i64,
+    pub created: u32,
     pub metadata: serde_json::Value,
 }
 
@@ -82,7 +82,7 @@ impl TryFrom<refunds::RefundResponse> for StripeCreateRefundResponse {
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("`created_at` not available got Refund")?
-                .unix_timestamp(),
+                .microsecond(),
             metadata: res.metadata.unwrap_or(serde_json::json!({})),
         })
     }
