@@ -56,6 +56,6 @@ pub enum RedisError {
     RedisConnectionError,
     #[error("Failed to subscribe to a channel")]
     SubscribeError,
-    #[error("Failed to publish to a subscriber")]
+    #[error("Failed to publish to a channel")]
     PublishError,
 }
