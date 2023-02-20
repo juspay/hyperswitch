@@ -278,6 +278,7 @@ pub struct StripePaymentIntentResponse {
     pub refunds: Option<Vec<refunds::RefundResponse>>,
     pub mandate_id: Option<String>,
     pub metadata: Option<Value>,
+    pub charges: Charges,
 }
 
 impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
@@ -296,9 +297,32 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             refunds: resp.refunds,
             mandate_id: resp.mandate_id,
             metadata: resp.metadata,
+            charges: Charges::new(),
         }
     }
 }
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct Charges {
+    object: &'static str,
+    data: Vec<String>,
+    has_more: bool,
+    total_count: i32,
+    url: String
+}
+
+impl Charges {
+    fn new() -> Self {
+        Self {
+            object: "list",
+            data: vec![],
+            has_more: false,
+            total_count: 0,
+            url: "abc".to_string(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
