@@ -987,13 +987,10 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        logger::debug!(hola_redirect=?query);
-
         Ok(query
             .redirect_status
             .map_or(payments::CallConnectorAction::Trigger, |status| {
-                // Get failed error message by triggering call to connector,
-                // status will be updated by psync call
+                // Get failed error message by triggering call to connector
                 if status == transformers::StripePaymentStatus::Failed {
                     payments::CallConnectorAction::Trigger
                 } else {
