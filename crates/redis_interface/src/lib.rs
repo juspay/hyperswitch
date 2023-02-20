@@ -191,10 +191,8 @@ impl PubSubInterface for RedisConnectionPool {
     }
     #[inline]
     async fn on_message(&self) {
-        let mut message = self.subscriber.on_message();
-        while let Some((_, key)) = message.next().await {
-            logger::error!("{:?}", key);
-        }
+        let message = self.subscriber.on_message();
+        message.for_each(|_key| futures::future::ready(())).await;
     }
 }
 
