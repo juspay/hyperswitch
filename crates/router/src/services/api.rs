@@ -363,15 +363,24 @@ impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RedirectForm {
-    pub url: String,
+    pub endpoint: String,
     pub method: Method,
     pub form_fields: HashMap<String, String>,
 }
 
-impl RedirectForm {
-    pub fn new(url: String, method: Method, form_fields: HashMap<String, String>) -> Self {
+impl From<(url::Url, Method)> for RedirectForm {
+    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
+        let form_fields = std::collections::HashMap::from_iter(
+            redirect_url
+                .query_pairs()
+                .map(|(key, value)| (key.to_string(), value.to_string())),
+        );
+
+        // Do not include query params in the endpoint
+        redirect_url.set_query(None);
+
         Self {
-            url,
+            endpoint: redirect_url.to_string(),
             method,
             form_fields,
         }
@@ -574,18 +583,18 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
             head {
                 style {
                     r##"
-                    
-                    "## 
+
+                    "##
                 }
                 (PreEscaped(r##"
                 <style>
-                    #loader1 { 
+                    #loader1 {
                         width: 500px,
-                    } 
-                    @media max-width: 600px { 
-                        #loader1 { 
-                            width: 200px 
-                        } 
+                    }
+                    @media max-width: 600px {
+                        #loader1 {
+                            width: 200px
+                        }
                     }
                 </style>
                 "##))
@@ -612,7 +621,7 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
 
 
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                form action=(PreEscaped(&form.url)) method=(form.method.to_string()) #payment_form {
+                form action=(PreEscaped(&form.endpoint)) method=(form.method.to_string()) #payment_form {
                     @for (field, value) in &form.form_fields {
                         input type="hidden" name=(field) value=(value);
                     }
