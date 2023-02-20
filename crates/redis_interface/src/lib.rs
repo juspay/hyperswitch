@@ -82,7 +82,7 @@ impl RedisClient {
             .change_context(errors::RedisError::SubscribeError)
     }
     #[inline]
-    pub fn on_message(&self) -> fred::prelude::AsyncStream<(String, fred::prelude::RedisValue)> {
+    pub fn on_message(&self) -> impl futures::Stream<Item = (String, fred::types::RedisValue)> {
         self.inner.on_message()
     }
 }
