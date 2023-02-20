@@ -39,7 +39,7 @@ impl ConnectorCommon for Braintree {
         let auth: braintree::BraintreeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.auth_header)])
     }
 }
 
@@ -103,7 +103,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/client_token",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
         ))
     }
 
@@ -131,6 +131,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!(braintree_payments_error_response=?res);
         let response: braintree::ErrorResponse = res
             .response
             .parse_struct("Error Response")
@@ -241,7 +242,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
             connector_payment_id
         ))
     }
@@ -341,7 +342,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions",
             self.base_url(connectors),
-            auth_type.merchant_account
+            auth_type.merchant_id
         ))
     }
 
@@ -452,7 +453,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions/{}/void",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
             req.request.connector_transaction_id
         ))
     }
@@ -556,7 +557,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(format!(
             "{}merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
             connector_payment_id
         ))
     }

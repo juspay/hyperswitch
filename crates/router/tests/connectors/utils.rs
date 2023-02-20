@@ -348,7 +348,7 @@ pub trait ConnectorActions: Connector {
             merchant_id: self.get_name(),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
-            attempt_id: Some(uuid::Uuid::new_v4().to_string()),
+            attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
             router_return_url: info.clone().and_then(|a| a.router_return_url),
             auth_type: info
@@ -469,6 +469,8 @@ impl Default for PaymentAuthorizeType {
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+            payment_experience: None,
+            payment_issuer: None,
         };
         Self(data)
     }
