@@ -24,13 +24,13 @@ pub enum Method {
     Delete,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Clone, Serialize, Debug)]
 pub enum ContentType {
     Json,
     FormUrlEncoded,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Request {
     pub url: String,
     pub headers: Headers,

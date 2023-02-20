@@ -242,7 +242,6 @@ impl
         // encode only for for urlencoded things.
         let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(aci_payment_logs=?aci_req);
         Ok(Some(aci_req))
     }
 
@@ -484,7 +483,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(response=?res);
 
         let response: aci::AciRefundResponse = res
             .response

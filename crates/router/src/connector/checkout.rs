@@ -262,12 +262,10 @@ impl
         types::PaymentsSyncData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        logger::debug!(raw_response=?res);
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payment_sync_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -280,7 +278,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(raw_response=?res);
         let response: checkout::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
@@ -370,7 +367,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(payments_create_response=?res);
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -387,7 +383,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(checkout_error_response=?res);
 
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             checkout::ErrorResponse {
@@ -485,7 +480,6 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        logger::debug!(payments_cancel_response=?res);
 
         let mut response: checkout::PaymentVoidResponse = res
             .response
@@ -595,7 +589,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(response=?res);
         let response: checkout::RefundResponse = res
             .response
             .parse_struct("checkout::RefundResponse")

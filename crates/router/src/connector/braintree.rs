@@ -123,7 +123,6 @@ impl
                 .build(),
         );
 
-        logger::debug!(braintree_session_request=?request);
         Ok(request)
     }
 
@@ -131,7 +130,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(braintree_payments_error_response=?res);
         let response: braintree::ErrorResponse = res
             .response
             .parse_struct("Error Response")
@@ -153,7 +151,6 @@ impl
             utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        logger::debug!(?braintree_session_request);
         Ok(Some(braintree_session_request))
     }
 
@@ -162,7 +159,6 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        logger::debug!(payment_session_response_braintree=?res);
         let response: braintree::BraintreeSessionTokenResponse = res
             .response
             .parse_struct("braintree SessionTokenResponse")
@@ -291,7 +287,6 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response_braintree=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -380,7 +375,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(braintreepayments_create_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -398,7 +392,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(braintreepayments_create_response=?res);
 
         let response: braintree::ErrorResponse = res
             .response
@@ -502,7 +495,6 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsVoidResponse")
@@ -593,7 +585,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
             .parse_struct("Braintree RefundResponse")
@@ -669,7 +660,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
             .parse_struct("Braintree RefundResponse")
