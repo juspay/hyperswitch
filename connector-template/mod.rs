@@ -196,13 +196,6 @@ impl
         ))
     }
 
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -219,6 +212,13 @@ impl
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
