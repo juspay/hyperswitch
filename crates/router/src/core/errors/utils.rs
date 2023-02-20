@@ -101,6 +101,12 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     ),
                 }
             }
+            errors::ConnectorError::MismatchedPaymentData => {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name:
+                        "payment_method_data and payment_issuer, payment_experience does not match",
+                }
+            }
             _ => errors::ApiErrorResponse::InternalServerError,
         };
         self.change_context(error)

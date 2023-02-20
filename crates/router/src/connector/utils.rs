@@ -35,7 +35,6 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
 }
 
 pub trait PaymentsRequestData {
-    fn get_attempt_id(&self) -> Result<String, Error>;
     fn get_billing(&self) -> Result<&api::Address, Error>;
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
@@ -57,12 +56,6 @@ impl RefundsRequestData for types::RefundsData {
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
-    fn get_attempt_id(&self) -> Result<String, Error> {
-        self.attempt_id
-            .clone()
-            .ok_or_else(missing_field_err("attempt_id"))
-    }
-
     fn get_billing_country(&self) -> Result<String, Error> {
         self.address
             .billing

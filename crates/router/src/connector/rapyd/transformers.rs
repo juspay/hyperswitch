@@ -414,7 +414,6 @@ impl<F, T>
                                 resource_id: types::ResponseId::ConnectorTransactionId(
                                     data.id.to_owned(),
                                 ), //transaction_id is also the field but this id is used to initiate a refund
-                                redirect: redirection_data.is_some(),
                                 redirection_data,
                                 mandate_reference: None,
                                 connector_metadata: None,

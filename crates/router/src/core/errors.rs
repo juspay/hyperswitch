@@ -248,6 +248,11 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+    #[error("{payment_method} is not supported by {connector}")]
+    NotSupported {
+        payment_method: String,
+        connector: &'static str,
+    },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -270,6 +275,8 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Payment Issuer does not match the Payment Data provided")]
+    MismatchedPaymentData,
 }
 
 #[derive(Debug, thiserror::Error)]
