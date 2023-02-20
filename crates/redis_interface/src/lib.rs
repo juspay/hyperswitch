@@ -44,6 +44,13 @@ pub struct RedisClient {
     inner: fred::prelude::RedisClient,
 }
 
+impl std::ops::Deref for RedisClient {
+    type Target = fred::prelude::RedisClient;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl RedisClient {
     pub async fn new(
         config: fred::types::RedisConfig,
@@ -58,34 +65,8 @@ impl RedisClient {
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: client })
     }
-    #[inline]
-    pub async fn subscribe(
-        &self,
-        channel: impl AsRef<str>,
-    ) -> CustomResult<usize, errors::RedisError> {
-        self.inner
-            .subscribe(channel.as_ref())
-            .await
-            .into_report()
-            .change_context(errors::RedisError::SubscribeError)
-    }
-    #[inline]
-    pub async fn publish(
-        &self,
-        channel: impl AsRef<str>,
-        key: impl AsRef<str>,
-    ) -> CustomResult<usize, errors::RedisError> {
-        self.inner
-            .publish(channel.as_ref(), key.as_ref())
-            .await
-            .into_report()
-            .change_context(errors::RedisError::SubscribeError)
-    }
-    #[inline]
-    pub fn on_message(&self) -> impl futures::Stream<Item = (String, fred::types::RedisValue)> {
-        self.inner.on_message()
-    }
 }
+
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new(conf: &RedisSettings) -> CustomResult<Self, errors::RedisError> {
@@ -183,11 +164,19 @@ pub trait PubSubInterface {
 impl PubSubInterface for RedisConnectionPool {
     #[inline]
     async fn subscribe(&self, channel: &str) -> CustomResult<usize, errors::RedisError> {
-        self.subscriber.subscribe(channel).await
+        self.subscriber
+            .subscribe(channel)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SubscribeError)
     }
     #[inline]
     async fn publish(&self, channel: &str, key: &str) -> CustomResult<usize, errors::RedisError> {
-        self.publisher.publish(channel, key).await
+        self.publisher
+            .publish(channel, key)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SubscribeError)
     }
     #[inline]
     async fn on_message(&self) {
