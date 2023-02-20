@@ -196,6 +196,9 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        connector_label -> Varchar,
+        connector_country -> Varchar,
+        business_type -> Varchar,
     }
 }
 

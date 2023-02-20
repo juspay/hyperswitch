@@ -241,6 +241,15 @@ pub struct PaymentConnectorCreate {
     /// Name of the Connector
     #[schema(example = "stripe")]
     pub connector_name: String,
+    /// Connector label for specific country and Business
+    #[schema(example = "stripe_US_travel")]
+    pub connector_label: String,
+    /// Country through which payment should be processed
+    #[schema(example = "US")]
+    pub connector_country: String,
+    ///Business Type of the merchant
+    #[schema(example = "travel")]
+    pub business_type: String,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,

@@ -291,6 +291,9 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        connector_label: Some(req.connector_label),
+        connector_country: Some(req.connector_country),
+        business_type: Some(req.business_type),
     };
 
     let mca = store
@@ -401,6 +404,9 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        connector_label: Some(req.connector_label),
+        connector_country: Some(req.connector_country),
+        business_type: Some(req.business_type),
     };
 
     let updated_mca = db
@@ -431,6 +437,9 @@ pub async fn update_payment_connector(
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
+        connector_label: updated_mca.connector_label,
+        connector_country: updated_mca.connector_country,
+        business_type: updated_mca.business_type,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

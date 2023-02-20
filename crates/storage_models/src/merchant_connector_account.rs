@@ -27,6 +27,9 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<serde_json::Value>,
+    pub connector_label: String,
+    pub connector_country: String,
+    pub business_type: String,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,6 +44,9 @@ pub struct MerchantConnectorAccountNew {
     pub merchant_connector_id: String,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_label: Option<String>,
+    pub connector_country: Option<String>,
+    pub business_type: Option<String>,
 }
 
 #[derive(Debug)]
@@ -55,6 +61,9 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<serde_json::Value>,
+        connector_label: Option<String>,
+        connector_country: Option<String>,
+        business_type: Option<String>,
     },
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -69,6 +78,9 @@ pub struct MerchantConnectorAccountUpdateInternal {
     merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<serde_json::Value>,
+    connector_label: Option<String>,
+    connector_country: Option<String>,
+    business_type: Option<String>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -84,6 +96,9 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                connector_label,
+                connector_country,
+                business_type,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -94,6 +109,9 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                connector_label,
+                connector_country,
+                business_type,
             },
         }
     }

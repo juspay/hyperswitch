@@ -375,6 +375,9 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
+            connector_label: merchant_ca.connector_label,
+            connector_country: merchant_ca.connector_country,
+            business_type: merchant_ca.business_type,
         }
         .into())
     }
