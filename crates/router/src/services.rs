@@ -45,7 +45,9 @@ impl Store {
         redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
 
         async_spawn!({
-            subscriber_conn.on_message().await;
+            if let Err(e) = subscriber_conn.on_message().await {
+                logger::error!(pubsub_err=?e);
+            }
         });
 
         async_spawn!({

@@ -157,7 +157,7 @@ impl RedisConnectionPool {
 pub trait PubSubInterface {
     async fn subscribe(&self, channel: &str) -> CustomResult<usize, errors::RedisError>;
     async fn publish(&self, channel: &str, key: &str) -> CustomResult<usize, errors::RedisError>;
-    async fn on_message(&self);
+    async fn on_message(&self) -> CustomResult<(), errors::RedisError>;
 }
 
 #[async_trait::async_trait]
@@ -179,9 +179,15 @@ impl PubSubInterface for RedisConnectionPool {
             .change_context(errors::RedisError::SubscribeError)
     }
     #[inline]
-    async fn on_message(&self) {
-        let message = self.subscriber.on_message();
-        message.for_each(|_key| futures::future::ready(())).await;
+    async fn on_message(&self) -> CustomResult<(), errors::RedisError> {
+        let mut message = self.subscriber.on_message();
+        while let Some((_, key)) = message.next().await {
+            let key = key
+                .as_string()
+                .ok_or::<errors::RedisError>(errors::RedisError::DeleteFailed)?;
+            self.delete_key(&key).await?;
+        }
+        Ok(())
     }
 }
 
