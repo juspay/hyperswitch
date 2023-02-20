@@ -76,7 +76,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
-    pub attempt_id: Option<String>,
+    pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub payment_method: storage_enums::PaymentMethodType,
     pub connector_auth_type: ConnectorAuthType,
@@ -115,6 +115,8 @@ pub struct PaymentsAuthorizeData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<api_models::payments::OrderDetails>,
+    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone)]
@@ -181,7 +183,6 @@ pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        redirect: bool,
         mandate_reference: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },

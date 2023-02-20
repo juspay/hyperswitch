@@ -672,7 +672,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
@@ -722,7 +721,6 @@ pub fn get_adyen_response(
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
-        redirect: false,
         mandate_reference: None,
         connector_metadata: None,
     };
@@ -783,7 +781,6 @@ pub fn get_redirection_response(
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
-        redirect: true,
         mandate_reference: None,
         connector_metadata: None,
     };
@@ -876,7 +873,6 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
