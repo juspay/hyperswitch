@@ -10,11 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
@@ -304,11 +300,9 @@ pub enum PaymentStatus {
     Processing,
 }
 
-impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>) -> Self {
-        let (status, capture_method) = item.0;
+impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
+    fn foreign_from(item: (PaymentStatus, enums::CaptureMethod)) -> Self {
+        let (status, capture_method) = item;
         match status {
             PaymentStatus::Captured
             | PaymentStatus::Paid
@@ -327,7 +321,6 @@ impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
             PaymentStatus::PendingApproval => enums::AttemptStatus::Authorized,
             _ => enums::AttemptStatus::Pending,
         }
-        .into()
     }
 }
 

@@ -7,11 +7,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -179,11 +175,9 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(RapydPaymentStatus, String)>) -> Self {
-        let (status, next_action) = item.0;
+impl ForeignFrom<(RapydPaymentStatus, String)> for enums::AttemptStatus {
+    fn foreign_from(item: (RapydPaymentStatus, String)) -> Self {
+        let (status, next_action) = item;
         match status {
             RapydPaymentStatus::Closed => enums::AttemptStatus::Charged,
             RapydPaymentStatus::Active => {
@@ -202,7 +196,6 @@ impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
 
             RapydPaymentStatus::New => enums::AttemptStatus::Authorizing,
         }
-        .into()
     }
 }
 

@@ -5,11 +5,7 @@ use url::Url;
 use crate::{
     core::errors,
     pii, services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -140,13 +136,8 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(
-        item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
-    ) -> Self {
-        let item = item.0;
+impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<enums::CaptureMethod>)) -> Self {
         let (status, capture_method) = item;
         match status {
             CheckoutPaymentStatus::Authorized => {
@@ -163,15 +154,12 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMet
             CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
         }
-        .into()
     }
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Balances)>) -> Self {
-        let (status, balances) = item.0;
+impl ForeignFrom<(CheckoutPaymentStatus, Balances)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Balances)) -> Self {
+        let (status, balances) = item;
 
         match status {
             CheckoutPaymentStatus::Authorized => {
@@ -186,7 +174,6 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
             CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
         }
-        .into()
     }
 }
 

@@ -18,7 +18,7 @@ use crate::{
     services::api,
     types::{
         self, api as api_types, storage,
-        transformers::{Foreign, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -111,9 +111,9 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
-impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
-    fn from(item: Foreign<storage::PaymentIntent>) -> Self {
-        let item = item.0;
+impl ForeignFrom<storage::PaymentIntent> for PaymentsResponse {
+    fn foreign_from(item: storage::PaymentIntent) -> Self {
+        let item = item;
         PaymentsResponse {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
@@ -128,7 +128,6 @@ impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
             customer_id: item.customer_id,
             ..Default::default()
         }
-        .into()
     }
 }
 
