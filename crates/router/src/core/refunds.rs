@@ -563,7 +563,7 @@ pub async fn refund_list(
 impl ForeignFrom<storage::Refund> for api::RefundResponse {
     fn foreign_from(refund: storage::Refund) -> Self {
         let refund = refund;
-        api::RefundResponse {
+        Self {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,

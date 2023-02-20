@@ -10,7 +10,7 @@ use crate::types::{storage, transformers::ForeignFrom};
 impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
     fn foreign_from(value: storage::MerchantAccount) -> Self {
         let item = value;
-        MerchantAccountResponse {
+        Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
             api_key: item.api_key,

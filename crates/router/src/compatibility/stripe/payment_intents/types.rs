@@ -394,8 +394,8 @@ pub enum Request3DS {
 impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
     fn foreign_from(item: Option<Request3DS>) -> Self {
         match item.unwrap_or_default() {
-            Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
-            Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
+            Request3DS::Automatic => Self::NoThreeDs,
+            Request3DS::Any => Self::ThreeDs,
         }
     }
 }

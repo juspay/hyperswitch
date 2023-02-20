@@ -63,8 +63,8 @@ impl ForeignFrom<storage_enums::ConnectorType> for api_enums::ConnectorType {
 impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType {
     fn foreign_from(item: api_models::refunds::RefundType) -> Self {
         match item {
-            api_models::refunds::RefundType::Instant => storage_enums::RefundType::InstantRefund,
-            api_models::refunds::RefundType::Scheduled => storage_enums::RefundType::RegularRefund,
+            api_models::refunds::RefundType::Instant => Self::InstantRefund,
+            api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
         }
     }
 }
@@ -133,22 +133,14 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
         match s {
             storage_enums::AttemptStatus::Charged | storage_enums::AttemptStatus::AutoRefunded => {
-                storage_enums::IntentStatus::Succeeded
+                Self::Succeeded
             }
 
-            storage_enums::AttemptStatus::ConfirmationAwaited => {
-                storage_enums::IntentStatus::RequiresConfirmation
-            }
-            storage_enums::AttemptStatus::PaymentMethodAwaited => {
-                storage_enums::IntentStatus::RequiresPaymentMethod
-            }
+            storage_enums::AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
+            storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
-            storage_enums::AttemptStatus::Authorized => {
-                storage_enums::IntentStatus::RequiresCapture
-            }
-            storage_enums::AttemptStatus::AuthenticationPending => {
-                storage_enums::IntentStatus::RequiresCustomerAction
-            }
+            storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
+            storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -157,15 +149,15 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::VoidInitiated
             | storage_enums::AttemptStatus::CaptureInitiated
-            | storage_enums::AttemptStatus::Pending => storage_enums::IntentStatus::Processing,
+            | storage_enums::AttemptStatus::Pending => Self::Processing,
 
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::AuthorizationFailed
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::CaptureFailed
-            | storage_enums::AttemptStatus::Failure => storage_enums::IntentStatus::Failed,
-            storage_enums::AttemptStatus::Voided => storage_enums::IntentStatus::Cancelled,
+            | storage_enums::AttemptStatus::Failure => Self::Failed,
+            storage_enums::AttemptStatus::Voided => Self::Cancelled,
         }
     }
 }
@@ -175,7 +167,7 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
 
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
-            api_enums::IntentStatus::Succeeded => Ok(storage_enums::EventType::PaymentSucceeded),
+            api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
@@ -245,7 +237,7 @@ impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
 impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
     fn foreign_from(address: &api_types::Address) -> Self {
         let address = address;
-        storage::AddressUpdate::Update {
+        Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
             country: address.address.as_ref().and_then(|a| a.country.clone()),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
@@ -264,7 +256,7 @@ impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
         let config = config;
-        api_types::Config {
+        Self {
             key: config.key,
             value: config.config,
         }
@@ -274,7 +266,7 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
         let config_update = config;
-        storage::ConfigUpdate::Update {
+        Self::Update {
             config: Some(config_update.value.clone()),
         }
     }
@@ -283,7 +275,7 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
     fn foreign_from(address: &storage::Address) -> Self {
         let address = address;
-        api_types::Address {
+        Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country.clone(),
@@ -317,7 +309,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount>
             None => None,
         };
 
-        Ok(api_models::admin::PaymentConnectorCreate {
+        Ok(Self {
             connector_type: merchant_ca.connector_type.foreign_into(),
             connector_name: merchant_ca.connector_name,
             merchant_connector_id: Some(merchant_ca.merchant_connector_id),
@@ -335,7 +327,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount>
 impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
     fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
         let address = item;
-        storage_models::address::AddressNew {
+        Self {
             city: address.city,
             country: address.country,
             line1: address.line1,
@@ -365,7 +357,7 @@ impl
         use masking::StrongSecret;
 
         let (api_key, plaintext_api_key) = item;
-        api_models::api_keys::CreateApiKeyResponse {
+        Self {
             key_id: api_key.key_id.clone(),
             merchant_id: api_key.merchant_id,
             name: api_key.name,
@@ -386,7 +378,7 @@ impl ForeignFrom<storage_models::api_keys::ApiKey>
 {
     fn foreign_from(item: storage_models::api_keys::ApiKey) -> Self {
         let api_key = item;
-        api_models::api_keys::RetrieveApiKeyResponse {
+        Self {
             key_id: api_key.key_id.clone(),
             merchant_id: api_key.merchant_id,
             name: api_key.name,
@@ -403,7 +395,7 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
 {
     fn foreign_from(item: api_models::api_keys::UpdateApiKeyRequest) -> Self {
         let api_key = item;
-        storage_models::api_keys::ApiKeyUpdate::Update {
+        Self::Update {
             name: api_key.name,
             description: api_key.description,
             expires_at: api_key.expiration.map(Into::into),

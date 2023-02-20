@@ -144,15 +144,15 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
                 if capture_method == Some(enums::CaptureMethod::Automatic)
                     || capture_method.is_none()
                 {
-                    enums::AttemptStatus::Charged
+                    Self::Charged
                 } else {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
     }
 }
@@ -164,15 +164,15 @@ impl ForeignFrom<(CheckoutPaymentStatus, Balances)> for enums::AttemptStatus {
         match status {
             CheckoutPaymentStatus::Authorized => {
                 if balances.available_to_capture == 0 {
-                    enums::AttemptStatus::Charged
+                    Self::Charged
                 } else {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
     }
 }

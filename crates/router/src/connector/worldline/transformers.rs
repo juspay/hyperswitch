@@ -306,20 +306,18 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
         match status {
             PaymentStatus::Captured
             | PaymentStatus::Paid
-            | PaymentStatus::ChargebackNotification => enums::AttemptStatus::Charged,
-            PaymentStatus::Cancelled => enums::AttemptStatus::Voided,
-            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => {
-                enums::AttemptStatus::Failure
-            }
+            | PaymentStatus::ChargebackNotification => Self::Charged,
+            PaymentStatus::Cancelled => Self::Voided,
+            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
             PaymentStatus::CaptureRequested => {
                 if capture_method == enums::CaptureMethod::Automatic {
-                    enums::AttemptStatus::Pending
+                    Self::Pending
                 } else {
-                    enums::AttemptStatus::CaptureInitiated
+                    Self::CaptureInitiated
                 }
             }
-            PaymentStatus::PendingApproval => enums::AttemptStatus::Authorized,
-            _ => enums::AttemptStatus::Pending,
+            PaymentStatus::PendingApproval => Self::Authorized,
+            _ => Self::Pending,
         }
     }
 }

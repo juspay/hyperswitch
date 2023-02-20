@@ -114,7 +114,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 impl ForeignFrom<storage::PaymentIntent> for PaymentsResponse {
     fn foreign_from(item: storage::PaymentIntent) -> Self {
         let item = item;
-        PaymentsResponse {
+        Self {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
             status: item.status.foreign_into(),
