@@ -265,9 +265,9 @@ impl
         types::PaymentsResponseData: Clone,
     {
         logger::debug!(payment_sync_response=?res);
-        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentSyncResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -987,10 +987,18 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        logger::debug!(hola_redirect=?query);
+
         Ok(query
             .redirect_status
             .map_or(payments::CallConnectorAction::Trigger, |status| {
-                payments::CallConnectorAction::StatusUpdate(status.into())
+                // Get failed error message by triggering call to connector,
+                // status will be updated by psync call
+                if status == transformers::StripePaymentStatus::Failed {
+                    payments::CallConnectorAction::Trigger
+                } else {
+                    payments::CallConnectorAction::StatusUpdate(status.into())
+                }
             }))
     }
 }
