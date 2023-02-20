@@ -94,6 +94,13 @@ impl ConnectorCommon for Bluesnap {
 impl api::Payment for Bluesnap {}
 
 impl api::PreVerify for Bluesnap {}
+
+type Verify = dyn ConnectorIntegration<
+    api::Verify,
+    types::VerifyRequestData,
+    types::PaymentsResponseData,
+>;
+
 impl
     ConnectorIntegration<
         api::Verify,
@@ -101,6 +108,99 @@ impl
         types::PaymentsResponseData,
     > for Bluesnap
 {
+
+    fn get_headers(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RouterData<
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "services/2/transactions"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = bluesnap::BluesnapVerifyRequest::try_from(req)?;
+        let bluesnap_req =
+            utils::Encode::<bluesnap::BluesnapVerifyRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&Verify::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(Verify::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(Verify::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+        res: Response,
+    ) -> CustomResult<
+        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::Verify: Clone,
+        types::VerifyRequestData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
+        let response: bluesnap::BluesnapChargePaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(bluesnappayments_create_response=?response);
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl api::PaymentVoid for Bluesnap {}

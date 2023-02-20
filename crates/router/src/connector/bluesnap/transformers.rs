@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::errors,
     pii::{self, PeekInterface, Secret},
-    types::{self, api, storage::enums, transformers::{self, ForeignFrom}},
+    types::{self, api::{self, enums as api_enums}, storage::enums, transformers::{self, ForeignFrom}},
 };
 
 //TODO: Fill the struct with respective fields
@@ -12,6 +12,17 @@ pub struct BluesnapPaymentsRequest {
     amount: String,
     credit_card: Card,
     currency: enums::Currency,
+    soft_descriptor: Option<String>,
+    card_transaction_type: BluesnapTxnType,
+    card_holder_info: CardHolderInfo,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVerifyRequest {
+    amount: String,
+    credit_card: Card,
+    currency: api_enums::Currency,
     soft_descriptor: Option<String>,
     card_transaction_type: BluesnapTxnType,
     card_holder_info: CardHolderInfo,
@@ -106,6 +117,53 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest  {
                     currency: item.request.currency.clone(),
                     soft_descriptor: item.description.clone(),
                     card_transaction_type: auth_mode,
+                    card_holder_info: CardHolderInfo {
+                        first_name: ccard.card_holder_name.peek().clone(),
+                    },
+                };
+                Ok(payment_request)
+            }
+            _ => Err(
+                errors::ConnectorError::NotImplemented("Current Payment Method".to_string()).into(),
+            ),
+        }
+    }
+}
+
+impl TryFrom<&types::VerifyRouterData> for BluesnapVerifyRequest  {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::VerifyRouterData) -> Result<Self,Self::Error> {
+        match item.request.payment_method_data {
+            api::PaymentMethod::Card(ref ccard) => {
+                let payment_request = Self {
+                    amount: match &item.request.setup_mandate_details {
+                        Some(setup_mandate_details) => match setup_mandate_details.mandate_type {
+                            api::MandateType::SingleUse(mandate) => mandate.amount.to_string(),
+                            api::MandateType::MultiUse(option_mandate) => match option_mandate {
+                                Some(opt_mandate) => opt_mandate.amount.to_string(),
+                                _ => 0.to_string(),
+                            },
+                        },
+                        _ => 0.to_string(),
+                    },
+                    credit_card: Card {
+                        card_number: ccard.card_number.clone(),
+                        expiration_month: ccard.card_exp_month.peek().clone(),
+                        expiration_year: ccard.card_exp_year.peek().clone(),
+                        security_code: ccard.card_cvc.peek().clone(),
+                    },
+                    currency: match &item.request.setup_mandate_details {
+                        Some(setup_mandate_details) => match setup_mandate_details.mandate_type {
+                            api::MandateType::SingleUse(mandate) => mandate.currency.clone(),
+                            api::MandateType::MultiUse(option_mandate) => match option_mandate {
+                                Some(opt_mandate) => opt_mandate.currency.clone(),
+                                _ => api_enums::Currency::USD,
+                            },
+                        },
+                        _ => api_enums::Currency::USD,
+                    },
+                    soft_descriptor: Some("Mandate Create".to_string()),
+                    card_transaction_type: BluesnapTxnType::AuthCapture,
                     card_holder_info: CardHolderInfo {
                         first_name: ccard.card_holder_name.peek().clone(),
                     },
@@ -254,11 +312,6 @@ pub struct Refund {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapChargePaymentsProcessingInfoResponse {
     processing_status: Option<BluesnapChargeProcessingStatus>,
-    cvv_response_code: String,
-    authorization_code: String,
-    avs_response_code_zip: String,
-    avs_response_code_address: String,
-    avs_response_code_name:String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
