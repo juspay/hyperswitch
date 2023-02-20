@@ -93,7 +93,7 @@ pub(crate) fn merge_json_values(a: &mut serde_json::Value, b: &serde_json::Value
     use serde_json::Value;
 
     match (a, b) {
-        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {
+        (&mut Value::Object(ref mut a), Value::Object(b)) => {
             for (k, v) in b {
                 merge_json_values(a.entry(k.clone()).or_insert(Value::Null), v);
             }

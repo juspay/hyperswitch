@@ -30,7 +30,7 @@ Use the following base URLs when making requests to the APIs:
 
 ## Authentication
 
-When you sign up on our [dashboard](https://dashboard-hyperswitch.netlify.app) and create a merchant
+When you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant
 account, you are given a secret key (also referred as api-key).
 You may authenticate all API requests with Juspay server by providing the appropriate key in the
 request Authorization header.
@@ -80,8 +80,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NextActionType,
         api_models::payments::Metadata,
         api_models::payments::WalletData,
-        api_models::payments::KlarnaRedirectIssuer,
-        api_models::payments::KlarnaSdkIssuer,
+        api_models::payments::KlarnaIssuer,
+        api_models::payments::KlarnaIssuer,
         api_models::payments::NextAction,
         api_models::payments::PayLaterData,
         api_models::payments::MandateData,

@@ -97,18 +97,33 @@ where
         <V as AsChangeset>::Changeset,
     >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
     R: Send + 'static,
+
+    // For cloning query (UpdateStatement)
+    <<T as FilterDsl<P>>::Output as HasTable>::Table: Clone,
+    <<T as FilterDsl<P>>::Output as IntoUpdateTarget>::WhereClause: Clone,
+    <V as AsChangeset>::Changeset: Clone,
+    <<<T as FilterDsl<P>>::Output as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
-    let debug_values = format!("{:?}", values);
+    let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
-    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_results_async(conn)
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| format!("Error while updating {}", debug_values))
+    match query.to_owned().get_results_async(conn).await {
+        Ok(result) => {
+            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+            Ok(result)
+        }
+        Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
+            Err(report!(errors::DatabaseError::NoFieldsToUpdate))
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+        }
+        Err(ConnectionError::Query(DieselError::NotFound)) => {
+            Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+        }
+        _ => Err(report!(errors::DatabaseError::Others))
+            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
+    }
 }
 
 #[instrument(level = "DEBUG", skip_all)]

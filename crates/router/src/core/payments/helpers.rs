@@ -1054,9 +1054,9 @@ pub fn make_url_with_signature(
     })
 }
 
-pub fn hmac_sha256_sorted_query_params<'a>(
+pub fn hmac_sha256_sorted_query_params(
     params: &mut [(Cow<'_, str>, Cow<'_, str>)],
-    key: &'a str,
+    key: &str,
 ) -> RouterResult<String> {
     params.sort();
     let final_string = params
