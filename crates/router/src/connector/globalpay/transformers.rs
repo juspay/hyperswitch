@@ -1,8 +1,8 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::{ResultExt, IntoReport};
+use error_stack::ResultExt;
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
-use url::Url;
+
 use super::{
     requests::{self, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
@@ -11,7 +11,8 @@ use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
     consts,
     core::errors,
-    types::{self, api, storage::enums, ErrorResponse}, services::{self, RedirectForm},
+    services::{self},
+    types::{self, api, storage::enums, ErrorResponse},
 };
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -26,13 +27,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             .and_then(|o| o.get("account_name"))
             .map(|o| o.to_string())
             .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
-        
+
         match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ccard) => Ok(Self {
                 account_name,
                 amount: Some(item.request.amount.to_string()),
                 currency: item.request.currency.to_string(),
-                reference: item.get_attempt_id()?,
+                reference: item.attempt_id.to_string(),
                 country: item.get_billing_country()?,
                 capture_mode: item.request.capture_method.map(|f| match f {
                     enums::CaptureMethod::Manual => requests::CaptureMode::Later,
@@ -55,7 +56,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     account_name,
                     amount: Some(item.request.amount.to_string()),
                     currency: item.request.currency.to_string(),
-                    reference: item.get_attempt_id()?,
+                    reference: item.attempt_id.to_string(),
                     country: item.get_billing_country()?,
                     capture_mode: item.request.capture_method.map(|f| match f {
                         enums::CaptureMethod::Manual => requests::CaptureMode::Later,
@@ -63,22 +64,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     }),
                     payment_method: requests::PaymentMethod {
                         apm: Some(requests::Apm {
-                            provider: Some(requests::ApmProvider::Paypal)
+                            provider: Some(requests::ApmProvider::Paypal),
                         }),
                         ..Default::default()
                     },
                     notifications: Some(requests::Notifications {
-                        return_url: item
-                            .router_return_url
-                            .clone(),
+                        return_url: item.router_return_url.clone(),
                         challenge_return_url: None,
                         decoupled_challenge_return_url: None,
                         status_url: None,
-                        three_ds_method_return_url: None
+                        three_ds_method_return_url: None,
                     }),
                     ..Default::default()
                 }),
-                _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -168,7 +169,7 @@ impl From<GlobalpayPaymentStatus> for enums::AttemptStatus {
             GlobalpayPaymentStatus::Preauthorized => Self::Authorized,
             GlobalpayPaymentStatus::Reversed => Self::Voided,
             GlobalpayPaymentStatus::Initiated => Self::AuthenticationPending,
-            GlobalpayPaymentStatus::Pending => Self::Pending
+            GlobalpayPaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -188,10 +189,11 @@ fn get_payment_response(
     status: enums::AttemptStatus,
     response: GlobalpayPaymentsResponse,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
-    let redirection_data = match response.payment_method.clone() {
-        Some(p) => parse_base_url(p.redirect_url),
-        None => None
-    };
+    let redirection_data = response.payment_method.as_ref().and_then(|payment_method| {
+        payment_method.redirect_url.as_ref().map(|redirect_url| {
+            services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
+        })
+    });
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {
             message: response
@@ -202,8 +204,7 @@ fn get_payment_response(
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
-            redirection_data: redirection_data.clone(),
-            redirect: redirection_data.is_some(),
+            redirection_data,
             mandate_reference: None,
             connector_metadata: None,
         }),
@@ -229,32 +230,6 @@ impl<F, T>
             response: get_payment_response(status, item.response),
             ..item.data
         })
-    }
-}
-
-fn parse_base_url(opt_url_string: Option<String>) -> Option<RedirectForm> {
-    match opt_url_string {
-        Some(url_string) => {
-            let base_url_res = Url::parse(url_string.as_ref());
-
-            match base_url_res {
-                Ok(base_url) => {
-                    let mut base_ = base_url.clone();
-                    base_.set_query(None);
-                    Some(RedirectForm {
-                        url: base_url.to_string(),
-                        method: services::Method::Get,
-                        form_fields: std::collections::HashMap::from_iter(
-                            base_url
-                                .query_pairs()
-                                .map(|(k, v)| (k.to_string(), v.to_string())),
-                        ),
-                    })
-                }
-                Err(_err) => None,
-            }
-        }
-        None => None,
     }
 }
 

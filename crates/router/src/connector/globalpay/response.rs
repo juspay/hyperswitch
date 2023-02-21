@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use url::Url;
+
 use super::requests;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -133,7 +134,7 @@ pub struct PaymentMethod {
     /// Result code from the payment method provider.
     pub result: Option<String>,
     /// Redirect url for payment method provider
-    pub redirect_url: Option<String>
+    pub redirect_url: Option<Url>,
 }
 
 /// Data associated with the response of an APM transaction.
