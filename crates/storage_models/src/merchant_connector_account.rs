@@ -28,7 +28,7 @@ pub struct MerchantConnectorAccount {
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<serde_json::Value>,
     pub connector_label: String,
-    pub connector_country: String,
+    pub business_country: String,
     pub business_type: String,
 }
 
@@ -45,7 +45,7 @@ pub struct MerchantConnectorAccountNew {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<serde_json::Value>,
     pub connector_label: Option<String>,
-    pub connector_country: Option<String>,
+    pub business_country: Option<String>,
     pub business_type: Option<String>,
 }
 
@@ -62,7 +62,7 @@ pub enum MerchantConnectorAccountUpdate {
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<serde_json::Value>,
         connector_label: Option<String>,
-        connector_country: Option<String>,
+        business_country: Option<String>,
         business_type: Option<String>,
     },
 }
@@ -79,7 +79,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<serde_json::Value>,
     connector_label: Option<String>,
-    connector_country: Option<String>,
+    business_country: Option<String>,
     business_type: Option<String>,
 }
 
@@ -97,7 +97,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 payment_methods_enabled,
                 metadata,
                 connector_label,
-                connector_country,
+                business_country,
                 business_type,
             } => Self {
                 merchant_id,
@@ -110,7 +110,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 payment_methods_enabled,
                 metadata,
                 connector_label,
-                connector_country,
+                business_country,
                 business_type,
             },
         }

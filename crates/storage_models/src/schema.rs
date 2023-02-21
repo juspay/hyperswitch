@@ -178,6 +178,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
+        primary_business_details -> Nullable<Json>,
     }
 }
 
@@ -197,7 +198,7 @@ diesel::table! {
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         connector_label -> Varchar,
-        connector_country -> Varchar,
+        business_country -> Varchar,
         business_type -> Varchar,
     }
 }

@@ -33,6 +33,7 @@ pub struct MerchantAccount {
     pub locker_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -53,6 +54,7 @@ pub struct MerchantAccountNew {
     pub locker_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -72,6 +74,7 @@ pub enum MerchantAccountUpdate {
         locker_id: Option<String>,
         metadata: Option<serde_json::Value>,
         routing_algorithm: Option<serde_json::Value>,
+        primary_business_details: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -96,6 +99,7 @@ pub struct MerchantAccountUpdateInternal {
     locker_id: Option<String>,
     metadata: Option<serde_json::Value>,
     routing_algorithm: Option<serde_json::Value>,
+    primary_business_details: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -116,6 +120,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                primary_business_details,
             } => Self {
                 merchant_name,
                 api_key,
@@ -131,6 +136,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                primary_business_details,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {

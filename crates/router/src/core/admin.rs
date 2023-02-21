@@ -48,6 +48,15 @@ pub async fn create_merchant_account(
             })?,
     );
 
+    let primary_business_details = Some(
+        utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value(
+            &req.primary_business_details,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "default business details",
+        })?,
+    );
+
     if let Some(ref routing_algorithm) = req.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm
             .clone()
@@ -79,6 +88,7 @@ pub async fn create_merchant_account(
         publishable_key,
         locker_id: req.locker_id,
         metadata: req.metadata,
+        primary_business_details,
     };
 
     let merchant_account = db
@@ -171,6 +181,12 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         api_key: None,
         publishable_key: None,
+        primary_business_details: req
+            .primary_business_details
+            .as_ref()
+            .map(utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
     };
 
     let response = db
@@ -292,7 +308,7 @@ pub async fn create_payment_connector(
         disabled: req.disabled,
         metadata: req.metadata,
         connector_label: Some(req.connector_label),
-        connector_country: Some(req.connector_country),
+        business_country: Some(req.business_country),
         business_type: Some(req.business_type),
     };
 
@@ -405,7 +421,7 @@ pub async fn update_payment_connector(
         disabled: req.disabled,
         metadata: req.metadata,
         connector_label: Some(req.connector_label),
-        connector_country: Some(req.connector_country),
+        business_country: Some(req.business_country),
         business_type: Some(req.business_type),
     };
 
@@ -438,7 +454,7 @@ pub async fn update_payment_connector(
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
         connector_label: updated_mca.connector_label,
-        connector_country: updated_mca.connector_country,
+        business_country: updated_mca.business_country,
         business_type: updated_mca.business_type,
     };
     Ok(service_api::ApplicationResponse::Json(response))
