@@ -160,24 +160,10 @@ impl From<ExpresscheckoutPaymentStatus> for enums::AttemptStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GenericPaymentsResponse {
-    #[serde(default, deserialize_with = "deserialize_error_default")]
+    #[serde(default)]
     status: ExpresscheckoutPaymentStatus,
     txn_uuid: Option<String>,
     payment: Option<Authentication>,
-}
-
-fn deserialize_error_default<'de, D, ExpresscheckoutPaymentStatus>(
-    deserializer: D,
-) -> Result<ExpresscheckoutPaymentStatus, D::Error>
-where
-    ExpresscheckoutPaymentStatus: Default + Deserialize<'de>,
-    D: Deserializer<'de>,
-{
-    let opt = ExpresscheckoutPaymentStatus::deserialize(deserializer);
-    match opt {
-        Ok(v) => Ok(v),
-        _ => Ok(ExpresscheckoutPaymentStatus::default()),
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -231,7 +217,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ExpresscheckoutRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let refund_req = Self {
             unique_request_id: item.request.refund_id.clone(),
-            amount: item.request.amount.to_string(),
+            amount: item.request.refund_amount.to_string(),
         };
         Ok(refund_req)
     }
@@ -241,17 +227,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ExpresscheckoutRefundRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
-    #[serde(rename = "ERROR")]
     #[default]
     Error,
     #[serde(rename = "BAD REQUEST")]
     BadRequest,
-    #[serde(rename = "NOT_FOUND")]
     NotFound,
-    #[serde(rename = "SUCCESS")]
     Success,
-    #[serde(rename = "PENDING")]
     Pending,
 }
 
@@ -272,24 +255,9 @@ pub struct RefundResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundStatusBlock {
-    #[serde(deserialize_with = "deserialize_refund_status_default")]
     status: RefundStatus,
     id: Option<String>,
     unique_request_id: String,
-}
-
-fn deserialize_refund_status_default<'de, D, RefundStatus>(
-    deserializer: D,
-) -> Result<RefundStatus, D::Error>
-where
-    RefundStatus: Default + Deserialize<'de>,
-    D: Deserializer<'de>,
-{
-    let opt = RefundStatus::deserialize(deserializer);
-    match opt {
-        Ok(v) => Ok(v),
-        _ => Ok(RefundStatus::default()),
-    }
 }
 
 fn get_status_from_refund_response(
