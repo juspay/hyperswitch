@@ -67,12 +67,12 @@ mod kms {
         // This expect a base64 encoded input but we values are set via aws cli in env than cli
         // already does that so we don't need to
         pub async fn get_kms_decrypted_key(
-            aws_keys: &Jwekey,
+            aws_region: &str,
+            aws_key_id: &str,
             kms_enc_key: String,
         ) -> CustomResult<String, errors::EncryptionError> {
-            let region = aws_keys.aws_region.to_string();
-            let key_id = aws_keys.aws_key_id.clone();
-            let region_provider = RegionProviderChain::first_try(Region::new(region));
+            let region_provider =
+                RegionProviderChain::first_try(Region::new(aws_region.to_owned()));
             let shared_config = aws_config::from_env().region(region_provider).load().await;
             let client = Client::new(&shared_config);
             let data = consts::BASE64_ENGINE
@@ -83,7 +83,7 @@ mod kms {
             let blob = Blob::new(data);
             let resp = client
                 .decrypt()
-                .key_id(key_id)
+                .key_id(aws_key_id)
                 .ciphertext_blob(blob)
                 .send()
                 .await
@@ -184,9 +184,19 @@ pub async fn encrypt_jwe(
     let alg = jwe::RSA_OAEP_256;
     let key_id = get_key_id(keys);
     let public_key = if key_id == keys.locker_key_identifier1 {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_encryption_key1.to_string()).await?
+        KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_encryption_key1.to_string(),
+        )
+        .await?
     } else {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_encryption_key2.to_string()).await?
+        KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_encryption_key2.to_string(),
+        )
+        .await?
     };
     let payload = msg.as_bytes();
     let enc = "A256GCM";
@@ -213,9 +223,19 @@ pub async fn decrypt_jwe(
     let alg = jwe::RSA_OAEP_256;
     let key_id = get_key_id(keys);
     let private_key = if key_id == keys.locker_key_identifier1 {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_decryption_key1.to_string()).await?
+        KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_decryption_key1.to_string(),
+        )
+        .await?
     } else {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_decryption_key2.to_string()).await?
+        KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_decryption_key2.to_string(),
+        )
+        .await?
     };
 
     let decrypter = alg
