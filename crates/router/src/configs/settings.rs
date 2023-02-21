@@ -51,6 +51,7 @@ pub struct Settings {
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
     pub webhooks: WebhooksSettings,
+    pub api_keys: ApiKeys,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -205,6 +206,26 @@ pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApiKeys {
+    #[cfg(feature = "kms")]
+    pub aws_key_id: String,
+
+    #[cfg(feature = "kms")]
+    pub aws_region: String,
+
+    /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
+    /// keys
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_hash_key: String,
+
+    /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
+    /// hashes of API keys
+    #[cfg(not(feature = "kms"))]
+    pub hash_key: String,
+}
+
 impl Settings {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -279,6 +300,7 @@ impl Settings {
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
         self.jwekey.validate()?;
+        self.api_keys.validate()?;
 
         Ok(())
     }
