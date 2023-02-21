@@ -15,7 +15,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -383,7 +383,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             checkout::ErrorResponse {
                 request_id: None,
@@ -480,7 +479,6 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-
         let mut response: checkout::PaymentVoidResponse = res
             .response
             .parse_struct("PaymentVoidResponse")

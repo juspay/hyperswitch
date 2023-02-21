@@ -12,7 +12,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger, services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -392,7 +392,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-
         let response: braintree::ErrorResponse = res
             .response
             .parse_struct("Braintree ErrorResponse")

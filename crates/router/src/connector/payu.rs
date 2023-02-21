@@ -11,7 +11,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -222,7 +222,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
                 .build(),
         );
-
 
         Ok(req)
     }

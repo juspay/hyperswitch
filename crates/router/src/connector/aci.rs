@@ -9,7 +9,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, logger},
+    services::{self},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -483,7 +483,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-
         let response: aci::AciRefundResponse = res
             .response
             .parse_struct("AciRefundResponse")

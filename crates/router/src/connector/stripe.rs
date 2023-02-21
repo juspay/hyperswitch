@@ -15,7 +15,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, logger, services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -264,7 +264,7 @@ impl
         types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
-\        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -710,7 +710,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")
@@ -804,7 +803,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")

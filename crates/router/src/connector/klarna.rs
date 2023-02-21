@@ -9,7 +9,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, logger},
+    services::{self},
     types::{
         self,
         api::{self, ConnectorCommon},

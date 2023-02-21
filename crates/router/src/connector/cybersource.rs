@@ -14,7 +14,7 @@ use crate::{
     connector::utils::RefundsRequestData,
     consts,
     core::errors::{self, CustomResult},
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
