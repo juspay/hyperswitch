@@ -88,18 +88,6 @@ where
     }
 }
 
-impl From<F<api_enums::RoutingAlgorithm>> for F<storage_enums::RoutingAlgorithm> {
-    fn from(algo: F<api_enums::RoutingAlgorithm>) -> Self {
-        Self(frunk::labelled_convert_from(algo.0))
-    }
-}
-
-impl From<F<storage_enums::RoutingAlgorithm>> for F<api_enums::RoutingAlgorithm> {
-    fn from(algo: F<storage_enums::RoutingAlgorithm>) -> Self {
-        Self(frunk::labelled_convert_from(algo.0))
-    }
-}
-
 impl From<F<api_enums::ConnectorType>> for F<storage_enums::ConnectorType> {
     fn from(conn: F<api_enums::ConnectorType>) -> Self {
         Self(frunk::labelled_convert_from(conn.0))
@@ -155,6 +143,18 @@ impl From<F<storage_enums::PaymentMethodSubType>> for F<api_enums::PaymentMethod
 impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMethodIssuerCode> {
     fn from(issuer_code: F<storage_enums::PaymentMethodIssuerCode>) -> Self {
         Self(frunk::labelled_convert_from(issuer_code.0))
+    }
+}
+
+impl From<F<api_enums::PaymentIssuer>> for F<storage_enums::PaymentIssuer> {
+    fn from(issuer: F<api_enums::PaymentIssuer>) -> Self {
+        Self(frunk::labelled_convert_from(issuer.0))
+    }
+}
+
+impl From<F<api_enums::PaymentExperience>> for F<storage_enums::PaymentExperience> {
+    fn from(experience: F<api_enums::PaymentExperience>) -> Self {
+        Self(frunk::labelled_convert_from(experience.0))
     }
 }
 

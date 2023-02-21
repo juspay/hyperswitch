@@ -23,9 +23,15 @@ pub trait QueueInterface {
         id: &RedisEntryId,
     ) -> CustomResult<(), RedisError>;
 
-    async fn acquire_pt_lock(&self, tag: &str, lock_key: &str, lock_val: &str, ttl: i64) -> bool;
+    async fn acquire_pt_lock(
+        &self,
+        tag: &str,
+        lock_key: &str,
+        lock_val: &str,
+        ttl: i64,
+    ) -> CustomResult<bool, RedisError>;
 
-    async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> bool;
+    async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> CustomResult<bool, RedisError>;
 
     async fn stream_append_entry(
         &self,
@@ -47,7 +53,10 @@ impl QueueInterface for Store {
     ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         crate::scheduler::consumer::fetch_consumer_tasks(
             self,
-            &self.redis_conn.clone(),
+            &self
+                .redis_conn()
+                .map_err(ProcessTrackerError::ERedisError)?
+                .clone(),
             stream_name,
             group_name,
             consumer_name,
@@ -61,15 +70,21 @@ impl QueueInterface for Store {
         group: &str,
         id: &RedisEntryId,
     ) -> CustomResult<(), RedisError> {
-        self.redis_conn
+        self.redis_conn()?
             .consumer_group_create(stream, group, id)
             .await
     }
 
-    async fn acquire_pt_lock(&self, tag: &str, lock_key: &str, lock_val: &str, ttl: i64) -> bool {
-        let conn = self.redis_conn.clone();
+    async fn acquire_pt_lock(
+        &self,
+        tag: &str,
+        lock_key: &str,
+        lock_val: &str,
+        ttl: i64,
+    ) -> CustomResult<bool, RedisError> {
+        let conn = self.redis_conn()?.clone();
         let is_lock_acquired = conn.set_key_if_not_exist(lock_key, lock_val).await;
-        match is_lock_acquired {
+        Ok(match is_lock_acquired {
             Ok(SetnxReply::KeySet) => match conn.set_expiry(lock_key, ttl).await {
                 Ok(()) => true,
 
@@ -88,18 +103,18 @@ impl QueueInterface for Store {
                 logger::error!(error=%error.current_context(), %tag, "Error while locking");
                 false
             }
-        }
+        })
     }
 
-    async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> bool {
-        let is_lock_released = self.redis_conn.delete_key(lock_key).await;
-        match is_lock_released {
+    async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> CustomResult<bool, RedisError> {
+        let is_lock_released = self.redis_conn()?.delete_key(lock_key).await;
+        Ok(match is_lock_released {
             Ok(()) => true,
             Err(error) => {
                 logger::error!(error=%error.current_context(), %tag, "Error while releasing lock");
                 false
             }
-        }
+        })
     }
 
     async fn stream_append_entry(
@@ -108,13 +123,13 @@ impl QueueInterface for Store {
         entry_id: &RedisEntryId,
         fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
-        self.redis_conn
+        self.redis_conn()?
             .stream_append_entry(stream, entry_id, fields)
             .await
     }
 
     async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
-        self.redis_conn.get_key::<Vec<u8>>(key).await
+        self.redis_conn()?.get_key::<Vec<u8>>(key).await
     }
 }
 
@@ -148,14 +163,14 @@ impl QueueInterface for MockDb {
         _lock_key: &str,
         _lock_val: &str,
         _ttl: i64,
-    ) -> bool {
+    ) -> CustomResult<bool, RedisError> {
         // [#172]: Implement function for `MockDb`
-        false
+        Ok(false)
     }
 
-    async fn release_pt_lock(&self, _tag: &str, _lock_key: &str) -> bool {
+    async fn release_pt_lock(&self, _tag: &str, _lock_key: &str) -> CustomResult<bool, RedisError> {
         // [#172]: Implement function for `MockDb`
-        false
+        Ok(false)
     }
 
     async fn stream_append_entry(
