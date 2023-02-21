@@ -122,7 +122,7 @@ pub struct PaymentMethodResponse {
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<PaymentExperience>>,
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -348,8 +348,8 @@ pub struct ListPaymentMethod {
     pub installment_payment_enabled: bool,
 
     /// Type of payment experience enabled with the connector
-    #[schema(example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<PaymentExperience>>,
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 }
 
 /// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
@@ -447,7 +447,7 @@ pub struct CustomerPaymentMethod {
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<PaymentExperience>>,
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
@@ -462,26 +462,6 @@ pub struct CustomerPaymentMethod {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 }
-
-#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[non_exhaustive]
-pub enum PaymentExperience {
-    /// The URL to which the customer needs to be redirected for completing the payment.The URL to
-    /// which the customer needs to be redirected for completing the payment.
-    RedirectToUrl,
-    /// Contains the data for invoking the sdk client for completing the payment.
-    InvokeSdkClient,
-    /// The QR code data to be displayed to the customer.
-    DisplayQrCode,
-    /// Contains data to finish one click payment.
-    OneClick,
-    /// Redirect customer to link wallet
-    LinkWallet,
-    /// Contains the data for invoking the sdk client for completing the payment.
-    InvokePaymentApp,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,

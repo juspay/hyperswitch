@@ -406,7 +406,7 @@
         "deprecated": false
       }
     },
-    "/api_keys": {
+    "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
           "API Key"
@@ -442,7 +442,44 @@
         "deprecated": false
       }
     },
-    "/api_keys/list": {
+    "/api_keys/{merchant_id)/{key_id}": {
+      "delete": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Revoke",
+        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "operationId": "Revoke an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{merchant_id}/list": {
       "get": {
         "tags": [
           "API Key"
@@ -490,7 +527,7 @@
         "deprecated": false
       }
     },
-    "/api_keys/{key_id}": {
+    "/api_keys/{merchant_id}/{key_id}": {
       "get": {
         "tags": [
           "API Key"
@@ -561,41 +598,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RetrieveApiKeyResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "API Key not found"
-          }
-        },
-        "deprecated": false
-      },
-      "delete": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - Revoke",
-        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
-        "operationId": "Revoke an API Key",
-        "parameters": [
-          {
-            "name": "key_id",
-            "in": "path",
-            "description": "The unique identifier for the API Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "API Key revoked",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
                 }
               }
             }
@@ -3538,14 +3540,10 @@
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "billing_email",
                   "billing_country"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3567,13 +3565,9 @@
                 "type": "object",
                 "description": "For Klarna Sdk as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "token"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "token": {
                     "type": "string",
                     "description": "The token for the sdk workflow"
@@ -3590,20 +3584,7 @@
             "properties": {
               "affirm_redirect": {
                 "type": "object",
-                "description": "For Affirm redirect as PayLater Option",
-                "required": [
-                  "issuer_name",
-                  "billing_email"
-                ],
-                "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AffirmIssuer"
-                  },
-                  "billing_email": {
-                    "type": "string",
-                    "description": "The billing email"
-                  }
-                }
+                "description": "For Affirm redirect as PayLater Option"
               }
             }
           },
@@ -3617,14 +3598,10 @@
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "billing_email",
                   "billing_name"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AfterpayClearpayIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3764,6 +3741,25 @@
               }
             }
           }
+        ]
+      },
+      "PaymentIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna",
+          "affirm",
+          "afterpay_clearpay",
+          "american_express",
+          "bank_of_america",
+          "barclays",
+          "capital_one",
+          "chase",
+          "citi",
+          "discover",
+          "navy_federal_credit_union",
+          "pentagon_federal_credit_union",
+          "synchrony_bank",
+          "wells_fargo"
         ]
       },
       "PaymentListConstraints": {
@@ -4300,6 +4296,12 @@
           },
           "browser_info": {
             "type": "object"
+          },
+          "payment_issuer": {
+            "$ref": "#/components/schemas/PaymentIssuer"
+          },
+          "payment_experience": {
+            "$ref": "#/components/schemas/PaymentExperience"
           }
         }
       },
