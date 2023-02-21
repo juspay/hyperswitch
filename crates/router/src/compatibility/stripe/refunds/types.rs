@@ -1,6 +1,5 @@
 use std::{convert::From, default::Default};
 
-use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{core::errors, types::api::refunds};
@@ -24,7 +23,7 @@ pub struct StripeCreateRefundResponse {
     pub currency: String,
     pub payment_intent: String,
     pub status: StripeRefundStatus,
-    pub created: u32,
+    pub created: Option<i64>,
     pub metadata: serde_json::Value,
 }
 
@@ -77,12 +76,7 @@ impl TryFrom<refunds::RefundResponse> for StripeCreateRefundResponse {
             currency: res.currency.to_ascii_lowercase(),
             payment_intent: res.payment_id,
             status: res.status.into(),
-            created: res
-                .created_at
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("`created_at` not available got Refund")?
-                .microsecond(),
+            created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
             metadata: res.metadata.unwrap_or(serde_json::json!({})),
         })
     }

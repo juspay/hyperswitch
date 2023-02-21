@@ -272,8 +272,7 @@ pub struct StripePaymentIntentResponse {
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<masking::Secret<String>>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<time::PrimitiveDateTime>,
+    pub created: Option<i64>,
     pub customer: Option<String>,
     pub refunds: Option<Vec<refunds::RefundResponse>>,
     pub mandate_id: Option<String>,
@@ -291,7 +290,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             currency: resp.currency.to_lowercase(),
             status: StripePaymentStatus::from(resp.status),
             client_secret: resp.client_secret,
-            created: resp.created,
+            created: resp.created.map(|t| t.assume_utc().unix_timestamp()),
             customer: resp.customer_id,
             id: resp.payment_id,
             refunds: resp.refunds,
