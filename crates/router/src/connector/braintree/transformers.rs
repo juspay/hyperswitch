@@ -1,11 +1,9 @@
-use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
     pii::PeekInterface,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -109,7 +107,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             api::PaymentMethod::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
                     payment_method_nonce: match wallet_data {
-                        api_models::payments::WalletData::PaypalWallet(wallet_data) => {
+                        api_models::payments::WalletData::PaypalSdk(wallet_data) => {
                             Ok(wallet_data.token.to_owned())
                         }
                         _ => Err(errors::ConnectorError::InvalidWallet),

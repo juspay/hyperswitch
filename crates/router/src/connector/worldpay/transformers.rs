@@ -49,7 +49,7 @@ fn fetch_payment_instrument(
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
                     wallet_token: match wallet {
-                        api_models::payments::WalletData::ApplePayWallet(applepay_wallet_data) => {
+                        api_models::payments::WalletData::Applepay(applepay_wallet_data) => {
                             Ok(applepay_wallet_data.token)
                         }
                         _ => Err(errors::ConnectorError::InvalidWallet),
@@ -61,7 +61,7 @@ fn fetch_payment_instrument(
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
                     wallet_token: match wallet {
-                        api_models::payments::WalletData::GpayWallet(googlepay_wallet_data) => {
+                        api_models::payments::WalletData::Gpay(googlepay_wallet_data) => {
                             Ok(googlepay_wallet_data.tokenization_data.token)
                         }
                         _ => Err(errors::ConnectorError::InvalidWallet),

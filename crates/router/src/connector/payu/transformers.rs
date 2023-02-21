@@ -90,7 +90,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
                             authorization_code: consts::BASE64_ENGINE.encode(match wallet_data {
-                                api_models::payments::WalletData::GpayWallet(wallet_data) => {
+                                api_models::payments::WalletData::Gpay(wallet_data) => {
                                     Ok(wallet_data.tokenization_data.token)
                                 }
                                 _ => Err(errors::ConnectorError::InvalidWallet),
@@ -104,7 +104,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
                             authorization_code: consts::BASE64_ENGINE.encode(match wallet_data {
-                                api_models::payments::WalletData::ApplePayWallet(wallet_data) => {
+                                api_models::payments::WalletData::Applepay(wallet_data) => {
                                     Ok(wallet_data.token)
                                 }
                                 _ => Err(errors::ConnectorError::InvalidWallet),

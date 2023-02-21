@@ -359,7 +359,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                         let gpay_data = AdyenGPay {
                             payment_type,
                             google_pay_token: match wallet_pmd {
-                                api_models::payments::WalletData::GpayWallet(wallet_data) => {
+                                api_models::payments::WalletData::Gpay(wallet_data) => {
                                     Ok(wallet_data.tokenization_data.token.to_owned())
                                 }
                                 _ => Err(errors::ConnectorError::InvalidWallet),
@@ -372,7 +372,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                         let apple_pay_data = AdyenApplePay {
                             payment_type,
                             apple_pay_token: match wallet_pmd {
-                                api_models::payments::WalletData::ApplePayWallet(wallet_data) => {
+                                api_models::payments::WalletData::Applepay(wallet_data) => {
                                     Ok(wallet_data.token.to_owned())
                                 }
                                 _ => Err(errors::ConnectorError::InvalidWallet),
@@ -384,9 +384,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                         let wallet = AdyenPaypal { payment_type };
                         Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Unknown Wallet in Payment Method".to_string(),
-                    )),
                 }
             }
             _ => Err(errors::ConnectorError::MissingRequiredField {

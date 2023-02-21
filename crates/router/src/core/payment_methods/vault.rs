@@ -1,9 +1,3 @@
-use std::str::FromStr;
-
-use api_models::{
-    payment_methods::WalletData,
-    payments::{ApplePayWalletData, GpayWalletData, PayPalWalletData},
-};
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -18,7 +12,7 @@ use crate::{
     },
     logger, routes, services,
     types::api,
-    utils::{self, BytesExt, OptionExt, StringExt},
+    utils::{self, BytesExt, StringExt},
 };
 
 const VAULT_SERVICE_NAME: &str = "CARD";
@@ -136,40 +130,6 @@ impl Vaultable for api::WalletData {
             .attach_printable("Could not deserialize into wallet data value2")?;
 
         let wallet = value1.data.into();
-
-        // let wallet = match Sel {
-        //     api_models::payments::WalletData::GpayWallet(data) => {
-        //         data = {
-        //             match value1.data {
-        //                 WalletData::GpayWallet(gpay_data) => Ok(gpay_data),
-        //                 _ => Err(errors::VaultError::PaymentMethodNotSupported),
-        //             }?
-        //             .into()
-        //         };
-        //         api_models::payments::WalletData::GpayWallet(data)
-        //     }
-        //     api_models::payments::WalletData::ApplePayWallet(data) => {
-        //         data = {
-        //             match value1.data {
-        //                 WalletData::ApplePayWallet(applepay_data) => Ok(applepay_data),
-        //                 _ => Err(errors::VaultError::PaymentMethodNotSupported),
-        //             }?
-        //             .into()
-        //         };
-        //         api_models::payments::WalletData::ApplePayWallet(data)
-        //     }
-        //     api_models::payments::WalletData::PayPalWallet(data) => {
-        //         data = {
-        //             match value1.data {
-        //                 WalletData::PayPalWallet(paypal_data) => Ok(paypal_data),
-        //                 _ => Err(errors::VaultError::PaymentMethodNotSupported),
-        //             }?
-        //             .into()
-        //         };
-        //         api_models::payments::WalletData::PayPalWallet(data)
-        //     }
-        //     api_models::payments::WalletData::Dummy => api_models::payments::WalletData::Dummy,
-        // };
 
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,

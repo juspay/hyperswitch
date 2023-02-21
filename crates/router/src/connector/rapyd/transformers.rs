@@ -113,7 +113,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
                         token: Some(match wallet_data {
-                            api_models::payments::WalletData::GpayWallet(gpay_wallet_data) => {
+                            api_models::payments::WalletData::Gpay(gpay_wallet_data) => {
                                 Ok(gpay_wallet_data.tokenization_data.token.to_owned())
                             }
                             _ => Err(errors::ConnectorError::InvalidWallet),
@@ -122,9 +122,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     api_models::enums::WalletIssuer::ApplePay => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
                         token: Some(match wallet_data {
-                            api_models::payments::WalletData::ApplePayWallet(
-                                applepay_wallet_data,
-                            ) => Ok(applepay_wallet_data.token.to_owned()),
+                            api_models::payments::WalletData::Applepay(applepay_wallet_data) => {
+                                Ok(applepay_wallet_data.token.to_owned())
+                            }
                             _ => Err(errors::ConnectorError::InvalidWallet),
                         }?),
                     }),

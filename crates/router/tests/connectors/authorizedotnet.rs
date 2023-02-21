@@ -50,6 +50,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             browser_info: None,
             order_details: None,
             email: None,
+            wallet_issuer_name: None,
         },
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),

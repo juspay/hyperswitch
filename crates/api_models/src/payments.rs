@@ -392,11 +392,11 @@ pub enum PaymentMethod {
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
     /// The wallet data for Google pay
-    GpayWallet(GpayWalletData),
+    Gpay(GpayWalletData),
     /// The wallet data for Apple pay
-    ApplePayWallet(ApplePayWalletData),
+    Applepay(ApplePayWalletData),
     /// The wallet data for Paypal
-    PaypalWallet(PayPalWalletData),
+    PaypalSdk(PayPalWalletData),
     /// This is for paypal redirection
     Paypal,
 }

@@ -550,10 +550,6 @@ pub struct TokenizedCardValue2 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue1 {
-    // pub issuer: String,
-    // pub gpay_data: Option<GpayWalletData>,
-    // pub applepay_data: Option<ApplePayWalletData>,
-    // pub paypal_data: Option<PayPalWalletData>,
     pub data: WalletData,
 }
 
@@ -603,9 +599,9 @@ pub struct TokenizedWalletValue2 {
 impl From<payments::WalletData> for WalletData {
     fn from(value: payments::WalletData) -> Self {
         match value {
-            payments::WalletData::GpayWallet(data) => Self::GpayWallet(data.into()),
-            payments::WalletData::ApplePayWallet(data) => Self::ApplePayWallet(data.into()),
-            payments::WalletData::PaypalWallet(data) => Self::PayPalWallet(data.into()),
+            payments::WalletData::Gpay(data) => Self::GpayWallet(data.into()),
+            payments::WalletData::Applepay(data) => Self::ApplePayWallet(data.into()),
+            payments::WalletData::PaypalSdk(data) => Self::PayPalWallet(data.into()),
             payments::WalletData::Paypal => Self::Paypal,
         }
     }
@@ -696,9 +692,9 @@ impl From<payments::GpayTokenizationData> for GpayTokenizationData {
 impl From<WalletData> for payments::WalletData {
     fn from(value: WalletData) -> Self {
         match value {
-            WalletData::GpayWallet(data) => Self::GpayWallet(data.into()),
-            WalletData::ApplePayWallet(data) => Self::ApplePayWallet(data.into()),
-            WalletData::PayPalWallet(data) => Self::PaypalWallet(data.into()),
+            WalletData::GpayWallet(data) => Self::Gpay(data.into()),
+            WalletData::ApplePayWallet(data) => Self::Applepay(data.into()),
+            WalletData::PayPalWallet(data) => Self::PaypalSdk(data.into()),
             WalletData::Paypal => Self::Paypal,
         }
     }

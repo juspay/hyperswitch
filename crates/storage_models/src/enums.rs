@@ -510,6 +510,7 @@ pub enum PaymentMethodType {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     Hash,
     PartialEq,
@@ -523,8 +524,10 @@ pub enum PaymentMethodType {
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum WalletIssuer {
+    #[default]
     GooglePay,
     ApplePay,
+    Paypal,
 }
 
 #[derive(
