@@ -6,7 +6,7 @@ pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
-    pub bluesnap: Option<HeaderKey>,
+    pub bluesnap: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub fiserv: Option<SignatureKey>,
