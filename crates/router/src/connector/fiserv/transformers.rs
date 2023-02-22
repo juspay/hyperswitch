@@ -26,7 +26,6 @@ pub enum Source {
         card: CardData,
     },
     #[allow(dead_code)]
-    //todo() implement google pay for fiserv
     GooglePay {
         data: String,
         signature: String,
@@ -558,10 +557,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let gateway_resp = match item.response.sync_responses.first() {
-            Some(gateway_response) => gateway_response,
-            _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-        };
+        let gateway_resp = item
+            .response
+            .sync_responses
+            .first()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: gateway_resp
