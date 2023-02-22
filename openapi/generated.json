@@ -1944,7 +1944,7 @@
         "type": "object",
         "required": [
           "public_key_hash",
-          "ephimeral_public_key",
+          "ephemeral_public_key",
           "transaction_id"
         ],
         "properties": {
@@ -1952,9 +1952,9 @@
             "type": "string",
             "description": "The public key hash used"
           },
-          "ephimeral_public_key": {
+          "ephemeral_public_key": {
             "type": "string",
-            "description": "The ephimeral public key used"
+            "description": "The ephemeral public key used"
           },
           "transaction_id": {
             "type": "string",
@@ -2002,7 +2002,7 @@
           },
           "network": {
             "type": "string",
-            "description": "The netwrok of the Apple pay payment method"
+            "description": "The network of the Apple pay payment method"
           },
           "type": {
             "type": "string",
