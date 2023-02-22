@@ -42,7 +42,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             amount: req.amount,
             payment_id: req.payment_intent,
             reason: req.reason,
-            refund_type: "instant".to_string(),
+            refund_type: Some(refunds::RefundType::Instant),
             ..Default::default()
         }
     }
