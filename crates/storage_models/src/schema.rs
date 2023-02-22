@@ -34,7 +34,6 @@ diesel::table! {
         merchant_id -> Varchar,
         name -> Varchar,
         description -> Nullable<Varchar>,
-        hash_key -> Varchar,
         hashed_api_key -> Varchar,
         prefix -> Varchar,
         created_at -> Timestamp,
