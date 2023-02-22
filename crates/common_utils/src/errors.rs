@@ -71,3 +71,36 @@ pub enum CryptoError {
     #[error("Failed to verify signature")]
     SignatureVerificationFailed,
 }
+
+/// Allows [error_stack::Report] to change between error contexts
+/// using the dependent [ErrorSwitch] trait to define relations & mappings between traits
+pub trait ReportSwitchExt<T, U> {
+    /// Switch to the intended report by calling switch
+    /// requires error switch to be already implemented on the error type
+    fn switch(self) -> Result<T, error_stack::Report<U>>;
+}
+
+impl<T, U, V> ReportSwitchExt<T, U> for Result<T, error_stack::Report<V>>
+where
+    V: ErrorSwitch<U> + error_stack::Context,
+    U: error_stack::Context,
+{
+    #[track_caller]
+    fn switch(self) -> Result<T, error_stack::Report<U>> {
+        match self {
+            Ok(i) => Ok(i),
+            Err(er) => {
+                let new_c = er.current_context().switch();
+                Err(er.change_context(new_c))
+            }
+        }
+    }
+}
+
+/// Allow [error_stack::Report] to convert between error types
+/// This autoimplements [ReportSwitchExt] for the corresponding errors
+pub trait ErrorSwitch<T> {
+    /// Get the next error type that the source error can be escalated into
+    /// This does not consume the source error since we need to keep it in context
+    fn switch(&self) -> T;
+}

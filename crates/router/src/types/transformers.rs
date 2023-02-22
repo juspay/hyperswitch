@@ -88,18 +88,6 @@ where
     }
 }
 
-impl From<F<api_enums::RoutingAlgorithm>> for F<storage_enums::RoutingAlgorithm> {
-    fn from(algo: F<api_enums::RoutingAlgorithm>) -> Self {
-        Self(frunk::labelled_convert_from(algo.0))
-    }
-}
-
-impl From<F<storage_enums::RoutingAlgorithm>> for F<api_enums::RoutingAlgorithm> {
-    fn from(algo: F<storage_enums::RoutingAlgorithm>) -> Self {
-        Self(frunk::labelled_convert_from(algo.0))
-    }
-}
-
 impl From<F<api_enums::ConnectorType>> for F<storage_enums::ConnectorType> {
     fn from(conn: F<api_enums::ConnectorType>) -> Self {
         Self(frunk::labelled_convert_from(conn.0))
@@ -155,6 +143,18 @@ impl From<F<storage_enums::PaymentMethodSubType>> for F<api_enums::PaymentMethod
 impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMethodIssuerCode> {
     fn from(issuer_code: F<storage_enums::PaymentMethodIssuerCode>) -> Self {
         Self(frunk::labelled_convert_from(issuer_code.0))
+    }
+}
+
+impl From<F<api_enums::PaymentIssuer>> for F<storage_enums::PaymentIssuer> {
+    fn from(issuer: F<api_enums::PaymentIssuer>) -> Self {
+        Self(frunk::labelled_convert_from(issuer.0))
+    }
+}
+
+impl From<F<api_enums::PaymentExperience>> for F<storage_enums::PaymentExperience> {
+    fn from(experience: F<api_enums::PaymentExperience>) -> Self {
+        Self(frunk::labelled_convert_from(experience.0))
     }
 }
 
@@ -394,6 +394,71 @@ impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address
             first_name: address.first_name,
             last_name: address.last_name,
             ..Default::default()
+        }
+        .into()
+    }
+}
+
+impl
+    From<
+        F<(
+            storage_models::api_keys::ApiKey,
+            crate::core::api_keys::PlaintextApiKey,
+        )>,
+    > for F<api_models::api_keys::CreateApiKeyResponse>
+{
+    fn from(
+        item: F<(
+            storage_models::api_keys::ApiKey,
+            crate::core::api_keys::PlaintextApiKey,
+        )>,
+    ) -> Self {
+        use masking::StrongSecret;
+
+        let (api_key, plaintext_api_key) = item.0;
+        api_models::api_keys::CreateApiKeyResponse {
+            key_id: api_key.key_id.clone(),
+            merchant_id: api_key.merchant_id,
+            name: api_key.name,
+            description: api_key.description,
+            api_key: StrongSecret::from(format!(
+                "{}-{}",
+                api_key.key_id,
+                plaintext_api_key.peek().to_owned()
+            )),
+            created: api_key.created_at,
+            expiration: api_key.expires_at.into(),
+        }
+        .into()
+    }
+}
+
+impl From<F<storage_models::api_keys::ApiKey>> for F<api_models::api_keys::RetrieveApiKeyResponse> {
+    fn from(item: F<storage_models::api_keys::ApiKey>) -> Self {
+        let api_key = item.0;
+        api_models::api_keys::RetrieveApiKeyResponse {
+            key_id: api_key.key_id.clone(),
+            merchant_id: api_key.merchant_id,
+            name: api_key.name,
+            description: api_key.description,
+            prefix: format!("{}-{}", api_key.key_id, api_key.prefix).into(),
+            created: api_key.created_at,
+            expiration: api_key.expires_at.into(),
+        }
+        .into()
+    }
+}
+
+impl From<F<api_models::api_keys::UpdateApiKeyRequest>>
+    for F<storage_models::api_keys::ApiKeyUpdate>
+{
+    fn from(item: F<api_models::api_keys::UpdateApiKeyRequest>) -> Self {
+        let api_key = item.0;
+        storage_models::api_keys::ApiKeyUpdate::Update {
+            name: api_key.name,
+            description: api_key.description,
+            expires_at: api_key.expiration.map(Into::into),
+            last_used: None,
         }
         .into()
     }

@@ -315,7 +315,6 @@ impl<F, T>
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                     redirection_data: None,
-                    redirect: false,
                     mandate_reference: None,
                     connector_metadata: None,
                 }),
@@ -379,7 +378,6 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),

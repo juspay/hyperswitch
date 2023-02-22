@@ -123,6 +123,7 @@ pub struct Database {
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
+    pub connection_timeout: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -196,6 +197,8 @@ pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
     pub max_read_count: u64,
+    pub shutdown_interval: u32, // in milliseconds
+    pub loop_interval: u32,     // in milliseconds
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
