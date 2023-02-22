@@ -38,7 +38,8 @@ impl ConnectorAccessToken for Store {
         // being refreshed by other request then wait till it finishes and use the same access token
         let key = format!("access_token_{merchant_id}_{connector_name}");
         let maybe_token = self
-            .redis_conn
+            .redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
             .get_key::<Option<Vec<u8>>>(&key)
             .await
             .change_context(errors::StorageError::KVError)
@@ -63,7 +64,8 @@ impl ConnectorAccessToken for Store {
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
-        self.redis_conn
+        self.redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
             .map_err(|error| {
@@ -138,7 +140,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         connector: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
@@ -155,7 +157,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
                 &conn,
                 merchant_id,
@@ -180,7 +182,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         t.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -188,7 +190,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(Into::into)
@@ -202,7 +204,7 @@ impl MerchantConnectorAccountInterface for Store {
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let _merchant_connector_id = this.merchant_connector_id.clone();
         let update_call = || async {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             this.update(&conn, merchant_connector_account)
                 .await
                 .map_err(Into::into)
@@ -225,7 +227,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,

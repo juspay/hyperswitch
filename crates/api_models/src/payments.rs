@@ -132,6 +132,12 @@ pub struct PaymentsRequest {
         "java_script_enabled":true
     }"#)]
     pub browser_info: Option<serde_json::Value>,
+    /// Payment Issuser for the current payment
+    #[schema(value_type = Option<PaymentIssuer>, example = "klarna")]
+    pub payment_issuer: Option<api_enums::PaymentIssuer>,
+    /// Payment Experience, works in tandem with payment_issuer
+    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    pub payment_experience: Option<api_enums::PaymentExperience>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -342,35 +348,27 @@ pub enum AfterpayClearpayIssuer {
 pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
-        /// The issuer name of the redirect
-        issuer_name: KlarnaIssuer,
         /// The billing email
-        billing_email: String,
+        #[schema(value_type = String)]
+        billing_email: Secret<String, pii::Email>,
         // The billing country code
         billing_country: String,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
-        /// The issuer name of the sdk
-        issuer_name: KlarnaIssuer,
         /// The token for the sdk workflow
         token: String,
     },
     /// For Affirm redirect as PayLater Option
-    AffirmRedirect {
-        /// The issuer name of affirm redirect issuer
-        issuer_name: AffirmIssuer,
-        /// The billing email
-        billing_email: String,
-    },
+    AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
     AfterpayClearpayRedirect {
-        /// The issuer name of afterpayclearpay redirect issuer
-        issuer_name: AfterpayClearpayIssuer,
         /// The billing email
-        billing_email: String,
+        #[schema(value_type = String)]
+        billing_email: Secret<String, pii::Email>,
         /// The billing name
-        billing_name: String,
+        #[schema(value_type = String)]
+        billing_name: Secret<String>,
     },
 }
 

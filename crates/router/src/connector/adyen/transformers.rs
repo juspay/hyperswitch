@@ -1,6 +1,3 @@
-use std::{collections::HashMap, str::FromStr};
-
-use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -195,11 +192,11 @@ pub struct AdyenRedirectionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRedirectionAction {
     payment_method_type: String,
-    url: String,
-    method: String,
+    url: Url,
+    method: services::Method,
     #[serde(rename = "type")]
     type_of_response: String,
-    data: Option<HashMap<String, String>>,
+    data: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -672,7 +669,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
@@ -722,7 +718,6 @@ pub fn get_adyen_response(
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
-        redirect: false,
         mandate_reference: None,
         connector_metadata: None,
     };
@@ -757,33 +752,26 @@ pub fn get_redirection_response(
         None
     };
 
-    let redirection_url_response = Url::parse(&response.action.url)
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-        .attach_printable("Failed to parse redirection url")?;
-
-    let form_field_for_redirection = match response.action.data {
-        Some(data) => data,
-        None => std::collections::HashMap::from_iter(
-            redirection_url_response
+    let form_fields = response.action.data.unwrap_or_else(|| {
+        std::collections::HashMap::from_iter(
+            response
+                .action
+                .url
                 .query_pairs()
-                .map(|(k, v)| (k.to_string(), v.to_string())),
-        ),
-    };
+                .map(|(key, value)| (key.to_string(), value.to_string())),
+        )
+    });
 
     let redirection_data = services::RedirectForm {
-        url: redirection_url_response.to_string(),
-        method: services::Method::from_str(&response.action.method)
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-        form_fields: form_field_for_redirection,
+        endpoint: response.action.url.to_string(),
+        method: response.action.method,
+        form_fields,
     };
 
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: Some(redirection_data),
-        redirect: true,
         mandate_reference: None,
         connector_metadata: None,
     };
@@ -876,7 +864,6 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

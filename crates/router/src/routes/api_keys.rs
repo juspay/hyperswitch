@@ -1,13 +1,9 @@
 use actix_web::{web, HttpRequest, Responder};
-use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{
-        api_keys,
-        errors::{self, RouterResult},
-    },
+    core::api_keys,
     services::{api, authentication as auth},
     types::api as api_types,
 };
@@ -18,7 +14,7 @@ use crate::{
 /// displayed only once on creation, so ensure you store it securely.
 #[utoipa::path(
     post,
-    path = "/api_keys",
+    path = "/api_keys/{merchant_id)",
     request_body= CreateApiKeyRequest,
     responses(
         (status = 200, description = "API Key created", body = CreateApiKeyResponse),
@@ -31,17 +27,18 @@ use crate::{
 pub async fn api_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<String>,
     json_payload: web::Json<api_types::CreateApiKeyRequest>,
 ) -> impl Responder {
     let payload = json_payload.into_inner();
+    let merchant_id = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
         &req,
         payload,
         |state, _, payload| async {
-            let merchant_id = get_merchant_id_header(&req)?;
-            api_keys::create_api_key(&*state.store, payload, merchant_id).await
+            api_keys::create_api_key(&*state.store, payload, merchant_id.clone()).await
         },
         &auth::AdminApiAuth,
     )
@@ -53,7 +50,7 @@ pub async fn api_key_create(
 /// Retrieve information about the specified API Key.
 #[utoipa::path(
     get,
-    path = "/api_keys/{key_id}",
+    path = "/api_keys/{merchant_id}/{key_id}",
     params (("key_id" = String, Path, description = "The unique identifier for the API Key")),
     responses(
         (status = 200, description = "API Key retrieved", body = RetrieveApiKeyResponse),
@@ -66,9 +63,9 @@ pub async fn api_key_create(
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> impl Responder {
-    let key_id = path.into_inner();
+    let (_merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
@@ -85,7 +82,7 @@ pub async fn api_key_retrieve(
 /// Update information for the specified API Key.
 #[utoipa::path(
     post,
-    path = "/api_keys/{key_id}",
+    path = "/api_keys/{merchant_id}/{key_id}",
     request_body = UpdateApiKeyRequest,
     params (("key_id" = String, Path, description = "The unique identifier for the API Key")),
     responses(
@@ -99,10 +96,10 @@ pub async fn api_key_retrieve(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
-    let key_id = path.into_inner();
+    let (_merchant_id, key_id) = path.into_inner();
     let payload = json_payload.into_inner();
 
     api::server_wrap(
@@ -121,7 +118,7 @@ pub async fn api_key_update(
 /// authenticating with our APIs.
 #[utoipa::path(
     delete,
-    path = "/api_keys/{key_id}",
+    path = "/api_keys/{merchant_id)/{key_id}",
     params (("key_id" = String, Path, description = "The unique identifier for the API Key")),
     responses(
         (status = 200, description = "API Key revoked", body = RevokeApiKeyResponse),
@@ -134,9 +131,9 @@ pub async fn api_key_update(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> impl Responder {
-    let key_id = path.into_inner();
+    let (_merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
@@ -153,7 +150,7 @@ pub async fn api_key_revoke(
 /// List all API Keys associated with your merchant account.
 #[utoipa::path(
     get,
-    path = "/api_keys/list",
+    path = "/api_keys/{merchant_id}/list",
     params(
         ("limit" = Option<i64>, Query, description = "The maximum number of API Keys to include in the response"),
         ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
@@ -168,42 +165,22 @@ pub async fn api_key_revoke(
 pub async fn api_key_list(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<String>,
     query: web::Query<api_types::ListApiKeyConstraints>,
 ) -> impl Responder {
     let list_api_key_constraints = query.into_inner();
     let limit = list_api_key_constraints.limit;
     let offset = list_api_key_constraints.skip;
+    let merchant_id = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
         &req,
-        (&req, limit, offset),
-        |state, _, (req, limit, offset)| async move {
-            let merchant_id = get_merchant_id_header(req)?;
+        (limit, offset, merchant_id),
+        |state, _, (limit, offset, merchant_id)| async move {
             api_keys::list_api_keys(&*state.store, merchant_id, limit, offset).await
         },
         &auth::AdminApiAuth,
     )
     .await
-}
-
-fn get_merchant_id_header(req: &HttpRequest) -> RouterResult<String> {
-    use crate::headers::X_MERCHANT_ID;
-
-    req.headers()
-        .get(X_MERCHANT_ID)
-        .ok_or_else(|| errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("Missing header: `{X_MERCHANT_ID}`"),
-        })
-        .into_report()?
-        .to_str()
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: X_MERCHANT_ID,
-        })
-        .attach_printable(
-            "Failed to convert header value to string, \
-             possibly contains non-printable or non-ASCII characters",
-        )
-        .map(|s| s.to_owned())
 }

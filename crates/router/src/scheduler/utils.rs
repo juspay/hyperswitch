@@ -331,14 +331,14 @@ fn get_delay<'a>(
     }
 }
 
-pub(crate) async fn lock_acquire_release<F, Fut, E>(
+pub(crate) async fn lock_acquire_release<F, Fut>(
     state: &AppState,
     settings: &SchedulerSettings,
     callback: F,
-) -> Result<(), E>
+) -> CustomResult<(), errors::ProcessTrackerError>
 where
     F: Fn() -> Fut,
-    Fut: futures::Future<Output = Result<(), E>>,
+    Fut: futures::Future<Output = CustomResult<(), errors::ProcessTrackerError>>,
 {
     let tag = "PRODUCER_LOCK";
     let lock_key = &settings.producer.lock_key;
@@ -349,9 +349,15 @@ where
         .store
         .acquire_pt_lock(tag, lock_key, lock_val, ttl)
         .await
-    {
+        .change_context(errors::ProcessTrackerError::ERedisError(
+            errors::RedisError::RedisConnectionError.into(),
+        ))? {
         let result = callback().await;
-        state.store.release_pt_lock(tag, lock_key).await;
+        state
+            .store
+            .release_pt_lock(tag, lock_key)
+            .await
+            .map_err(errors::ProcessTrackerError::ERedisError)?;
         result
     } else {
         Ok(())
