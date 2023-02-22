@@ -109,10 +109,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .1
             .clone();
         let ord_id = _req.payment_id.clone();
-        Ok(format!(
-            "{}v1/json/orders/{}?api_key={}",
-            url, ord_id, api_key
-        ))
+        Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
     }
 
     fn build_request(
@@ -168,74 +165,6 @@ impl api::PaymentCapture for Multisafepay {}
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Multisafepay
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCaptureRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res
-            .response
-            .parse_struct("Multisafepay PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(multisafepaypayments_create_response=?response);
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 impl api::PaymentSession for Multisafepay {}
@@ -272,16 +201,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let api_key = self.get_auth_header(&_req.connector_auth_type)?[0]
             .1
             .clone();
-        Ok(format!("{}v1/json/orders?api_key={}", url, api_key))
+        Ok(format!("{url}v1/json/orders?api_key={api_key}"))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(req)?;
         let multisafepay_req =
-            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json(
+                &req_obj,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(multisafepay_req))
     }
 
@@ -370,8 +302,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .clone();
         let ord_id = _req.payment_id.clone();
         Ok(format!(
-            "{}v1/json/orders/{}/refunds?api_key={}",
-            url, ord_id, api_key
+            "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))
     }
 
@@ -463,8 +394,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .clone();
         let ord_id = _req.payment_id.clone();
         Ok(format!(
-            "{}v1/json/orders/{}/refunds?api_key={}",
-            url, ord_id, api_key
+            "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))
     }
 

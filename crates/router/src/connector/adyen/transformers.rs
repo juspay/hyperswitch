@@ -3,7 +3,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsRequestData},
+    connector::utils::{self, RouterData},
     consts,
     core::errors,
     pii::{self, Email, Secret},

@@ -288,7 +288,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.is_err(), true,);
+    assert!(response.response.is_err());
 }
 
 // Creates a payment with empty card number.
@@ -308,7 +308,7 @@ async fn should_fail_payment_for_empty_card_number() {
         .await
         .unwrap();
     let x = response.response.is_err();
-    assert_eq!(x, true,);
+    assert!(x);
 }
 
 // Creates a payment with incorrect CVC.
@@ -327,7 +327,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.is_err(), true,);
+    assert!(response.response.is_err());
 }
 
 // Creates a payment with incorrect expiry month.
@@ -346,7 +346,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.is_err(), true,);
+    assert!(response.response.is_err());
 }
 
 // Creates a payment with incorrect expiry year.
@@ -365,7 +365,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.is_err(), true,);
+    assert!(response.response.is_err());
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
@@ -412,5 +412,5 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.is_err(), true,);
+    assert!(response.response.is_err());
 }

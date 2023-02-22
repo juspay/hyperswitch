@@ -66,6 +66,7 @@ serde_json = "1.0.91"
 serde_path_to_error = "0.1.9"
 serde_qs = { version = "0.11.0", optional = true }
 serde_urlencoded = "0.7.1"
+serde_with = "2.2.0"
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
 signal-hook = "0.3.14"
 strum = { version = "0.24.1", features = ["derive"] }
