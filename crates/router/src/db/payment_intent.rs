@@ -63,7 +63,7 @@ mod storage {
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
 
@@ -95,7 +95,8 @@ mod storage {
                     };
 
                     match self
-                        .redis_conn
+                        .redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
                     {
@@ -134,7 +135,7 @@ mod storage {
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     this.update(&conn, payment_intent)
                         .await
                         .map_err(Into::into)
@@ -152,7 +153,8 @@ mod storage {
                             .change_context(errors::StorageError::SerializationFailed)?;
 
                     let updated_intent = self
-                        .redis_conn
+                        .redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .set_hash_fields(&key, ("pi", &redis_value))
                         .await
                         .map(|_| updated_intent)
@@ -189,7 +191,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let database_call = || async {
-                let conn = pg_connection(&self.master_pool).await;
+                let conn = pg_connection(&self.master_pool).await?;
                 PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                     .await
                     .map_err(Into::into)
@@ -201,7 +203,8 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn
+                        self.redis_conn()
+                            .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
                         database_call,
                     )
@@ -219,7 +222,7 @@ mod storage {
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.replica_pool).await;
+                    let conn = pg_connection(&self.replica_pool).await?;
                     PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
                         .await
                         .map_err(Into::into)
@@ -253,7 +256,7 @@ mod storage {
             new: PaymentIntentNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
@@ -263,7 +266,7 @@ mod storage {
             payment_intent: PaymentIntentUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             this.update(&conn, payment_intent)
                 .await
                 .map_err(Into::into)
@@ -276,7 +279,7 @@ mod storage {
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await;
+            let conn = pg_connection(&self.master_pool).await?;
             PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
                 .map_err(Into::into)
@@ -290,7 +293,7 @@ mod storage {
             pc: &api::PaymentListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
-            let conn = pg_connection(&self.replica_pool).await;
+            let conn = pg_connection(&self.replica_pool).await?;
             PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
                 .await
                 .map_err(Into::into)

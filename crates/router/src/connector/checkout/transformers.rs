@@ -1,4 +1,3 @@
-use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -168,15 +167,18 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMet
     }
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
+impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<Balances>)>>
     for transformers::Foreign<enums::AttemptStatus>
 {
-    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Balances)>) -> Self {
+    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Option<Balances>)>) -> Self {
         let (status, balances) = item.0;
 
         match status {
             CheckoutPaymentStatus::Authorized => {
-                if balances.available_to_capture == 0 {
+                if let Some(Balances {
+                    available_to_capture: 0,
+                }) = balances
+                {
                     enums::AttemptStatus::Charged
                 } else {
                     enums::AttemptStatus::Authorized
@@ -191,9 +193,10 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Href {
-    href: String,
+    #[serde(rename = "href")]
+    redirection_url: Url,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -207,7 +210,7 @@ pub struct PaymentsResponse {
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
     links: Links,
-    balances: Balances,
+    balances: Option<Balances>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -222,24 +225,10 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_url = item
-            .response
-            .links
-            .redirect
-            .map(|data| Url::parse(&data.href))
-            .transpose()
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .attach_printable("Could not parse the redirection data")?;
-
-        let redirection_data = redirection_url.map(|url| services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
+
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
@@ -247,7 +236,6 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -264,23 +252,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_url = item
-            .response
-            .links
-            .redirect
-            .map(|data| Url::parse(&data.href))
-            .transpose()
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .attach_printable("Could not parse the redirection data")?;
-
-        let redirection_data = redirection_url.map(|url| services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
 
         Ok(Self {
@@ -290,7 +263,6 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirect: redirection_data.is_some(),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -333,7 +305,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -405,7 +376,6 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.to_owned(),
                 ),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

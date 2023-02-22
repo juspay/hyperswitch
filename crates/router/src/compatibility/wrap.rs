@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use error_stack::report;
+use common_utils::errors::ErrorSwitch;
 use router_env::{instrument, tracing};
 use serde::Serialize;
 
@@ -24,11 +24,13 @@ where
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
     Q: Serialize + std::fmt::Debug + 'a,
     S: From<Q> + Serialize,
-    E: From<errors::ApiErrorResponse> + Serialize + error_stack::Context + actix_web::ResponseError,
+    E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
     A: AppStateInfo,
 {
-    let resp = api::server_wrap_util(state, request, payload, func, api_authentication).await;
+    let resp: common_utils::errors::CustomResult<_, E> =
+        api::server_wrap_util(state, request, payload, func, api_authentication).await;
     match resp {
         Ok(api::ApplicationResponse::Json(router_resp)) => {
             let pg_resp = S::try_from(router_resp);
@@ -71,8 +73,7 @@ where
             .map_into_boxed_body(),
         Err(error) => {
             logger::error!(api_response_error=?error);
-            let pg_error = E::from(error.current_context().clone());
-            api::log_and_return_error_response(report!(pg_error))
+            api::log_and_return_error_response(error)
         }
     }
 }

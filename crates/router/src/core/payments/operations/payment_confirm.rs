@@ -58,6 +58,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
+        payment_intent.setup_future_usage = request
+            .setup_future_usage
+            .map(ForeignInto::foreign_into)
+            .or(payment_intent.setup_future_usage);
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
@@ -325,6 +330,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_id = customer.map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.clone();
+        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -332,6 +338,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage::PaymentIntentUpdate::Update {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
+                    setup_future_usage,
                     status: intent_status,
                     customer_id,
                     shipping_address_id: shipping_address,

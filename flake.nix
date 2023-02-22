@@ -1,46 +1,50 @@
 {
-  description = "hyperswitch devshell";
+  description = "hyperswitch";
 
   inputs = {
-    nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";
+    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url  = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  # cache for faster access
-  nixConfig.extra-substituters = [
-    "https://iog.cachix.org"
-    "https://hydra.iohk.io"
-  ];
-  nixConfig.extra-trusted-public-keys = [
-    "iog.cachix.org-1:nYO0M9xTk/s5t1Bs9asZ/Sww/1Kt/hRhkLP0Hhv/ctY="
-    "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
-  ];
+  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = nixpkgs.lib.systems.flakeExposed;
+      perSystem = { self', pkgs, system, ... }:
+        let
+          rustVersion = "1.65.0";
+          rustPkgs = pkgs.rustBuilder.makePackageSet {
+            inherit rustVersion;
+            packageFun = import ./Cargo.nix;
+          };
+          frameworks = pkgs.darwin.apple_sdk.frameworks;
+        in
+        {
+          _module.args.pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ inputs.cargo2nix.overlays.default (import inputs.rust-overlay) ];
+          };
+          packages = rec {
+            router = (rustPkgs.workspace.router { }).bin;
+            default = router;
+          };
+          apps = {
+            router-scheduler = {
+              type = "app";
+              program = "${self'.packages.router}/bin/scheduler";
+            };
+          };
+          devShells.default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              openssl
+              pkg-config
+              exa
+              fd
+              rust-bin.stable.${rustVersion}.default
+            ] ++ lib.optionals stdenv.isDarwin [ frameworks.CoreServices frameworks.Foundation ]; # arch might have issue finding these libs.
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
+          };
         };
-
-        frameworks = pkgs.darwin.apple_sdk.frameworks;
-
-      in
-      with pkgs;
-      {
-        devShells.default = mkShell {
-
-          buildInputs =  [
-            openssl
-            pkg-config
-            exa
-            fd
-            rust-bin.stable."1.65.0".default
-          ] ++ lib.optionals stdenv.isDarwin [ frameworks.CoreServices frameworks.Foundation ]; # arch might have issue finding these libs.
-
-        };
-      }
-    );
+    };
 }

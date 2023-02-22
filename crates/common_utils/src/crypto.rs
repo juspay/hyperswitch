@@ -232,6 +232,26 @@ impl GenerateDigest for Sha512 {
     }
 }
 
+/// Generate a random string using a cryptographically secure pseudo-random number generator
+/// (CSPRNG). Typically used for generating (readable) keys and passwords.
+#[inline]
+pub fn generate_cryptographically_secure_random_string(length: usize) -> String {
+    use rand::distributions::DistString;
+
+    rand::distributions::Alphanumeric.sample_string(&mut rand::rngs::OsRng, length)
+}
+
+/// Generate an array of random bytes using a cryptographically secure pseudo-random number
+/// generator (CSPRNG). Typically used for generating keys.
+#[inline]
+pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; N] {
+    use rand::RngCore;
+
+    let mut bytes = [0; N];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    bytes
+}
+
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]

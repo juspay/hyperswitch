@@ -388,10 +388,23 @@ impl
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         logger::debug!(checkout_error_response=?res);
-        let response: checkout::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response: checkout::ErrorResponse = if res.response.is_empty() {
+            checkout::ErrorResponse {
+                request_id: None,
+                error_type: if res.status_code == 401 {
+                    Some("Invalid Api Key".to_owned())
+                } else {
+                    None
+                },
+                error_codes: None,
+            }
+        } else {
+            res.response
+                .parse_struct("ErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+        };
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response

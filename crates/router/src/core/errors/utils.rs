@@ -1,11 +1,13 @@
 use crate::{core::errors, logger};
 
 pub trait StorageErrorExt {
+    #[track_caller]
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
     ) -> error_stack::Report<errors::ApiErrorResponse>;
 
+    #[track_caller]
     fn to_duplicate_response(
         self,
         duplicate_response: errors::ApiErrorResponse,
@@ -13,6 +15,7 @@ pub trait StorageErrorExt {
 }
 
 impl StorageErrorExt for error_stack::Report<errors::StorageError> {
+    #[track_caller]
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
@@ -41,8 +44,11 @@ impl StorageErrorExt for error_stack::Report<errors::StorageError> {
 }
 
 pub trait ConnectorErrorExt {
+    #[track_caller]
     fn to_refund_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    #[track_caller]
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    #[track_caller]
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
@@ -95,6 +101,12 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     ),
                 }
             }
+            errors::ConnectorError::MismatchedPaymentData => {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name:
+                        "payment_method_data and payment_issuer, payment_experience does not match",
+                }
+            }
             _ => errors::ApiErrorResponse::InternalServerError,
         };
         self.change_context(error)
@@ -121,6 +133,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
 }
 
 pub trait RedisErrorExt {
+    #[track_caller]
     fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
 }
 

@@ -35,11 +35,11 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
 }
 
 pub trait PaymentsRequestData {
-    fn get_attempt_id(&self) -> Result<String, Error>;
     fn get_billing(&self) -> Result<&api::Address, Error>;
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
 }
 
 pub trait RefundsRequestData {
@@ -56,12 +56,6 @@ impl RefundsRequestData for types::RefundsData {
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
-    fn get_attempt_id(&self) -> Result<String, Error> {
-        self.attempt_id
-            .clone()
-            .ok_or_else(missing_field_err("attempt_id"))
-    }
-
     fn get_billing_country(&self) -> Result<String, Error> {
         self.address
             .billing
@@ -90,6 +84,12 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             .billing
             .as_ref()
             .ok_or_else(missing_field_err("billing"))
+    }
+
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
 }
 

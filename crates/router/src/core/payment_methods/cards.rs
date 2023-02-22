@@ -85,9 +85,7 @@ pub async fn add_payment_method(
                 payment_method_issuer_code: req.payment_method_issuer_code,
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
-                payment_experience: Some(vec![
-                    api_models::payment_methods::PaymentExperience::RedirectToUrl,
-                ]), //[#219]
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
             })
         }
     }
@@ -635,9 +633,7 @@ pub async fn list_customer_payment_method(
                 .map(ForeignInto::foreign_into),
             recurring_enabled: false,
             installment_payment_enabled: false,
-            payment_experience: Some(vec![
-                api_models::payment_methods::PaymentExperience::RedirectToUrl,
-            ]),
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
         };
         vec.push(pma);
@@ -880,9 +876,7 @@ pub async fn retrieve_payment_method(
                 .map(ForeignInto::foreign_into),
             recurring_enabled: false,           //[#219]
             installment_payment_enabled: false, //[#219]
-            payment_experience: Some(vec![
-                api_models::payment_methods::PaymentExperience::RedirectToUrl,
-            ]), //[#219],
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219],
         },
     ))
 }
