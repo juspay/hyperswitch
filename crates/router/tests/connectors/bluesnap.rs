@@ -509,7 +509,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .response
         .unwrap_err()
         .message
-        .contains(&"is not authorized to view transaction");
+        .contains("is not authorized to view transaction");
 }
 
 // Refunds a payment with refund amount higher than payment amount.
