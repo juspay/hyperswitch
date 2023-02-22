@@ -81,9 +81,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                     line1: item.merchant_id.clone(),
                     ..Default::default()
                 },
-                payment_instrument: fetch_payment_instrument(
-                    item, //item.request.payment_method_data.clone(),
-                )?,
+                payment_instrument: fetch_payment_instrument(item)?,
                 debt_repayment: None,
             },
             merchant: Merchant {

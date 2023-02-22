@@ -471,7 +471,7 @@ pub struct ApplepayHeader {
 pub struct ApplepayPaymentMethod {
     /// The name to be displayed on Apple Pay button
     pub display_name: String,
-    /// The netwrok of the Apple pay payment method
+    /// The network of the Apple pay payment method
     pub network: String,
     /// The type of the payment method
     #[serde(rename = "type")]
