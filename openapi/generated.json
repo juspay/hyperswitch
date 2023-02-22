@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hyperswitch - API Documentation",
-    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data. Currently, our sandbox environment is live while our production environment is under development and will be available soon. You can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | Coming Soon!                       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in the\nrequest Authorization header.\n\n| Key           |  Description                                                                                  |\n|---------------|-----------------------------------------------------------------------------------------------|\n| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |\n| Production    | Unique identifier for your account. Used to authenticate API requests from your app’s client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | Coming Soon!                       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key           |  Description                                                                                  |\n|---------------|-----------------------------------------------------------------------------------------------|\n| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |\n| Production    | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
@@ -70,7 +70,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -106,7 +105,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -152,7 +150,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -190,7 +187,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -268,7 +264,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -278,7 +273,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -318,7 +312,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -328,7 +321,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -378,7 +370,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -388,7 +379,6 @@
             "in": "path",
             "description": "The unique identifier for the payment connector",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -411,6 +401,209 @@
           },
           "404": {
             "description": "Payment Connector does not exist in records"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{merchant_id)": {
+      "post": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Create",
+        "description": "API Key - Create\n\nCreate a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
+        "operationId": "Create an API Key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{merchant_id)/{key_id}": {
+      "delete": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Revoke",
+        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "operationId": "Revoke an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{merchant_id}/list": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - List",
+        "description": "API Key - List\n\nList all API Keys associated with your merchant account.",
+        "operationId": "List all API Keys associated with a merchant account",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of API Keys to include in the response",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "The number of API Keys to skip when retrieving the list of API keys.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API Keys retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{merchant_id}/{key_id}": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Retrieve",
+        "description": "API Key - Retrieve\n\nRetrieve information about the specified API Key.",
+        "operationId": "Retrieve an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      },
+      "post": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Update",
+        "description": "API Key - Update\n\nUpdate information for the specified API Key.",
+        "operationId": "Update an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
           }
         },
         "deprecated": false
@@ -466,7 +659,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -502,7 +694,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -548,7 +739,6 @@
             "in": "path",
             "description": "The unique identifier for the Customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -586,7 +776,6 @@
             "in": "path",
             "description": "The identifier for mandate",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -624,7 +813,6 @@
             "in": "path",
             "description": "The identifier for mandate",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -698,7 +886,6 @@
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -708,7 +895,6 @@
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -721,7 +907,6 @@
             "in": "path",
             "description": "The three-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -734,7 +919,6 @@
             "in": "query",
             "description": "The minimum amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -745,7 +929,6 @@
             "in": "query",
             "description": "The maximum amount amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -756,7 +939,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -766,7 +948,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -807,7 +988,6 @@
             "in": "path",
             "description": "The unique identifier for the customer account",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -817,7 +997,6 @@
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -830,7 +1009,6 @@
             "in": "path",
             "description": "The three-letter ISO currency code",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "array",
               "items": {
@@ -843,7 +1021,6 @@
             "in": "query",
             "description": "The minimum amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -854,7 +1031,6 @@
             "in": "query",
             "description": "The maximum amount amount accepted for processing by the particular payment method.",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -865,7 +1041,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -875,7 +1050,6 @@
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "boolean"
             }
@@ -916,7 +1090,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -952,7 +1125,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -998,7 +1170,6 @@
             "in": "path",
             "description": "The unique identifier for the Payment Method",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1072,7 +1243,6 @@
             "in": "query",
             "description": "The identifier for the customer",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1082,7 +1252,6 @@
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1092,7 +1261,6 @@
             "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1102,7 +1270,6 @@
             "in": "query",
             "description": "Limit on the number of objects to return",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1113,7 +1280,6 @@
             "in": "query",
             "description": "The time at which payment is created",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1124,7 +1290,6 @@
             "in": "query",
             "description": "Time less than the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1135,7 +1300,6 @@
             "in": "query",
             "description": "Time greater than the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1146,7 +1310,6 @@
             "in": "query",
             "description": "Time less than or equals to the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1157,7 +1320,6 @@
             "in": "query",
             "description": "Time greater than or equals to the payment created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1225,7 +1387,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1271,7 +1432,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1319,7 +1479,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1360,7 +1519,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1408,7 +1566,6 @@
             "in": "path",
             "description": "The identifier for payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1492,7 +1649,6 @@
             "in": "query",
             "description": "The identifier for the payment",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1502,7 +1658,6 @@
             "in": "query",
             "description": "Limit on the number of objects to return",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -1513,7 +1668,6 @@
             "in": "query",
             "description": "The time at which refund is created",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1524,7 +1678,6 @@
             "in": "query",
             "description": "Time less than the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1535,7 +1688,6 @@
             "in": "query",
             "description": "Time greater than the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1546,7 +1698,6 @@
             "in": "query",
             "description": "Time less than or equals to the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1557,7 +1708,6 @@
             "in": "query",
             "description": "Time greater than or equals to the refund created time",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -1596,7 +1746,6 @@
             "in": "path",
             "description": "The identifier for refund",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1632,7 +1781,6 @@
             "in": "path",
             "description": "The identifier for refund",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "string"
             }
@@ -1757,6 +1905,110 @@
         "enum": [
           "afterpay_clearpay"
         ]
+      },
+      "ApiKeyExpiration": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "never"
+            ]
+          },
+          {
+            "type": "string",
+            "format": "date-time"
+          }
+        ]
+      },
+      "ApplePayWalletData": {
+        "type": "object",
+        "required": [
+          "payment_data",
+          "payment_method",
+          "transaction_identifier"
+        ],
+        "properties": {
+          "payment_data": {
+            "$ref": "#/components/schemas/ApplepayPaymentData"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/ApplepayPaymentMethod"
+          },
+          "transaction_identifier": {
+            "type": "string",
+            "description": "The unique identifier for the transaction"
+          }
+        }
+      },
+      "ApplepayHeader": {
+        "type": "object",
+        "required": [
+          "public_key_hash",
+          "ephimeral_public_key",
+          "transaction_id"
+        ],
+        "properties": {
+          "public_key_hash": {
+            "type": "string",
+            "description": "The public key hash used"
+          },
+          "ephimeral_public_key": {
+            "type": "string",
+            "description": "The ephimeral public key used"
+          },
+          "transaction_id": {
+            "type": "string",
+            "description": "The unique identifier for the transaction"
+          }
+        }
+      },
+      "ApplepayPaymentData": {
+        "type": "object",
+        "required": [
+          "data",
+          "signature",
+          "header",
+          "version"
+        ],
+        "properties": {
+          "data": {
+            "type": "string",
+            "description": "The data of Apple pay payment"
+          },
+          "signature": {
+            "type": "string",
+            "description": "A string which represents the properties of a payment"
+          },
+          "header": {
+            "$ref": "#/components/schemas/ApplepayHeader"
+          },
+          "version": {
+            "type": "string",
+            "description": "The Apple Pay version used"
+          }
+        }
+      },
+      "ApplepayPaymentMethod": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "network",
+          "type"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "description": "The name to be displayed on Apple Pay button"
+          },
+          "network": {
+            "type": "string",
+            "description": "The netwrok of the Apple pay payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of the payment method"
+          }
+        }
       },
       "AuthenticationType": {
         "type": "string",
@@ -1904,6 +2156,83 @@
           "banking_entities",
           "non_banking_finance"
         ]
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "description": "The request body for creating an API Key.",
+        "required": [
+          "name",
+          "expiration"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "A description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "CreateApiKeyResponse": {
+        "type": "object",
+        "description": "The response body for creating an API Key.",
+        "required": [
+          "key_id",
+          "merchant_id",
+          "name",
+          "api_key",
+          "created",
+          "expiration"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "The identifier for the API Key.",
+            "example": "5hEEqkgJUyuxgSKGArHA4mWSnX",
+            "maxLength": 64
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "description": "The unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "The description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "api_key": {
+            "type": "string",
+            "description": "The plaintext API Key used for server-side API access. Ensure you store the API Key\nsecurely as you will not be able to see it again.",
+            "maxLength": 128
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which the API Key was created.",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
       },
       "CreateMerchantAccount": {
         "type": "object",
@@ -2365,10 +2694,9 @@
             "maxLength": 255
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32",
+            "type": "string",
             "description": "Unique ID of the connector",
-            "example": 42
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "deleted": {
             "type": "boolean",
@@ -2478,6 +2806,23 @@
           }
         }
       },
+      "GpayPaymentMethodInfo": {
+        "type": "object",
+        "required": [
+          "card_network",
+          "card_details"
+        ],
+        "properties": {
+          "card_network": {
+            "type": "string",
+            "description": "The name of the card network"
+          },
+          "card_details": {
+            "type": "string",
+            "description": "The details of the card"
+          }
+        }
+      },
       "GpayTokenParameters": {
         "type": "object",
         "required": [
@@ -2492,6 +2837,23 @@
           "gateway_merchant_id": {
             "type": "string",
             "description": "The merchant ID registered in the connector associated"
+          }
+        }
+      },
+      "GpayTokenizationData": {
+        "type": "object",
+        "required": [
+          "type",
+          "token"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of the token"
+          },
+          "token": {
+            "type": "string",
+            "description": "Token generated for the wallet"
           }
         }
       },
@@ -2539,6 +2901,31 @@
           }
         }
       },
+      "GpayWalletData": {
+        "type": "object",
+        "required": [
+          "type",
+          "description",
+          "info",
+          "tokenization_data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          },
+          "description": {
+            "type": "string",
+            "description": "User-facing message to describe the payment method that funds this transaction."
+          },
+          "info": {
+            "$ref": "#/components/schemas/GpayPaymentMethodInfo"
+          },
+          "tokenization_data": {
+            "$ref": "#/components/schemas/GpayTokenizationData"
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "enum": [
@@ -2572,8 +2959,8 @@
             },
             "example": [
               {
-                "payment_method": "wallet",
                 "payment_experience": null,
+                "payment_method": "wallet",
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
@@ -2713,8 +3100,8 @@
             },
             "example": [
               {
-                "payment_method": "wallet",
                 "payment_experience": null,
+                "payment_method": "wallet",
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
@@ -2973,8 +3360,7 @@
             "type": "string"
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32"
+            "type": "string"
           }
         }
       },
@@ -3125,14 +3511,10 @@
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "billing_email",
                   "billing_country"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3154,13 +3536,9 @@
                 "type": "object",
                 "description": "For Klarna Sdk as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "token"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "token": {
                     "type": "string",
                     "description": "The token for the sdk workflow"
@@ -3177,20 +3555,7 @@
             "properties": {
               "affirm_redirect": {
                 "type": "object",
-                "description": "For Affirm redirect as PayLater Option",
-                "required": [
-                  "issuer_name",
-                  "billing_email"
-                ],
-                "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AffirmIssuer"
-                  },
-                  "billing_email": {
-                    "type": "string",
-                    "description": "The billing email"
-                  }
-                }
+                "description": "For Affirm redirect as PayLater Option"
               }
             }
           },
@@ -3204,14 +3569,10 @@
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "billing_email",
                   "billing_name"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AfterpayClearpayIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3225,6 +3586,18 @@
             }
           }
         ]
+      },
+      "PayPalWalletData": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token generated for the Apple pay"
+          }
+        }
       },
       "PaymentConnectorCreate": {
         "type": "object",
@@ -3243,10 +3616,9 @@
             "example": "stripe"
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32",
+            "type": "string",
             "description": "Unique ID of the connector",
-            "example": 42
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "connector_account_details": {
             "type": "object"
@@ -3270,31 +3642,31 @@
             },
             "example": [
               {
-                "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
+                "accepted_countries": [
+                  "in",
+                  "us"
                 ],
                 "accepted_currencies": [
                   "AED",
                   "AED"
                 ],
-                "accepted_countries": [
-                  "in",
-                  "us"
-                ],
-                "minimum_amount": 1,
+                "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "minimum_amount": 1,
+                "payment_method": "wallet",
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
+                ],
+                "payment_schemes": [
+                  "Discover",
+                  "Discover"
+                ],
+                "recurring_enabled": true
               }
             ]
           },
@@ -3352,6 +3724,28 @@
               }
             }
           }
+        ]
+      },
+      "PaymentIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna",
+          "affirm",
+          "afterpay_clearpay",
+          "american_express",
+          "bank_of_america",
+          "barclays",
+          "capital_one",
+          "chase",
+          "citi",
+          "discover",
+          "navy_federal_credit_union",
+          "pentagon_federal_credit_union",
+          "synchrony_bank",
+          "wells_fargo",
+          "paypal",
+          "googlepay",
+          "applepay"
         ]
       },
       "PaymentListConstraints": {
@@ -3888,6 +4282,12 @@
           },
           "browser_info": {
             "type": "object"
+          },
+          "payment_issuer": {
+            "$ref": "#/components/schemas/PaymentIssuer"
+          },
+          "payment_experience": {
+            "$ref": "#/components/schemas/PaymentExperience"
           }
         }
       },
@@ -4173,6 +4573,9 @@
           }
         }
       },
+      "PaypalRedirection": {
+        "type": "object"
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -4376,6 +4779,79 @@
           }
         }
       },
+      "RetrieveApiKeyResponse": {
+        "type": "object",
+        "description": "The response body for retrieving an API Key.",
+        "required": [
+          "key_id",
+          "merchant_id",
+          "name",
+          "prefix",
+          "created",
+          "expiration"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "The identifier for the API Key.",
+            "example": "5hEEqkgJUyuxgSKGArHA4mWSnX",
+            "maxLength": 64
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "description": "The unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "The description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "prefix": {
+            "type": "string",
+            "description": "The first few characters of the plaintext API Key to help you identify it.",
+            "maxLength": 64
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which the API Key was created.",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "RevokeApiKeyResponse": {
+        "type": "object",
+        "description": "The response body for revoking an API Key.",
+        "required": [
+          "key_id",
+          "revoked"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "The identifier for the API Key.",
+            "example": "5hEEqkgJUyuxgSKGArHA4mWSnX",
+            "maxLength": 64
+          },
+          "revoked": {
+            "type": "boolean",
+            "description": "Indicates whether the API key was revoked or not.",
+            "example": "true"
+          }
+        }
+      },
       "RoutingAlgorithm": {
         "type": "string",
         "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
@@ -4552,6 +5028,27 @@
           "gpay"
         ]
       },
+      "UpdateApiKeyRequest": {
+        "type": "object",
+        "description": "The request body for updating an API Key.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A unique name for the API Key to help you identify it.",
+            "example": "Sandbox integration key",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "A description to provide more context about the API Key.",
+            "example": "Key used by our developers to integrate with the sandbox environment",
+            "maxLength": 256
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
       "UpdatePaymentMethod": {
         "type": "object",
         "properties": {
@@ -4564,26 +5061,51 @@
         }
       },
       "WalletData": {
-        "type": "object",
-        "required": [
-          "issuer_name"
-        ],
-        "properties": {
-          "issuer_name": {
-            "$ref": "#/components/schemas/WalletIssuer"
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "gpay"
+            ],
+            "properties": {
+              "gpay": {
+                "$ref": "#/components/schemas/GpayWalletData"
+              }
+            }
           },
-          "token": {
-            "type": "string",
-            "description": "Token generated for the wallet"
+          {
+            "type": "object",
+            "required": [
+              "applepay"
+            ],
+            "properties": {
+              "applepay": {
+                "$ref": "#/components/schemas/ApplePayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paypal_sdk"
+            ],
+            "properties": {
+              "paypal_sdk": {
+                "$ref": "#/components/schemas/PayPalWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
+              }
+            }
           }
-        }
-      },
-      "WalletIssuer": {
-        "type": "string",
-        "enum": [
-          "googlepay",
-          "applepay",
-          "paypal"
         ]
       },
       "WebhookDetails": {
@@ -4633,25 +5155,36 @@
   },
   "tags": [
     {
-      "name": "Merchant Account"
+      "name": "Merchant Account",
+      "description": "Create and manage merchant accounts"
     },
     {
-      "name": "Merchant Connector Account"
+      "name": "Merchant Connector Account",
+      "description": "Create and manage merchant connector accounts"
     },
     {
-      "name": "Payments"
+      "name": "Payments",
+      "description": "Create and manage one-time payments, recurring payments and mandates"
     },
     {
-      "name": "Refunds"
+      "name": "Refunds",
+      "description": "Create and manage refunds for successful payments"
     },
     {
-      "name": "Mandates"
+      "name": "Mandates",
+      "description": "Manage mandates"
     },
     {
-      "name": "Customers"
+      "name": "Customers",
+      "description": "Create and manage customers"
     },
     {
-      "name": "Payment Methods"
+      "name": "Payment Methods",
+      "description": "Create and manage payment methods of customers"
+    },
+    {
+      "name": "API Key",
+      "description": "Create and manage API Keys"
     }
   ]
 }

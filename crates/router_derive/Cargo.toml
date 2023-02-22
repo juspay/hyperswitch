@@ -12,6 +12,7 @@ proc-macro = true
 doctest = false
 
 [dependencies]
+darling = "0.14.3"
 proc-macro2 = "1.0.50"
 quote = "1.0.23"
 syn = { version = "1.0.107", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features

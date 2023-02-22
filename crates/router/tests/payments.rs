@@ -327,7 +327,8 @@ async fn payments_create_core() {
         off_session: None,
         client_secret: None,
         browser_info: None,
-        wallet_issuer_name: None,
+        payment_experience: None,
+        payment_issuer: None,
     };
 
     let expected_response = api::PaymentsResponse {
@@ -483,7 +484,8 @@ async fn payments_create_core_adyen_no_redirect() {
         off_session: None,
         client_secret: None,
         browser_info: None,
-        wallet_issuer_name: None,
+        payment_experience: None,
+        payment_issuer: None,
     };
 
     let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {

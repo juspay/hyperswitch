@@ -8,7 +8,6 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
@@ -78,37 +77,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     cvv: ccard.card_cvc,
                 }),
             }),
-            api::PaymentMethod::Wallet(wallet_data) => match item
-                .request
-                .wallet_issuer_name
-                .get_required_value("wallet_issuer_name")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-            {
-                api_models::enums::WalletIssuer::GooglePay => Ok(PayuPaymentMethod {
+            api::PaymentMethod::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::Gpay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE.encode(match wallet_data {
-                                api_models::payments::WalletData::Gpay(wallet_data) => {
-                                    Ok(wallet_data.tokenization_data.token)
-                                }
-                                _ => Err(errors::ConnectorError::InvalidWallet),
-                            }?),
+                            authorization_code: consts::BASE64_ENGINE
+                                .encode(data.tokenization_data.token),
                         }
                     }),
                 }),
-                api_models::enums::WalletIssuer::ApplePay => Ok(PayuPaymentMethod {
+                api_models::payments::WalletData::Applepay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE.encode(match wallet_data {
-                                api_models::payments::WalletData::Applepay(wallet_data) => {
-                                    Ok(wallet_data.token)
-                                }
-                                _ => Err(errors::ConnectorError::InvalidWallet),
-                            }?),
+                            authorization_code: consts::BASE64_ENGINE.encode(
+                                serde_json::to_string(&data.payment_data)
+                                    .into_report()
+                                    .change_context(
+                                        errors::ConnectorError::RequestEncodingFailed,
+                                    )?,
+                            ),
                         }
                     }),
                 }),
@@ -210,7 +201,6 @@ impl<F, T>
             status: enums::AttemptStatus::from(item.response.status.status_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -261,7 +251,6 @@ impl<F, T>
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -340,7 +329,6 @@ impl<F, T>
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -469,7 +457,6 @@ impl<F, T>
             status: enums::AttemptStatus::from(order.status.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(order.order_id.clone()),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

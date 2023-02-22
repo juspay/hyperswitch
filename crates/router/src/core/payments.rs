@@ -6,7 +6,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
-use api_models::enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -110,13 +109,18 @@ where
         )
         .await?;
 
-    let connector_details = route_connector(
-        state,
-        &merchant_account,
-        &mut payment_data,
-        connector_details,
-    )
-    .await?;
+    let connector = match should_call_connector(&operation, &payment_data) {
+        true => Some(
+            route_connector(
+                state,
+                &merchant_account,
+                &mut payment_data,
+                connector_details,
+            )
+            .await?,
+        ),
+        false => None,
+    };
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
@@ -134,7 +138,7 @@ where
         .add_task_to_process_tracker(state, &payment_data.payment_attempt)
         .await?;
 
-    if should_call_connector(&operation, &payment_data) {
+    if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 call_connector_service(
@@ -357,10 +361,11 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    match add_access_token_result.access_token_result {
-        Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => router_data.response = Err(connector_error),
-    }
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &call_connector_action,
+    );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
@@ -504,7 +509,6 @@ where
     pub token: Option<String>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
-    pub wallet_issuer_name: Option<enums::WalletIssuer>,
     pub payment_method_data: Option<api::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,

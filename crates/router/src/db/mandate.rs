@@ -41,7 +41,7 @@ impl MandateInterface for Store {
         merchant_id: &str,
         mandate_id: &str,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
             .await
             .map_err(Into::into)
@@ -53,7 +53,7 @@ impl MandateInterface for Store {
         merchant_id: &str,
         customer_id: &str,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
             .await
             .map_err(Into::into)
@@ -66,7 +66,7 @@ impl MandateInterface for Store {
         mandate_id: &str,
         mandate: storage::MandateUpdate,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
             .await
             .map_err(Into::into)
@@ -77,7 +77,7 @@ impl MandateInterface for Store {
         &self,
         mandate: storage::MandateNew,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         mandate
             .insert(&conn)
             .await

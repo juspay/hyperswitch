@@ -352,6 +352,69 @@ pub enum PaymentMethodIssuerCode {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentIssuer {
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    AmericanExpress,
+    BankOfAmerica,
+    Barclays,
+    CapitalOne,
+    Chase,
+    Citi,
+    Discover,
+    NavyFederalCreditUnion,
+    PentagonFederalCreditUnion,
+    SynchronyBank,
+    WellsFargo,
+    Paypal,
+    Googlepay,
+    Applepay,
+}
+
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    Default,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentExperience {
+    /// The URL to which the customer needs to be redirected for completing the payment.
+    #[default]
+    RedirectToUrl,
+    /// Contains the data for invoking the sdk client for completing the payment.
+    InvokeSdkClient,
+    /// The QR code data to be displayed to the customer.
+    DisplayQrCode,
+    /// Contains data to finish one click payment.
+    OneClick,
+    /// Redirect customer to link wallet
+    LinkWallet,
+    /// Contains the data for invoking the sdk client for completing the payment.
+    InvokePaymentApp,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -398,27 +461,6 @@ pub enum PaymentMethodType {
     ConsumerFinance,
     Wallet,
     Klarna,
-    Paypal,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum WalletIssuer {
-    GooglePay,
-    ApplePay,
     Paypal,
 }
 

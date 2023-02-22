@@ -59,6 +59,8 @@ pub enum StorageError {
         entity: &'static str,
         key: Option<String>,
     },
+    #[error("Timed out while trying to connect to the database")]
+    DatabaseConnectionError,
     #[error("KV error")]
     KVError,
     #[error("Serialization failure")]
@@ -69,6 +71,14 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
+    #[error("Received Error RedisError: {0}")]
+    ERedisError(error_stack::Report<RedisError>),
+}
+
+impl From<error_stack::Report<RedisError>> for StorageError {
+    fn from(err: error_stack::Report<RedisError>) -> Self {
+        Self::ERedisError(err)
+    }
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -240,6 +250,11 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+    #[error("{payment_method} is not supported by {connector}")]
+    NotSupported {
+        payment_method: String,
+        connector: &'static str,
+    },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -262,6 +277,8 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Payment Issuer does not match the Payment Data provided")]
+    MismatchedPaymentData,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -391,4 +408,12 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApiKeyError {
+    #[error("Failed to read API key hash from hexadecimal string")]
+    FailedToReadHashFromHex,
+    #[error("Failed to verify provided API key hash against stored API key hash")]
+    HashVerificationFailed,
 }

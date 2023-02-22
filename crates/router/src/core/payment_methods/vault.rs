@@ -6,16 +6,16 @@ use router_env::{instrument, tracing};
 #[cfg(not(feature = "basilisk"))]
 use crate::types::storage;
 use crate::{
-    core::{
-        errors::{self, CustomResult, RouterResult},
-        payment_methods::transformers as payment_methods,
-    },
-    logger, routes, services,
+    core::errors::{self, CustomResult, RouterResult},
+    logger, routes,
     types::api,
-    utils::{self, BytesExt, StringExt},
+    utils::{self, StringExt},
 };
-
+#[cfg(feature = "basilisk")]
+use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
+#[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
+#[cfg(feature = "basilisk")]
 const VAULT_VERSION: &str = "0";
 
 pub struct SupplementaryVaultData {
@@ -372,6 +372,7 @@ impl Vault {
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
+#[cfg(feature = "basilisk")]
 pub async fn create_tokenize(
     state: &routes::AppState,
     value1: String,
@@ -435,6 +436,7 @@ pub async fn create_tokenize(
     }
 }
 
+#[cfg(feature = "basilisk")]
 pub async fn get_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
@@ -491,6 +493,7 @@ pub async fn get_tokenized_data(
     }
 }
 
+#[cfg(feature = "basilisk")]
 pub async fn delete_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,

@@ -114,7 +114,6 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
-                redirect: false,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

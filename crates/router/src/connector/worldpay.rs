@@ -160,7 +160,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::try_from(response.links)?,
                         redirection_data: None,
-                        redirect: false,
                         mandate_reference: None,
                         connector_metadata: None,
                     }),
@@ -256,7 +255,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: data.request.connector_transaction_id.clone(),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
@@ -314,7 +312,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::try_from(response.links)?,
                         redirection_data: None,
-                        redirect: false,
                         mandate_reference: None,
                         connector_metadata: None,
                     }),

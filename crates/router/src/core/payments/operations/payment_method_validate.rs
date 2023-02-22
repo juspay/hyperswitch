@@ -151,7 +151,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
-                wallet_issuer_name: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -275,7 +274,7 @@ impl PaymentMethodValidate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
             // Amount & Currency will be zero in this case
             amount: 0,

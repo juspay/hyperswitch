@@ -1,15 +1,16 @@
 use std::str::FromStr;
 
+use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use storage_models::enums;
 
 use super::{requests::*, response::*};
 use crate::{
+    consts,
     core::errors,
     types::{self, api},
-    utils::OptionExt,
 };
 
 fn parse_int<T: FromStr>(
@@ -39,33 +40,23 @@ fn fetch_payment_instrument(
             card_number: card.card_number.peek().to_string(),
             ..CardPayment::default()
         })),
-        api::PaymentMethod::Wallet(wallet) => match item
-            .request
-            .wallet_issuer_name
-            .get_required_value("wallet_issuer_name")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        {
-            api_models::enums::WalletIssuer::ApplePay => {
-                Ok(PaymentInstrument::Applepay(WalletPayment {
-                    payment_type: PaymentType::Applepay,
-                    wallet_token: match wallet {
-                        api_models::payments::WalletData::Applepay(applepay_wallet_data) => {
-                            Ok(applepay_wallet_data.token)
-                        }
-                        _ => Err(errors::ConnectorError::InvalidWallet),
-                    }?,
+        api::PaymentMethod::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::Gpay(data) => {
+                Ok(PaymentInstrument::Googlepay(WalletPayment {
+                    payment_type: PaymentType::Googlepay,
+                    wallet_token: data.tokenization_data.token,
                     ..WalletPayment::default()
                 }))
             }
-            api_models::enums::WalletIssuer::GooglePay => {
-                Ok(PaymentInstrument::Googlepay(WalletPayment {
-                    payment_type: PaymentType::Googlepay,
-                    wallet_token: match wallet {
-                        api_models::payments::WalletData::Gpay(googlepay_wallet_data) => {
-                            Ok(googlepay_wallet_data.tokenization_data.token)
-                        }
-                        _ => Err(errors::ConnectorError::InvalidWallet),
-                    }?,
+            api_models::payments::WalletData::Applepay(data) => {
+                Ok(PaymentInstrument::Applepay(WalletPayment {
+                    payment_type: PaymentType::Applepay,
+
+                    wallet_token: consts::BASE64_ENGINE.encode(
+                        serde_json::to_string(&data.payment_data)
+                            .into_report()
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    ),
                     ..WalletPayment::default()
                 }))
             }
@@ -99,11 +90,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 entity: item.payment_id.clone(),
                 ..Default::default()
             },
-            transaction_reference: item.attempt_id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "attempt_id",
-                },
-            )?,
+            transaction_reference: item.attempt_id.clone(),
             channel: None,
             customer: None,
         })
@@ -175,7 +162,6 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::try_from(item.response.links)?,
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),

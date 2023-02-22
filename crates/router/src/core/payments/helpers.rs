@@ -722,7 +722,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         Some(storage_enums::PaymentMethodType::Wallet);
                     // TODO: Remove redundant update from wallets.
                     match wallet_data {
-                        api_models::payments::WalletData::Paypal => pm,
+                        api_models::payments::WalletData::Paypal(_) => pm,
                         _ => {
                             let updated_pm = api::PaymentMethod::Wallet(wallet_data);
                             vault::Vault::store_payment_method_data_in_locker(
@@ -849,7 +849,10 @@ pub(crate) fn validate_payment_method_fields_present(
     Ok(())
 }
 
-pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
+pub fn check_force_psync_precondition(
+    status: &storage_enums::AttemptStatus,
+    connector_transaction_id: &Option<String>,
+) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -859,7 +862,7 @@ pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
             | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    )
+    ) && connector_transaction_id.is_some()
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>

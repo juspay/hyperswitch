@@ -122,7 +122,7 @@ pub struct PaymentMethodResponse {
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<PaymentExperience>>,
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -348,8 +348,8 @@ pub struct ListPaymentMethod {
     pub installment_payment_enabled: bool,
 
     /// Type of payment experience enabled with the connector
-    #[schema(example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<PaymentExperience>>,
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 }
 
 /// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
@@ -447,7 +447,7 @@ pub struct CustomerPaymentMethod {
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<PaymentExperience>>,
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
@@ -462,26 +462,6 @@ pub struct CustomerPaymentMethod {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 }
-
-#[derive(Eq, PartialEq, Hash, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[non_exhaustive]
-pub enum PaymentExperience {
-    /// The URL to which the customer needs to be redirected for completing the payment.The URL to
-    /// which the customer needs to be redirected for completing the payment.
-    RedirectToUrl,
-    /// Contains the data for invoking the sdk client for completing the payment.
-    InvokeSdkClient,
-    /// The QR code data to be displayed to the customer.
-    DisplayQrCode,
-    /// Contains data to finish one click payment.
-    OneClick,
-    /// Redirect customer to link wallet
-    LinkWallet,
-    /// Contains the data for invoking the sdk client for completing the payment.
-    InvokePaymentApp,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,
@@ -558,8 +538,11 @@ pub enum WalletData {
     GpayWallet(GpayWalletData),
     ApplePayWallet(ApplePayWalletData),
     PayPalWallet(PayPalWalletData),
-    Paypal,
+    Paypal(PaypalRedirection),
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaypalRedirection {}
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct GpayWalletData {
@@ -583,7 +566,32 @@ pub struct GpayTokenizationData {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApplePayWalletData {
-    pub token: String,
+    pub payment_data: ApplepayPaymentData,
+    pub payment_method: ApplepayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApplepayPaymentData {
+    pub data: String,
+    pub signature: String,
+    pub header: ApplepayHeader,
+    pub version: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApplepayHeader {
+    pub public_key_hash: String,
+    pub ephimeral_public_key: String,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApplepayPaymentMethod {
+    pub display_name: String,
+    pub network: String,
+    #[serde(rename = "type")]
+    pub pm_type: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -602,7 +610,7 @@ impl From<payments::WalletData> for WalletData {
             payments::WalletData::Gpay(data) => Self::GpayWallet(data.into()),
             payments::WalletData::Applepay(data) => Self::ApplePayWallet(data.into()),
             payments::WalletData::PaypalSdk(data) => Self::PayPalWallet(data.into()),
-            payments::WalletData::Paypal => Self::Paypal,
+            payments::WalletData::Paypal(_) => Self::Paypal(PaypalRedirection {}),
         }
     }
 }
@@ -620,7 +628,42 @@ impl From<GpayWalletData> for payments::GpayWalletData {
 
 impl From<ApplePayWalletData> for payments::ApplePayWalletData {
     fn from(value: ApplePayWalletData) -> Self {
-        Self { token: value.token }
+        Self {
+            payment_data: value.payment_data.into(),
+            payment_method: value.payment_method.into(),
+            transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+
+impl From<ApplepayPaymentMethod> for payments::ApplepayPaymentMethod {
+    fn from(value: ApplepayPaymentMethod) -> Self {
+        Self {
+            display_name: value.display_name,
+            network: value.network,
+            pm_type: value.pm_type,
+        }
+    }
+}
+
+impl From<ApplepayPaymentData> for payments::ApplepayPaymentData {
+    fn from(value: ApplepayPaymentData) -> Self {
+        Self {
+            data: value.data,
+            signature: value.signature,
+            header: value.header.into(),
+            version: value.version,
+        }
+    }
+}
+
+impl From<ApplepayHeader> for payments::ApplepayHeader {
+    fn from(value: ApplepayHeader) -> Self {
+        Self {
+            public_key_hash: value.public_key_hash,
+            ephemeral_public_key: value.ephimeral_public_key,
+            transaction_id: value.transaction_id,
+        }
     }
 }
 
@@ -661,7 +704,42 @@ impl From<payments::GpayWalletData> for GpayWalletData {
 
 impl From<payments::ApplePayWalletData> for ApplePayWalletData {
     fn from(value: payments::ApplePayWalletData) -> Self {
-        Self { token: value.token }
+        Self {
+            payment_data: value.payment_data.into(),
+            payment_method: value.payment_method.into(),
+            transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+
+impl From<payments::ApplepayPaymentMethod> for ApplepayPaymentMethod {
+    fn from(value: payments::ApplepayPaymentMethod) -> Self {
+        Self {
+            display_name: value.display_name,
+            network: value.network,
+            pm_type: value.pm_type,
+        }
+    }
+}
+
+impl From<payments::ApplepayPaymentData> for ApplepayPaymentData {
+    fn from(value: payments::ApplepayPaymentData) -> Self {
+        Self {
+            data: value.data,
+            signature: value.signature,
+            header: value.header.into(),
+            version: value.version,
+        }
+    }
+}
+
+impl From<payments::ApplepayHeader> for ApplepayHeader {
+    fn from(value: payments::ApplepayHeader) -> Self {
+        Self {
+            public_key_hash: value.public_key_hash,
+            ephimeral_public_key: value.ephemeral_public_key,
+            transaction_id: value.transaction_id,
+        }
     }
 }
 
@@ -695,7 +773,7 @@ impl From<WalletData> for payments::WalletData {
             WalletData::GpayWallet(data) => Self::Gpay(data.into()),
             WalletData::ApplePayWallet(data) => Self::Applepay(data.into()),
             WalletData::PayPalWallet(data) => Self::PaypalSdk(data.into()),
-            WalletData::Paypal => Self::Paypal,
+            WalletData::Paypal(_) => Self::Paypal(payments::PaypalRedirection {}),
         }
     }
 }
