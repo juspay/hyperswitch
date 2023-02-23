@@ -186,12 +186,7 @@ impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
         let item = item.0;
         let (item_txn_status, item_processing_status) = item;
         Ok(match item_processing_status {
-            BluesnapProcessingStatus::Success => match item_txn_status {
-                BluesnapTxnType::Refund => enums::RefundStatus::Success,
-                _ => Err(errors::ConnectorError::ResponseHandlingFailed)
-                    .into_report()
-                    .attach_printable("Rsync got type other than 'Refund'.")?,
-            },
+            BluesnapProcessingStatus::Success => enums::RefundStatus::Success,
             BluesnapProcessingStatus::Pending => enums::RefundStatus::Pending,
             BluesnapProcessingStatus::PendingMerchantReview => enums::RefundStatus::ManualReview,
             BluesnapProcessingStatus::Fail => enums::RefundStatus::Failure,
