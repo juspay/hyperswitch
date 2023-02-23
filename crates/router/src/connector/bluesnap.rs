@@ -79,7 +79,7 @@ impl ConnectorCommon for Bluesnap {
         logger::debug!(bluesnap_error_response=?res);
         let response: bluesnap::BluesnapErrorResponse = res
             .response
-            .parse_struct("ErrorResponse")
+            .parse_struct("BluesnapErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -167,7 +167,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: bluesnap::BluesnapPaymentsResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(payments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -256,7 +256,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         logger::debug!(target: "router::connector::bluesnap", response=?res);
         let response: bluesnap::BluesnapPaymentsResponse = res
             .response
-            .parse_struct("bluesnap OrderResponse")
+            .parse_struct("bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
@@ -332,7 +332,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: bluesnap::BluesnapPaymentsResponse = res
             .response
-            .parse_struct("Bluesnap ChargePaymentsResponse")
+            .parse_struct("Bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(bluesnappayments_create_response=?response);
         types::ResponseRouterData {
@@ -439,7 +439,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: bluesnap::BluesnapPaymentsResponse = res
             .response
-            .parse_struct("bluesnap BluesnapChargePaymentsResponse")
+            .parse_struct("bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(bluesnappayments_create_response=?response);
         types::ResponseRouterData {

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    pii::PeekInterface,
+    pii::{self, PeekInterface, Secret},
     types::{
         self, api,
         storage::enums,
@@ -11,7 +11,6 @@ use crate::{
     },
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
@@ -32,7 +31,7 @@ pub enum PaymentMethodDetails {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    card_number: String,
+    card_number: Secret<String, pii::CardNumber>,
     expiration_month: String,
     expiration_year: String,
     security_code: String,
@@ -47,7 +46,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
         };
         let payment_method = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ccard) => Ok(PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number.peek().clone(),
+                card_number: ccard.card_number.clone(),
                 expiration_month: ccard.card_exp_month.peek().clone(),
                 expiration_year: ccard.card_exp_year.peek().clone(),
                 security_code: ccard.card_cvc.peek().clone(),
@@ -137,24 +136,17 @@ pub enum BluesnapTxnType {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum BluesnapProcessingStatus {
-    #[serde(rename = "success")]
-    SuccessLowercase,
-    #[serde(rename = "SUCCESS")]
-    SuccessUppercase,
+    #[serde(alias = "success")]
+    Success,
     #[default]
-    #[serde(rename = "pending")]
-    PendingLowercase,
-    #[serde(rename = "PENDING")]
-    PendingUppercase,
-    #[serde(rename = "fail")]
-    FailLowercase,
-    #[serde(rename = "FAIL")]
-    FailUppercase,
-    #[serde(rename = "pending_merchant_review")]
-    PendingMerchantReviewLowercase,
-    #[serde(rename = "PENDING_MERCHANT_REVIEW")]
-    PendingMerchantReviewUppercase,
+    #[serde(alias = "pending")]
+    Pending,
+    #[serde(alias = "fail")]
+    Fail,
+    #[serde(alias = "pending_merchant_review")]
+    PendingMerchantReview,
 }
 
 impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
@@ -167,8 +159,7 @@ impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
         let item = item.0;
         let (item_txn_status, item_processing_status) = item;
         Ok(match item_processing_status {
-            BluesnapProcessingStatus::SuccessLowercase
-            | BluesnapProcessingStatus::SuccessUppercase => match item_txn_status {
+            BluesnapProcessingStatus::Success => match item_txn_status {
                 BluesnapTxnType::AuthOnly => enums::AttemptStatus::Authorized,
                 BluesnapTxnType::AuthReversal => enums::AttemptStatus::Voided,
                 BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => {
@@ -176,15 +167,10 @@ impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
                 }
                 BluesnapTxnType::Refund => enums::AttemptStatus::Charged,
             },
-            BluesnapProcessingStatus::PendingLowercase
-            | BluesnapProcessingStatus::PendingUppercase
-            | BluesnapProcessingStatus::PendingMerchantReviewLowercase
-            | BluesnapProcessingStatus::PendingMerchantReviewUppercase => {
+            BluesnapProcessingStatus::Pending | BluesnapProcessingStatus::PendingMerchantReview => {
                 enums::AttemptStatus::Pending
             }
-            BluesnapProcessingStatus::FailLowercase | BluesnapProcessingStatus::FailUppercase => {
-                enums::AttemptStatus::Failure
-            }
+            BluesnapProcessingStatus::Fail => enums::AttemptStatus::Failure,
         }
         .into())
     }
@@ -200,22 +186,15 @@ impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
         let item = item.0;
         let (item_txn_status, item_processing_status) = item;
         Ok(match item_processing_status {
-            BluesnapProcessingStatus::SuccessLowercase
-            | BluesnapProcessingStatus::SuccessUppercase => match item_txn_status {
+            BluesnapProcessingStatus::Success => match item_txn_status {
                 BluesnapTxnType::Refund => enums::RefundStatus::Success,
                 _ => Err(errors::ConnectorError::ResponseHandlingFailed)
                     .into_report()
                     .attach_printable("Rsync got type other than 'Refund'.")?,
             },
-            BluesnapProcessingStatus::PendingLowercase
-            | BluesnapProcessingStatus::PendingUppercase => enums::RefundStatus::Pending,
-            BluesnapProcessingStatus::PendingMerchantReviewLowercase
-            | BluesnapProcessingStatus::PendingMerchantReviewUppercase => {
-                enums::RefundStatus::ManualReview
-            }
-            BluesnapProcessingStatus::FailLowercase | BluesnapProcessingStatus::FailUppercase => {
-                enums::RefundStatus::Failure
-            }
+            BluesnapProcessingStatus::Pending => enums::RefundStatus::Pending,
+            BluesnapProcessingStatus::PendingMerchantReview => enums::RefundStatus::ManualReview,
+            BluesnapProcessingStatus::Fail => enums::RefundStatus::Failure,
         }
         .into())
     }
@@ -341,7 +320,6 @@ pub struct ErrorDetails {
     pub description: String,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapErrorResponse {
