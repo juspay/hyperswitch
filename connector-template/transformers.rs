@@ -8,7 +8,7 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {}
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from PaymentsAuthorizeRouterData".to_string()).into())
     }
 }
 
@@ -21,7 +21,7 @@ pub struct {{project-name | downcase | pascal_case}}AuthType {
 impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from ConnectorAuthType".to_string()).into())
     }
 }
 // PaymentsResponse
@@ -77,7 +77,7 @@ pub struct {{project-name | downcase | pascal_case}}RefundRequest {}
 impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from RefundsRouterData".to_string()).into())
     }
 }
 
@@ -115,7 +115,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from RefundsResponseRouterData".to_string()).into())
     }
 }
 
@@ -123,7 +123,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 {
      type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from RefundsResponseRouterData".to_string()).into())
      }
  }
 
