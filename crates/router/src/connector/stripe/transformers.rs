@@ -197,9 +197,7 @@ pub struct StripeBankRedirectData {
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
     PayLater(StripePayLaterData),
-    Bank,
     Wallet,
-    Paypal,
     BankRedirect(StripeBankRedirectData),
 }
 
@@ -1190,7 +1188,6 @@ impl
                     payment_method_auth_type,
                 }
             })),
-            api::PaymentMethodData::BankTransfer => Ok(Self::Bank),
             api::PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_types: pm_type.clone(),
                 payment_method_data_type: pm_type,
@@ -1204,7 +1201,6 @@ impl
                 }))
             }
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
-            api::PaymentMethodData::Paypal => Ok(Self::Paypal),
         }
     }
 }

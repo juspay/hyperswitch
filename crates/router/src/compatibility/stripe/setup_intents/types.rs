@@ -61,12 +61,10 @@ pub struct StripePaymentMethodData {
     pub metadata: Option<Value>,
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
-    #[default]
-    BankTransfer,
 }
 
 impl From<StripeCard> for payments::Card {
@@ -86,7 +84,6 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
-            StripePaymentMethodDetails::BankTransfer => Self::BankTransfer,
         }
     }
 }

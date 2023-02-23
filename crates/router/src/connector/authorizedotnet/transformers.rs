@@ -82,12 +82,8 @@ impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
                     card_code: Some(ccard.card_cvc.clone()),
                 })
             }
-            api::PaymentMethodData::BankTransfer => Self::BankAccount(BankAccountDetails {
-                account_number: "XXXXX".to_string().into(),
-            }),
             api::PaymentMethodData::PayLater(_) => Self::Klarna,
             api::PaymentMethodData::Wallet(_) => Self::Wallet,
-            api::PaymentMethodData::Paypal => Self::Paypal,
             api::PaymentMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }

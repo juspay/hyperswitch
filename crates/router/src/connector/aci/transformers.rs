@@ -53,10 +53,8 @@ pub enum PaymentDetails {
     #[serde(rename = "card")]
     Card(CardDetails),
     #[serde(rename = "bank")]
-    BankAccount(BankDetails),
     Wallet,
     Klarna,
-    Paypal,
     #[serde(rename = "bankRedirect")]
     BankRedirect,
 }
@@ -110,12 +108,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                 card_expiry_year: ccard.card_exp_year.peek().clone(),
                 card_cvv: ccard.card_cvc.peek().clone(),
             }),
-            api::PaymentMethodData::BankTransfer => PaymentDetails::BankAccount(BankDetails {
-                account_holder: "xyz".to_string(),
-            }),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
-            api::PaymentMethodData::Paypal => PaymentDetails::Paypal,
             api::PaymentMethodData::BankRedirect(_) => PaymentDetails::BankRedirect,
         };
 

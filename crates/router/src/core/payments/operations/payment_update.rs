@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -319,6 +319,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             }
         };
 
+        let additional_pm_data = payment_data
+            .payment_method_data
+            .as_ref()
+            .map(api_models::payments::AdditionalPaymentData::from)
+            .as_ref()
+            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
         payment_data.payment_attempt = db
             .update_payment_attempt(
                 payment_data.payment_attempt,
@@ -329,6 +339,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     authentication_type: None,
                     payment_method,
                     payment_token: payment_data.token.clone(),
+                    payment_method_data: additional_pm_data,
                 },
                 storage_scheme,
             )

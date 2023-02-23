@@ -75,10 +75,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Some(ccard),
-            api::PaymentMethodData::BankTransfer
-            | api::PaymentMethodData::Wallet(_)
+            api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::Paypal
             | api::PaymentMethodData::BankRedirect(_) => None,
         };
 

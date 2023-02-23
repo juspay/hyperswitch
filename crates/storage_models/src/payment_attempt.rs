@@ -91,6 +91,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethod>,
         payment_token: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -108,6 +109,7 @@ pub enum PaymentAttemptUpdate {
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
         payment_token: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -152,6 +154,7 @@ pub struct PaymentAttemptUpdateInternal {
     payment_token: Option<String>,
     error_code: Option<String>,
     connector_metadata: Option<serde_json::Value>,
+    payment_method_data: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -190,6 +193,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_type,
                 payment_method,
                 payment_token,
+                payment_method_data,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -199,6 +203,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method,
                 payment_token,
                 modified_at: Some(common_utils::date_time::now()),
+                payment_method_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
@@ -217,6 +222,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 browser_info,
                 connector,
                 payment_token,
+                payment_method_data,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -227,6 +233,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 browser_info,
                 connector,
                 payment_token,
+                payment_method_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

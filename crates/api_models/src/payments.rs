@@ -392,11 +392,10 @@ pub enum PayLaterData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Default, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     Card(Card),
-    #[default]
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
@@ -434,8 +433,6 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
-            PaymentMethodData::Paypal => todo!(),
-            PaymentMethodData::BankTransfer => todo!(),
         }
     }
 }
@@ -1044,10 +1041,8 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
     fn from(payment_method_data: PaymentMethodData) -> Self {
         match payment_method_data {
             PaymentMethodData::Card(card) => Self::Card(CardResponse::from(card)),
-            PaymentMethodData::BankTransfer => Self::BankTransfer,
             PaymentMethodData::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
-            PaymentMethodData::Paypal => Self::Paypal,
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
             }
