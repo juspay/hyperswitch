@@ -91,11 +91,11 @@ fn create_gpay_session_token(
 
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
-            session_token: payment_types::SessionToken::Gpay {
-                transaction_info,
+            session_token: payment_types::SessionToken::Gpay(Box::new(payment_types::GpayData {
                 merchant_info: gpay_data.data.merchant_info,
                 allowed_payment_methods: gpay_data.data.allowed_payment_methods,
-            },
+                transaction_info,
+            })),
         }),
         ..router_data.clone()
     };

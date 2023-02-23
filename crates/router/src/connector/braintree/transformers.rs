@@ -1,3 +1,4 @@
+use api_models::payments;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 
@@ -241,9 +242,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Paypal {
+                session_token: types::api::SessionToken::Paypal(Box::new(payments::PaypalData {
                     session_token: item.response.client_token.value,
-                },
+                })),
             }),
             ..item.data
         })
