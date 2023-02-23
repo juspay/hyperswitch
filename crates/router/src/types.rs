@@ -390,7 +390,7 @@ impl Default for ErrorResponse {
 
 impl From<&&mut PaymentsAuthorizeRouterData> for PaymentsPreAuthorizeRouterData {
     fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
-        PaymentsPreAuthorizeRouterData {
+        Self {
             flow: PhantomData,
             request: PreAuthorizeData {
                 amount_to_capture: data.amount_captured,
