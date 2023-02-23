@@ -24,8 +24,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             .ok_or_else(utils::missing_field_err("connector_meta"))?;
         let account_name = metadata
             .as_object()
-            .and_then(|o| o.get("account_name"))
-            .map(|o| o.to_string())
+            .and_then(|acc_name| acc_name.get("account_name"))
+            .map(|acc_name| acc_name.to_string())
             .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
 
         match item.request.payment_method_data.clone() {
@@ -35,21 +35,66 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                 currency: item.request.currency.to_string(),
                 reference: item.attempt_id.to_string(),
                 country: item.get_billing_country()?,
-                capture_mode: item.request.capture_method.map(|f| match f {
-                    enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                    _ => requests::CaptureMode::Auto,
-                }),
+                capture_mode: item
+                    .request
+                    .capture_method
+                    .map(|cap_method| match cap_method {
+                        enums::CaptureMethod::Manual => requests::CaptureMode::Later,
+                        _ => requests::CaptureMode::Auto,
+                    }),
                 payment_method: requests::PaymentMethod {
                     card: Some(requests::Card {
                         number: ccard.get_card_number(),
                         expiry_month: ccard.get_card_expiry_month(),
                         expiry_year: ccard.get_card_expiry_year_2_digit(),
                         cvv: ccard.get_card_cvc(),
-                        ..Default::default()
+                        account_type: None,
+                        authcode: None,
+                        avs_address: None,
+                        avs_postal_code: None,
+                        brand_reference: None,
+                        chip_condition: None,
+                        cvv_indicator: Default::default(),
+                        funding: None,
+                        pin_block: None,
+                        tag: None,
+                        track: None,
                     }),
-                    ..Default::default()
+                    apm: None,
+                    authentication: None,
+                    bank_transfer: None,
+                    digital_wallet: None,
+                    encryption: None,
+                    entry_mode: Default::default(),
+                    fingerprint_mode: None,
+                    first_name: None,
+                    id: None,
+                    last_name: None,
+                    name: None,
+                    narrative: None,
+                    storage_mode: None,
                 },
-                ..Default::default()
+                authorization_mode: None,
+                cashback_amount: None,
+                channel: Default::default(),
+                convenience_amount: None,
+                currency_conversion: None,
+                description: None,
+                device: None,
+                gratuity_amount: None,
+                initiator: None,
+                ip_address: None,
+                language: None,
+                lodging: None,
+                notifications: None,
+                order: None,
+                payer_reference: None,
+                site_reference: None,
+                stored_credential: None,
+                surcharge_amount: None,
+                total_capture_count: None,
+                globalpay_payments_request_type: None,
+                user_reference: None,
             }),
             api::PaymentMethod::Wallet(wallet_data) => match wallet_data.issuer_name {
                 api_models::enums::WalletIssuer::Paypal => Ok(Self {
@@ -58,7 +103,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     currency: item.request.currency.to_string(),
                     reference: item.attempt_id.to_string(),
                     country: item.get_billing_country()?,
-                    capture_mode: item.request.capture_method.map(|f| match f {
+                    capture_mode: item.request.capture_method.map(|cap_mode| match cap_mode {
                         enums::CaptureMethod::Manual => requests::CaptureMode::Later,
                         _ => requests::CaptureMode::Auto,
                     }),
@@ -66,7 +111,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                         apm: Some(requests::Apm {
                             provider: Some(requests::ApmProvider::Paypal),
                         }),
-                        ..Default::default()
+                        authentication: None,
+                        bank_transfer: None,
+                        card: None,
+                        digital_wallet: None,
+                        encryption: None,
+                        entry_mode: Default::default(),
+                        fingerprint_mode: None,
+                        first_name: None,
+                        id: None,
+                        last_name: None,
+                        name: None,
+                        narrative: None,
+                        storage_mode: None,
                     },
                     notifications: Some(requests::Notifications {
                         return_url: item.router_return_url.clone(),
@@ -75,7 +132,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                         status_url: None,
                         three_ds_method_return_url: None,
                     }),
-                    ..Default::default()
+                    authorization_mode: None,
+                    cashback_amount: None,
+                    channel: Default::default(),
+                    convenience_amount: None,
+                    currency_conversion: None,
+                    description: None,
+                    device: None,
+                    gratuity_amount: None,
+                    initiator: None,
+                    ip_address: None,
+                    language: None,
+                    lodging: None,
+                    order: None,
+                    payer_reference: None,
+                    site_reference: None,
+                    stored_credential: None,
+                    surcharge_amount: None,
+                    total_capture_count: None,
+                    globalpay_payments_request_type: None,
+                    user_reference: None,
                 }),
                 _ => Err(
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
