@@ -75,7 +75,10 @@ pub async fn lock_resource(
         redis_key_for_lock.as_str(),
         redis_value_for_lock,
         expiry_in_seconds,
-        delay_between_retries_in_seconds,
+        delay_between_retries_in_seconds
+            .try_into()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?, // todo:  throw an appropriate error,
         retries,
     )
     .await
@@ -91,17 +94,10 @@ pub async fn acquire_lock_on_resource_in_redis(
     key: &str,
     value: bool,
     expiry_in_seconds: u64,
-    _delay_between_retries_in_seconds: i64,
+    delay_between_retries_in_seconds: u64,
     mut retries: i32,
 ) -> RouterResult<LockStatus> {
-    let redis_conn = state
-        .store
-        .clone()
-        .get_store()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
+    let redis_conn = get_redis_conn(state)?;
     while retries != 0 {
         // pr: should these be named as tries instead of retries
         retries -= 1;
@@ -119,18 +115,22 @@ pub async fn acquire_lock_on_resource_in_redis(
 
         match is_lock_acquired {
             Ok(redis::SetnxReply::KeySet) => {
-                // (addAquiredLockInfoToState redisKey >>= logLockAcquired)
+                // (addAcquiredLockInfoToState redisKey >>= logLockAcquired)
                 return Ok(LockStatus::Acquired);
             }
             Ok(redis::SetnxReply::KeyNotSet) => {
                 logger::error!("Lock not acquired, retrying");
-                actix_time::sleep(tokio::time::Duration::from_millis(expiry_in_seconds * 1000))
-                    .await;
+                actix_time::sleep(tokio::time::Duration::from_millis(
+                    delay_between_retries_in_seconds * 1000,
+                ))
+                .await;
             }
             Err(error) => {
                 logger::error!(error=%error.current_context(), "Error while locking");
-                actix_time::sleep(tokio::time::Duration::from_millis(expiry_in_seconds * 1000))
-                    .await;
+                actix_time::sleep(tokio::time::Duration::from_millis(
+                    delay_between_retries_in_seconds * 1000,
+                ))
+                .await;
             }
         }
     }
@@ -143,13 +143,7 @@ pub async fn release_lock(
     mut retries: i32,
     key: &str,
 ) -> RouterResult<LockStatus> {
-    let redis_conn = state
-        .store
-        .clone()
-        .get_store()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let redis_conn = get_redis_conn(state)?;
     while retries != 0 {
         retries -= 1;
 
@@ -161,4 +155,16 @@ pub async fn release_lock(
         }
     }
     Ok(LockStatus::ReleaseFailedRetriesExhausted)
+}
+
+pub fn get_redis_conn(
+    state: &routes::AppState,
+) -> RouterResult<std::sync::Arc<redis::RedisConnectionPool>> {
+    state
+        .store
+        .clone()
+        .get_store()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
 }
