@@ -783,6 +783,13 @@ pub struct PaymentsResponse {
     /// If there was an error while calling the connector the error message is received here
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
+    /// Payment Issuser for the current payment
+    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    pub payment_experience: Option<api_enums::PaymentExperience>,
+
+    /// Payment Method Type
+    #[schema(value_type = Option<PaymentMethodSubType>, example = "gpay")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]

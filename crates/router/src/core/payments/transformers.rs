@@ -340,6 +340,16 @@ where
                                 .capture_method
                                 .map(ForeignInto::foreign_into),
                         )
+                        .set_payment_experience(
+                            payment_attempt
+                                .payment_experience
+                                .map(ForeignInto::foreign_into),
+                        )
+                        .set_payment_method_type(
+                            payment_attempt
+                                .payment_method_type
+                                .map(ForeignInto::foreign_into),
+                        )
                         .to_owned(),
                 )
             }
