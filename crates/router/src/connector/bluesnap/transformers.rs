@@ -1,4 +1,3 @@
-use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -176,22 +175,14 @@ impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
     }
 }
 
-impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
-    for transformers::Foreign<enums::RefundStatus>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>,
-    ) -> Result<Self, Self::Error> {
-        let item = item.0;
-        let (item_txn_status, item_processing_status) = item;
-        Ok(match item_processing_status {
-            BluesnapProcessingStatus::Success => enums::RefundStatus::Success,
-            BluesnapProcessingStatus::Pending => enums::RefundStatus::Pending,
-            BluesnapProcessingStatus::PendingMerchantReview => enums::RefundStatus::ManualReview,
-            BluesnapProcessingStatus::Fail => enums::RefundStatus::Failure,
+impl From<BluesnapProcessingStatus> for enums::RefundStatus {
+    fn from(item: BluesnapProcessingStatus) -> Self {
+        match item {
+            BluesnapProcessingStatus::Success => Self::Success,
+            BluesnapProcessingStatus::Pending => Self::Pending,
+            BluesnapProcessingStatus::PendingMerchantReview => Self::ManualReview,
+            BluesnapProcessingStatus::Fail => Self::Failure,
         }
-        .into())
     }
 }
 
@@ -281,10 +272,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BluesnapPaymentsRespon
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone(),
-                refund_status: enums::RefundStatus::foreign_try_from((
-                    item.response.card_transaction_type,
+                refund_status: enums::RefundStatus::from(
                     item.response.processing_info.processing_status,
-                ))?,
+                ),
             }),
             ..item.data
         })
