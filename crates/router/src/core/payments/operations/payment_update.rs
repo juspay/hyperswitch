@@ -196,6 +196,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
 
+        payment_attempt.payment_method_type = request
+            .payment_method_type
+            .map(|pmt| pmt.foreign_into())
+            .or(payment_attempt.payment_method_type);
+
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .map(|experience| experience.foreign_into());
+
         Ok((
             next_operation,
             PaymentData {
@@ -329,6 +338,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
 
+        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
+        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
         payment_data.payment_attempt = db
             .update_payment_attempt(
                 payment_data.payment_attempt,
@@ -340,6 +351,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_method,
                     payment_token: payment_data.token.clone(),
                     payment_method_data: additional_pm_data,
+                    payment_experience,
+                    payment_method_type,
                 },
                 storage_scheme,
             )

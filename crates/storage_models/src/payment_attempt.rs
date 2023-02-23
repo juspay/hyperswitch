@@ -92,6 +92,8 @@ pub enum PaymentAttemptUpdate {
         payment_method: Option<storage_enums::PaymentMethod>,
         payment_token: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
+        payment_experience: Option<storage_enums::PaymentExperience>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -110,6 +112,8 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         payment_token: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
+        payment_experience: Option<storage_enums::PaymentExperience>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -155,6 +159,8 @@ pub struct PaymentAttemptUpdateInternal {
     error_code: Option<String>,
     connector_metadata: Option<serde_json::Value>,
     payment_method_data: Option<serde_json::Value>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    payment_experience: Option<storage_enums::PaymentExperience>,
 }
 
 impl PaymentAttemptUpdate {
@@ -194,6 +200,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method,
                 payment_token,
                 payment_method_data,
+                payment_method_type,
+                payment_experience,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -204,6 +212,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 modified_at: Some(common_utils::date_time::now()),
                 payment_method_data,
+                payment_method_type,
+                payment_experience,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
@@ -223,6 +233,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 payment_token,
                 payment_method_data,
+                payment_method_type,
+                payment_experience,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -234,6 +246,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 payment_token,
                 payment_method_data,
+                payment_method_type,
+                payment_experience,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
