@@ -44,6 +44,8 @@ async fn should_only_authorize_payment() {
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
+                    card_issuer: None,
+                    card_network: None,
                 }),
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
@@ -66,6 +68,8 @@ async fn should_authorize_and_capture_payment() {
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
+                    card_issuer: None,
+                    card_network: None,
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),

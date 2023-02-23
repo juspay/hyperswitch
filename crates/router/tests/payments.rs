@@ -305,6 +305,8 @@ async fn payments_create_core() {
             card_exp_year: "35".to_string().into(),
             card_holder_name: "Arun Raj".to_string().into(),
             card_cvc: "123".to_string().into(),
+            card_issuer: None,
+            card_network: None,
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
@@ -449,6 +451,8 @@ async fn payments_create_core_adyen_no_redirect() {
             card_exp_year: "2030".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "737".to_string().into(),
+            card_issuer: None,
+            card_network: None,
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {

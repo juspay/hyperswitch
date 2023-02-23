@@ -39,6 +39,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
                 card_cvc: Secret::new("999".to_string()),
+                card_issuer: None,
+                card_network: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -51,7 +53,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             order_details: None,
             email: None,
             payment_experience: None,
-            payment_issuer: None,
             payment_method_type: None,
         },
         response: Err(types::ErrorResponse::default()),
@@ -160,6 +161,8 @@ async fn payments_create_failure() {
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
                 card_cvc: Secret::new("99".to_string()),
+                card_issuer: None,
+                card_network: None,
             });
 
         let response = services::api::execute_connector_processing_step(

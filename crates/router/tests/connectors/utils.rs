@@ -449,6 +449,8 @@ impl Default for CCardType {
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
             card_cvc: Secret::new("999".to_string()),
+            card_issuer: None,
+            card_network: None,
         })
     }
 }
@@ -470,7 +472,6 @@ impl Default for PaymentAuthorizeType {
             order_details: None,
             email: None,
             payment_experience: None,
-            payment_issuer: None,
             payment_method_type: None,
         };
         Self(data)
