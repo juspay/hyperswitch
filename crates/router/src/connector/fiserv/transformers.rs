@@ -136,9 +136,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
         };
 
         let transaction_interaction = TransactionInteraction {
-            origin: TransactionInteractionOrigin::Ecom, //Payment is being made in online mode, card not present
-            eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted, // transaction encryption such as SSL/TLS, but authentication was not performed
-            pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom, //card not present in online transaction
+            //Payment is being made in online mode, card not present
+            origin: TransactionInteractionOrigin::Ecom,
+            // transaction encryption such as SSL/TLS, but authentication was not performed
+            eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
+            //card not present in online transaction
+            pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
         };
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ref ccard) => {

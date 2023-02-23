@@ -62,8 +62,6 @@ where
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
-        // let api_key = auth.api_key.clone();
-
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
         let fiserv_req = self
