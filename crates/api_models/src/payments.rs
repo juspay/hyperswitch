@@ -167,7 +167,7 @@ pub struct PaymentsRequest {
     }"#)]
     pub browser_info: Option<serde_json::Value>,
 
-    /// Payment Issuser for the current payment
+    /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
@@ -455,7 +455,7 @@ pub enum BankRedirectData {
         bank_name: api_enums::BankNames,
     },
     Sofort {
-        /// The billing details for bank redirection
+        /// The country for bank payment
         country: String,
         /// The preferred language
         preferred_language: String,
@@ -783,10 +783,9 @@ pub struct PaymentsResponse {
     /// If there was an error while calling the connector the error message is received here
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
-    /// Payment Issuser for the current payment
+    /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
-
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodSubType>, example = "gpay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
