@@ -3,6 +3,7 @@ pub mod api_keys;
 pub mod configs;
 pub mod customers;
 pub mod errors;
+pub mod locking;
 pub mod mandate;
 pub mod payment_methods;
 pub mod payments;
