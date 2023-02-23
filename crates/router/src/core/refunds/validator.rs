@@ -150,6 +150,7 @@ pub fn validate_for_valid_refunds(
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
     let payment_method_type = payment_attempt
         .payment_method_type
+        .clone()
         .get_required_value("payment_method_type")?;
 
     utils::when(

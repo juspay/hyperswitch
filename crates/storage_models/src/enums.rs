@@ -574,7 +574,6 @@ pub enum MandateStatus {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Eq,
     Hash,
