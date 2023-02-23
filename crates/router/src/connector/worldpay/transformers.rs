@@ -27,10 +27,10 @@ where
 }
 
 fn fetch_payment_instrument(
-    payment_method: api::PaymentMethod,
+    payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+        api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
                 month: parse_int::<u8>(card.card_exp_month)?,
                 year: parse_int::<u16>(card.card_exp_year)?,
@@ -38,7 +38,7 @@ fn fetch_payment_instrument(
             card_number: card.card_number.peek().to_string(),
             ..CardPayment::default()
         })),
-        api::PaymentMethod::Wallet(wallet) => match wallet.issuer_name {
+        api::PaymentMethodData::Wallet(wallet) => match wallet.issuer_name {
             api_models::enums::WalletIssuer::ApplePay => {
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,

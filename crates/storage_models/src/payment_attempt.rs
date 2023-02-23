@@ -21,7 +21,7 @@ pub struct PaymentAttempt {
     pub surcharge_amount: Option<i64>,
     pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
-    pub payment_method: Option<storage_enums::PaymentMethodType>,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub capture_on: Option<PrimitiveDateTime>,
@@ -37,9 +37,9 @@ pub struct PaymentAttempt {
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_data: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -61,7 +61,7 @@ pub struct PaymentAttemptNew {
     pub surcharge_amount: Option<i64>,
     pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
-    pub payment_method: Option<storage_enums::PaymentMethodType>,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub capture_on: Option<PrimitiveDateTime>,
@@ -77,9 +77,9 @@ pub struct PaymentAttemptNew {
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,7 +89,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method: Option<storage_enums::PaymentMethodType>,
+        payment_method: Option<storage_enums::PaymentMethod>,
         payment_token: Option<String>,
     },
     UpdateTrackers {
@@ -104,7 +104,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method: Option<storage_enums::PaymentMethodType>,
+        payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
         payment_token: Option<String>,
@@ -142,7 +142,7 @@ pub struct PaymentAttemptUpdateInternal {
     connector_transaction_id: Option<String>,
     connector: Option<String>,
     authentication_type: Option<storage_enums::AuthenticationType>,
-    payment_method: Option<storage_enums::PaymentMethodType>,
+    payment_method: Option<storage_enums::PaymentMethod>,
     error_message: Option<String>,
     payment_method_id: Option<Option<String>>,
     cancellation_reason: Option<String>,

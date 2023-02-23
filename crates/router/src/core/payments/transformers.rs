@@ -226,7 +226,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
-    payment_method_data: Option<api::PaymentMethod>,
+    payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
@@ -430,7 +430,6 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             browser_info,
             email: payment_data.email,
             payment_experience: payment_data.payment_attempt.payment_experience,
-            payment_issuer: payment_data.payment_attempt.payment_issuer,
             order_details,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
         })

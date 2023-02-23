@@ -425,6 +425,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
                 Self::DuplicatePayment { payment_id }
             }
+            errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
 }

@@ -103,20 +103,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => PaymentDetails::Card(CardDetails {
+            api::PaymentMethodData::Card(ref ccard) => PaymentDetails::Card(CardDetails {
                 card_number: ccard.card_number.peek().clone(),
                 card_holder: ccard.card_holder_name.peek().clone(),
                 card_expiry_month: ccard.card_exp_month.peek().clone(),
                 card_expiry_year: ccard.card_exp_year.peek().clone(),
                 card_cvv: ccard.card_cvc.peek().clone(),
             }),
-            api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(BankDetails {
+            api::PaymentMethodData::BankTransfer => PaymentDetails::BankAccount(BankDetails {
                 account_holder: "xyz".to_string(),
             }),
-            api::PaymentMethod::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethod::Wallet(_) => PaymentDetails::Wallet,
-            api::PaymentMethod::Paypal => PaymentDetails::Paypal,
-            api::PaymentMethod::BankRedirect(_) => PaymentDetails::BankRedirect,
+            api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
+            api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
+            api::PaymentMethodData::Paypal => PaymentDetails::Paypal,
+            api::PaymentMethodData::BankRedirect(_) => PaymentDetails::BankRedirect,
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;

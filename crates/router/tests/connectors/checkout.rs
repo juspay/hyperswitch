@@ -23,14 +23,14 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         status: enums::AttemptStatus::default(),
         router_return_url: None,
         auth_type: enums::AuthenticationType::NoThreeDs,
-        payment_method: enums::PaymentMethodType::Card,
+        payment_method: enums::PaymentMethod::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::PaymentsAuthorizeData {
             amount: 100,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(api::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                 card_number: "4242424242424242".to_string().into(),
                 card_exp_month: "10".to_string().into(),
                 card_exp_year: "35".to_string().into(),
@@ -74,7 +74,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         attempt_id: None,
         status: enums::AttemptStatus::default(),
         router_return_url: None,
-        payment_method: enums::PaymentMethodType::Card,
+        payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),

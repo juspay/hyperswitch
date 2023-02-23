@@ -25,7 +25,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         attempt_id: None,
         status: enums::AttemptStatus::default(),
         auth_type: enums::AuthenticationType::NoThreeDs,
-        payment_method: enums::PaymentMethodType::Card,
+        payment_method: enums::PaymentMethod::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         router_return_url: None,
@@ -33,7 +33,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: Secret::new("4200000000000000".to_string()),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
@@ -76,7 +76,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         attempt_id: None,
         status: enums::AttemptStatus::default(),
         router_return_url: None,
-        payment_method: enums::PaymentMethodType::Card,
+        payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
@@ -153,13 +153,14 @@ async fn payments_create_failure() {
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let mut request = construct_payment_router_data();
-        request.request.payment_method_data = types::api::PaymentMethod::Card(types::api::Card {
-            card_number: Secret::new("420000000000000000".to_string()),
-            card_exp_month: Secret::new("10".to_string()),
-            card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
-            card_cvc: Secret::new("99".to_string()),
-        });
+        request.request.payment_method_data =
+            types::api::PaymentMethodData::Card(types::api::Card {
+                card_number: Secret::new("420000000000000000".to_string()),
+                card_exp_month: Secret::new("10".to_string()),
+                card_exp_year: Secret::new("2025".to_string()),
+                card_holder_name: Secret::new("John Doe".to_string()),
+                card_cvc: Secret::new("99".to_string()),
+            });
 
         let response = services::api::execute_connector_processing_step(
             &state,

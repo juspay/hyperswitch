@@ -357,7 +357,7 @@ pub trait ConnectorActions: Connector {
                     a.auth_type
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
-            payment_method: enums::PaymentMethodType::Card,
+            payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             return_url: None,
@@ -456,7 +456,7 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
-            payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             currency: enums::Currency::USD,
             confirm: true,

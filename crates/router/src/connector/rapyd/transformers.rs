@@ -73,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (capture, payment_method_options) = match item.payment_method {
-            storage_models::enums::PaymentMethodType::Card => {
+            storage_models::enums::PaymentMethod::Card => {
                 let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
@@ -89,7 +89,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             _ => (None, None),
         };
         let payment_method = match item.request.payment_method_data {
-            api_models::payments::PaymentMethod::Card(ref ccard) => {
+            api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: Some(PaymentFields {
@@ -103,7 +103,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     digital_wallet: None,
                 })
             }
-            api_models::payments::PaymentMethod::Wallet(ref wallet_data) => {
+            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
                 let digital_wallet = match wallet_data.issuer_name {
                     api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),

@@ -116,39 +116,33 @@ impl From<F<storage_enums::MandateStatus>> for F<api_enums::MandateStatus> {
     }
 }
 
-impl From<F<api_enums::PaymentMethodType>> for F<storage_enums::PaymentMethodType> {
-    fn from(pm_type: F<api_enums::PaymentMethodType>) -> Self {
+impl From<F<api_enums::PaymentMethod>> for F<storage_enums::PaymentMethod> {
+    fn from(pm_type: F<api_enums::PaymentMethod>) -> Self {
         Self(frunk::labelled_convert_from(pm_type.0))
     }
 }
 
-impl From<F<storage_enums::PaymentMethodType>> for F<api_enums::PaymentMethodType> {
-    fn from(pm_type: F<storage_enums::PaymentMethodType>) -> Self {
+impl From<F<storage_enums::PaymentMethod>> for F<api_enums::PaymentMethod> {
+    fn from(pm_type: F<storage_enums::PaymentMethod>) -> Self {
         Self(frunk::labelled_convert_from(pm_type.0))
     }
 }
 
-impl From<F<api_enums::PaymentMethodSubType>> for F<storage_enums::PaymentMethodSubType> {
-    fn from(pm_subtype: F<api_enums::PaymentMethodSubType>) -> Self {
-        Self(frunk::labelled_convert_from(pm_subtype.0))
-    }
-}
+// impl From<F<api_enums::PaymentMethodType>> for F<storage_enums::PaymentMethodSubType> {
+//     fn from(pm_subtype: F<api_enums::PaymentMethodType>) -> Self {
+//         Self(frunk::labelled_convert_from(pm_subtype.0))
+//     }
+// }
 
-impl From<F<storage_enums::PaymentMethodSubType>> for F<api_enums::PaymentMethodSubType> {
-    fn from(pm_subtype: F<storage_enums::PaymentMethodSubType>) -> Self {
-        Self(frunk::labelled_convert_from(pm_subtype.0))
-    }
-}
+// impl From<F<storage_enums::PaymentMethodSubType>> for F<api_enums::PaymentMethodType> {
+//     fn from(pm_subtype: F<storage_enums::PaymentMethodSubType>) -> Self {
+//         Self(frunk::labelled_convert_from(pm_subtype.0))
+//     }
+// }
 
 impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMethodIssuerCode> {
     fn from(issuer_code: F<storage_enums::PaymentMethodIssuerCode>) -> Self {
         Self(frunk::labelled_convert_from(issuer_code.0))
-    }
-}
-
-impl From<F<api_enums::PaymentIssuer>> for F<storage_enums::PaymentIssuer> {
-    fn from(issuer: F<api_enums::PaymentIssuer>) -> Self {
-        Self(frunk::labelled_convert_from(issuer.0))
     }
 }
 
@@ -377,6 +371,18 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             payment_methods_enabled,
         }
         .into())
+    }
+}
+
+impl From<F<api_models::enums::PaymentMethodType>> for F<storage_models::enums::PaymentMethodType> {
+    fn from(payment_method_type: F<api_models::enums::PaymentMethodType>) -> Self {
+        Self(frunk::labelled_convert_from(payment_method_type.0))
+    }
+}
+
+impl From<F<storage_models::enums::PaymentMethodType>> for F<api_models::enums::PaymentMethodType> {
+    fn from(payment_method_type: F<storage_models::enums::PaymentMethodType>) -> Self {
+        Self(frunk::labelled_convert_from(payment_method_type.0))
     }
 }
 
