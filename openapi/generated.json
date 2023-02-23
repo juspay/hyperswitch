@@ -4149,7 +4149,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -4316,7 +4316,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant.",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -4575,7 +4575,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
           },
           "merchant_id": {
             "type": "string",
