@@ -448,6 +448,9 @@ impl PaymentCreate {
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
             payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_data: additional_pm_data,
+            connector: request
+                .connector
+                .map(|connector_enum| connector_enum.to_string()),
             ..storage::PaymentAttemptNew::default()
         })
     }
