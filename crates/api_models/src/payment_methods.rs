@@ -582,7 +582,7 @@ pub struct ApplepayPaymentData {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayHeader {
     pub public_key_hash: String,
-    pub ephimeral_public_key: String,
+    pub ephemeral_public_key: String,
     pub transaction_id: String,
 }
 
@@ -661,7 +661,7 @@ impl From<ApplepayHeader> for payments::ApplepayHeader {
     fn from(value: ApplepayHeader) -> Self {
         Self {
             public_key_hash: value.public_key_hash,
-            ephemeral_public_key: value.ephimeral_public_key,
+            ephemeral_public_key: value.ephemeral_public_key,
             transaction_id: value.transaction_id,
         }
     }
@@ -737,7 +737,7 @@ impl From<payments::ApplepayHeader> for ApplepayHeader {
     fn from(value: payments::ApplepayHeader) -> Self {
         Self {
             public_key_hash: value.public_key_hash,
-            ephimeral_public_key: value.ephemeral_public_key,
+            ephemeral_public_key: value.ephemeral_public_key,
             transaction_id: value.transaction_id,
         }
     }

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use storage_models::enums;
 
@@ -52,11 +52,15 @@ fn fetch_payment_instrument(
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
 
-                    wallet_token: consts::BASE64_ENGINE.encode(
-                        serde_json::to_string(&data.payment_data)
-                            .into_report()
+                    wallet_token:
+                        consts::BASE64_ENGINE.encode(
+                            common_utils::ext_traits::Encode::<
+                                api_models::payments::ApplepayPaymentData,
+                            >::encode_to_string_of_json(
+                                &data.payment_data
+                            )
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    ),
+                        ),
                     ..WalletPayment::default()
                 }))
             }

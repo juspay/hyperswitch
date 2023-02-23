@@ -1,5 +1,5 @@
 use base64::Engine;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -491,12 +491,17 @@ fn get_payment_method_data(
             api_models::payments::WalletData::Applepay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token: consts::BASE64_ENGINE.encode(
-                        serde_json::to_string(&data.payment_data)
-                            .into_report()
+                    apple_pay_token:
+                        consts::BASE64_ENGINE.encode(
+                            common_utils::ext_traits::Encode::<
+                                api_models::payments::ApplepayPaymentData,
+                            >::encode_to_string_of_json(
+                                &data.payment_data
+                            )
                             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    ),
+                        ),
                 };
+
                 Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
             }
             api_models::payments::WalletData::PaypalSdk(_) => {

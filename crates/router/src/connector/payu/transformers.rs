@@ -94,11 +94,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
                             authorization_code: consts::BASE64_ENGINE.encode(
-                                serde_json::to_string(&data.payment_data)
-                                    .into_report()
-                                    .change_context(
-                                        errors::ConnectorError::RequestEncodingFailed,
-                                    )?,
+                                common_utils::ext_traits::Encode::<
+                                    api_models::payments::ApplepayPaymentData,
+                                >::encode_to_string_of_json(
+                                    &data.payment_data
+                                )
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                             ),
                         }
                     }),
