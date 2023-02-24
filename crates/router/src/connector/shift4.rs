@@ -499,9 +499,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Shift4 {
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let details: shift4::Shift4WebhookObjectId = body
+        let details: shift4::Shift4WebhookObjectId = request
+            .body
             .parse_struct("Shift4WebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
@@ -510,9 +511,10 @@ impl api::IncomingWebhook for Shift4 {
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: shift4::Shift4WebhookObjectEventType = body
+        let details: shift4::Shift4WebhookObjectEventType = request
+            .body
             .parse_struct("Shift4WebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(match details.event_type {
@@ -524,9 +526,10 @@ impl api::IncomingWebhook for Shift4 {
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: shift4::Shift4WebhookObjectResource = body
+        let details: shift4::Shift4WebhookObjectResource = request
+            .body
             .parse_struct("Shift4WebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(details.data)
