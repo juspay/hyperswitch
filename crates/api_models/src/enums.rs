@@ -512,7 +512,7 @@ pub enum MandateStatus {
 pub enum Connector {
     Aci,
     Adyen,
-	Airwallex,
+    Airwallex,
     Applepay,
     Authorizedotnet,
     Braintree,

@@ -18,9 +18,11 @@ pub struct AirwallexIntentRequest {
     currency: enums::Currency,
     merchant_order_id: String,
 }
-impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexIntentRequest  {
+impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeSessionTokenRouterData) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: &types::PaymentsAuthorizeSessionTokenRouterData,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             amount: item.request.amount,
@@ -253,7 +255,7 @@ impl<F, T>
             reference_id: Some(item.response.id.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
+                redirection_data,
                 redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
