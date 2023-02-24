@@ -402,8 +402,6 @@ pub async fn list_payment_methods(
         .await?;
     }
 
-    crate::logger::error!("RESULT: {:?}", response);
-
     response
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
@@ -413,7 +411,6 @@ pub async fn list_payment_methods(
                 payment_methods: response
                     .into_iter()
                     .map(|(mut key, val)| {
-                        crate::logger::error!("KEY: {:?}, CONNECTORS: {:?}", key, val);
                         key.eligible_connectors = Some(val);
                         key
                     })
@@ -471,7 +468,9 @@ async fn filter_payment_methods(
                 };
 
                 if filter && filter2 && filter3 {
-                    resp.entry(payment_method_object).or_insert_with(Vec::new).push(connector_name.clone());
+                    resp.entry(payment_method_object)
+                        .or_insert_with(Vec::new)
+                        .push(connector_name.clone());
                 }
             }
         }

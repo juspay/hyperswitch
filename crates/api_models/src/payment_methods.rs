@@ -284,18 +284,18 @@ pub struct ListPaymentMethodResponse {
     pub redirect_url: Option<String>,
 
     /// Information about the payment method
-    //#[schema(value_type = Vec<ListPaymentMethod>,example = json!(
-    //[
-        //{
-            //"payment_method": "wallet",
-            //"payment_experience": null,
-            //"payment_method_issuers": [
-                //"labore magna ipsum",
-                //"aute"
-            //]
-        //}
-    //]
-    //))]
+    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
+    [
+        {
+            "payment_method": "wallet",
+            "payment_experience": null,
+            "payment_method_issuers": [
+                "labore magna ipsum",
+                "aute"
+            ]
+        }
+    ]
+    ))]
     pub payment_methods: Vec<ListPaymentMethod>,
 }
 
@@ -369,6 +369,7 @@ impl serde::Serialize for ListPaymentMethod {
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
         state.serialize_field("payment_experience", &self.payment_experience)?;
+        state.serialize_field("eligible_connectors", &self.eligible_connectors)?;
         match self.payment_method {
             api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
                 state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
