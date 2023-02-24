@@ -381,31 +381,38 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut response: HashSet<api::ListPaymentMethod> = HashSet::new();
+    let mut objects = Vec::<api::ListPaymentMethodConnectorObject>::with_capacity(all_mcas.len());
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
         };
 
+        let mut pm_set = HashSet::<api::ListPaymentMethod>::new();
+
         filter_payment_methods(
             payment_methods,
             &mut req,
-            &mut response,
+            &mut pm_set,
             payment_intent.as_ref(),
             payment_attempt.as_ref(),
             address.as_ref(),
         )
         .await?;
+
+        objects.push(api::ListPaymentMethodConnectorObject {
+            connector_name: mca.connector_name,
+            payment_methods: pm_set,
+        })
     }
 
-    response
+    objects
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
         .unwrap_or(Ok(services::ApplicationResponse::Json(
             api::ListPaymentMethodResponse {
                 redirect_url: merchant_account.return_url,
-                payment_methods: response,
+                payment_methods: objects,
             },
         )))
 }

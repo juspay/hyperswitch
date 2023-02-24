@@ -278,6 +278,12 @@ fn set_or_reject_duplicate<T, E: de::Error>(
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
+pub struct ListPaymentMethodConnectorObject {
+    pub connector_name: String,
+    pub payment_methods: HashSet<ListPaymentMethod>,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ListPaymentMethodResponse {
     /// Redirect URL of the merchant
     #[schema(example = "https://www.google.com")]
@@ -296,7 +302,7 @@ pub struct ListPaymentMethodResponse {
         }
     ]
     ))]
-    pub payment_methods: HashSet<ListPaymentMethod>,
+    pub payment_methods: Vec<ListPaymentMethodConnectorObject>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
