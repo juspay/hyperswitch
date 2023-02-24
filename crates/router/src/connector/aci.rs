@@ -8,8 +8,7 @@ use transformers as aci;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers,
-    services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
