@@ -1151,7 +1151,7 @@ pub struct ApplePaySessionObject {
     pub expires_at: u64,
     /// The identifier for the merchant session
     pub merchant_session_identifier: String,
-    /// Applepay generates unique ID (UUID) value
+    /// Apple pay generated unique ID (UUID) value
     pub nonce: String,
     /// The identifier for the merchant
     pub merchant_identifier: String,

@@ -2011,7 +2011,7 @@
           },
           "nonce": {
             "type": "string",
-            "description": "Applepay generates unique ID (UUID) value"
+            "description": "Apple pay generated unique ID (UUID) value"
           },
           "merchant_identifier": {
             "type": "string",
