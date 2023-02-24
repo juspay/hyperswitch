@@ -18,7 +18,7 @@ pub enum PaymentOp {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
-    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     #[schema(
         value_type = Option<String>,
@@ -574,7 +574,7 @@ pub struct NextAction {
 
 #[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
-    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
     #[schema(
         min_length = 30,
@@ -1221,7 +1221,7 @@ pub struct PaymentsCancelRequest {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsStartRequest {
-    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     pub payment_id: String,
     /// The identifier for the Merchant Account.
