@@ -1,5 +1,3 @@
-use std::{thread::sleep, time::Duration};
-
 use masking::Secret;
 use router::types::{
     self,
@@ -99,7 +97,10 @@ async fn should_capture_already_authorized_payment() {
 #[actix_web::test]
 async fn should_sync_payment() {
     let connector = Globalpay {};
-    let authorize_response = connector.authorize_payment(None, get_default_payment_info()).await.unwrap();
+    let authorize_response = connector
+        .authorize_payment(None, get_default_payment_info())
+        .await
+        .unwrap();
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response = connector
         .psync_retry_till_status_matches(
