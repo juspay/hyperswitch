@@ -15,3 +15,4 @@ mod stripe;
 mod utils;
 mod worldline;
 mod worldpay;
+mod trustpay;

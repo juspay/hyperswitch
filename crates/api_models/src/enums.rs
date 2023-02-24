@@ -588,11 +588,12 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+    Trustpay,
 }
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Globalpay | Self::Payu)
+        matches!(self, Self::Globalpay | Self::Payu | Self::Trustpay)
     }
 }
 
@@ -626,6 +627,7 @@ pub enum RoutableConnectors {
     Stripe,
     Worldline,
     Worldpay,
+    Trustpay,
 }
 
 /// Wallets which support obtaining session object
