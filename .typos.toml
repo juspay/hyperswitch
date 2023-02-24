@@ -4,6 +4,7 @@ check-filename = true
 [default.extend-identifiers]
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
+HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 
 [default.extend-words]
 aci = "aci" # Name of a connector
