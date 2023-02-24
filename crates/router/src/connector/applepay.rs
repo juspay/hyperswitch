@@ -197,11 +197,11 @@ impl
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let session_object: transformers::SessionObject = metadata
-            .parse_value("SessionObject")
+        let metadata: transformers::ApplePayMetaData = metadata
+            .parse_value("ApplePayMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(session_object.certificate))
+        Ok(Some(metadata.session_object.certificate))
     }
 
     fn get_certificate_key(
@@ -214,11 +214,11 @@ impl
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let session_object: transformers::SessionObject = metadata
-            .parse_value("SessionObject")
+        let metadata: transformers::ApplePayMetaData = metadata
+            .parse_value("ApplePayMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(session_object.certificate_keys))
+        Ok(Some(metadata.session_object.certificate_keys))
     }
 }
 

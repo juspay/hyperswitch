@@ -48,7 +48,7 @@ impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
         let error_info = value.get_internal_error();
         let error_type = value.error_type();
         Self {
-            code: format!("{}_{}", error_info.sub_code, error_info.error_identifier),
+            code: format!("{}_{:02}", error_info.sub_code, error_info.error_identifier),
             message: Cow::Borrowed(value.get_internal_error().error_message.as_str()),
             error_type,
             extra: &error_info.extra,
