@@ -133,7 +133,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
     fn get_return_url(&self) -> Result<String, Error> {
-        self.router_return_url.clone()
+        self.router_return_url
+            .clone()
             .ok_or_else(missing_field_err("router_return_url"))
     }
     fn get_card(&self) -> Result<api::Card, Error> {
