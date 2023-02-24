@@ -1098,18 +1098,18 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay(Box<GpayData>),
+    Gpay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
-    Klarna(Box<KlarnaData>),
+    Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
-    Paypal(Box<PaypalData>),
+    Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
-    Applepay(Box<ApplepayData>),
+    Applepay(Box<ApplepaySessionTokenResponse>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct GpayData {
+pub struct GpaySessionTokenResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
     /// List of the allowed payment meythods
@@ -1120,7 +1120,7 @@ pub struct GpayData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct KlarnaData {
+pub struct KlarnaSessionTokenResponse {
     /// The session token for Klarna
     pub session_token: String,
     /// The identifier for the session
@@ -1129,22 +1129,22 @@ pub struct KlarnaData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct PaypalData {
+pub struct PaypalSessionTokenResponse {
     /// The session token for PayPal
     pub session_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct ApplepayData {
+pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
-    pub session_object: ApplePaySessionObject,
+    pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
-    pub payment_request_object: ApplePayRequest,
+    pub payment_request_data: ApplePayPaymentRequest,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-pub struct ApplePaySessionObject {
+pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
     /// Timestamp at which session expires
@@ -1170,7 +1170,7 @@ pub struct ApplePaySessionObject {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-pub struct ApplePayRequest {
+pub struct ApplePayPaymentRequest {
     /// The code for country
     pub country_code: String,
     /// The code for currency
@@ -1185,11 +1185,11 @@ pub struct ApplePayRequest {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct AmountInfo {
-    /// the label must be non-empty to pass validation.
+    /// The label must be the name of the merchant.
     pub label: String,
-    /// The type of label
+    /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
-    pub label_type: String,
+    pub total_type: String,
     /// The total amount for the payment
     pub amount: String,
 }
