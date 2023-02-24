@@ -666,18 +666,16 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 impl api::IncomingWebhook for Rapyd {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = conn_utils::get_header_key_value("signature", headers)?;
+        let base64_signature = conn_utils::get_header_key_value("signature", request.headers)?;
         let signature = consts::BASE64_ENGINE_URL_SAFE
             .decode(base64_signature.as_bytes())
             .into_report()
@@ -701,16 +699,15 @@ impl api::IncomingWebhook for Rapyd {
 
     fn get_webhook_source_verification_message(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let host = conn_utils::get_header_key_value("host", headers)?;
+        let host = conn_utils::get_header_key_value("host", request.headers)?;
         let connector = self.id();
         let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
-        let salt = conn_utils::get_header_key_value("salt", headers)?;
-        let timestamp = conn_utils::get_header_key_value("timestamp", headers)?;
+        let salt = conn_utils::get_header_key_value("salt", request.headers)?;
+        let timestamp = conn_utils::get_header_key_value("timestamp", request.headers)?;
         let stringify_auth = String::from_utf8(secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
@@ -720,7 +717,7 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let access_key = auth.access_key;
         let secret_key = auth.secret_key;
-        let body_string = String::from_utf8(body.to_vec())
+        let body_string = String::from_utf8(request.body.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert body to UTF-8")?;
@@ -732,19 +729,18 @@ impl api::IncomingWebhook for Rapyd {
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
-            .get_webhook_source_verification_signature(headers, body)
+            .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(headers, body, merchant_id, &secret)
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let stringify_auth = String::from_utf8(secret.to_vec())
@@ -763,11 +759,13 @@ impl api::IncomingWebhook for Rapyd {
 
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let webhook: transformers::RapydIncomingWebhook = body
+        let webhook: transformers::RapydIncomingWebhook = request
+            .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
         Ok(match webhook.data {
             transformers::WebhookData::PaymentData(payment_data) => payment_data.id,
             transformers::WebhookData::RefundData(refund_data) => refund_data.id,
@@ -776,19 +774,22 @@ impl api::IncomingWebhook for Rapyd {
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let webhook: transformers::RapydIncomingWebhook = body
+        let webhook: transformers::RapydIncomingWebhook = request
+            .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
         webhook.webhook_type.try_into()
     }
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let webhook: transformers::RapydIncomingWebhook = body
+        let webhook: transformers::RapydIncomingWebhook = request
+            .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let response = match webhook.data {
