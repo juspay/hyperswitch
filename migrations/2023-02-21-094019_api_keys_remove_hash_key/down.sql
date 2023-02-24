@@ -3,7 +3,7 @@
  used for hashing API keys, but we don't do that as it is a hassle to update
  this migration with the plaintext hash key.
  */
-DELETE FROM api_keys;
+TRUNCATE TABLE api_keys;
 
 ALTER TABLE api_keys
 ADD COLUMN hash_key VARCHAR(64) NOT NULL;

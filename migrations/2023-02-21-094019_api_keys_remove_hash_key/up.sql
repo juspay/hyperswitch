@@ -5,7 +5,7 @@ ALTER TABLE api_keys DROP COLUMN hash_key;
  from the `api_keys` table anymore, as the `hash_key` is a random string that
  we no longer have.
  */
-DELETE FROM api_keys;
+TRUNCATE TABLE api_keys;
 
 ALTER TABLE api_keys
 ADD CONSTRAINT api_keys_hashed_api_key_key UNIQUE (hashed_api_key);
