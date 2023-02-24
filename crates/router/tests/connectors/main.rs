@@ -1,6 +1,7 @@
 #![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 
 mod aci;
+mod adyen;
 mod authorizedotnet;
 mod checkout;
 mod connector_auth;

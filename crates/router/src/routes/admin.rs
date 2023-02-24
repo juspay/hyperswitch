@@ -200,7 +200,7 @@ pub async fn payment_connector_create(
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
@@ -279,7 +279,7 @@ pub async fn payment_connector_list(
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
     json_payload: web::Json<admin::PaymentConnectorCreate>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
@@ -288,7 +288,7 @@ pub async fn payment_connector_update(
         &req,
         json_payload.into_inner(),
         |state, _, req| {
-            update_payment_connector(&*state.store, &merchant_id, merchant_connector_id, req)
+            update_payment_connector(&*state.store, &merchant_id, &merchant_connector_id, req)
         },
         &auth::AdminApiAuth,
     )
@@ -318,7 +318,7 @@ pub async fn payment_connector_update(
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
@@ -333,6 +333,52 @@ pub async fn payment_connector_delete(
         |state, _, req| {
             delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+// Merchant Account - Toggle KV
+
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<admin::ToggleKVRequest>,
+) -> HttpResponse {
+    let payload = json_payload.into_inner();
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        (merchant_id, payload),
+        |state, _, (merchant_id, payload)| {
+            kv_for_merchant(&*state.store, merchant_id, payload.kv_enabled)
+        },
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+// Merchant Account - KV Status
+
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_kv_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        merchant_id,
+        |state, _, req| check_merchant_account_kv_status(&*state.store, req),
         &auth::AdminApiAuth,
     )
     .await

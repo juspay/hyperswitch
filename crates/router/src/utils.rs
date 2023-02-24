@@ -64,7 +64,7 @@ pub mod error_parser {
         }
     }
 
-    pub(crate) fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
+    pub fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
         actix_web::error::Error::from(CustomJsonError { err })
     }
 }

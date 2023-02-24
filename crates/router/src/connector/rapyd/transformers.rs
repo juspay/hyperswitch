@@ -179,40 +179,39 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
+impl From<transformers::Foreign<(RapydPaymentStatus, NextAction)>>
     for transformers::Foreign<enums::AttemptStatus>
 {
-    fn from(item: transformers::Foreign<(RapydPaymentStatus, String)>) -> Self {
+    fn from(item: transformers::Foreign<(RapydPaymentStatus, NextAction)>) -> Self {
         let (status, next_action) = item.0;
-        match status {
-            RapydPaymentStatus::Closed => enums::AttemptStatus::Charged,
-            RapydPaymentStatus::Active => {
-                if next_action == "3d_verification" {
-                    enums::AttemptStatus::AuthenticationPending
-                } else if next_action == "pending_capture" {
-                    enums::AttemptStatus::Authorized
-                } else {
-                    enums::AttemptStatus::Pending
-                }
+        match (status, next_action) {
+            (RapydPaymentStatus::Closed, _) => enums::AttemptStatus::Charged,
+            (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
+                enums::AttemptStatus::AuthenticationPending
             }
-            RapydPaymentStatus::CanceledByClientOrBank
-            | RapydPaymentStatus::Expired
-            | RapydPaymentStatus::ReversedByRapyd => enums::AttemptStatus::Voided,
-            RapydPaymentStatus::Error => enums::AttemptStatus::Failure,
-
-            RapydPaymentStatus::New => enums::AttemptStatus::Authorizing,
+            (RapydPaymentStatus::Active, NextAction::PendingCapture) => {
+                enums::AttemptStatus::Authorized
+            }
+            (
+                RapydPaymentStatus::CanceledByClientOrBank
+                | RapydPaymentStatus::Expired
+                | RapydPaymentStatus::ReversedByRapyd,
+                _,
+            ) => enums::AttemptStatus::Voided,
+            (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
+            (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
         }
         .into()
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydPaymentsResponse {
     pub status: Status,
     pub data: Option<ResponseData>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Status {
     pub error_code: String,
     pub status: Option<String>,
@@ -221,13 +220,21 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NextAction {
+    #[serde(rename = "3d_verification")]
+    ThreedsVerification,
+    #[serde(rename = "pending_capture")]
+    PendingCapture,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ResponseData {
     pub id: String,
     pub amount: i64,
     pub status: RapydPaymentStatus,
-    pub next_action: String,
-    pub redirect_url: Option<String>,
+    pub next_action: NextAction,
+    pub redirect_url: Option<Url>,
     pub original_amount: Option<i64>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<enums::Currency>,
@@ -277,13 +284,13 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub status: Status,
     pub data: Option<RefundResponseData>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
     //Some field related to forign exchange and split payment can be added as and when implemented
     pub id: String,
@@ -389,32 +396,18 @@ impl<F, T>
                         }),
                     ),
                     _ => {
-                        let redirection_data =
-                            match (data.next_action.as_str(), data.redirect_url.to_owned()) {
-                                ("3d_verification", Some(url)) => {
-                                    let url = Url::parse(&url).into_report().change_context(
-                                        errors::ConnectorError::ResponseHandlingFailed,
-                                    )?;
-                                    let mut base_url = url.clone();
-                                    base_url.set_query(None);
-                                    Some(services::RedirectForm {
-                                        url: base_url.to_string(),
-                                        method: services::Method::Get,
-                                        form_fields: std::collections::HashMap::from_iter(
-                                            url.query_pairs()
-                                                .map(|(k, v)| (k.to_string(), v.to_string())),
-                                        ),
-                                    })
-                                }
-                                (_, _) => None,
-                            };
+                        let redirection_data = data.redirect_url.as_ref().map(|redirect_url| {
+                            services::RedirectForm::from((
+                                redirect_url.to_owned(),
+                                services::Method::Get,
+                            ))
+                        });
                         (
                             attempt_status,
                             Ok(types::PaymentsResponseData::TransactionResponse {
                                 resource_id: types::ResponseId::ConnectorTransactionId(
                                     data.id.to_owned(),
                                 ), //transaction_id is also the field but this id is used to initiate a refund
-                                redirect: redirection_data.is_some(),
                                 redirection_data,
                                 mandate_reference: None,
                                 connector_metadata: None,

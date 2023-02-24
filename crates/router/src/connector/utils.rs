@@ -33,9 +33,7 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
             .ok_or_else(missing_field_err("request.id"))
     }
 }
-
-pub trait RouterData {
-    fn get_attempt_id(&self) -> Result<String, Error>;
+pub trait PaymentRouterData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
@@ -46,44 +44,7 @@ pub trait RouterData {
         T: serde::de::DeserializeOwned;
 }
 
-pub trait PaymentsRequestData {
-    fn get_card(&self) -> Result<api::Card, Error>;
-}
-
-pub trait PaymentsCancelRequestData {
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
-}
-
-impl PaymentsCancelRequestData for PaymentsCancelData {
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
-    }
-    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
-        self.currency.ok_or_else(missing_field_err("currency"))
-    }
-}
-
-pub trait RefundsRequestData {
-    fn get_connector_refund_id(&self) -> Result<String, Error>;
-}
-
-impl RefundsRequestData for types::RefundsData {
-    fn get_connector_refund_id(&self) -> Result<String, Error> {
-        self.connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-    }
-}
-
-impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
-    fn get_attempt_id(&self) -> Result<String, Error> {
-        self.attempt_id
-            .clone()
-            .ok_or_else(missing_field_err("attempt_id"))
-    }
-
+impl<Flow, Request, Response> PaymentRouterData for types::RouterData<Flow, Request, Response> {
     fn get_billing_country(&self) -> Result<String, Error> {
         self.address
             .billing
@@ -130,12 +91,51 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 }
 
+
+pub trait PaymentsRequestData {
+    fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
+}
+
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
     fn get_card(&self) -> Result<api::Card, Error> {
         match self.request.payment_method_data.clone() {
             api::PaymentMethod::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
+    }
+}
+
+pub trait PaymentsCancelRequestData {
+    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+}
+
+impl PaymentsCancelRequestData for PaymentsCancelData {
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub trait RefundsRequestData {
+    fn get_connector_refund_id(&self) -> Result<String, Error>;
+}
+
+impl RefundsRequestData for types::RefundsData {
+    fn get_connector_refund_id(&self) -> Result<String, Error> {
+        self.connector_refund_id
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
     }
 }
 

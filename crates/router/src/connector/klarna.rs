@@ -13,6 +13,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        storage::enums as storage_enums,
     },
     utils::{self, BytesExt},
 };
@@ -235,12 +236,27 @@ impl
         match payment_method_data {
             api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
                 token,
-                ..
-            }) => Ok(format!(
-                "{}payments/v1/authorizations/{}/order",
-                self.base_url(connectors),
-                token
-            )),
+            }) => match (
+                req.request.payment_issuer.as_ref(),
+                req.request.payment_experience.as_ref(),
+            ) {
+                (
+                    Some(storage_enums::PaymentIssuer::Klarna),
+                    Some(storage_enums::PaymentExperience::InvokeSdkClient),
+                ) => Ok(format!(
+                    "{}payments/v1/authorizations/{}/order",
+                    self.base_url(connectors),
+                    token
+                )),
+                (None, _) | (_, None) => Err(error_stack::report!(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_issuer and payment_experience"
+                    }
+                )),
+                _ => Err(error_stack::report!(
+                    errors::ConnectorError::MismatchedPaymentData
+                )),
+            },
             _ => Err(error_stack::report!(
                 errors::ConnectorError::NotImplemented(
                     "We only support wallet payments through klarna".to_string(),
@@ -344,21 +360,21 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 impl api::IncomingWebhook for Klarna {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
