@@ -297,6 +297,26 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         })
     }
 }
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapWebhookBody {
+    pub auth_key: String,
+    pub contract_id: String,
+    pub reference_number: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapWebhookObjectEventType {
+    pub transaction_type: String,
+}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapWebhookObjectResource {
+    pub auth_key: String,
+    pub contract_id: String,
+    pub reference_number: String,
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

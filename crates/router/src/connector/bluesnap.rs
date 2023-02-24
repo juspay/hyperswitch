@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::crypto;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
@@ -13,6 +14,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers, logger,
     services::{self, ConnectorIntegration},
     types::{
@@ -619,25 +621,119 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Bluesnap {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _headers: &actix_web::http::header::HeaderMap,
+        _body: &[u8],
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Md5))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        _headers: &actix_web::http::header::HeaderMap,
+        body: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let webhook_body: bluesnap::BluesnapWebhookBody = serde_urlencoded::from_bytes(body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let signature = webhook_body.auth_key;
+        hex::decode(signature)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+    fn get_webhook_source_verification_message(
+        &self,
+        _headers: &actix_web::http::header::HeaderMap,
+        body: &[u8],
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let webhook_body: bluesnap::BluesnapWebhookBody = serde_urlencoded::from_bytes(body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let msg = webhook_body.reference_number + &webhook_body.contract_id;
+        Ok(msg.into_bytes())
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .find_config_by_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+
+        Ok(secret.config.into_bytes())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        db: &dyn StorageInterface,
+        headers: &actix_web::http::header::HeaderMap,
+        body: &[u8],
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let algorithm = self
+            .get_webhook_source_verification_algorithm(headers, body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(headers, body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let mut secret = self
+            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let mut message = self
+            .get_webhook_source_verification_message(headers, body, merchant_id, &secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        message.append(&mut secret);
+        algorithm
+            .verify_signature(&secret, &signature, &message)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        body: &[u8],
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook_body: bluesnap::BluesnapWebhookBody = serde_urlencoded::from_bytes(body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        Ok(webhook_body.reference_number)
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        body: &[u8],
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: bluesnap::BluesnapWebhookObjectEventType = serde_urlencoded::from_bytes(body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(match details.transaction_type.as_str() {
+            "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
+            "CHARGE" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        })
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        body: &[u8],
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: bluesnap::BluesnapWebhookObjectResource = serde_urlencoded::from_bytes(body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let res_json =
+            utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(res_json)
     }
 }
 
