@@ -341,6 +341,7 @@ where
                                 .capture_method
                                 .map(ForeignInto::foreign_into),
                         )
+                        .set_metadata(payment_intent.metadata)
                         .to_owned(),
                 )
             }
@@ -381,6 +382,7 @@ where
             billing: address.billing,
             cancellation_reason: payment_attempt.cancellation_reason,
             payment_token: payment_attempt.payment_token,
+            metadata: payment_intent.metadata,
             ..Default::default()
         }),
     })
