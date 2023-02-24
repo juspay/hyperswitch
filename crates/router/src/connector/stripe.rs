@@ -917,7 +917,7 @@ impl api::IncomingWebhook for Stripe {
         Ok(format!(
             "{}.{}",
             String::from_utf8_lossy(&timestamp),
-            String::from_utf8_lossy(&request.body)
+            String::from_utf8_lossy(request.body)
         )
         .into_bytes())
     }

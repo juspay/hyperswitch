@@ -717,7 +717,7 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let access_key = auth.access_key;
         let secret_key = auth.secret_key;
-        let body_string = String::from_utf8(request.body.clone())
+        let body_string = String::from_utf8(request.body.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert body to UTF-8")?;
