@@ -164,7 +164,6 @@ async fn should_void_authorized_payment() {
                 currency: None,
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
-                ..Default::default()
             }),
             AdyenTest::get_payment_info(),
         )
