@@ -30,7 +30,7 @@ pub async fn get_hash_key(
     .attach_printable("Failed to KMS decrypt API key hashing key")?;
 
     #[cfg(not(feature = "kms"))]
-    let hash_key = api_key_config.hash_key;
+    let hash_key = &api_key_config.hash_key;
 
     <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
         hex::decode(hash_key)
