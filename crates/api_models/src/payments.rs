@@ -38,7 +38,7 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
     /// This allows the merchant to manually select a connector with which the payment can go through
     #[schema(value_type = Option<Connector>, max_length = 255, example = "stripe")]
-    pub connector: Option<api_enums::Connector>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
