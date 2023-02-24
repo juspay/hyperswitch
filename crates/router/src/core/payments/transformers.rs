@@ -523,6 +523,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
+            currency: payment_data.currency,
             confirm: true,
             payment_method_data: payment_data
                 .payment_method_data
