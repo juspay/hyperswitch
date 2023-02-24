@@ -431,8 +431,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::AuthorizeSessionToken, types::AuthorizeSessionTokenData, types::PaymentsResponseData>
-    for Nuvei
+impl
+    ConnectorIntegration<
+        api::AuthorizeSessionToken,
+        types::AuthorizeSessionTokenData,
+        types::PaymentsResponseData,
+    > for Nuvei
 {
     fn get_headers(
         &self,
@@ -506,10 +510,18 @@ impl ConnectorIntegration<api::AuthorizeSessionToken, types::AuthorizeSessionTok
 
     fn handle_response(
         &self,
-        data: &RouterData<api::AuthorizeSessionToken, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+        data: &RouterData<
+            api::AuthorizeSessionToken,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        >,
         res: Response,
     ) -> CustomResult<
-        RouterData<api::AuthorizeSessionToken, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+        RouterData<
+            api::AuthorizeSessionToken,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
