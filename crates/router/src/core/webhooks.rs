@@ -214,7 +214,7 @@ pub async fn webhooks_core(
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
-        body: body.to_vec(),
+        body: &body,
     };
 
     let source_verified = connector
@@ -237,7 +237,7 @@ pub async fn webhooks_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("There was an error in incoming webhook body decoding")?;
 
-    request_details.body = decoded_body;
+    request_details.body = &decoded_body;
 
     let event_type = connector
         .get_webhook_event_type(&request_details)
