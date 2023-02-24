@@ -395,6 +395,7 @@ pub trait ConnectorActions: Connector {
                 resource_id.get_connector_transaction_id().ok()
             }
             Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -560,6 +561,7 @@ pub fn get_connector_transaction_id(
             resource_id.get_connector_transaction_id().ok()
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Err(_) => None,
     }
 }
