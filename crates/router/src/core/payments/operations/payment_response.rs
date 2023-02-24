@@ -68,6 +68,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                     message: error_response.message,
                     connector,
                     status_code: error_response.status_code,
+                    reason: error_response.reason,
                 })
             })
         })?;
@@ -126,6 +127,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
@@ -166,6 +168,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
@@ -205,6 +208,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
@@ -249,6 +253,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;

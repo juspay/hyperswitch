@@ -107,8 +107,8 @@ fn build_bill_to(
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ccard) => {
                 let phone = item.get_billing_phone()?;
                 let phone_number = phone.get_number()?;
                 let country_code = phone.get_country_code()?;
