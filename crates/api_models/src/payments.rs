@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::{errors, ext_traits::Encode, pii};
+use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -797,46 +797,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
-impl TryFrom<PaymentsRequest> for PaymentsResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: PaymentsRequest) -> Result<Self, Self::Error> {
-        let payment_id = match item.payment_id {
-            Some(PaymentIdType::PaymentIntentId(id)) => Some(id),
-            _ => None,
-        };
-        let metadata = item
-            .metadata
-            .as_ref()
-            .map(Encode::<Metadata>::encode_to_value)
-            .transpose()?;
-        Ok(Self {
-            payment_id,
-            merchant_id: item.merchant_id,
-            setup_future_usage: item.setup_future_usage,
-            off_session: item.off_session,
-            shipping: item.shipping,
-            billing: item.billing,
-            metadata,
-            capture_method: item.capture_method,
-            payment_method: item.payment_method,
-            capture_on: item.capture_on,
-            payment_method_data: item
-                .payment_method_data
-                .map(PaymentMethodDataResponse::from),
-            email: item.email,
-            name: item.name,
-            phone: item.phone,
-            payment_token: item.payment_token,
-            return_url: item.return_url,
-            authentication_type: item.authentication_type,
-            statement_descriptor_name: item.statement_descriptor_name,
-            statement_descriptor_suffix: item.statement_descriptor_suffix,
-            mandate_data: item.mandate_data,
-            ..Default::default()
-        })
-    }
-}
-
 impl From<VerifyRequest> for VerifyResponse {
     fn from(item: VerifyRequest) -> Self {
         Self {
@@ -850,25 +810,6 @@ impl From<VerifyRequest> for VerifyResponse {
                 .payment_method_data
                 .map(PaymentMethodDataResponse::from),
             payment_token: item.payment_token,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsStartRequest> for PaymentsResponse {
-    fn from(item: PaymentsStartRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
-            merchant_id: Some(item.merchant_id),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsSessionRequest> for PaymentsResponse {
-    fn from(item: PaymentsSessionRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
             ..Default::default()
         }
     }
@@ -891,43 +832,6 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
             payment_id: Some(PaymentIdType::PaymentIntentId(item.payment_id)),
             merchant_id: Some(item.merchant_id),
             ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsRetrieveRequest> for PaymentsResponse {
-    // After removing the request from the payments_to_payments_response this will no longer be needed
-    fn from(item: PaymentsRetrieveRequest) -> Self {
-        let payment_id = match item.resource_id {
-            PaymentIdType::PaymentIntentId(id) => Some(id),
-            _ => None,
-        };
-
-        Self {
-            payment_id,
-            merchant_id: item.merchant_id,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsCancelRequest> for PaymentsResponse {
-    fn from(item: PaymentsCancelRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
-            cancellation_reason: item.cancellation_reason,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsCaptureRequest> for PaymentsResponse {
-    // After removing the request from the payments_to_payments_response this will no longer be needed
-    fn from(item: PaymentsCaptureRequest) -> Self {
-        Self {
-            payment_id: item.payment_id,
-            amount_received: item.amount_to_capture,
-            ..Self::default()
         }
     }
 }
