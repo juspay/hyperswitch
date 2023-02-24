@@ -66,7 +66,7 @@ impl super::Router for PaymentsRequest {}
 pub struct Authorize;
 
 #[derive(Debug, Clone)]
-pub struct PreAuthorize;
+pub struct AuthorizeSessionToken;
 #[derive(Debug, Clone)]
 pub struct Capture;
 

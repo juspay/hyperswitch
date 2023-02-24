@@ -181,9 +181,9 @@ fn encode_payload(
     Ok(hex::encode(digest))
 }
 
-impl TryFrom<&types::PaymentsPreAuthorizeRouterData> for NuveiSessionRequest {
+impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeSessionTokenRouterData) -> Result<Self, Self::Error> {
         let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
@@ -216,15 +216,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Pending,
-            session_token: Some(item.response.session_token),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.client_request_id,
-                ),
-                redirection_data: None,
-                redirect: false,
-                mandate_reference: None,
-                connector_metadata: None,
+            session_token: Some(item.response.session_token.clone()),
+            response: Ok(types::PaymentsResponseData::SessionTokenResponse {
+                session_token: item.response.session_token,
             }),
             ..item.data
         })
@@ -234,7 +228,7 @@ impl<F, T>
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+    let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.get_attempt_id()?;
