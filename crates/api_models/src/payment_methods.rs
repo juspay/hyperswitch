@@ -284,19 +284,19 @@ pub struct ListPaymentMethodResponse {
     pub redirect_url: Option<String>,
 
     /// Information about the payment method
-    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
-    [
-        {
-            "payment_method": "wallet",
-            "payment_experience": null,
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ]
-        }
-    ]
-    ))]
-    pub payment_methods: HashSet<ListPaymentMethod>,
+    //#[schema(value_type = Vec<ListPaymentMethod>,example = json!(
+    //[
+        //{
+            //"payment_method": "wallet",
+            //"payment_experience": null,
+            //"payment_method_issuers": [
+                //"labore magna ipsum",
+                //"aute"
+            //]
+        //}
+    //]
+    //))]
+    pub payment_methods: Vec<ListPaymentMethod>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
@@ -350,6 +350,10 @@ pub struct ListPaymentMethod {
     /// Type of payment experience enabled with the connector
     #[schema(example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<PaymentExperience>>,
+
+    /// Eligible connectors for this payment method
+    #[schema(example = json!(["stripe", "adyen"]))]
+    pub eligible_connectors: Option<Vec<String>>,
 }
 
 /// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse

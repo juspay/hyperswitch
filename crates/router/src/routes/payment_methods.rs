@@ -72,6 +72,7 @@ pub async fn list_payment_method_api(
     json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
 ) -> HttpResponse {
     let payload = json_payload.into_inner();
+    crate::logger::error!("REQUEST: {:?}", payload);
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
