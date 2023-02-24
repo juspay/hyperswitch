@@ -116,7 +116,7 @@ impl From<Shipping> for payments::Address {
 #[derive(PartialEq, Eq, Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub amount: Option<i64>, //amount in cents, hence passed as integer
-    pub connector: Option<api_enums::Connector>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,
