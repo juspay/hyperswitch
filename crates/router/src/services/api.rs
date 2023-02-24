@@ -164,8 +164,9 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
-                    let response = call_connector_api(state, request.clone()).await;
-                    logger::debug!(connector_req=?request, connector_response=?response);
+                    logger::debug!(connector_req=?request);
+                    let response = call_connector_api(state, request).await;
+                    logger::debug!(connector_res=?response);
                     match response {
                         Ok(body) => {
                             let response = match body {
