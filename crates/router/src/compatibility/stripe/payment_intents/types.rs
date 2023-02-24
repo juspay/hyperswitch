@@ -291,6 +291,7 @@ pub struct StripePaymentIntentResponse {
     pub payment_method_data: Option<payments::PaymentMethodDataResponse>,
     pub shipping: Option<payments::Address>,
     pub billing: Option<payments::Address>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<time::PrimitiveDateTime>,
     pub payment_token: Option<String>,
     pub email: Option<masking::Secret<String, common_utils::pii::Email>>,
