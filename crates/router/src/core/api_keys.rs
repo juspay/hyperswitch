@@ -3,6 +3,8 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::{PeekInterface, Secret, StrongSecret};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "kms")]
+use crate::services::kms;
 use crate::{
     configs::settings,
     consts,
@@ -20,7 +22,7 @@ pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
 ) -> errors::RouterResult<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     #[cfg(feature = "kms")]
-    let hash_key = crate::services::kms::KeyHandler::get_kms_decrypted_key(
+    let hash_key = kms::KeyHandler::get_kms_decrypted_key(
         &api_key_config.aws_region,
         &api_key_config.aws_key_id,
         api_key_config.kms_encrypted_hash_key.clone(),
