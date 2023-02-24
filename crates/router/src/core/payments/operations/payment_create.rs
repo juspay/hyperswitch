@@ -262,7 +262,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         let request_connector = request
             .connector
             .as_ref()
-            .and_then(|connector| connector.get(0).map(|c| c.to_string()));
+            .and_then(|connector| connector.first().map(|c| c.to_string()));
         helpers::get_connector_default(state, request_connector.as_ref()).await
     }
 }
