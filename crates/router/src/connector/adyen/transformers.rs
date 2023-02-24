@@ -531,7 +531,8 @@ fn get_payment_method_data(
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         },
         api_models::payments::PaymentMethod::BankTransfer
-        | api_models::payments::PaymentMethod::Paypal => {
+        | api_models::payments::PaymentMethod::Paypal
+        | api_models::payments::PaymentMethod::BankRedirect(_) => {
             Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
         }
     }

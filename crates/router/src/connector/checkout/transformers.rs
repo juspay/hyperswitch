@@ -77,7 +77,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             api::PaymentMethod::BankTransfer
             | api::PaymentMethod::Wallet(_)
             | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal => None,
+            | api::PaymentMethod::Paypal
+            | api::PaymentMethod::BankRedirect(_) => None,
         };
 
         let three_ds = match item.auth_type {

@@ -459,6 +459,7 @@ pub enum PaymentMethodType {
     Wallet,
     Klarna,
     Paypal,
+    BankRedirect,
 }
 
 #[derive(

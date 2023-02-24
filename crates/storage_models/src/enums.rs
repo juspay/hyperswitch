@@ -8,7 +8,7 @@ pub mod diesel_exports {
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
+        DbPaymentMethodSubType as PaymentMethodSubType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
         DbRefundType as RefundType,
     };
@@ -449,7 +449,7 @@ pub enum PaymentMethodSubType {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
@@ -466,6 +466,7 @@ pub enum PaymentMethodType {
     Wallet,
     Klarna,
     Paypal,
+    BankRedirect,
 }
 
 #[derive(

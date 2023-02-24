@@ -139,6 +139,7 @@ pub enum StripePaymentMethodData {
     Bank,
     Wallet,
     Paypal,
+    BankRedirect,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -929,6 +930,7 @@ impl
                 }
             })),
             api::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api::PaymentMethod::BankRedirect(_) => Ok(Self::BankRedirect),
             api::PaymentMethod::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_types: pm_type.clone(),
                 payment_method_data_type: pm_type,
