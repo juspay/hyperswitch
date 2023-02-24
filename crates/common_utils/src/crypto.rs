@@ -250,7 +250,7 @@ impl VerifySignature for Md5 {
         signature: &[u8],
         msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        let hashed_digest = Md5
+        let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         Ok(hashed_digest == signature)
