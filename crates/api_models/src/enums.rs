@@ -512,6 +512,7 @@ pub enum MandateStatus {
 pub enum Connector {
     Aci,
     Adyen,
+    Airwallex,
     Applepay,
     Authorizedotnet,
     Bluesnap,
@@ -534,7 +535,7 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Globalpay | Self::Payu)
+        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
     }
 }
 
@@ -555,6 +556,7 @@ impl Connector {
 pub enum RoutableConnectors {
     Aci,
     Adyen,
+    Airwallex,
     Authorizedotnet,
     Braintree,
     Checkout,

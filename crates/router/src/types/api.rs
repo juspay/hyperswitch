@@ -162,6 +162,7 @@ impl ConnectorData {
         match connector_name {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
+            "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),

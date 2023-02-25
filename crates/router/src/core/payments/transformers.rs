@@ -100,6 +100,7 @@ where
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
+        reference_id: None,
     };
 
     Ok(router_data)

@@ -71,7 +71,7 @@ impl ConnectorCommon for Bluesnap {
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1, auth.api_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {}", encoded_api_key),
+            format!("Basic {encoded_api_key}"),
         )])
     }
 
