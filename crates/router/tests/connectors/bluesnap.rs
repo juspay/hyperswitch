@@ -115,6 +115,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                ..Default::default()
             }),
             None,
         )

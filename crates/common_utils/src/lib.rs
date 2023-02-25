@@ -43,6 +43,28 @@ pub mod date_time {
         let result = block().await;
         (result, start.elapsed().as_seconds_f64() * 1000f64)
     }
+
+    /// Prefix the date field with zero if it has single digit Eg: 1 -> 01
+    fn prefix_zero(input: u8) -> String {
+        if input < 10 {
+            return "0".to_owned() + input.to_string().as_str();
+        }
+        input.to_string()
+    }
+
+    /// Return the current date and time in UTC with the format YYYYMMDDHHmmss Eg: 20191105081132
+    pub fn date_as_yyyymmddhhmmss() -> String {
+        let now = OffsetDateTime::now_utc();
+        format!(
+            "{}{}{}{}{}{}",
+            now.year(),
+            prefix_zero(u8::from(now.month())),
+            prefix_zero(now.day()),
+            prefix_zero(now.hour()),
+            prefix_zero(now.minute()),
+            prefix_zero(now.second())
+        )
+    }
 }
 
 /// Generate a nanoid with the given prefix and length
