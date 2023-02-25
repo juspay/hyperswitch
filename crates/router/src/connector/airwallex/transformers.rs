@@ -1,4 +1,3 @@
-use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -27,7 +26,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexInten
             request_id: Uuid::new_v4().to_string(),
             amount: item.request.amount,
             currency: item.request.currency,
-            merchant_order_id: Uuid::new_v4().to_string(),
+            merchant_order_id: item.payment_id.clone(),
         })
     }
 }
@@ -54,10 +53,10 @@ pub struct AirwallexCard {
 }
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexCardDetails {
-    expiry_month: String,
-    expiry_year: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
     number: Secret<String, pii::CardNumber>,
-    cvc: String,
+    cvc: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -92,9 +91,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
                         number: ccard.card_number,
-                        expiry_month: ccard.card_exp_month.peek().to_string(),
-                        expiry_year: ccard.card_exp_year.peek().to_string(),
-                        cvc: ccard.card_cvc.peek().to_string(),
+                        expiry_month: ccard.card_exp_month.clone(),
+                        expiry_year: ccard.card_exp_year.clone(),
+                        cvc: ccard.card_cvc,
                     },
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
