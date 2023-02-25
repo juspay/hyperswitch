@@ -11,6 +11,7 @@ use utoipa::ToSchema;
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
