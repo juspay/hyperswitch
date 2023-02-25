@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
@@ -383,7 +383,7 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut response: HashSet<api::ListPaymentMethod> = HashSet::new();
+    let mut response: HashMap<api::ListPaymentMethod, Vec<String>> = HashMap::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -397,6 +397,7 @@ pub async fn list_payment_methods(
             payment_intent.as_ref(),
             payment_attempt.as_ref(),
             address.as_ref(),
+            mca.connector_name,
         )
         .await?;
     }
@@ -407,7 +408,13 @@ pub async fn list_payment_methods(
         .unwrap_or(Ok(services::ApplicationResponse::Json(
             api::ListPaymentMethodResponse {
                 redirect_url: merchant_account.return_url,
-                payment_methods: response,
+                payment_methods: response
+                    .into_iter()
+                    .map(|(mut key, val)| {
+                        key.eligible_connectors = Some(val);
+                        key
+                    })
+                    .collect(),
             },
         )))
 }
@@ -415,10 +422,11 @@ pub async fn list_payment_methods(
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
-    resp: &mut HashSet<api::ListPaymentMethod>,
+    resp: &mut HashMap<api::ListPaymentMethod, Vec<String>>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
+    connector_name: String,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         if let Ok(payment_method_object) =
@@ -460,7 +468,9 @@ async fn filter_payment_methods(
                 };
 
                 if filter && filter2 && filter3 {
-                    resp.insert(payment_method_object);
+                    resp.entry(payment_method_object)
+                        .or_insert_with(Vec::new)
+                        .push(connector_name.clone());
                 }
             }
         }
