@@ -1,6 +1,7 @@
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
+use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -26,7 +27,7 @@ pub struct CreateMerchantAccount {
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
 
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
