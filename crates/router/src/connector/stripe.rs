@@ -880,18 +880,16 @@ fn get_signature_elements_from_header(
 impl api::IncomingWebhook for Stripe {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let mut security_header_kvs = get_signature_elements_from_header(headers)?;
+        let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
         let signature = security_header_kvs
             .remove("v1")
@@ -905,12 +903,11 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_source_verification_message(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let mut security_header_kvs = get_signature_elements_from_header(headers)?;
+        let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
         let timestamp = security_header_kvs
             .remove("t")
@@ -920,7 +917,7 @@ impl api::IncomingWebhook for Stripe {
         Ok(format!(
             "{}.{}",
             String::from_utf8_lossy(&timestamp),
-            String::from_utf8_lossy(body)
+            String::from_utf8_lossy(request.body)
         )
         .into_bytes())
     }
@@ -941,9 +938,10 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectId = body
+        let details: stripe::StripeWebhookObjectId = request
+            .body
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
@@ -952,9 +950,10 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectEventType = body
+        let details: stripe::StripeWebhookObjectEventType = request
+            .body
             .parse_struct("StripeWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
@@ -967,9 +966,10 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectResource = body
+        let details: stripe::StripeWebhookObjectResource = request
+            .body
             .parse_struct("StripeWebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 

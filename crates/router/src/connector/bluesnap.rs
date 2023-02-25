@@ -617,20 +617,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::Md5))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody = serde_urlencoded::from_bytes(body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let webhook_body: bluesnap::BluesnapWebhookBody =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = webhook_body.auth_key;
         hex::decode(signature)
             .into_report()
@@ -638,14 +637,14 @@ impl api::IncomingWebhook for Bluesnap {
     }
     fn get_webhook_source_verification_message(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody = serde_urlencoded::from_bytes(body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let webhook_body: bluesnap::BluesnapWebhookBody =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let msg = webhook_body.reference_number + &webhook_body.contract_id;
         Ok(msg.into_bytes())
     }
@@ -667,23 +666,22 @@ impl api::IncomingWebhook for Bluesnap {
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
-            .get_webhook_source_verification_algorithm(headers, body)
+            .get_webhook_source_verification_algorithm(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(headers, body)
+            .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message = self
-            .get_webhook_source_verification_message(headers, body, merchant_id, &secret)
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         message.append(&mut secret);
         algorithm
@@ -693,21 +691,23 @@ impl api::IncomingWebhook for Bluesnap {
 
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody = serde_urlencoded::from_bytes(body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let webhook_body: bluesnap::BluesnapWebhookBody =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(webhook_body.reference_number)
     }
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: bluesnap::BluesnapWebhookObjectEventType = serde_urlencoded::from_bytes(body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let details: bluesnap::BluesnapWebhookObjectEventType =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match details.transaction_type.as_str() {
             "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
@@ -718,11 +718,12 @@ impl api::IncomingWebhook for Bluesnap {
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: bluesnap::BluesnapWebhookObjectResource = serde_urlencoded::from_bytes(body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let details: bluesnap::BluesnapWebhookObjectResource =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let res_json =
             utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
