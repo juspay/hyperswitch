@@ -116,7 +116,7 @@ pub struct StripeSetupIntentRequest {
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
     pub receipt_email: Option<pii::Secret<String, pii::Email>>,
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub shipping: Option<Shipping>,
     pub billing_details: Option<StripeBillingDetails>,
