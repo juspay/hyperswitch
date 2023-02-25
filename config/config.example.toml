@@ -153,6 +153,9 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.bluesnap]
+base_url = "https://sandbox.bluesnap.com/"
+
 [connectors.nuvei]
 base_url = "https://ppp-test.nuvei.com/"
 

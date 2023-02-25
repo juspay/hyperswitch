@@ -165,6 +165,7 @@ impl ConnectorData {
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
+            "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),

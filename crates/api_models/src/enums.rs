@@ -515,6 +515,7 @@ pub enum Connector {
     Airwallex,
     Applepay,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
