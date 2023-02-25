@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::{errors, ext_traits::Encode, pii};
+use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -38,7 +38,7 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
     /// This allows the merchant to manually select a connector with which the payment can go through
     #[schema(value_type = Option<Connector>, max_length = 255, example = "stripe")]
-    pub connector: Option<api_enums::Connector>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
@@ -797,46 +797,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
-impl TryFrom<PaymentsRequest> for PaymentsResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: PaymentsRequest) -> Result<Self, Self::Error> {
-        let payment_id = match item.payment_id {
-            Some(PaymentIdType::PaymentIntentId(id)) => Some(id),
-            _ => None,
-        };
-        let metadata = item
-            .metadata
-            .as_ref()
-            .map(Encode::<Metadata>::encode_to_value)
-            .transpose()?;
-        Ok(Self {
-            payment_id,
-            merchant_id: item.merchant_id,
-            setup_future_usage: item.setup_future_usage,
-            off_session: item.off_session,
-            shipping: item.shipping,
-            billing: item.billing,
-            metadata,
-            capture_method: item.capture_method,
-            payment_method: item.payment_method,
-            capture_on: item.capture_on,
-            payment_method_data: item
-                .payment_method_data
-                .map(PaymentMethodDataResponse::from),
-            email: item.email,
-            name: item.name,
-            phone: item.phone,
-            payment_token: item.payment_token,
-            return_url: item.return_url,
-            authentication_type: item.authentication_type,
-            statement_descriptor_name: item.statement_descriptor_name,
-            statement_descriptor_suffix: item.statement_descriptor_suffix,
-            mandate_data: item.mandate_data,
-            ..Default::default()
-        })
-    }
-}
-
 impl From<VerifyRequest> for VerifyResponse {
     fn from(item: VerifyRequest) -> Self {
         Self {
@@ -850,25 +810,6 @@ impl From<VerifyRequest> for VerifyResponse {
                 .payment_method_data
                 .map(PaymentMethodDataResponse::from),
             payment_token: item.payment_token,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsStartRequest> for PaymentsResponse {
-    fn from(item: PaymentsStartRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
-            merchant_id: Some(item.merchant_id),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsSessionRequest> for PaymentsResponse {
-    fn from(item: PaymentsSessionRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
             ..Default::default()
         }
     }
@@ -891,43 +832,6 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
             payment_id: Some(PaymentIdType::PaymentIntentId(item.payment_id)),
             merchant_id: Some(item.merchant_id),
             ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsRetrieveRequest> for PaymentsResponse {
-    // After removing the request from the payments_to_payments_response this will no longer be needed
-    fn from(item: PaymentsRetrieveRequest) -> Self {
-        let payment_id = match item.resource_id {
-            PaymentIdType::PaymentIntentId(id) => Some(id),
-            _ => None,
-        };
-
-        Self {
-            payment_id,
-            merchant_id: item.merchant_id,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsCancelRequest> for PaymentsResponse {
-    fn from(item: PaymentsCancelRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
-            cancellation_reason: item.cancellation_reason,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsCaptureRequest> for PaymentsResponse {
-    // After removing the request from the payments_to_payments_response this will no longer be needed
-    fn from(item: PaymentsCaptureRequest) -> Self {
-        Self {
-            payment_id: item.payment_id,
-            amount_received: item.amount_to_capture,
-            ..Self::default()
         }
     }
 }
@@ -1098,51 +1002,100 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay {
-        /// The merchant info
-        merchant_info: GpayMerchantInfo,
-        /// List of the allowed payment meythods
-        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
-        /// The transaction info Google Pay requires
-        transaction_info: GpayTransactionInfo,
-    },
+    Gpay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
-    Klarna {
-        /// The session token for Klarna
-        session_token: String,
-        /// The identifier for the session
-        session_id: String,
-    },
+    Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
-    Paypal {
-        /// The session token for PayPal
-        session_token: String,
-    },
+    Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
-    Applepay {
-        /// Timestamp at which session is requested
-        epoch_timestamp: u64,
-        /// Timestamp at which session expires
-        expires_at: u64,
-        /// The identifier for the merchant session
-        merchant_session_identifier: String,
-        /// Applepay generates unique ID (UUID) value
-        nonce: String,
-        /// The identifier for the merchant
-        merchant_identifier: String,
-        /// The domain name of the merchant which is registered in Apple Pay
-        domain_name: String,
-        /// The name to be displayed on Apple Pay button
-        display_name: String,
-        /// A string which represents the properties of a payment
-        signature: String,
-        /// The identifier for the operational analytics
-        operational_analytics_identifier: String,
-        /// The number of retries to get the session response
-        retries: u8,
-        /// The identifier for the connector transaction
-        psp_id: String,
-    },
+    Applepay(Box<ApplepaySessionTokenResponse>),
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpaySessionTokenResponse {
+    /// The merchant info
+    pub merchant_info: GpayMerchantInfo,
+    /// List of the allowed payment meythods
+    pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+    /// The transaction info Google Pay requires
+    pub transaction_info: GpayTransactionInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct KlarnaSessionTokenResponse {
+    /// The session token for Klarna
+    pub session_token: String,
+    /// The identifier for the session
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct PaypalSessionTokenResponse {
+    /// The session token for PayPal
+    pub session_token: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct ApplepaySessionTokenResponse {
+    /// Session object for Apple Pay
+    pub session_token_data: ApplePaySessionResponse,
+    /// Payment request object for Apple Pay
+    pub payment_request_data: ApplePayPaymentRequest,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePaySessionResponse {
+    /// Timestamp at which session is requested
+    pub epoch_timestamp: u64,
+    /// Timestamp at which session expires
+    pub expires_at: u64,
+    /// The identifier for the merchant session
+    pub merchant_session_identifier: String,
+    /// Apple pay generated unique ID (UUID) value
+    pub nonce: String,
+    /// The identifier for the merchant
+    pub merchant_identifier: String,
+    /// The domain name of the merchant which is registered in Apple Pay
+    pub domain_name: String,
+    /// The name to be displayed on Apple Pay button
+    pub display_name: String,
+    /// A string which represents the properties of a payment
+    pub signature: String,
+    /// The identifier for the operational analytics
+    pub operational_analytics_identifier: String,
+    /// The number of retries to get the session response
+    pub retries: u8,
+    /// The identifier for the connector transaction
+    pub psp_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayPaymentRequest {
+    /// The code for country
+    pub country_code: String,
+    /// The code for currency
+    pub currency_code: String,
+    /// Represents the total for the payment.
+    pub total: AmountInfo,
+    /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
+    pub merchant_capabilities: Vec<String>,
+    /// The list of supported networks
+    pub supported_networks: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct AmountInfo {
+    /// The label must be the name of the merchant.
+    pub label: String,
+    /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
+    #[serde(rename = "type")]
+    pub total_type: String,
+    /// The total amount for the payment
+    pub amount: String,
 }
 
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
