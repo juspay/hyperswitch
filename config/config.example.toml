@@ -153,7 +153,16 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.bluesnap]
+base_url = "https://sandbox.bluesnap.com/"
+
+[connectors.nuvei]
+base_url = "https://ppp-test.nuvei.com/"
+
 # This data is used to call respective connectors for wallets and cards
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [

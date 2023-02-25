@@ -4,7 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsRequestData, PhoneDetailsData},
+    connector::utils::{self, AddressDetailsData, PhoneDetailsData, RouterData},
     consts,
     core::errors,
     pii::PeekInterface,

@@ -162,6 +162,8 @@ async fn should_void_authorized_payment() {
                 enums::CaptureMethod::Manual,
             ),
             Some(types::PaymentsCancelData {
+                amount: None,
+                currency: None,
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
             }),

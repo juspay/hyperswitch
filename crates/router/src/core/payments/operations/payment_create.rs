@@ -477,7 +477,7 @@ impl PaymentCreate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
-            return_url: request.return_url.clone(),
+            return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),

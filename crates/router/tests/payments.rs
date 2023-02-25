@@ -296,7 +296,7 @@ async fn payments_create_core() {
         email: None,
         name: None,
         description: Some("Its my first payment request".to_string()),
-        return_url: Some("http://example.com/payments".to_string()),
+        return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethod::Card(api::Card {
@@ -451,7 +451,7 @@ async fn payments_create_core_adyen_no_redirect() {
         confirm: Some(true),
         customer_id: Some(customer_id),
         description: Some("Its my first payment request".to_string()),
-        return_url: Some("http://example.com/payments".to_string()),
+        return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethod::Card(api::Card {
