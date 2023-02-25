@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use api_models::{
-    self,
-    payments::{self},
-};
+use api_models::{self, payments};
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -270,7 +267,6 @@ fn infer_stripe_pay_later_type(
     }
 }
 
-//TODO: infer this from the payment_method_type
 fn infer_stripe_bank_redirect_issuer(
     payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> Result<StripePaymentMethodType, errors::ConnectorError> {
@@ -668,22 +664,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.as_ref().map(
-            |StripeNextActionResponse::RedirectToUrl(response)| {
-                let mut base_url = response.url.clone();
-                base_url.set_query(None);
-                services::RedirectForm {
-                    url: base_url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: std::collections::HashMap::from_iter(
-                        response
-                            .url
-                            .query_pairs()
-                            .map(|(k, v)| (k.to_string(), v.to_string())),
-                    ),
-                }
-            },
-        );
+        let redirection_data =
+            item.response
+                .next_action
+                .map(|StripeNextActionResponse::RedirectToUrl(response)| {
+                    services::RedirectForm::from((response.url, services::Method::Get))
+                });
 
         let mandate_reference =
             item.response
@@ -794,22 +780,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.as_ref().map(
-            |StripeNextActionResponse::RedirectToUrl(response)| {
-                let mut base_url = response.url.clone();
-                base_url.set_query(None);
-                services::RedirectForm {
-                    url: base_url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: std::collections::HashMap::from_iter(
-                        response
-                            .url
-                            .query_pairs()
-                            .map(|(k, v)| (k.to_string(), v.to_string())),
-                    ),
-                }
-            },
-        );
+        let redirection_data =
+            item.response
+                .next_action
+                .map(|StripeNextActionResponse::RedirectToUrl(response)| {
+                    services::RedirectForm::from((response.url, services::Method::Get))
+                });
 
         let mandate_reference =
             item.response

@@ -25,6 +25,7 @@ host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
+connection_timeout = 10   # Timeout for database connection in seconds
 
 # Replica SQL data store credentials
 [replica_database]
@@ -34,6 +35,7 @@ host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
+connection_timeout = 10   # Timeout for database connection in seconds
 
 # Redis credentials
 [redis]
@@ -152,6 +154,9 @@ base_url = "https://try.access.worldpay.com/"
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 # This data is used to call respective connectors for wallets and cards
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [

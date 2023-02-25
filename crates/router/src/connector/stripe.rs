@@ -16,7 +16,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, logger, services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -265,8 +265,7 @@ impl
         types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        logger::debug!(payment_sync_response=?res);
-        let response: stripe::PaymentIntentSyncResponse = res
+        let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -377,7 +376,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(stripe_payments_create_response=?res);
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -489,7 +487,6 @@ impl
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -616,7 +613,6 @@ impl
             .response
             .parse_struct("SetupIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(setup_intent_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -715,8 +711,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(response=?res);
-
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")
@@ -810,8 +804,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        logger::debug!(response=?res);
-
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")
@@ -881,18 +873,16 @@ fn get_signature_elements_from_header(
 impl api::IncomingWebhook for Stripe {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let mut security_header_kvs = get_signature_elements_from_header(headers)?;
+        let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
         let signature = security_header_kvs
             .remove("v1")
@@ -906,12 +896,11 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_source_verification_message(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let mut security_header_kvs = get_signature_elements_from_header(headers)?;
+        let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
         let timestamp = security_header_kvs
             .remove("t")
@@ -921,7 +910,7 @@ impl api::IncomingWebhook for Stripe {
         Ok(format!(
             "{}.{}",
             String::from_utf8_lossy(&timestamp),
-            String::from_utf8_lossy(body)
+            String::from_utf8_lossy(request.body)
         )
         .into_bytes())
     }
@@ -942,9 +931,10 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectId = body
+        let details: stripe::StripeWebhookObjectId = request
+            .body
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
@@ -953,9 +943,10 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectEventType = body
+        let details: stripe::StripeWebhookObjectEventType = request
+            .body
             .parse_struct("StripeWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
@@ -968,9 +959,10 @@ impl api::IncomingWebhook for Stripe {
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectResource = body
+        let details: stripe::StripeWebhookObjectResource = request
+            .body
             .parse_struct("StripeWebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 

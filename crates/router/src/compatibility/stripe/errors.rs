@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 use crate::core::errors;
 
-#[derive(Debug, router_derive::ApiError)]
+#[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
 pub enum StripeErrorCode {
     /*
@@ -93,6 +93,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such mandate")]
     MandateNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such API key")]
+    ApiKeyNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -383,6 +386,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountNotFound
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
+            errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -454,6 +458,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound
             | Self::MandateNotFound
+            | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
@@ -523,5 +528,11 @@ impl From<serde_qs::Error> for StripeErrorCode {
                 param: None,
             },
         }
+    }
+}
+
+impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        self.clone().into()
     }
 }

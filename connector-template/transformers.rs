@@ -8,7 +8,7 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {}
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from PaymentsAuthorizeRouterData".to_string()).into())
     }
 }
 
@@ -21,7 +21,7 @@ pub struct {{project-name | downcase | pascal_case}}AuthType {
 impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from ConnectorAuthType".to_string()).into())
     }
 }
 // PaymentsResponse
@@ -53,14 +53,13 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
@@ -76,9 +75,9 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {}
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from RefundsRouterData".to_string()).into())
     }
 }
 
@@ -112,19 +111,19 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from RefundsResponseRouterData".to_string()).into())
     }
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
 {
-     type Error = error_stack::Report<errors::ParsingError>;
+     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
+        Err(errors::ConnectorError::NotImplemented("try_from RefundsResponseRouterData".to_string()).into())
      }
  }
 

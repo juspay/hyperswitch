@@ -14,7 +14,12 @@ pub mod validation;
 
 /// Date-time utilities.
 pub mod date_time {
-    use time::{Instant, OffsetDateTime, PrimitiveDateTime};
+    use std::num::NonZeroU8;
+
+    use time::{
+        format_description::well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
+        Instant, OffsetDateTime, PrimitiveDateTime,
+    };
     /// Struct to represent milliseconds in time sensitive data fields
     #[derive(Debug)]
     pub struct Milliseconds(i32);
@@ -42,6 +47,16 @@ pub mod date_time {
         let start = Instant::now();
         let result = block().await;
         (result, start.elapsed().as_seconds_f64() * 1000f64)
+    }
+
+    /// Return the current date and time in UTC with the format [year]-[month]-[day]T[hour]:[minute]:[second].mmmZ Eg: 2023-02-15T13:33:18.898Z
+    pub fn date_as_yyyymmddthhmmssmmmz() -> Result<String, time::error::Format> {
+        const ISO_CONFIG: EncodedConfig = Config::DEFAULT
+            .set_time_precision(TimePrecision::Second {
+                decimal_digits: NonZeroU8::new(3),
+            })
+            .encode();
+        now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
     }
 }
 

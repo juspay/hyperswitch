@@ -80,7 +80,7 @@ where
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_data.payment_attempt.payment_id.clone(),
-        attempt_id: Some(payment_data.payment_attempt.attempt_id.clone()),
+        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
         connector_auth_type: auth_type,
@@ -533,6 +533,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
+            currency: payment_data.currency,
             confirm: true,
             payment_method_data: payment_data
                 .payment_method_data

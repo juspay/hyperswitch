@@ -123,6 +123,7 @@ pub struct Database {
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
+    pub connection_timeout: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -141,6 +142,7 @@ pub struct Connectors {
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
