@@ -80,7 +80,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
