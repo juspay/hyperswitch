@@ -139,6 +139,7 @@ pub struct Connectors {
     pub adyen: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
+    pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
