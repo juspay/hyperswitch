@@ -27,7 +27,7 @@
   *  add authorize, capture, void, refund, psync support for Nuvei (#645) (03a9f5a9)
 *  Added applepay feature (#636) (1e84c07c)
 *  add `track_caller` to functions that perform `change_context` (#592) (8d2e573a)
-*  Impelement redis cache for MCA fetch and update (#515) (963cb528)
+* Redis cache for MCA fetch and update (#515) (963cb528)
 * **api_models:**  add error structs (#532) (d107b44f)
 
 ## Bug Fixes
