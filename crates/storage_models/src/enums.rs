@@ -25,6 +25,7 @@ pub mod diesel_exports {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
     router_derive::DieselEnum,
 )]
 #[router_derive::diesel_enum]
