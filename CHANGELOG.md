@@ -20,7 +20,7 @@
 
 * **router:**
   *  include eligible connectors list in list payment methods (#644) (92771b3b)
-  *  Implement API endpoints for managing API keys (#511) (1bdc8955)
+  *  API endpoints for managing API keys (#511) (1bdc8955)
 * **connector:**
   *  [Airwallex] add authorize, capture, void, psync, Webhooks support (#646) (6a67dd8b)
   *  [Bluesnap] add authorize, capture, void, refund, psync, rsync and Webhooks support (#649) (7efdc3c5)
