@@ -94,29 +94,14 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
 }
 
 pub trait CardData {
-    fn get_card_number(&self) -> String;
-    fn get_card_expiry_month(&self) -> String;
-    fn get_card_expiry_year(&self) -> String;
-    fn get_card_expiry_year_2_digit(&self) -> String;
-    fn get_card_cvc(&self) -> String;
+    fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
-    fn get_card_number(&self) -> String {
-        self.card_number.peek().clone()
-    }
-    fn get_card_expiry_month(&self) -> String {
-        self.card_exp_month.peek().clone()
-    }
-    fn get_card_expiry_year(&self) -> String {
-        self.card_exp_year.peek().clone()
-    }
-    fn get_card_expiry_year_2_digit(&self) -> String {
-        let year = self.card_exp_year.peek().clone();
-        year[year.len() - 2..].to_string()
-    }
-    fn get_card_cvc(&self) -> String {
-        self.card_cvc.peek().clone()
+    fn get_card_expiry_year_2_digit(&self) -> Secret<String> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        Secret::new(year[year.len() - 2..].to_string())
     }
 }
 pub trait PhoneDetailsData {
