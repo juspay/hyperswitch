@@ -43,8 +43,23 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = [
+    "aci",
+    "adyen",
+    "authorizedotnet",
+    "braintree",
+    "checkout",
+    "cybersource",
+    "fiserv",
+    "globalpay",
+    "nuvei",
+    "payu",
+    "shift4",
+    "stripe",
+    "worldline",
+    "worldpay",
+]
 
 [refund]
 max_attempts = 10
@@ -103,6 +118,9 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.worldline]
 base_url = "https://eu.sandbox.api-ingenico.com/"
+
+[connectors.nuvei]
+base_url = "https://ppp-test.nuvei.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

@@ -10,6 +10,7 @@ pub(crate) struct ConnectorAuthentication {
     pub cybersource: Option<SignatureKey>,
     pub fiserv: Option<SignatureKey>,
     pub globalpay: Option<HeaderKey>,
+    pub nuvei: Option<SignatureKey>,
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
