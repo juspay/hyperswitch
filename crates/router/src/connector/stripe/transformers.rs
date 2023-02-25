@@ -597,9 +597,9 @@ impl<F, T>
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
-                    StripePaymentMethodOptions::Klarna {} => None,
-                    StripePaymentMethodOptions::Affirm {} => None,
-                    StripePaymentMethodOptions::AfterpayClearpay {} => None,
+                    StripePaymentMethodOptions::Klarna {}
+                    | StripePaymentMethodOptions::Affirm {}
+                    | StripePaymentMethodOptions::AfterpayClearpay {} => None,
                 });
 
         let error_res =
