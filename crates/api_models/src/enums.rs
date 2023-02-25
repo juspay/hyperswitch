@@ -559,6 +559,7 @@ pub enum RoutableConnectors {
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
