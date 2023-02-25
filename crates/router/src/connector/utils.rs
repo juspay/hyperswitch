@@ -38,6 +38,7 @@ pub trait PaymentsRequestData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
+    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
 }
@@ -78,6 +79,13 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             .as_ref()
             .and_then(|a| a.phone.as_ref())
             .ok_or_else(missing_field_err("billing.phone"))
+    }
+    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .ok_or_else(missing_field_err("billing.address"))
     }
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
