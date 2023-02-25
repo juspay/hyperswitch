@@ -150,6 +150,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::KlarnaIssuer,
         api_models::payments::AffirmIssuer,
         api_models::payments::AfterpayClearpayIssuer,
+        api_models::payments::KlarnaIssuer,
         api_models::payments::NextAction,
         api_models::payments::PayLaterData,
         api_models::payments::MandateData,
