@@ -44,7 +44,7 @@ locker_decryption_key2 = ""
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline"]
+cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline", "dlocal"]
 
 [refund]
 max_attempts = 10
@@ -103,6 +103,9 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.worldline]
 base_url = "https://eu.sandbox.api-ingenico.com/"
+
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
