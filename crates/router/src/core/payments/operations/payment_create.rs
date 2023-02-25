@@ -259,7 +259,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         request: &api::PaymentsRequest,
         _previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        let request_connector = request.connector.map(|connector| connector.to_string());
+        let request_connector = request
+            .connector
+            .as_ref()
+            .and_then(|connector| connector.first().map(|c| c.to_string()));
         helpers::get_connector_default(state, request_connector.as_ref()).await
     }
 }
