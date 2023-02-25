@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    pii::{self, PeekInterface, Secret},
+    pii::{self, Secret},
     types::{
         self, api,
         storage::enums,
@@ -31,9 +31,9 @@ pub enum PaymentMethodDetails {
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     card_number: Secret<String, pii::CardNumber>,
-    expiration_month: String,
-    expiration_year: String,
-    security_code: String,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    security_code: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -45,13 +45,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
         };
         let payment_method = match item.request.payment_method_data.clone() {
             api::PaymentMethod::Card(ccard) => Ok(PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number.clone(),
-                expiration_month: ccard.card_exp_month.peek().clone(),
-                expiration_year: ccard.card_exp_year.peek().clone(),
-                security_code: ccard.card_cvc.peek().clone(),
+                card_number: ccard.card_number,
+                expiration_month: ccard.card_exp_month.clone(),
+                expiration_year: ccard.card_exp_year.clone(),
+                security_code: ccard.card_cvc,
             })),
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Unknown payment method".to_string(),
+                "payment method".to_string(),
             )),
         }?;
         Ok(Self {
