@@ -18,7 +18,7 @@ pub enum PaymentOp {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
-    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     #[schema(
         value_type = Option<String>,
@@ -574,7 +574,7 @@ pub struct NextAction {
 
 #[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
-    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
     #[schema(
         min_length = 30,
@@ -1096,51 +1096,100 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay {
-        /// The merchant info
-        merchant_info: GpayMerchantInfo,
-        /// List of the allowed payment meythods
-        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
-        /// The transaction info Google Pay requires
-        transaction_info: GpayTransactionInfo,
-    },
+    Gpay(Box<GpayData>),
     /// The session response structure for Klarna
-    Klarna {
-        /// The session token for Klarna
-        session_token: String,
-        /// The identifier for the session
-        session_id: String,
-    },
+    Klarna(Box<KlarnaData>),
     /// The session response structure for PayPal
-    Paypal {
-        /// The session token for PayPal
-        session_token: String,
-    },
+    Paypal(Box<PaypalData>),
     /// The session response structure for Apple Pay
-    Applepay {
-        /// Timestamp at which session is requested
-        epoch_timestamp: u64,
-        /// Timestamp at which session expires
-        expires_at: u64,
-        /// The identifier for the merchant session
-        merchant_session_identifier: String,
-        /// Applepay generates unique ID (UUID) value
-        nonce: String,
-        /// The identifier for the merchant
-        merchant_identifier: String,
-        /// The domain name of the merchant which is registered in Apple Pay
-        domain_name: String,
-        /// The name to be displayed on Apple Pay button
-        display_name: String,
-        /// A string which represents the properties of a payment
-        signature: String,
-        /// The identifier for the operational analytics
-        operational_analytics_identifier: String,
-        /// The number of retries to get the session response
-        retries: u8,
-        /// The identifier for the connector transaction
-        psp_id: String,
-    },
+    Applepay(Box<ApplepayData>),
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpayData {
+    /// The merchant info
+    pub merchant_info: GpayMerchantInfo,
+    /// List of the allowed payment meythods
+    pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+    /// The transaction info Google Pay requires
+    pub transaction_info: GpayTransactionInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct KlarnaData {
+    /// The session token for Klarna
+    pub session_token: String,
+    /// The identifier for the session
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct PaypalData {
+    /// The session token for PayPal
+    pub session_token: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct ApplepayData {
+    /// Session object for Apple Pay
+    pub session_object: ApplePaySessionObject,
+    /// Payment request object for Apple Pay
+    pub payment_request_object: ApplePayRequest,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePaySessionObject {
+    /// Timestamp at which session is requested
+    pub epoch_timestamp: u64,
+    /// Timestamp at which session expires
+    pub expires_at: u64,
+    /// The identifier for the merchant session
+    pub merchant_session_identifier: String,
+    /// Applepay generates unique ID (UUID) value
+    pub nonce: String,
+    /// The identifier for the merchant
+    pub merchant_identifier: String,
+    /// The domain name of the merchant which is registered in Apple Pay
+    pub domain_name: String,
+    /// The name to be displayed on Apple Pay button
+    pub display_name: String,
+    /// A string which represents the properties of a payment
+    pub signature: String,
+    /// The identifier for the operational analytics
+    pub operational_analytics_identifier: String,
+    /// The number of retries to get the session response
+    pub retries: u8,
+    /// The identifier for the connector transaction
+    pub psp_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayRequest {
+    /// The code for country
+    pub country_code: String,
+    /// The code for currency
+    pub currency_code: String,
+    /// Represents the total for the payment.
+    pub total: AmountInfo,
+    /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
+    pub merchant_capabilities: Vec<String>,
+    /// The list of supported networks
+    pub supported_networks: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct AmountInfo {
+    /// the label must be non-empty to pass validation.
+    pub label: String,
+    /// The type of label
+    #[serde(rename = "type")]
+    pub label_type: String,
+    /// The total amount for the payment
+    pub amount: String,
 }
 
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
@@ -1172,7 +1221,7 @@ pub struct PaymentsCancelRequest {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsStartRequest {
-    /// Unique identifier for the payment. This ensures impotency for multiple payments
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     pub payment_id: String,
     /// The identifier for the Merchant Account.

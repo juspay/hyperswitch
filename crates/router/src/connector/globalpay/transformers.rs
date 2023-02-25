@@ -27,6 +27,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             .map(|o| o.to_string())
             .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
         let card = item.get_card()?;
+        let expiry_year = card.get_card_expiry_year_2_digit();
         Ok(Self {
             account_name,
             amount: Some(item.request.amount.to_string()),
@@ -39,10 +40,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             }),
             payment_method: requests::PaymentMethod {
                 card: Some(requests::Card {
-                    number: card.get_card_number(),
-                    expiry_month: card.get_card_expiry_month(),
-                    expiry_year: card.get_card_expiry_year_2_digit(),
-                    cvv: card.get_card_cvc(),
+                    number: card.card_number,
+                    expiry_month: card.card_exp_month,
+                    expiry_year,
+                    cvv: card.card_cvc,
                     ..Default::default()
                 }),
                 ..Default::default()

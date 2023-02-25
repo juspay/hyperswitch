@@ -51,3 +51,8 @@ api_secret = "API Secret Key"
 
 [multisafepay]
 api_key = ""
+
+[dlocal]
+key1 = "key1"
+api_key = "api_key"
+api_secret = "secret"

@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::RefundsRequestData,
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -71,12 +70,14 @@ impl From<api_models::payments::PaymentMethod> for PaymentDetails {
     fn from(value: api_models::payments::PaymentMethod) -> Self {
         match value {
             api::PaymentMethod::Card(ref ccard) => {
-                let expiry_month = ccard.card_exp_month.peek().clone();
-                let expiry_year = ccard.card_exp_year.peek().clone();
-
                 Self::CreditCard(CreditCardDetails {
                     card_number: ccard.card_number.clone(),
-                    expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                    // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                    expiration_date: ccard
+                        .card_exp_month
+                        .clone()
+                        .zip(ccard.card_exp_year.clone())
+                        .map(|(expiry_month, expiry_year)| format!("{expiry_year}-{expiry_month}")),
                     card_code: Some(ccard.card_cvc.clone()),
                 })
             }

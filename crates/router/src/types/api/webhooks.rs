@@ -1,6 +1,6 @@
 pub use api_models::webhooks::{
-    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, OutgoingWebhook,
-    OutgoingWebhookContent, WebhookFlow,
+    IncomingWebhookDetails, IncomingWebhookEvent, IncomingWebhookRequestDetails,
+    MerchantWebhookConfig, OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use error_stack::ResultExt;
 
@@ -16,8 +16,7 @@ use crate::{
 pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_body_decoding_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::DecodeMessage + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::NoAlgorithm))
     }
@@ -32,23 +31,21 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     fn get_webhook_body_decoding_message(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(body.to_vec())
+        Ok(request.body.to_vec())
     }
 
     async fn decode_webhook_body(
         &self,
         db: &dyn StorageInterface,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let algorithm = self.get_webhook_body_decoding_algorithm(headers, body)?;
+        let algorithm = self.get_webhook_body_decoding_algorithm(request)?;
 
         let message = self
-            .get_webhook_body_decoding_message(headers, body)
+            .get_webhook_body_decoding_message(request)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let secret = self
             .get_webhook_body_decoding_merchant_secret(db, merchant_id)
@@ -62,8 +59,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     fn get_webhook_source_verification_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::NoAlgorithm))
     }
@@ -78,16 +74,14 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     fn get_webhook_source_verification_signature(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 
     fn get_webhook_source_verification_message(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -97,23 +91,22 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
-            .get_webhook_source_verification_algorithm(headers, body)
+            .get_webhook_source_verification_algorithm(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(headers, body)
+            .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(db, merchant_id)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(headers, body, merchant_id, &secret)
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         algorithm
@@ -123,21 +116,22 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError>;
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError>;
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError>;
 
     fn get_webhook_api_response(
         &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::StatusOk)

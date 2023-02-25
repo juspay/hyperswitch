@@ -151,6 +151,7 @@ pub struct PaymentsSessionData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyRequestData {
+    pub currency: storage_enums::Currency,
     pub payment_method_data: payments::PaymentMethod,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,

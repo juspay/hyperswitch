@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use error_stack::report;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
 };
 
@@ -62,15 +62,15 @@ pub enum PaymentDetails {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CardDetails {
     #[serde(rename = "card.number")]
-    pub card_number: String,
+    pub card_number: Secret<String, common_utils::pii::CardNumber>,
     #[serde(rename = "card.holder")]
-    pub card_holder: String,
+    pub card_holder: Secret<String>,
     #[serde(rename = "card.expiryMonth")]
-    pub card_expiry_month: String,
+    pub card_expiry_month: Secret<String>,
     #[serde(rename = "card.expiryYear")]
-    pub card_expiry_year: String,
+    pub card_expiry_year: Secret<String>,
     #[serde(rename = "card.cvv")]
-    pub card_cvv: String,
+    pub card_cvv: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -100,13 +100,13 @@ pub enum AciPaymentType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_details: PaymentDetails = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => PaymentDetails::Card(CardDetails {
-                card_number: ccard.card_number.peek().clone(),
-                card_holder: ccard.card_holder_name.peek().clone(),
-                card_expiry_month: ccard.card_exp_month.peek().clone(),
-                card_expiry_year: ccard.card_exp_year.peek().clone(),
-                card_cvv: ccard.card_cvc.peek().clone(),
+        let payment_details: PaymentDetails = match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ccard) => PaymentDetails::Card(CardDetails {
+                card_number: ccard.card_number,
+                card_holder: ccard.card_holder_name,
+                card_expiry_month: ccard.card_exp_month,
+                card_expiry_year: ccard.card_exp_year,
+                card_cvv: ccard.card_cvc,
             }),
             api::PaymentMethod::BankTransfer => PaymentDetails::BankAccount(BankDetails {
                 account_holder: "xyz".to_string(),

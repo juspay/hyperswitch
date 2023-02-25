@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use api_models::{admin, enums as api_enums};
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -433,17 +434,16 @@ async fn filter_payment_methods(
                     payment_method_object.accepted_countries,
                     req.accepted_countries,
                     filter,
-                ) = filter_accepted_enum_based(
+                ) = filter_pm_country_based(
                     &payment_method_object.accepted_countries,
                     &req.accepted_countries,
                 );
-
                 let filter2;
                 (
                     payment_method_object.accepted_currencies,
                     req.accepted_currencies,
                     filter2,
-                ) = filter_accepted_enum_based(
+                ) = filter_pm_currencies_based(
                     &payment_method_object.accepted_currencies,
                     &req.accepted_currencies,
                 );
@@ -466,21 +466,97 @@ async fn filter_payment_methods(
     Ok(())
 }
 
+fn filter_pm_country_based(
+    accepted_countries: &Option<admin::AcceptedCountries>,
+    req_country_list: &Option<Vec<String>>,
+) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
+    match (accepted_countries, req_country_list) {
+        (None, None) => (None, None, true),
+        (None, Some(ref r)) => (None, Some(r.to_vec()), false),
+        (Some(l), None) => (Some(l.to_owned()), None, true),
+        (Some(l), Some(ref r)) => {
+            let enable_only = if l.enable_all {
+                filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
+            } else {
+                filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
+            };
+            (
+                Some(admin::AcceptedCountries {
+                    enable_all: l.enable_all,
+                    enable_only,
+                    disable_only: None,
+                }),
+                Some(r.to_vec()),
+                true,
+            )
+        }
+    }
+}
+
+fn filter_pm_currencies_based(
+    accepted_currency: &Option<admin::AcceptedCurrencies>,
+    req_currency_list: &Option<Vec<api_enums::Currency>>,
+) -> (
+    Option<admin::AcceptedCurrencies>,
+    Option<Vec<api_enums::Currency>>,
+    bool,
+) {
+    match (accepted_currency, req_currency_list) {
+        (None, None) => (None, None, true),
+        (None, Some(ref r)) => (None, Some(r.to_vec()), false),
+        (Some(l), None) => (Some(l.to_owned()), None, true),
+        (Some(l), Some(ref r)) => {
+            let enable_only = if l.enable_all {
+                filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
+            } else {
+                filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
+            };
+            (
+                Some(admin::AcceptedCurrencies {
+                    enable_all: l.enable_all,
+                    enable_only,
+                    disable_only: None,
+                }),
+                Some(r.to_vec()),
+                true,
+            )
+        }
+    }
+}
+
 fn filter_accepted_enum_based<T: Eq + std::hash::Hash + Clone>(
     left: &Option<Vec<T>>,
     right: &Option<Vec<T>>,
-) -> (Option<Vec<T>>, Option<Vec<T>>, bool) {
+) -> Option<Vec<T>> {
     match (left, right) {
         (Some(ref l), Some(ref r)) => {
             let a: HashSet<&T> = HashSet::from_iter(l.iter());
             let b: HashSet<&T> = HashSet::from_iter(r.iter());
 
             let y: Vec<T> = a.intersection(&b).map(|&i| i.to_owned()).collect();
-            (Some(y), Some(r.to_vec()), true)
+            Some(y)
         }
-        (Some(ref l), None) => (Some(l.to_vec()), None, true),
-        (None, Some(ref r)) => (None, Some(r.to_vec()), false),
-        (None, None) => (None, None, true),
+        (Some(ref l), None) => Some(l.to_vec()),
+        (_, _) => None,
+    }
+}
+
+fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
+    left: &Option<Vec<T>>,
+    right: &Option<Vec<T>>,
+) -> Option<Vec<T>> {
+    match (left, right) {
+        (Some(ref l), Some(ref r)) => {
+            let mut enabled = Vec::new();
+            for element in r {
+                if !l.contains(element) {
+                    enabled.push(element.to_owned());
+                }
+            }
+            Some(enabled)
+        }
+        (None, Some(r)) => Some(r.to_vec()),
+        (_, _) => None,
     }
 }
 
@@ -524,9 +600,17 @@ async fn filter_payment_country_based(
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries
-                .clone()
-                .map_or(true, |ac| ac.contains(country))
+            pm.accepted_countries.as_ref().map_or(true, |ac| {
+                if ac.enable_all {
+                    ac.disable_only.as_ref().map_or(true, |disable_countries| {
+                        disable_countries.contains(country)
+                    })
+                } else {
+                    ac.enable_only
+                        .as_ref()
+                        .map_or(false, |enable_countries| enable_countries.contains(country))
+                }
+            })
         })
     }))
 }
@@ -536,9 +620,17 @@ fn filter_payment_currency_based(
     pm: &api::ListPaymentMethod,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
-        pm.accepted_currencies
-            .clone()
-            .map_or(true, |ac| ac.contains(&currency.foreign_into()))
+        pm.accepted_currencies.as_ref().map_or(true, |ac| {
+            if ac.enable_all {
+                ac.disable_only.as_ref().map_or(true, |disable_currencies| {
+                    disable_currencies.contains(&currency.foreign_into())
+                })
+            } else {
+                ac.enable_only.as_ref().map_or(false, |enable_currencies| {
+                    enable_currencies.contains(&currency.foreign_into())
+                })
+            }
+        })
     })
 }
 

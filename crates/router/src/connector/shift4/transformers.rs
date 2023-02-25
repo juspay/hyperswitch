@@ -1,8 +1,8 @@
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
 };
 
@@ -22,17 +22,17 @@ pub struct DeviceData;
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: String,
-    exp_month: String,
-    exp_year: String,
-    cardholder_name: String,
+    number: Secret<String, common_utils::pii::CardNumber>,
+    exp_month: Secret<String>,
+    exp_year: Secret<String>,
+    cardholder_name: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ccard) => {
                 let submit_for_settlement = matches!(
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None
@@ -40,10 +40,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
                 let payment_request = Self {
                     amount: item.request.amount.to_string(),
                     card: Card {
-                        number: ccard.card_number.peek().clone(),
-                        exp_month: ccard.card_exp_month.peek().clone(),
-                        exp_year: ccard.card_exp_year.peek().clone(),
-                        cardholder_name: ccard.card_holder_name.peek().clone(),
+                        number: ccard.card_number,
+                        exp_month: ccard.card_exp_month,
+                        exp_year: ccard.card_exp_year,
+                        cardholder_name: ccard.card_holder_name,
                     },
                     currency: item.request.currency.to_string(),
                     description: item.description.clone(),

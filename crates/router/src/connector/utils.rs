@@ -43,6 +43,7 @@ pub trait RouterData {
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
+    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
 }
 
@@ -74,6 +75,13 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
+    }
+    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .ok_or_else(missing_field_err("billing.address"))
     }
     fn get_return_url(&self) -> Result<String, Error> {
         self.return_url
@@ -133,30 +141,15 @@ pub enum CardIssuer {
 }
 
 pub trait CardData {
-    fn get_card_number(&self) -> String;
-    fn get_card_expiry_month(&self) -> String;
-    fn get_card_expiry_year(&self) -> String;
-    fn get_card_expiry_year_2_digit(&self) -> String;
-    fn get_card_cvc(&self) -> String;
+    fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
 }
 
 impl CardData for api::Card {
-    fn get_card_number(&self) -> String {
-        self.card_number.peek().clone()
-    }
-    fn get_card_expiry_month(&self) -> String {
-        self.card_exp_month.peek().clone()
-    }
-    fn get_card_expiry_year(&self) -> String {
-        self.card_exp_year.peek().clone()
-    }
-    fn get_card_expiry_year_2_digit(&self) -> String {
-        let year = self.card_exp_year.peek().clone();
-        year[year.len() - 2..].to_string()
-    }
-    fn get_card_cvc(&self) -> String {
-        self.card_cvc.peek().clone()
+    fn get_card_expiry_year_2_digit(&self) -> Secret<String> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        Secret::new(year[year.len() - 2..].to_string())
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek().clone().as_str())

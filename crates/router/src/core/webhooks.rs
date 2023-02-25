@@ -211,11 +211,16 @@ pub async fn webhooks_core(
 
     let connector = connector.connector;
 
+    let mut request_details = api::IncomingWebhookRequestDetails {
+        method: req.method().clone(),
+        headers: req.headers(),
+        body: &body,
+    };
+
     let source_verified = connector
         .verify_webhook_source(
             &*state.store,
-            req.headers(),
-            &body,
+            &request_details,
             &merchant_account.merchant_id,
         )
         .await
@@ -225,16 +230,17 @@ pub async fn webhooks_core(
     let decoded_body = connector
         .decode_webhook_body(
             &*state.store,
-            req.headers(),
-            &body,
+            &request_details,
             &merchant_account.merchant_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("There was an error in incoming webhook body decoding")?;
 
+    request_details.body = &decoded_body;
+
     let event_type = connector
-        .get_webhook_event_type(&decoded_body)
+        .get_webhook_event_type(&request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not find event type in incoming webhook body")?;
 
@@ -248,12 +254,12 @@ pub async fn webhooks_core(
 
     if process_webhook_further {
         let object_ref_id = connector
-            .get_webhook_object_reference_id(&decoded_body)
+            .get_webhook_object_reference_id(&request_details)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
-            .get_webhook_resource_object(&decoded_body)
+            .get_webhook_resource_object(&request_details)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not find resource object in incoming webhook body")?;
 
@@ -277,6 +283,9 @@ pub async fn webhooks_core(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for payments failed")?,
+
+            api::WebhookFlow::ReturnResponse => {}
+
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
@@ -284,7 +293,7 @@ pub async fn webhooks_core(
     }
 
     let response = connector
-        .get_webhook_api_response()
+        .get_webhook_api_response(&request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not get incoming webhook api response from connector")?;
 

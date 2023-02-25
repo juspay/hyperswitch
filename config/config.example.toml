@@ -157,6 +157,9 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 [connectors.multisafepay]
 base_url = "https://testapi.multisafepay.com/"
 
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
