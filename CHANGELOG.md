@@ -1,3 +1,15 @@
+# 0.3.0 (2023-02-25)
+
+## New Features
+
+* **router:**  include eligible connectors list in list payment methods (#644) (92771b3b)
+*  added applepay feature (#636) (1e84c07c)
+
+##### Refactors
+
+* **router:**  update payments api contract to accept a list of connectors (#643) (8f1f626c)
+* **compatibility:**  add additional fields to stripe payment and refund response types (#618) (2ea09e34)
+
 # 0.2.1 (2023-02-17)
 
 ## Fixes
