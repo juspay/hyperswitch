@@ -153,7 +153,6 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
-# This data is used to call respective connectors for wallets and cards
 [connectors.multisafepay]
 base_url = "https://testapi.multisafepay.com/"
 

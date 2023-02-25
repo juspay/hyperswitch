@@ -120,13 +120,18 @@ pub enum Gateway {
     Visa = 1,
 }
 
-impl From<utils::CardIssuer> for Gateway {
-    fn from(issuer: utils::CardIssuer) -> Self {
+impl TryFrom<utils::CardIssuer> for Gateway {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(issuer: utils::CardIssuer) -> Result<Self, Self::Error> {
         match issuer {
-            utils::CardIssuer::AmericanExpress => Self::Amex,
-            utils::CardIssuer::Master => Self::MasterCard,
-            utils::CardIssuer::Discover => Self::Discover,
-            _ => Self::Visa,
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            utils::CardIssuer::Master => Ok(Self::MasterCard),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: format!("{issuer}"),
+                connector: "worldline",
+            }
+            .into()),
         }
     }
 }
@@ -150,7 +155,7 @@ fn make_card_request(
         expiry_date,
     };
     #[allow(clippy::as_conversions)]
-    let payment_product_id = Gateway::from(ccard.get_card_issuer()?) as u16;
+    let payment_product_id = Gateway::try_from(ccard.get_card_issuer()?)? as u16;
     let card_payment_method_specific_input = CardPaymentMethod {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),

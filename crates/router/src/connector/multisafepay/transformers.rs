@@ -172,7 +172,7 @@ pub struct ShoppingCart {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
-    pub _type: Type,
+    pub payment_type: Type,
     pub gateway: Gateway,
     pub order_id: String,
     pub currency: String,
@@ -210,7 +210,7 @@ impl From<utils::CardIssuer> for Gateway {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let _type = match item.request.payment_method_data {
+        let payment_type = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref _ccard) => Type::Direct,
             api::PaymentMethod::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
@@ -218,9 +218,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
 
         let gateway = match item.request.payment_method_data {
             api::PaymentMethod::Card(ref ccard) => Gateway::from(ccard.get_card_issuer()?),
-            api::PaymentMethod::PayLater(ref _paylater) => Gateway::Klarna,
+            api::PaymentMethod::PayLater(api_models::payments::PayLaterData::KlarnaRedirect {
+                billing_email: _,
+                billing_country: _,
+            }) => Gateway::Klarna,
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not Implemented".to_string(),
+                "Payment method".to_string(),
             ))?,
         };
         let description = item.get_description()?;
@@ -311,32 +314,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 }),
             },
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not Implemented".to_string(),
+                "Payment method".to_string(),
             ))?,
         };
 
-        let checkout_options = CheckoutOptions {
-            validate_cart: Some(false),
-            tax_tables: TaxObject {
-                default: DefaultObject {
-                    shipping_taxed: false,
-                    rate: 0.0,
-                },
-            },
-        };
-
-        let shopping_cart = ShoppingCart {
-            items: vec![Item {
-                name: String::from("Item"),
-                #[allow(clippy::as_conversions)]
-                unit_price: item.request.amount as f64 / 100.00,
-                description: Some(description.clone()),
-                quantity: 1,
-            }],
-        };
-
         Ok(Self {
-            _type,
+            payment_type,
             gateway,
             order_id: item.payment_id.to_string(),
             currency: item.request.currency.to_string(),
@@ -346,8 +329,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             customer: Some(customer),
             delivery: Some(delivery),
             gateway_info: Some(gateway_info),
-            checkout_options: Some(checkout_options),
-            shopping_cart: Some(shopping_cart),
+            checkout_options: None,
+            shopping_cart: None,
             capture: None,
             items: None,
             recurring_model: if item.request.setup_future_usage
@@ -378,8 +361,8 @@ pub struct MultisafepayAuthType {
 
 impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
                 api_key: api_key.to_string(),
             })
@@ -411,7 +394,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Data {
     #[serde(rename = "type")]
-    pub _type: Option<String>,
+    pub payment_type: Option<String>,
     pub order_id: Option<String>,
     pub currency: Option<String>,
     pub amount: Option<i64>,
@@ -436,7 +419,7 @@ pub struct MultisafepayPaymentDetails {
     pub recurring_id: Option<String>,
     pub recurring_model: Option<String>,
     #[serde(rename = "type")]
-    pub _type: Option<String>,
+    pub payment_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -491,7 +474,6 @@ impl<F, T>
                     .and_then(|payment_details| payment_details.recurring_id),
                 connector_metadata: None,
             }),
-            amount_captured: Some(item.response.data.amount.unwrap_or(0)),
             ..item.data
         })
     }
@@ -501,30 +483,22 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
-    pub currency: String,
+    pub currency: storage_models::enums::Currency,
     pub amount: i64,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,
-    pub checkout_data: ShoppingCart,
+    pub checkout_data: Option<ShoppingCart>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            currency: item.request.currency.to_string(),
+            currency: item.request.currency,
             amount: item.request.amount,
             description: item.description.clone(),
-            refund_order_id: Some(Uuid::new_v4().to_string()),
-            checkout_data: ShoppingCart {
-                items: vec![Item {
-                    name: String::from("Item"),
-                    #[allow(clippy::as_conversions)]
-                    unit_price: item.request.amount as f64 / 100.00,
-                    description: None,
-                    quantity: 1,
-                }],
-            },
+            refund_order_id: Some(item.request.refund_id.clone()),
+            checkout_data: None,
         })
     }
 }
