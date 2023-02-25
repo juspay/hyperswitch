@@ -803,18 +803,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Airwallex {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        _body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let security_header = headers
+        let security_header = request
+            .headers
             .get("x-signature")
             .map(|header_value| {
                 header_value
@@ -833,12 +832,12 @@ impl api::IncomingWebhook for Airwallex {
 
     fn get_webhook_source_verification_message(
         &self,
-        headers: &actix_web::http::header::HeaderMap,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let timestamp = headers
+        let timestamp = request
+            .headers
             .get("x-timestamp")
             .map(|header_value| {
                 header_value
@@ -850,7 +849,7 @@ impl api::IncomingWebhook for Airwallex {
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
             .into_report()??;
 
-        Ok(format!("{}{}", timestamp, String::from_utf8_lossy(body)).into_bytes())
+        Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
     async fn get_webhook_source_verification_merchant_secret(
@@ -868,9 +867,10 @@ impl api::IncomingWebhook for Airwallex {
 
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let details: airwallex::AirwallexWebhookData = body
+        let details: airwallex::AirwallexWebhookData = request
+            .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
@@ -879,9 +879,10 @@ impl api::IncomingWebhook for Airwallex {
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: airwallex::AirwallexWebhookData = body
+        let details: airwallex::AirwallexWebhookData = request
+            .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
@@ -894,9 +895,10 @@ impl api::IncomingWebhook for Airwallex {
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: airwallex::AirwallexWebhookObjectResource = body
+        let details: airwallex::AirwallexWebhookObjectResource = request
+            .body
             .parse_struct("AirwallexWebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
