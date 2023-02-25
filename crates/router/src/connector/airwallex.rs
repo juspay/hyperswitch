@@ -6,14 +6,15 @@ use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as airwallex;
 
-use super::utils::AccessTokenRequestInfo;
+use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger,
+    db::StorageInterface,
+    headers, logger, routes,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -284,7 +285,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &crate::routes::AppState,
+        app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         let integ: Box<
             &(dyn ConnectorIntegration<
@@ -748,12 +749,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = super::utils::RefundsRequestData::get_connector_refund_id(&req.request)?;
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
             "/api/v1/pa/refunds/",
-            refund_id
+            req.request.get_connector_refund_id()?
         ))
     }
 
@@ -854,7 +854,7 @@ impl api::IncomingWebhook for Airwallex {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        db: &dyn crate::db::StorageInterface,
+        db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
