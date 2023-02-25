@@ -101,7 +101,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => PaymentDetails::Card(CardDetails {
+            api::PaymentMethodData::Card(ccard) => PaymentDetails::Card(CardDetails {
                 card_number: ccard.card_number,
                 card_holder: ccard.card_holder_name,
                 card_expiry_month: ccard.card_exp_month,

@@ -73,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
         let country = address.get_country()?;
         let name = get_payer_name(address);
         match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 let should_capture = matches!(
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)

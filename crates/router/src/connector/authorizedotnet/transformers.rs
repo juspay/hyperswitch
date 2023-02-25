@@ -71,7 +71,7 @@ enum PaymentDetails {
 impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
     fn from(value: api_models::payments::PaymentMethodData) -> Self {
         match value {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 Self::CreditCard(CreditCardDetails {
                     card_number: ccard.card_number.clone(),
                     // expiration_date: format!("{expiry_year}-{expiry_month}").into(),

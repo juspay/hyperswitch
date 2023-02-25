@@ -980,8 +980,6 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        logger::debug!(stripe_redirect_response=?query);
-
         Ok(query
             .redirect_status
             .map_or(

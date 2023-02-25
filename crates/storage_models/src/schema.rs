@@ -244,9 +244,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     payment_intent (id) {
         id -> Int4,
         payment_id -> Varchar,

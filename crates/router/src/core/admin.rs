@@ -240,7 +240,7 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-fn validate_pm_enabled(pm: &api::PaymentMethods) -> RouterResult<()> {
+fn validate_pm_enabled(pm: &api::PaymentMethodsEnabled) -> RouterResult<()> {
     if let Some(ac) = pm.accepted_countries.to_owned() {
         when(ac.enable_all && ac.enable_only.is_some(), || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -292,7 +292,7 @@ pub async fn create_payment_connector(
         Some(val) => {
             for pm in val.into_iter() {
                 validate_pm_enabled(&pm)?;
-                let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
+                let pm_value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&pm)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed while encoding to serde_json::Value, PaymentMethod",
@@ -422,7 +422,7 @@ pub async fn update_payment_connector(
                 validate_pm_enabled(payment_method)
                     .change_context(errors::ParsingError)
                     .attach_printable("Validation for accepted country and currency failed")?;
-                utils::Encode::<api::PaymentMethods>::encode_to_value(payment_method)
+                utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(payment_method)
             })
             .collect::<Vec<serde_json::Value>>()
     });
