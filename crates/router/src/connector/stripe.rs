@@ -15,7 +15,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, logger, services,
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -264,7 +264,6 @@ impl
         types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        logger::debug!(payment_sync_response=?res);
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -376,7 +375,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(stripe_payments_create_response=?res);
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -488,7 +486,6 @@ impl
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -615,7 +612,6 @@ impl
             .response
             .parse_struct("SetupIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(setup_intent_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -714,8 +710,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(response=?res);
-
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")
@@ -809,8 +803,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        logger::debug!(response=?res);
-
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")
