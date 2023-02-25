@@ -1,8 +1,5 @@
-use std::str::FromStr;
-
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use masking::PeekInterface;
 use storage_models::enums;
 
 use super::{requests::*, response::*};
@@ -12,30 +9,16 @@ use crate::{
     utils::OptionExt,
 };
 
-fn parse_int<T: FromStr>(
-    val: masking::Secret<String, masking::WithType>,
-) -> CustomResult<T, errors::ConnectorError>
-where
-    <T as FromStr>::Err: Sync,
-{
-    let res = val.peek().parse::<T>();
-    if let Ok(val) = res {
-        Ok(val)
-    } else {
-        Err(errors::ConnectorError::RequestEncodingFailed)?
-    }
-}
-
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethod,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: parse_int::<u8>(card.card_exp_month)?,
-                year: parse_int::<u16>(card.card_exp_year)?,
+                month: card.card_exp_month,
+                year: card.card_exp_year,
             },
-            card_number: card.card_number.peek().to_string(),
+            card_number: card.card_number,
             ..CardPayment::default()
         })),
         api::PaymentMethod::Wallet(wallet) => match wallet.issuer_name {

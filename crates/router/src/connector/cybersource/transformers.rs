@@ -41,10 +41,10 @@ pub struct PaymentInformation {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: String,
-    expiration_month: String,
-    expiration_year: String,
-    security_code: String,
+    number: Secret<String, pii::CardNumber>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    security_code: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -107,8 +107,8 @@ fn build_bill_to(
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ccard) => {
                 let phone = item.get_billing_phone()?;
                 let phone_number = phone.get_number()?;
                 let country_code = phone.get_country_code()?;
@@ -131,10 +131,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
 
                 let payment_information = PaymentInformation {
                     card: Card {
-                        number: ccard.card_number.peek().clone(),
-                        expiration_month: ccard.card_exp_month.peek().clone(),
-                        expiration_year: ccard.card_exp_year.peek().clone(),
-                        security_code: ccard.card_cvc.peek().clone(),
+                        number: ccard.card_number,
+                        expiration_month: ccard.card_exp_month,
+                        expiration_year: ccard.card_exp_year,
+                        security_code: ccard.card_cvc,
                     },
                 };
 
