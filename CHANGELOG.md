@@ -2,7 +2,7 @@
 
 ## Build System / Dependencies
 
-* **docker-compose:**  increase docker health check interval for hyperswitch-server (#534) (1ba6b8c9)
+* **docker-compose:**  increase docker health check interval for hyperswitch-server (#534)
 
 ## Chores
 
@@ -20,7 +20,7 @@
 
 * **router:**
   *  include eligible connectors list in list payment methods (#644) (92771b3b)
-  *  implement API endpoints for managing API keys (#511) (1bdc8955)
+  *  Implement API endpoints for managing API keys (#511) (1bdc8955)
 * **connector:**
   *  [Airwallex] add authorize, capture, void, psync, Webhooks support (#646) (6a67dd8b)
   *  [Bluesnap] add authorize, capture, void, refund, psync, rsync and Webhooks support (#649) (7efdc3c5)
