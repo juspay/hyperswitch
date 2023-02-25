@@ -534,6 +534,7 @@ impl
             .parse_struct("nuvei NuveiSessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(nuvei_session_response=?response);
+
         types::ResponseRouterData {
             response,
             data: data.clone(),
