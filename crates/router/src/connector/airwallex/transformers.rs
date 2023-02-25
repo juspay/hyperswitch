@@ -12,9 +12,11 @@ use crate::{
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
+    // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
     amount: i64,
     currency: enums::Currency,
+    //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
 }
 impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexIntentRequest {
@@ -33,6 +35,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexInten
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexPaymentsRequest {
+    // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
     payment_method: AirwallexPaymentMethod,
     payment_method_options: Option<AirwallexPaymentOptions>,
@@ -138,6 +141,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, 
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexPaymentsCaptureRequest {
+    // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
     amount: Option<i64>,
 }
@@ -154,6 +158,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexPaymentsCancelRequest {
+    // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
     cancellation_reason: Option<String>,
 }
@@ -215,8 +220,10 @@ pub struct AirwallexPaymentsNextAction {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
+    //Unique identifier for the PaymentIntent
     id: String,
     amount: Option<i64>,
+    //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<String>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
@@ -267,9 +274,11 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct AirwallexRefundRequest {
+    // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
     amount: Option<i64>,
     reason: Option<String>,
+    //Identifier for the PaymentIntent for which Refund is requested
     payment_intent_id: String,
 }
 
@@ -308,8 +317,10 @@ impl From<RefundStatus> for enums::RefundStatus {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
+    //A unique number that tags a credit or debit card transaction when it goes from the merchant's bank through to the cardholder's bank.
     acquirer_reference_number: String,
     amount: i64,
+    //Unique identifier for the Refund
     id: String,
     status: RefundStatus,
 }
