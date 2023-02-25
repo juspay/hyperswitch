@@ -3,10 +3,11 @@ use common_utils::{
     date_time,
 };
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsCancelRequestData, RouterData},
+    connector::utils::{PaymentsCancelRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -101,12 +102,12 @@ pub struct BillingAddress {
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub card_number: Option<String>,
-    pub card_holder_name: Option<String>,
-    pub expiration_month: Option<String>,
-    pub expiration_year: Option<String>,
+    pub card_number: Option<Secret<String, common_utils::pii::CardNumber>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub expiration_month: Option<Secret<String>>,
+    pub expiration_year: Option<Secret<String>>,
     #[serde(rename = "CVV")]
-    pub cvv: Option<String>,
+    pub cvv: Option<Secret<String>>,
     pub three_d: Option<ThreeD>,
     pub cc_card_number: Option<String>,
     pub bin: Option<String>,
@@ -236,8 +237,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NuveiPaymentsRequest {
         let client_request_id = item.attempt_id.clone();
         let time_stamp = date_time::date_as_yyyymmddhhmmss();
         let merchant_secret = connector_meta.merchant_secret;
-        match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref card) => Ok(Self {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(card) => Ok(Self {
                 merchant_id: merchant_id.clone(),
                 merchant_site_id: merchant_site_id.clone(),
                 client_request_id: client_request_id.clone(),
@@ -250,11 +251,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NuveiPaymentsRequest {
                     .unwrap_or_default(),
                 payment_option: PaymentOption {
                     card: Card {
-                        card_number: Some(card.get_card_number()),
-                        card_holder_name: Some(card.get_card_holder_name()),
-                        expiration_month: Some(card.get_card_expiry_month()),
-                        expiration_year: Some(card.get_card_expiry_year()),
-                        cvv: Some(card.get_card_cvc()),
+                        card_number: Some(card.card_number),
+                        card_holder_name: Some(card.card_holder_name),
+                        expiration_month: Some(card.card_exp_month),
+                        expiration_year: Some(card.card_exp_year),
+                        cvv: Some(card.card_cvc),
                         ..Default::default()
                     },
                     ..Default::default()

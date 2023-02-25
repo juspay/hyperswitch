@@ -1,3 +1,5 @@
+use common_utils::pii;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize)]
@@ -298,18 +300,18 @@ pub struct Card {
     /// did not work as expected.
     pub chip_condition: Option<ChipCondition>,
     /// The numeric value printed on the physical card.
-    pub cvv: String,
+    pub cvv: Secret<String>,
     /// Card Verification Value Indicator sent by the Merchant indicating the CVV
     /// availability.
     pub cvv_indicator: CvvIndicator,
     /// The 2 digit expiry date month of the card.
-    pub expiry_month: String,
+    pub expiry_month: Secret<String>,
     /// The 2 digit expiry date year of the card.
-    pub expiry_year: String,
+    pub expiry_year: Secret<String>,
     /// Indicates whether the card is a debit or credit card.
     pub funding: Option<Funding>,
     /// The the card account number used to authorize the transaction. Also known as PAN.
-    pub number: String,
+    pub number: Secret<String, pii::CardNumber>,
     /// Contains the pin block info, relating to the pin code the Payer entered.
     pub pin_block: Option<String>,
     /// The full card tag data for an EMV/chip card transaction.

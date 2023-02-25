@@ -53,6 +53,7 @@ cards = [
     "braintree",
     "checkout",
     "cybersource",
+    "dlocal",
     "fiserv",
     "globalpay",
     "nuvei",
@@ -129,6 +130,9 @@ base_url = "https://ppp-test.nuvei.com/"
 
 [connectors.airwallex]
 base_url = "https://api-demo.airwallex.com/"
+
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

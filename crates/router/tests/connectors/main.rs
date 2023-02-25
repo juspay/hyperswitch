@@ -8,6 +8,7 @@ mod bluesnap;
 mod checkout;
 mod connector_auth;
 mod cybersource;
+mod dlocal;
 mod fiserv;
 mod globalpay;
 mod nuvei;

@@ -1,5 +1,3 @@
-use std::{thread::sleep, time::Duration};
-
 use masking::Secret;
 use router::types::{
     self,
@@ -54,6 +52,10 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             }),
             ..Default::default()
         }),
+        access_token: Some(types::AccessToken {
+            token: "<access_token>".to_string(),
+            expires: 18600,
+        }),
         ..Default::default()
     })
 }
@@ -100,7 +102,6 @@ async fn should_sync_payment() {
         .await
         .unwrap();
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    sleep(Duration::from_secs(5)); // to avoid 404 error as globalpay takes some time to process the new transaction
     let response = connector
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
@@ -111,7 +112,7 @@ async fn should_sync_payment() {
                 encoded_data: None,
                 capture_method: None,
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();

@@ -94,6 +94,9 @@ base_url = "https://ppp-test.nuvei.com/"
 [connectors.airwallex]
 base_url = "https://api-demo.airwallex.com/"
 
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
@@ -105,6 +108,7 @@ cards = [
     "braintree",
     "checkout",
     "cybersource",
+    "dlocal",
     "fiserv",
     "globalpay",
     "nuvei",

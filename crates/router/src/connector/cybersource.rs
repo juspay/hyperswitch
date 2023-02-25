@@ -14,7 +14,7 @@ use crate::{
     connector::utils::RefundsRequestData,
     consts,
     core::errors::{self, CustomResult},
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -265,7 +265,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(cybersourcepayments_create_response=?response);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -348,7 +347,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(cybersourcepayments_create_response=?response);
         let is_auto_capture =
             data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
@@ -436,7 +434,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(cybersourcepayments_create_response=?response);
         let is_auto_capture =
             data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
@@ -517,7 +514,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(cybersourcepayments_create_response=?response);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -607,7 +603,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(cybersource_refund_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -675,7 +670,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("Cybersource RefundsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(cybersourcepayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),

@@ -1,12 +1,12 @@
 use api_models::payments;
 use base64::Engine;
 use error_stack::ResultExt;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     consts,
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -79,10 +79,10 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    number: String,
-    expiration_month: String,
-    expiration_year: String,
-    cvv: String,
+    number: Secret<String, common_utils::pii::CardNumber>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    cvv: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
@@ -100,13 +100,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
         };
         let kind = "sale".to_string();
 
-        let payment_method_data_type = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Ok(PaymentMethodType::CreditCard(Card {
+        let payment_method_data_type = match item.request.payment_method_data.clone() {
+            api::PaymentMethod::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
                 credit_card: CardDetails {
-                    number: ccard.card_number.peek().clone(),
-                    expiration_month: ccard.card_exp_month.peek().clone(),
-                    expiration_year: ccard.card_exp_year.peek().clone(),
-                    cvv: ccard.card_cvc.peek().clone(),
+                    number: ccard.card_number,
+                    expiration_month: ccard.card_exp_month,
+                    expiration_year: ccard.card_exp_year,
+                    cvv: ccard.card_cvc,
                 },
             })),
             api::PaymentMethod::Wallet(ref wallet_data) => {

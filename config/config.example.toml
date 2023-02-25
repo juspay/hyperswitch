@@ -159,10 +159,13 @@ base_url = "https://sandbox.bluesnap.com/"
 [connectors.nuvei]
 base_url = "https://ppp-test.nuvei.com/"
 
-# This data is used to call respective connectors for wallets and cards
 [connectors.airwallex]
 base_url = "https://api-demo.airwallex.com/"
 
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
+
+# This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [

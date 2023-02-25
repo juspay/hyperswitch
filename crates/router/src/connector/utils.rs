@@ -40,6 +40,7 @@ pub trait RouterData {
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_connector_meta(&self) -> Result<serde_json::Value, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
+    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -94,7 +95,13 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.phone.as_ref())
             .ok_or_else(missing_field_err("billing.phone"))
     }
-
+    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .ok_or_else(missing_field_err("billing.address"))
+    }
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
             .billing
@@ -139,33 +146,14 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
 }
 
 pub trait CardData {
-    fn get_card_number(&self) -> String;
-    fn get_card_holder_name(&self) -> String;
-    fn get_card_expiry_month(&self) -> String;
-    fn get_card_expiry_year(&self) -> String;
-    fn get_card_expiry_year_2_digit(&self) -> String;
-    fn get_card_cvc(&self) -> String;
+    fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
-    fn get_card_number(&self) -> String {
-        self.card_number.peek().clone()
-    }
-    fn get_card_holder_name(&self) -> String {
-        self.card_holder_name.peek().clone()
-    }
-    fn get_card_expiry_month(&self) -> String {
-        self.card_exp_month.peek().clone()
-    }
-    fn get_card_expiry_year(&self) -> String {
-        self.card_exp_year.peek().clone()
-    }
-    fn get_card_expiry_year_2_digit(&self) -> String {
-        let year = self.card_exp_year.peek().clone();
-        year[year.len() - 2..].to_string()
-    }
-    fn get_card_cvc(&self) -> String {
-        self.card_cvc.peek().clone()
+    fn get_card_expiry_year_2_digit(&self) -> Secret<String> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        Secret::new(year[year.len() - 2..].to_string())
     }
 }
 pub trait PhoneDetailsData {

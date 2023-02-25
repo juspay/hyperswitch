@@ -388,6 +388,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 message,
                 connector,
                 status_code,
+                ..
             } => Self::ExternalConnectorError {
                 code,
                 message,
