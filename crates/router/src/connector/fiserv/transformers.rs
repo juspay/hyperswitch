@@ -226,7 +226,6 @@ impl<F, T>
                     gateway_resp.transaction_processing_details.transaction_id,
                 ),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),

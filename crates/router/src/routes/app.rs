@@ -315,7 +315,8 @@ impl Webhooks {
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector}")
-                    .route(web::post().to(receive_incoming_webhook)),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook)),
             )
     }
 }
@@ -340,7 +341,7 @@ pub struct ApiKeys;
 #[cfg(feature = "olap")]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/api_keys")
+        web::scope("/api_keys/{merchant_id}")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(api_key_create)))
             .service(web::resource("/list").route(web::get().to(api_key_list)))

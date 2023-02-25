@@ -22,8 +22,6 @@ pub struct PaymentAttempt {
     pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethodType>,
-    pub payment_flow: Option<storage_enums::PaymentFlow>,
-    pub redirect: Option<bool>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub capture_on: Option<PrimitiveDateTime>,
@@ -39,6 +37,8 @@ pub struct PaymentAttempt {
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
+    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
 }
 
 #[derive(
@@ -61,8 +61,6 @@ pub struct PaymentAttemptNew {
     pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethodType>,
-    pub payment_flow: Option<storage_enums::PaymentFlow>,
-    pub redirect: Option<bool>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub capture_on: Option<PrimitiveDateTime>,
@@ -78,6 +76,8 @@ pub struct PaymentAttemptNew {
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
+    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,7 +117,6 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
-        redirect: Option<bool>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },
@@ -146,7 +145,6 @@ pub struct PaymentAttemptUpdateInternal {
     payment_method_id: Option<Option<String>>,
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
-    redirect: Option<bool>,
     mandate_id: Option<String>,
     browser_info: Option<serde_json::Value>,
     payment_token: Option<String>,
@@ -243,7 +241,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
-                redirect,
                 mandate_id,
                 connector_metadata,
             } => Self {
@@ -253,7 +250,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_type,
                 payment_method_id,
                 modified_at: Some(common_utils::date_time::now()),
-                redirect,
                 mandate_id,
                 connector_metadata,
                 ..Default::default()

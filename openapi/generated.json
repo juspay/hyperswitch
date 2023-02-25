@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hyperswitch - API Documentation",
-    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data. Currently, our sandbox environment is live while our production environment is under development and will be available soon. You can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | Coming Soon!                       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in the\nrequest Authorization header.\n\n| Key           |  Description                                                                                  |\n|---------------|-----------------------------------------------------------------------------------------------|\n| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |\n| Production    | Unique identifier for your account. Used to authenticate API requests from your app’s client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | Coming Soon!                       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key           |  Description                                                                                  |\n|---------------|-----------------------------------------------------------------------------------------------|\n| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |\n| Production    | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
@@ -406,7 +406,7 @@
         "deprecated": false
       }
     },
-    "/api_keys": {
+    "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
           "API Key"
@@ -442,7 +442,44 @@
         "deprecated": false
       }
     },
-    "/api_keys/list": {
+    "/api_keys/{merchant_id)/{key_id}": {
+      "delete": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Revoke",
+        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "operationId": "Revoke an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api_keys/{merchant_id}/list": {
       "get": {
         "tags": [
           "API Key"
@@ -490,7 +527,7 @@
         "deprecated": false
       }
     },
-    "/api_keys/{key_id}": {
+    "/api_keys/{merchant_id}/{key_id}": {
       "get": {
         "tags": [
           "API Key"
@@ -561,41 +598,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RetrieveApiKeyResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "API Key not found"
-          }
-        },
-        "deprecated": false
-      },
-      "delete": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - Revoke",
-        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
-        "operationId": "Revoke an API Key",
-        "parameters": [
-          {
-            "name": "key_id",
-            "in": "path",
-            "description": "The unique identifier for the API Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "API Key revoked",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
                 }
               }
             }
@@ -1904,6 +1906,28 @@
           "afterpay_clearpay"
         ]
       },
+      "AmountInfo": {
+        "type": "object",
+        "required": [
+          "label",
+          "type",
+          "amount"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "the label must be non-empty to pass validation."
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of label"
+          },
+          "amount": {
+            "type": "string",
+            "description": "The total amount for the payment"
+          }
+        }
+      },
       "ApiKeyExpiration": {
         "oneOf": [
           {
@@ -1917,6 +1941,123 @@
             "format": "date-time"
           }
         ]
+      },
+      "ApplePayRequest": {
+        "type": "object",
+        "required": [
+          "country_code",
+          "currency_code",
+          "total",
+          "merchant_capabilities",
+          "supported_networks"
+        ],
+        "properties": {
+          "country_code": {
+            "type": "string",
+            "description": "The code for country"
+          },
+          "currency_code": {
+            "type": "string",
+            "description": "The code for currency"
+          },
+          "total": {
+            "$ref": "#/components/schemas/AmountInfo"
+          },
+          "merchant_capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)"
+            }
+          },
+          "supported_networks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The list of supported networks"
+            }
+          }
+        }
+      },
+      "ApplePaySessionObject": {
+        "type": "object",
+        "required": [
+          "epoch_timestamp",
+          "expires_at",
+          "merchant_session_identifier",
+          "nonce",
+          "merchant_identifier",
+          "domain_name",
+          "display_name",
+          "signature",
+          "operational_analytics_identifier",
+          "retries",
+          "psp_id"
+        ],
+        "properties": {
+          "epoch_timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Timestamp at which session is requested"
+          },
+          "expires_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Timestamp at which session expires"
+          },
+          "merchant_session_identifier": {
+            "type": "string",
+            "description": "The identifier for the merchant session"
+          },
+          "nonce": {
+            "type": "string",
+            "description": "Applepay generates unique ID (UUID) value"
+          },
+          "merchant_identifier": {
+            "type": "string",
+            "description": "The identifier for the merchant"
+          },
+          "domain_name": {
+            "type": "string",
+            "description": "The domain name of the merchant which is registered in Apple Pay"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The name to be displayed on Apple Pay button"
+          },
+          "signature": {
+            "type": "string",
+            "description": "A string which represents the properties of a payment"
+          },
+          "operational_analytics_identifier": {
+            "type": "string",
+            "description": "The identifier for the operational analytics"
+          },
+          "retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of retries to get the session response"
+          },
+          "psp_id": {
+            "type": "string",
+            "description": "The identifier for the connector transaction"
+          }
+        }
+      },
+      "ApplepayData": {
+        "type": "object",
+        "required": [
+          "session_object",
+          "payment_request_object"
+        ],
+        "properties": {
+          "session_object": {
+            "$ref": "#/components/schemas/ApplePaySessionObject"
+          },
+          "payment_request_object": {
+            "$ref": "#/components/schemas/ApplePayRequest"
+          }
+        }
       },
       "AuthenticationType": {
         "type": "string",
@@ -2129,7 +2270,7 @@
           "api_key": {
             "type": "string",
             "description": "The plaintext API Key used for server-side API access. Ensure you store the API Key\nsecurely as you will not be able to see it again.",
-            "maxLength": 64
+            "maxLength": 128
           },
           "created": {
             "type": "string",
@@ -2602,10 +2743,9 @@
             "maxLength": 255
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32",
+            "type": "string",
             "description": "Unique ID of the connector",
-            "example": 42
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "deleted": {
             "type": "boolean",
@@ -2703,6 +2843,28 @@
           }
         }
       },
+      "GpayData": {
+        "type": "object",
+        "required": [
+          "merchant_info",
+          "allowed_payment_methods",
+          "transaction_info"
+        ],
+        "properties": {
+          "merchant_info": {
+            "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "allowed_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+            }
+          },
+          "transaction_info": {
+            "$ref": "#/components/schemas/GpayTransactionInfo"
+          }
+        }
+      },
       "GpayMerchantInfo": {
         "type": "object",
         "required": [
@@ -2789,6 +2951,23 @@
           "requires_capture"
         ]
       },
+      "KlarnaData": {
+        "type": "object",
+        "required": [
+          "session_token",
+          "session_id"
+        ],
+        "properties": {
+          "session_token": {
+            "type": "string",
+            "description": "The session token for Klarna"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "The identifier for the session"
+          }
+        }
+      },
       "KlarnaIssuer": {
         "type": "string",
         "enum": [
@@ -2809,8 +2988,8 @@
             },
             "example": [
               {
-                "payment_method": "wallet",
                 "payment_experience": null,
+                "payment_method": "wallet",
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
@@ -2950,8 +3129,8 @@
             },
             "example": [
               {
-                "payment_method": "wallet",
                 "payment_experience": null,
+                "payment_method": "wallet",
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
@@ -3210,8 +3389,7 @@
             "type": "string"
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32"
+            "type": "string"
           }
         }
       },
@@ -3362,14 +3540,10 @@
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "billing_email",
                   "billing_country"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3391,13 +3565,9 @@
                 "type": "object",
                 "description": "For Klarna Sdk as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "token"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/KlarnaIssuer"
-                  },
                   "token": {
                     "type": "string",
                     "description": "The token for the sdk workflow"
@@ -3414,20 +3584,7 @@
             "properties": {
               "affirm_redirect": {
                 "type": "object",
-                "description": "For Affirm redirect as PayLater Option",
-                "required": [
-                  "issuer_name",
-                  "billing_email"
-                ],
-                "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AffirmIssuer"
-                  },
-                  "billing_email": {
-                    "type": "string",
-                    "description": "The billing email"
-                  }
-                }
+                "description": "For Affirm redirect as PayLater Option"
               }
             }
           },
@@ -3441,14 +3598,10 @@
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
                 "required": [
-                  "issuer_name",
                   "billing_email",
                   "billing_name"
                 ],
                 "properties": {
-                  "issuer_name": {
-                    "$ref": "#/components/schemas/AfterpayClearpayIssuer"
-                  },
                   "billing_email": {
                     "type": "string",
                     "description": "The billing email"
@@ -3480,10 +3633,9 @@
             "example": "stripe"
           },
           "merchant_connector_id": {
-            "type": "integer",
-            "format": "int32",
+            "type": "string",
             "description": "Unique ID of the connector",
-            "example": 42
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "connector_account_details": {
             "type": "object"
@@ -3507,31 +3659,31 @@
             },
             "example": [
               {
-                "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
+                "accepted_countries": [
+                  "in",
+                  "us"
                 ],
                 "accepted_currencies": [
                   "AED",
                   "AED"
                 ],
-                "accepted_countries": [
-                  "in",
-                  "us"
-                ],
-                "minimum_amount": 1,
+                "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "minimum_amount": 1,
+                "payment_method": "wallet",
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
+                ],
+                "payment_schemes": [
+                  "Discover",
+                  "Discover"
+                ],
+                "recurring_enabled": true
               }
             ]
           },
@@ -3589,6 +3741,25 @@
               }
             }
           }
+        ]
+      },
+      "PaymentIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna",
+          "affirm",
+          "afterpay_clearpay",
+          "american_express",
+          "bank_of_america",
+          "barclays",
+          "capital_one",
+          "chase",
+          "citi",
+          "discover",
+          "navy_federal_credit_union",
+          "pentagon_federal_credit_union",
+          "synchrony_bank",
+          "wells_fargo"
         ]
       },
       "PaymentListConstraints": {
@@ -3978,7 +4149,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -4125,6 +4296,12 @@
           },
           "browser_info": {
             "type": "object"
+          },
+          "payment_issuer": {
+            "$ref": "#/components/schemas/PaymentIssuer"
+          },
+          "payment_experience": {
+            "$ref": "#/components/schemas/PaymentExperience"
           }
         }
       },
@@ -4139,7 +4316,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant.",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -4398,7 +4575,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
           },
           "merchant_id": {
             "type": "string",
@@ -4407,6 +4584,18 @@
           "attempt_id": {
             "type": "string",
             "description": "The identifier for the payment transaction"
+          }
+        }
+      },
+      "PaypalData": {
+        "type": "object",
+        "required": [
+          "session_token"
+        ],
+        "properties": {
+          "session_token": {
+            "type": "string",
+            "description": "The session token for PayPal"
           }
         }
       },
@@ -4652,7 +4841,7 @@
           "prefix": {
             "type": "string",
             "description": "The first few characters of the plaintext API Key to help you identify it.",
-            "maxLength": 16
+            "maxLength": 64
           },
           "created": {
             "type": "string",
@@ -4700,152 +4889,88 @@
       "SessionToken": {
         "oneOf": [
           {
-            "type": "object",
-            "description": "The session response structure for Google Pay",
-            "required": [
-              "merchant_info",
-              "allowed_payment_methods",
-              "transaction_info",
-              "wallet_name"
-            ],
-            "properties": {
-              "merchant_info": {
-                "$ref": "#/components/schemas/GpayMerchantInfo"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayData"
               },
-              "allowed_payment_methods": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "gpay"
+                    ]
+                  }
                 }
-              },
-              "transaction_info": {
-                "$ref": "#/components/schemas/GpayTransactionInfo"
-              },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "gpay"
-                ]
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "description": "The session response structure for Klarna",
-            "required": [
-              "session_token",
-              "session_id",
-              "wallet_name"
-            ],
-            "properties": {
-              "session_token": {
-                "type": "string",
-                "description": "The session token for Klarna"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/KlarnaData"
               },
-              "session_id": {
-                "type": "string",
-                "description": "The identifier for the session"
-              },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "klarna"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "klarna"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "description": "The session response structure for PayPal",
-            "required": [
-              "session_token",
-              "wallet_name"
-            ],
-            "properties": {
-              "session_token": {
-                "type": "string",
-                "description": "The session token for PayPal"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalData"
               },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "paypal"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paypal"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "description": "The session response structure for Apple Pay",
-            "required": [
-              "epoch_timestamp",
-              "expires_at",
-              "merchant_session_identifier",
-              "nonce",
-              "merchant_identifier",
-              "domain_name",
-              "display_name",
-              "signature",
-              "operational_analytics_identifier",
-              "retries",
-              "psp_id",
-              "wallet_name"
-            ],
-            "properties": {
-              "epoch_timestamp": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Timestamp at which session is requested"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplepayData"
               },
-              "expires_at": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Timestamp at which session expires"
-              },
-              "merchant_session_identifier": {
-                "type": "string",
-                "description": "The identifier for the merchant session"
-              },
-              "nonce": {
-                "type": "string",
-                "description": "Applepay generates unique ID (UUID) value"
-              },
-              "merchant_identifier": {
-                "type": "string",
-                "description": "The identifier for the merchant"
-              },
-              "domain_name": {
-                "type": "string",
-                "description": "The domain name of the merchant which is registered in Apple Pay"
-              },
-              "display_name": {
-                "type": "string",
-                "description": "The name to be displayed on Apple Pay button"
-              },
-              "signature": {
-                "type": "string",
-                "description": "A string which represents the properties of a payment"
-              },
-              "operational_analytics_identifier": {
-                "type": "string",
-                "description": "The identifier for the operational analytics"
-              },
-              "retries": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The number of retries to get the session response"
-              },
-              "psp_id": {
-                "type": "string",
-                "description": "The identifier for the connector transaction"
-              },
-              "wallet_name": {
-                "type": "string",
-                "enum": [
-                  "applepay"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "applepay"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           }
         ],
         "discriminator": {
