@@ -564,18 +564,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.next_action.as_ref().map(
             |StripeNextActionResponse::RedirectToUrl(response)| {
-                let mut base_url = response.url.clone();
-                base_url.set_query(None);
-                services::RedirectForm {
-                    url: base_url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: std::collections::HashMap::from_iter(
-                        response
-                            .url
-                            .query_pairs()
-                            .map(|(k, v)| (k.to_string(), v.to_string())),
-                    ),
-                }
+                services::RedirectForm::from((response.url.clone(), services::Method::Get))
             },
         );
 
