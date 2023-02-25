@@ -177,10 +177,9 @@ pub enum StripeErrorCode {
         connector: String,
         status_code: u16,
     },
-    
+
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
-
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -337,7 +336,7 @@ pub enum StripeErrorType {
     CardError,
     InvalidRequestError,
     ConnectorError,
-    HyperswitchError
+    HyperswitchError,
 }
 
 impl From<errors::ApiErrorResponse> for StripeErrorCode {
@@ -395,7 +394,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 connector,
                 status_code,
             },
-            errors::ApiErrorResponse::IncorrectConnectorNameGiven => Self::IncorrectConnectorNameGiven,
+            errors::ApiErrorResponse::IncorrectConnectorNameGiven => {
+                Self::IncorrectConnectorNameGiven
+            }
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
