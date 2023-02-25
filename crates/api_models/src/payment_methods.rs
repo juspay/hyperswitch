@@ -151,6 +151,13 @@ pub struct CardDetailFromLocker {
     pub card_fingerprint: Option<masking::Secret<String>>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodTypesInformation {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_experience: Option<api_enums::PaymentExperience>,
+    pub card_networks: Option<api_enums::CardNetworks>,
+}
+
 //List Payment Method
 #[derive(Debug, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]

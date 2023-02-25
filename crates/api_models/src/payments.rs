@@ -1366,7 +1366,7 @@ pub struct BankData {
 
 #[derive(serde::Deserialize)]
 pub struct BankCodeInformation {
-    hyperswitch_code: String,
+    bank_name: String,
     connector_codes: Vec<ConnectorCode>,
 }
 

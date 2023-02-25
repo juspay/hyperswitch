@@ -5,6 +5,7 @@ use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
 use crate::enums as api_enums;
+use crate::payment_methods;
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -288,6 +289,7 @@ pub struct PaymentConnectorCreate {
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
 }
+
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -295,37 +297,35 @@ pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
+
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
-    pub payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
-    /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["MASTER","VISA","DINERS"]))]
-    pub card_networks: Option<Vec<String>>,
-    /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["MASTER","VISA","DINERS"]))]
-    pub card_issuer: Option<Vec<String>>,
+    pub payment_method_types: Option<Vec<payment_methods::PaymentMethodTypesInformation>>,
+
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+
     ///  List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(["US","IN"]))]
     pub accepted_countries: Option<Vec<String>>,
+
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
     pub minimum_amount: Option<i32>,
+
     /// Maximum amount supported by the processor. To be represented in the lowest denomination of
     /// the target currency (For example, for USD it should be in cents)
     #[schema(example = 1313)]
     pub maximum_amount: Option<i32>,
+
     /// Boolean to enable recurring payments / mandates. Default is true.
     #[schema(default = true, example = false)]
     pub recurring_enabled: bool,
+
     /// Boolean to enable installment / EMI / BNPL payments. Default is true.
     #[schema(default = true, example = false)]
     pub installment_payment_enabled: bool,
-    /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

@@ -679,6 +679,25 @@ pub enum BankNames {
     VrBankBraunau,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CardNetworks {
+    Visa,
+    Mastercard,
+}
+
 impl From<AttemptStatus> for IntentStatus {
     fn from(s: AttemptStatus) -> Self {
         match s {
