@@ -514,6 +514,7 @@ pub enum Connector {
     Adyen,
     Applepay,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
